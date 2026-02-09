@@ -1,5 +1,0 @@
-{
-  "name": "Copy of HR Solution & Tools Suite",
-  "description": "A comprehensive React application featuring an HR workflow system (Leave requests, Approvals) and a utility calculator, all running client-side with localStorage persistence.",
-  "requestFramePermissions": []
-}
