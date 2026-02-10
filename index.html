@@ -3,63 +3,125 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول - نظام إدارة العمل</title>
-    <!-- ربط ملف التنسيق من مجلد css -->
-    <link rel="stylesheet" href="css/style.css">
+    <title id="pageTitle">تسجيل الدخول - تمكين</title>
     
-    <!-- استدعاء مكتبات Firebase (الإصدار المتوافق) -->
+    <!-- ربط ملف التنسيق -->
+    <link rel="stylesheet" href="css/login.css">
+    
+    <!-- استدعاء مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
     <div class="login-card">
-        <div class="logo">
-            <h2>شعار الشركة</h2>
+        <!-- أزرار تبديل اللغة -->
+        <div class="lang-switcher" style="text-align: left; margin-bottom: 20px; font-size: 14px;">
+            <span onclick="changeLang('ar')" style="cursor:pointer; color:#2a5298; font-weight:bold; padding: 5px;">عربي</span> | 
+            <span onclick="changeLang('en')" style="cursor:pointer; color:#2a5298; font-weight:bold; padding: 5px;">English</span>
         </div>
-        <h3>مرحباً بك</h3>
-        <p>قم بتسجيل الدخول للمتابعة</p>
+
+        <div class="logo">
+            <h2 id="txt-brand">تمكين للتمويل</h2>
+        </div>
+
+        <h3 id="txt-welcome">مرحباً بك</h3>
+        <p id="txt-sub">قم بتسجيل الدخول للمتابعة</p>
 
         <div class="input-group">
-            <label>البريد الإلكتروني</label>
+            <label id="lbl-email">البريد الإلكتروني</label>
             <input type="email" id="email" placeholder="example@company.com" required>
         </div>
 
         <div class="input-group">
-            <label>كلمة المرور</label>
+            <label id="lbl-pass">كلمة المرور</label>
             <input type="password" id="password" placeholder="********" required>
         </div>
 
-        <button id="loginBtn" onclick="login()">تسجيل الدخول</button>
+        <button id="btn-login" onclick="login()">تسجيل الدخول</button>
         
-        <div id="errorMessage" class="error-msg"></div>
+        <div id="errorMessage" class="error-msg" style="color: red; margin-top: 10px; font-size: 14px;"></div>
     </div>
 
-    <!-- ربط ملف الإعدادات والبرمجة من مجلد js -->
+    <!-- ربط إعدادات Firebase -->
     <script src="js/firebase-config.js"></script>
-    <script src="js/auth.js"></script>
-    <div class="login-card">
-    <!-- زراير اللغة -->
-    <div style="text-align: left; margin-bottom: 15px;">
-        <span onclick="changeLang('ar')" style="cursor:pointer; color:#2a5298; font-weight:bold;">عربي</span> | 
-        <span onclick="changeLang('en')" style="cursor:pointer; color:#2a5298; font-weight:bold;">English</span>
-    </div>
 
-    <h3 id="txt-welcome">مرحباً بك</h3>
-    <p id="txt-sub">قم بتسجيل الدخول للمتابعة</p>
+    <!-- كود البرمجة (اللغة + الدخول) -->
+    <script>
+        // دالة تغيير اللغة
+        function changeLang(lang) {
+            const translations = {
+                ar: {
+                    title: "تسجيل الدخول - تمكين",
+                    brand: "تمكين للتمويل",
+                    welcome: "مرحباً بك",
+                    sub: "قم بتسجيل الدخول للمتابعة",
+                    email: "البريد الإلكتروني",
+                    pass: "كلمة المرور",
+                    btn: "تسجيل الدخول",
+                    dir: "rtl"
+                },
+                en: {
+                    title: "Login - Tamkeen",
+                    brand: "Tamkeen Finance",
+                    welcome: "Welcome Back",
+                    sub: "Please login to continue",
+                    email: "Email Address",
+                    pass: "Password",
+                    btn: "Login Now",
+                    dir: "ltr"
+                }
+            };
 
-    <div class="input-group">
-        <label id="lbl-email">البريد الإلكتروني</label>
-        <input type="email" id="email" placeholder="example@company.com">
-    </div>
+            const t = translations[lang];
+            
+            // تحديث النصوص في الصفحة
+            document.getElementById('pageTitle').innerText = t.title;
+            document.getElementById('txt-brand').innerText = t.brand;
+            document.getElementById('txt-welcome').innerText = t.welcome;
+            document.getElementById('txt-sub').innerText = t.sub;
+            document.getElementById('lbl-email').innerText = t.email;
+            document.getElementById('lbl-pass').innerText = t.pass;
+            document.getElementById('btn-login').innerText = t.btn;
+            
+            // تغيير اتجاه الصفحة
+            document.body.dir = t.dir;
+            
+            // حفظ اللغة المختارة
+            localStorage.setItem('preferredLang', lang);
+        }
 
-    <div class="input-group">
-        <label id="lbl-pass">كلمة المرور</label>
-        <input type="password" id="password" placeholder="********">
-    </div>
+        // دالة تسجيل الدخول (مربوطة بـ Firebase)
+        function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const loginBtn = document.getElementById('btn-login');
 
-    <button id="btn-login" onclick="login()">تسجيل الدخول</button>
-    <div id="errorMessage" class="error-msg"></div>
-</div>
+            if (!email || !password) {
+                errorDiv.innerText = "برجاء إدخال البيانات كاملة";
+                return;
+            }
+
+            loginBtn.innerText = "...";
+            loginBtn.disabled = true;
+
+            firebase.auth().signInWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                window.location.href = "home.html";
+            })
+            .catch((error) => {
+                loginBtn.innerText = document.body.dir === 'rtl' ? "تسجيل الدخول" : "Login Now";
+                loginBtn.disabled = false;
+                errorDiv.innerText = "خطأ: تأكد من الإيميل وباسورد الموظف";
+            });
+        }
+
+        // تشغيل اللغة المحفوظة عند فتح الصفحة
+        window.onload = () => {
+            const savedLang = localStorage.getItem('preferredLang') || 'ar';
+            changeLang(savedLang);
+        };
+    </script>
 </body>
 </html>
