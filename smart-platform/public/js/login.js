@@ -5,10 +5,9 @@ function login() {
 
     firebase.auth().signInWithEmailAndPassword(email, password)
         .then(() => {
-            window.location.href = "home.html";
+            message.innerText = "تم تسجيل الدخول ✅";
         })
         .catch(() => {
-            message.innerText = "بيانات الدخول غير صحيحة";
+            message.innerText = "بيانات الدخول غير صحيحة ❌";
         });
 }
-
