@@ -20,3 +20,4 @@ window.addEventListener('DOMContentLoaded', () => {
     const savedLang = localStorage.getItem('preferredLang') || 'ar';
     applyLanguage(savedLang);
 });
+
