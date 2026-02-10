@@ -53,3 +53,10 @@ function resetCalculator() {
     document.getElementById('loanMonths').value = '';
     document.getElementById('results').style.display = 'none';
 }
+function resetCalculator() {
+    // بنمسح القيم من الخانات
+    document.getElementById('loanAmount').value = '';
+    document.getElementById('loanMonths').value = '';
+    // بنخفي جدول النتائج
+    document.getElementById('results').style.display = 'none';
+}
