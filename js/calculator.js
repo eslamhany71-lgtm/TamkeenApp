@@ -49,9 +49,7 @@ function calculateLoan() {
     document.getElementById('resFinalAdminOnly').innerText = finalAfterAdminOnly.toLocaleString() + " ج.م";
 }
 function resetCalculator() {
-    // تمسح المدخلات
     document.getElementById('loanAmount').value = '';
     document.getElementById('loanMonths').value = '';
-    // تخفي جدول النتائج
     document.getElementById('results').style.display = 'none';
 }
