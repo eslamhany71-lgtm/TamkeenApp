@@ -38,5 +38,28 @@
     <!-- ربط ملف الإعدادات والبرمجة من مجلد js -->
     <script src="js/firebase-config.js"></script>
     <script src="js/auth.js"></script>
+    <div class="login-card">
+    <!-- زراير اللغة -->
+    <div style="text-align: left; margin-bottom: 15px;">
+        <span onclick="changeLang('ar')" style="cursor:pointer; color:#2a5298; font-weight:bold;">عربي</span> | 
+        <span onclick="changeLang('en')" style="cursor:pointer; color:#2a5298; font-weight:bold;">English</span>
+    </div>
+
+    <h3 id="txt-welcome">مرحباً بك</h3>
+    <p id="txt-sub">قم بتسجيل الدخول للمتابعة</p>
+
+    <div class="input-group">
+        <label id="lbl-email">البريد الإلكتروني</label>
+        <input type="email" id="email" placeholder="example@company.com">
+    </div>
+
+    <div class="input-group">
+        <label id="lbl-pass">كلمة المرور</label>
+        <input type="password" id="password" placeholder="********">
+    </div>
+
+    <button id="btn-login" onclick="login()">تسجيل الدخول</button>
+    <div id="errorMessage" class="error-msg"></div>
+</div>
 </body>
 </html>
