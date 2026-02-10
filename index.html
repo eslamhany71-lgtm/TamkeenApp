@@ -3,46 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <title>تسجيل الدخول</title>
-    <link rel="stylesheet" href="style.css">
+
+    <link rel="stylesheet" href="css/login.css">
 </head>
 <body>
+
     <div class="login-container">
         <h2>تسجيل دخول الموظفين</h2>
+
         <input type="email" id="email" placeholder="البريد الإلكتروني">
         <input type="password" id="password" placeholder="كلمة المرور">
+
         <button onclick="login()">دخول</button>
+
         <p id="message"></p>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-    
-    <script>
-        // هنا تضع إعدادات Firebase الخاصة بك
-       const firebaseConfig = {
-  apiKey: "AIzaSyCFVu8FHYq2leGA1F9SQEAXmn1agv1V1cM",
-  authDomain: "smartplatform-513c3.firebaseapp.com",
-  projectId: "smartplatform-513c3",
-  storageBucket: "smartplatform-513c3.appspot.com",
-  messagingSenderId: "906640049959",
-  appId: "1:906640049959:web:c6c619a53ef4d6f9704b02"
-};
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
-        <script type="module" src="js/firebase-config.js"></script>
+    <!-- Firebase Config -->
+    <script src="js/firebase-config.js"></script>
 
-        function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            firebase.auth().signInWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-                window.location.href = "home.html"; // التوجه للصفحة الرئيسية
-            })
-            .catch((error) => {
-                document.getElementById('message').innerText = "خطأ في البيانات أو غير مصرح لك";
-            });
-        }
-    
+    <!-- Login Logic -->
+    <script src="js/login.js"></script>
+
 </body>
 </html>
