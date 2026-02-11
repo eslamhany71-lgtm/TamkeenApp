@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="txt-title">إدارة الموارد البشرية - تمكين</title>
+    <link rel="stylesheet" href="css/hr-admin.css">
+    
+    <!-- مكتبات Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <header>
+        <div class="header-right">
+            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع للرئيسية</button>
+            <div class="lang-switch" style="display:inline; margin-right:10px;">
+                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+            </div>
+        </div>
+        <h2 id="txt-header">لوحة تحكم الـ HR Admin</h2>
+    </header>
+
+    <main class="container">
+        <!-- شريط ملخص البيانات -->
+        <div class="summary-bar">
+            <div class="sum-item">
+                <span id="txt-total">إجمالي الطلبات:</span>
+                <strong id="total-count">0</strong>
+            </div>
+            <div class="sum-item">
+                <span id="txt-approved">الموافق عليها:</span>
+                <strong id="approved-count" style="color: green;">0</strong>
+            </div>
+            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير (Excel)</button>
+        </div>
+
+        <!-- جدول عرض الطلبات بشكل احترافي -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th id="th-name">الموظف</th>
+                        <th id="th-type">نوع الطلب</th>
+                        <th id="th-date">التاريخ</th>
+                        <th id="th-status">الحالة</th>
+                        <th id="th-action">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody id="hr-requests-table">
+                    <!-- البيانات هتنزل هنا من الـ JS -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/lang-manager.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/hr-admin.js"></script>
+</body>
+</html>
