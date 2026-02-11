@@ -6,7 +6,6 @@
     <title id="txt-title">إدارة الموارد البشرية - تمكين</title>
     <link rel="stylesheet" href="css/hr-admin.css">
     
-    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -15,7 +14,7 @@
 
     <header>
         <div class="header-right">
-            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع للرئيسية</button>
+            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
             <div class="lang-switch" style="display:inline; margin-right:10px;">
                 <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
                 <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
@@ -25,7 +24,6 @@
     </header>
 
     <main class="container">
-        <!-- شريط ملخص البيانات -->
         <div class="summary-bar">
             <div class="sum-item">
                 <span id="txt-total">إجمالي الطلبات:</span>
@@ -35,15 +33,17 @@
                 <span id="txt-approved">الموافق عليها:</span>
                 <strong id="approved-count" style="color: green;">0</strong>
             </div>
-            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير (Excel)</button>
+            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير كامل (Excel)</button>
         </div>
 
-        <!-- جدول عرض الطلبات بشكل احترافي -->
+        <!-- جدول الموظفين المطور -->
         <div class="table-container">
-            <table>
+            <table id="requestsTable">
                 <thead>
                     <tr>
+                        <th id="th-code">الكود</th>
                         <th id="th-name">الموظف</th>
+                        <th id="th-job">الوظيفة / القسم</th>
                         <th id="th-type">نوع الطلب</th>
                         <th id="th-date">التاريخ</th>
                         <th id="th-status">الحالة</th>
@@ -51,7 +51,7 @@
                     </tr>
                 </thead>
                 <tbody id="hr-requests-table">
-                    <!-- البيانات هتنزل هنا من الـ JS -->
+                    <!-- البيانات ستظهر هنا -->
                 </tbody>
             </table>
         </div>
