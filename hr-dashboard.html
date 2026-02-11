@@ -37,19 +37,33 @@
             <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير كامل (Excel)</button>
         </div>
 
-        <!-- قسم الفلاتر الجديد -->
-        <div class="filter-section">
-            <div class="filter-group">
-                <label id="lbl-filter-date">فلتر بالتاريخ:</label>
-                <input type="date" id="filter-date-from" onchange="filterTable()" placeholder="من">
-                <input type="date" id="filter-date-to" onchange="filterTable()" placeholder="إلى">
-            </div>
-            <div class="filter-group">
-                <label id="lbl-filter-dept">البحث بالقسم / الوظيفة:</label>
-                <input type="text" id="filter-dept" onkeyup="filterTable()" placeholder="اكتب اسم القسم أو الوظيفة...">
-            </div>
-            <button class="reset-filter-btn" onclick="resetFilters()" id="btn-reset-filter">إعادة ضبط</button>
+      <!-- استبدل قسم الفلاتر القديم بهذا الكود المحدث -->
+<div class="filter-section">
+    <div class="filter-group">
+        <label id="lbl-filter-date">فلتر بالتاريخ:</label>
+        <div style="display: flex; gap: 5px;">
+            <input type="date" id="filter-date-from" onchange="filterTable()">
+            <input type="date" id="filter-date-to" onchange="filterTable()">
         </div>
+    </div>
+    
+    <div class="filter-group">
+        <label id="lbl-filter-type">نوع الطلب:</label>
+        <select id="filter-type" onchange="filterTable()">
+            <option value="" id="opt-all">الكل</option>
+            <option value="vacation" id="opt-vac">إجازة</option>
+            <option value="late" id="opt-late">إذن تأخير</option>
+            <option value="exit" id="opt-exit">تصريح خروج</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label id="lbl-filter-dept">البحث بالقسم / الوظيفة:</label>
+        <input type="text" id="filter-dept" onkeyup="filterTable()" placeholder="اكتب اسم القسم أو الوظيفة...">
+    </div>
+
+    <button class="reset-filter-btn" onclick="resetFilters()" id="btn-reset-filter">إعادة ضبط</button>
+</div>
 
         <!-- جدول الموظفين المطور -->
         <div class="table-container">
