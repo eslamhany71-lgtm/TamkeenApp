@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">إدارة الموارد البشرية - تمكين</title>
+    
+    <!-- ربط ملفات التنسيق -->
     <link rel="stylesheet" href="css/hr-admin.css">
     
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -24,7 +27,8 @@
     </header>
 
     <main class="container">
-        <!-- شريط ملخص البيانات -->
+        
+        <!-- القسم الأول: إحصائيات وتقارير -->
         <div class="summary-bar">
             <div class="sum-item">
                 <span id="txt-total">إجمالي الطلبات:</span>
@@ -34,38 +38,48 @@
                 <span id="txt-approved">الموافق عليها:</span>
                 <strong id="approved-count" style="color: green;">0</strong>
             </div>
-            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير كامل (Excel)</button>
+            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير (Excel)</button>
         </div>
 
-      <!-- استبدل قسم الفلاتر القديم بهذا الكود المحدث -->
-<div class="filter-section">
-    <div class="filter-group">
-        <label id="lbl-filter-date">فلتر بالتاريخ:</label>
-        <div style="display: flex; gap: 5px;">
-            <input type="date" id="filter-date-from" onchange="filterTable()">
-            <input type="date" id="filter-date-to" onchange="filterTable()">
+        <!-- القسم الثاني (الجديد): أداة رفع بيانات الموظفين الجدد -->
+        <div class="summary-bar" style="background: #e8f4fd; border-right: 5px solid #2a5298; flex-direction: column; align-items: flex-start; gap: 10px;">
+            <label style="font-weight: bold; color: #2a5298;" id="lbl-upload">رفع بيانات الموظفين (ملف CSV):</label>
+            <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
+                <input type="file" id="csvFile" accept=".csv" style="padding: 5px; background: white; border-radius: 5px; flex: 1;">
+                <button onclick="uploadCSV()" class="export-btn" style="background:#2a5298" id="btn-upload-start">ابدأ الرفع الآن</button>
+            </div>
+            <p style="font-size: 11px; color: #555;" id="txt-upload-note">ملحوظة: ترتيب الأعمدة في الملف يجب أن يكون: (الكود, الاسم, الموبايل)</p>
         </div>
-    </div>
-    
-    <div class="filter-group">
-        <label id="lbl-filter-type">نوع الطلب:</label>
-        <select id="filter-type" onchange="filterTable()">
-            <option value="" id="opt-all">الكل</option>
-            <option value="vacation" id="opt-vac">إجازة</option>
-            <option value="late" id="opt-late">إذن تأخير</option>
-            <option value="exit" id="opt-exit">تصريح خروج</option>
-        </select>
-    </div>
 
-    <div class="filter-group">
-        <label id="lbl-filter-dept">البحث بالقسم / الوظيفة:</label>
-        <input type="text" id="filter-dept" onkeyup="filterTable()" placeholder="اكتب اسم القسم أو الوظيفة...">
-    </div>
+        <!-- القسم الثالث: الفلاتر -->
+        <div class="filter-section">
+            <div class="filter-group">
+                <label id="lbl-filter-date">فلتر بالتاريخ:</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="date" id="filter-date-from" onchange="filterTable()">
+                    <input type="date" id="filter-date-to" onchange="filterTable()">
+                </div>
+            </div>
+            
+            <div class="filter-group">
+                <label id="lbl-filter-type">نوع الطلب:</label>
+                <select id="filter-type" onchange="filterTable()">
+                    <option value="" id="opt-all">الكل</option>
+                    <option value="vacation" id="opt-vac">إجازة</option>
+                    <option value="late" id="opt-late">إذن تأخير</option>
+                    <option value="exit" id="opt-exit">تصريح خروج</option>
+                </select>
+            </div>
 
-    <button class="reset-filter-btn" onclick="resetFilters()" id="btn-reset-filter">إعادة ضبط</button>
-</div>
+            <div class="filter-group">
+                <label id="lbl-filter-dept">البحث بالقسم / الوظيفة:</label>
+                <input type="text" id="filter-dept" onkeyup="filterTable()" placeholder="...">
+            </div>
 
-        <!-- جدول الموظفين المطور -->
+            <button class="reset-filter-btn" onclick="resetFilters()" id="btn-reset-filter">إعادة ضبط</button>
+        </div>
+
+        <!-- القسم الرابع: جدول البيانات -->
         <div class="table-container">
             <table id="requestsTable">
                 <thead>
@@ -86,6 +100,7 @@
         </div>
     </main>
 
+    <!-- الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
