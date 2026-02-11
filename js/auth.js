@@ -36,3 +36,24 @@ function logout() {
         alert("حدث خطأ أثناء تسجيل الخروج");
     });
 }
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        // 1. روح لجدول الـ Users وهات بيانات الموظف ده
+        firebase.firestore().collection("Users").doc(user.email).get().then((doc) => {
+            if (doc.exists) {
+                const userData = doc.data();
+                const role = userData.role;
+
+                // 2. إظهار الكروت حسب الصلاحية
+                if (role === 'manager') {
+                    document.getElementById('manager-card').style.display = 'block';
+                } else if (role === 'hr') {
+                    document.getElementById('hr-card').style.display = 'block';
+                    document.getElementById('manager-card').style.display = 'block'; // الـ HR يشوف الاتنين
+                }
+            }
+        });
+    } else {
+        window.location.href = "index.html";
+    }
+});
