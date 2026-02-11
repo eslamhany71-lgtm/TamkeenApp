@@ -1,89 +1,59 @@
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// 1. دالة تسجيل الدخول بالكود
+// 1. تسجيل الدخول ومعرفة الصلاحية
 function loginById() {
     const code = document.getElementById('empCode').value;
     const pass = document.getElementById('password').value;
     const errorDiv = document.getElementById('errorMessage');
 
-    if(!code || !pass) { errorDiv.innerText = "برجاء إكمال البيانات"; return; }
+    if(!code || !pass) { errorDiv.innerText = "أكمل البيانات"; return; }
 
-    // تحويل الكود لإيميل وهمي (خلف الكواليس)
     const email = `${code}@tamkeen.com`;
+    const btn = document.getElementById('btn-login');
+    btn.innerText = "...";
 
     auth.signInWithEmailAndPassword(email, pass)
-    .then(() => {
-        window.location.href = "home.html";
+    .then((userCredential) => {
+        // بعد الدخول، نبحث عن الصلاحية فوراً
+        return db.collection("Users").doc(email).get();
+    })
+    .then((doc) => {
+        if (doc.exists) {
+            window.location.href = "home.html"; // سيتم التوجيه حسب الصلاحية في صفحة الـ Home
+        }
     })
     .catch((error) => {
-        errorDiv.innerText = "خطأ: تأكد من الكود أو الباسورد، أو فعل حسابك أولاً.";
+        btn.innerText = "دخول";
+        errorDiv.innerText = "خطأ في الكود أو الباسورد";
     });
 }
 
-// 2. دالة تفعيل الحساب لأول مرة
-async function activateAccount() {
-    const code = document.getElementById('reg-code').value;
-    const phone = document.getElementById('reg-phone').value;
-    const pass = document.getElementById('reg-pass').value;
-    const msg = document.getElementById('reg-msg');
-
-    if(!code || !phone || !pass) { msg.innerText = "برجاء إكمال الخانات"; return; }
-    if(pass.length < 6) { msg.innerText = "الباسورد ضعيف، اجعله 6 رموز فأكثر"; return; }
-
-    try {
-        // التأكد من وجود الموظف في قاعدة بيانات الشركة
-        const empDoc = await db.collection("Employee_Database").doc(code).get();
-
-        if (!empDoc.exists) {
-            msg.innerText = "كود الموظف غير مسجل بالنظام، راجع الـ HR";
-            return;
-        }
-
-        const empData = empDoc.data();
-
-        if (empData.activated === true) {
-            msg.innerText = "هذا الحساب مفعل بالفعل، اذهب لصفحة الدخول";
-            return;
-        }
-
-        if (empData.phone !== phone) {
-            msg.innerText = "رقم الموبايل غير مطابق للكود المسجل";
-            return;
-        }
-
-        // لو كله تمام.. ننشئ له حساب رسمي في Firebase Auth
-        const email = `${code}@tamkeen.com`;
-        await auth.createUserWithEmailAndPassword(email, pass);
-
-        // تحديث حالة الموظف في Firestore لإنه تم التفعيل
-        await db.collection("Employee_Database").doc(code).update({ activated: true });
-        
-        // إنشاء ملفه في جدول Users (الصلاحيات) تلقائياً كـ موظف
-        await db.collection("Users").doc(email).set({ role: "employee", name: empData.name });
-
-        alert("تم تفعيل حسابك بنجاح! يمكنك الدخول الآن.");
-        window.location.href = "index.html";
-
-    } catch (error) {
-        msg.innerText = "خطأ أثناء التفعيل: " + error.message;
-    }
+// 2. نظام ترجمة صفحة الدخول
+function updatePageContent(lang) {
+    const translations = {
+        ar: { title:"دخول - نظام تمكين", brand:"تمكين للتمويل", welcome:"تسجيل الدخول", code:"كود الموظف", pass:"كلمة المرور", btn:"دخول", new:"موظف جديد؟", act:"تفعيل الحساب" },
+        en: { title:"Login - Tamkeen", brand:"Tamkeen Finance", welcome:"User Login", code:"Employee ID", pass:"Password", btn:"Login", new:"New Employee?", act:"Activate Account" }
+    };
+    const t = translations[lang];
+    if(document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
+    if(document.getElementById('txt-brand')) document.getElementById('txt-brand').innerText = t.brand;
+    if(document.getElementById('txt-welcome')) document.getElementById('txt-welcome').innerText = t.welcome;
+    if(document.getElementById('lbl-code')) document.getElementById('lbl-code').innerText = t.code;
+    if(document.getElementById('lbl-pass')) document.getElementById('lbl-pass').innerText = t.pass;
+    if(document.getElementById('btn-login')) document.getElementById('btn-login').innerText = t.btn;
+    if(document.getElementById('txt-new')) document.getElementById('txt-new').innerText = t.new;
+    if(document.getElementById('link-activate')) document.getElementById('link-activate').innerText = t.act;
 }
 
-// 3. حماية الصفحات (تأكد من وجودها في كل الصفحات)
+// 3. مراقب الحالة (Auth Observer)
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
+    const isLoginPage = path.includes("index.html") || path.includes("activate.html") || path.endsWith("/");
+    
     if (user) {
-        if (path.includes("index.html") || path.includes("activate.html") || path === "/") {
-            window.location.href = "home.html";
-        }
+        if (isLoginPage) window.location.href = "home.html";
     } else {
-        if (!path.includes("index.html") && !path.includes("activate.html") && path !== "/") {
-            window.location.href = "index.html";
-        }
+        if (!isLoginPage) window.location.href = "index.html";
     }
 });
-
-function logout() {
-    auth.signOut().then(() => window.location.href = "index.html");
-}
