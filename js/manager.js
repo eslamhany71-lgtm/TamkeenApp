@@ -1,12 +1,11 @@
-const db = firebase.firestore();
-
 // 1. دالة سحب الطلبات وعرضها بالتفاصيل الجديدة
 function loadRequests() {
-    db.collection("HR_Requests").orderBy("submittedAt", "desc").onSnapshot((snapshot) => {
+    firebase.firestore().collection("HR_Requests").orderBy("submittedAt", "desc").onSnapshot((snapshot) => {
         const list = document.getElementById('requests-list');
         const countSpan = document.getElementById('pending-count');
+        if (!list) return;
+
         let pendingCount = 0;
-        
         list.innerHTML = ""; 
 
         if (snapshot.empty) {
@@ -18,22 +17,18 @@ function loadRequests() {
             const data = doc.data();
             if(data.status === "Pending") pendingCount++;
 
-            // تحديد التاريخ اللي هيظهر (لو إجازة يظهر startDate ولو إذن يظهر reqDate)
             const displayDate = data.startDate || data.reqDate || "غير محدد";
             const displayEndDate = data.endDate ? ` إلى ${data.endDate}` : "";
 
             const card = document.createElement('div');
             card.className = `request-card ${data.status.toLowerCase()}`;
             
-            // تصميم كارت المدير الجديد ليحتوي على كل البيانات
             card.innerHTML = `
                 <div class="req-info">
                     <h4>${data.employeeName || "اسم غير معروف"} <small>(${data.employeeCode || "بدون كود"})</small></h4>
                     <p><strong>الوظيفة/القسم:</strong> ${data.jobTitle || "--"} / ${data.department || "--"}</p>
-                    <p><strong>نوع الطلب:</strong> ${translateType(data.type)} ${data.vacationType ? `(${data.vacationType})` : ""}</p>
+                    <p><strong>نوع الطلب:</strong> ${data.type} ${data.vacationType ? `(${data.vacationType})` : ""}</p>
                     <p><strong>التاريخ:</strong> ${displayDate}${displayEndDate}</p>
-                    ${data.reqTime ? `<p><strong>الوقت:</strong> ${data.reqTime}</p>` : ""}
-                    ${data.backupEmployee && data.backupEmployee !== "N/A" ? `<p><strong>البديل:</strong> ${data.backupEmployee}</p>` : ""}
                     <p><strong>السبب:</strong> ${data.reason}</p>
                     <p><strong>الحالة:</strong> <span class="status-label">${data.status}</span></p>
                 </div>
@@ -47,35 +42,16 @@ function loadRequests() {
             list.appendChild(card);
         });
         
-        countSpan.innerText = pendingCount;
+        if (countSpan) countSpan.innerText = pendingCount;
     });
 }
 
 function updateStatus(requestId, newStatus) {
-    if(confirm("هل أنت متأكد من تغيير حالة الطلب؟")) {
-        db.collection("HR_Requests").doc(requestId).update({
+    if(confirm("هل أنت متأكد؟")) {
+        firebase.firestore().collection("HR_Requests").doc(requestId).update({
             status: newStatus
-        }).then(() => {
-            console.log("تم التحديث");
-        }).catch((err) => alert("خطأ: " + err.message));
+        });
     }
-}
-
-function translateType(type) {
-    const types = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
-    return types[type] || type;
-}
-
-function updatePageContent(lang) {
-    const translations = {
-        ar: { title: "لوحة تحكم المدير", header: "مراجعة طلبات الموظفين", back: "رجوع", total: "الطلبات المعلقة: " },
-        en: { title: "Manager Dashboard", header: "Review Requests", back: "Back", total: "Pending Requests: " }
-    };
-    const t = translations[lang];
-    document.getElementById('txt-title').innerText = t.title;
-    document.getElementById('txt-header').innerText = t.header;
-    document.getElementById('btn-back').innerText = t.back;
-    document.getElementById('txt-total-requests').firstChild.textContent = t.total;
 }
 
 window.onload = () => { loadRequests(); };
