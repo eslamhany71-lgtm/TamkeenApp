@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل دخول - تمكين</title>
+    <title id="txt-title">دخول - نظام تمكين</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
@@ -11,16 +11,22 @@
 </head>
 <body>
     <div class="login-card">
-        <h2>نظام تمكين الموحد</h2>
+        <!-- أزرار اللغة -->
+        <div class="lang-switcher" style="text-align: left; margin-bottom: 20px;">
+            <span onclick="setLanguage('ar')" style="cursor:pointer; color:#2a5298; font-weight:bold;">عربي</span> | 
+            <span onclick="setLanguage('en')" style="cursor:pointer; color:#2a5298; font-weight:bold;">EN</span>
+        </div>
+
+        <h2 id="txt-brand">تمكين للتمويل</h2>
         <h3 id="txt-welcome">تسجيل الدخول</h3>
         
         <div class="input-group">
-            <label>كود الموظف</label>
-            <input type="number" id="empCode" placeholder="أدخل كودك المكون من أرقام" required>
+            <label id="lbl-code">كود الموظف</label>
+            <input type="number" id="empCode" placeholder="1001" required>
         </div>
 
         <div class="input-group">
-            <label>كلمة المرور</label>
+            <label id="lbl-pass">كلمة المرور</label>
             <input type="password" id="password" placeholder="********" required>
         </div>
 
@@ -29,10 +35,11 @@
         <div id="errorMessage" class="error-msg"></div>
 
         <hr>
-        <p style="font-size: 13px;">موظف جديد؟ <a href="activate.html">تفعيل الحساب لأول مرة</a></p>
+        <p style="font-size: 13px;"><span id="txt-new">موظف جديد؟</span> <a href="activate.html" id="link-activate">تفعيل الحساب</a></p>
     </div>
 
     <script src="js/firebase-config.js"></script>
+    <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
 </body>
 </html>
