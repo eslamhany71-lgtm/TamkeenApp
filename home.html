@@ -17,8 +17,8 @@
         <div class="user-controls">
             <button onclick="logout()" class="logout-btn" id="btn-logout">تسجيل خروج</button>
             <div class="lang-switch">
-                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold;">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold;">EN</span>
             </div>
         </div>
         <h2 id="txt-header">لوحة التحكم</h2>
@@ -26,7 +26,7 @@
 
     <main class="container">
         <div class="welcome-section">
-            <h1 id="txt-welcome">أهلاً بك في نظام تمكين</h1>
+            <h1 id="txt-welcome">أهلاً بك في نظام تمكين الموحد</h1>
             <p id="userEmail" style="color: #2a5298; font-weight: bold;"></p>
         </div>
 
@@ -41,7 +41,7 @@
             <!-- كارت شؤون الموظفين (يظهر للكل) -->
             <div class="card" onclick="location.href='hr-solution.html'">
                 <div class="icon">📝</div>
-                <h3 id="txt-hr">الخدمات الذاتية (HR)</h3>
+                <h3 id="txt-hr">شؤون الموظفين</h3>
                 <p id="sub-hr">طلب إجازات وأذونات</p>
             </div>
 
@@ -52,108 +52,109 @@
                 <p id="sub-branches">عناوين ولوكيشن الفروع</p>
             </div>
 
-            <!-- كارت لوحة تحكم المدير (مخفي ويظهر للمدير والـ HR فقط) -->
-            <div id="manager-card" class="card admin-card" style="display: none; border: 2px solid #27ae60;" onclick="location.href='manager-dashboard.html'">
+            <!-- كارت لوحة تحكم المدير (يظهر للمدير والـ HR فقط) -->
+            <div id="manager-card" class="card" style="display: none; border: 2px solid #27ae60;" onclick="location.href='manager-dashboard.html'">
                 <div class="icon">📊</div>
                 <h3 id="txt-mgr-dash">لوحة تحكم المدير</h3>
-                <p id="sub-mgr-dash">مراجعة طلبات الموظفين (موافقة/رفض)</p>
+                <p id="sub-mgr-dash">مراجعة طلبات الموظفين</p>
             </div>
 
-            <!-- كارت لوحة تحكم الـ HR (مخفي ويظهر للـ HR فقط) -->
-            <div id="hr-admin-card" class="card admin-card" style="display: none; border: 2px solid #e67e22;" onclick="location.href='hr-dashboard.html'">
+            <!-- كارت لوحة تحكم الـ HR (يظهر للـ HR فقط) -->
+            <div id="hr-admin-card" class="card" style="display: none; border: 2px solid #e67e22;" onclick="location.href='hr-dashboard.html'">
                 <div class="icon">🏢</div>
-                <h3 id="txt-hr-dash">إدارة الموارد البشرية</h3>
-                <p id="sub-hr-dash">التحكم في الطلبات والتقارير النهائية</p>
+                <h3 id="txt-hr-dash">لوحة تحكم الـ HR</h3>
+                <p id="sub-hr-dash">إدارة الموظفين والتقارير</p>
             </div>
         </div>
     </main>
 
-    <!-- ربط الملفات البرمجية -->
+    <!-- الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
-    <script src="js/lang-manager.js"></script> <!-- ملف مدير اللغة اللي اتفقنا عليه -->
+    <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/home.js"></script>
-    <script src="js/hr.js"></script>
-    <script src="js/manager.js"></script>
 
     <script>
-        // دالة الترجمة الخاصة بصفحة الـ Home
+        // 1. نظام الترجمة (updatePageContent)
         function updatePageContent(lang) {
             const translations = {
                 ar: {
                     title: "الرئيسية - تمكين",
                     header: "لوحة التحكم",
-                    welcome: "أهلاً بك في نظام تمكين",
+                    welcome: "أهلاً بك في نظام تمكين الموحد",
                     logout: "تسجيل خروج",
                     calc: "حاسبة القروض",
-                    subCalc: "حساب الفوائد والرسوم الإدارية",
-                    hr: "الخدمات الذاتية (HR)",
-                    subHr: "طلب إجازات وأذونات",
+                    subCalc: "حساب الفوائد والرسوم",
+                    hr: "شؤون الموظفين",
+                    subHr: "إجازات وأذونات",
                     branches: "الفروع",
-                    subBranches: "عناوين ولوكيشن الفروع",
+                    subBranches: "العناوين واللوكيشن",
                     mgrDash: "لوحة تحكم المدير",
-                    subMgrDash: "مراجعة طلبات الموظفين",
-                    hrDash: "إدارة الموارد البشرية",
-                    subHrDash: "التحكم في الطلبات والتقارير"
+                    subMgrDash: "مراجعة الطلبات",
+                    hrDash: "لوحة تحكم الـ HR",
+                    subHrDash: "إدارة النظام والتقارير"
                 },
                 en: {
                     title: "Home - Tamkeen",
                     header: "Dashboard",
-                    welcome: "Welcome to Tamkeen System",
+                    welcome: "Welcome to Tamkeen Unified System",
                     logout: "Logout",
                     calc: "Loan Calculator",
-                    subCalc: "Calculate interests and admin fees",
-                    hr: "HR Self-Service",
-                    subHr: "Request leaves and permissions",
+                    subCalc: "Interests & Admin Fees",
+                    hr: "HR Solution",
+                    subHr: "Leaves & Permissions",
                     branches: "Branches",
-                    subBranches: "Addresses and locations",
+                    subBranches: "Addresses & Location",
                     mgrDash: "Manager Dashboard",
-                    subMgrDash: "Review employee requests",
-                    hrDash: "HR Administration",
-                    subHrDash: "Full control and reports"
+                    subMgrDash: "Review Requests",
+                    hrDash: "HR Admin Dashboard",
+                    subHrDash: "System Admin & Reports"
                 }
             };
 
             const t = translations[lang];
-            document.getElementById('txt-title').innerText = t.title;
-            document.getElementById('txt-header').innerText = t.header;
-            document.getElementById('txt-welcome').innerText = t.welcome;
-            document.getElementById('btn-logout').innerText = t.logout;
-            document.getElementById('txt-calc').innerText = t.calc;
-            document.getElementById('sub-calc').innerText = t.subCalc;
-            document.getElementById('txt-hr').innerText = t.hr;
-            document.getElementById('sub-hr').innerText = t.subHr;
-            document.getElementById('txt-branches').innerText = t.branches;
-            document.getElementById('sub-branches').innerText = t.subBranches;
-            document.getElementById('txt-mgr-dash').innerText = t.mgrDash;
-            document.getElementById('sub-mgr-dash').innerText = t.subMgrDash;
-            document.getElementById('txt-hr-dash').innerText = t.hrDash;
-            document.getElementById('sub-hr-dash').innerText = t.subHrDash;
+            
+            // تحديث كل النصوص في الصفحة
+            if(document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
+            if(document.getElementById('txt-header')) document.getElementById('txt-header').innerText = t.header;
+            if(document.getElementById('txt-welcome')) document.getElementById('txt-welcome').innerText = t.welcome;
+            if(document.getElementById('btn-logout')) document.getElementById('btn-logout').innerText = t.logout;
+            if(document.getElementById('txt-calc')) document.getElementById('txt-calc').innerText = t.calc;
+            if(document.getElementById('sub-calc')) document.getElementById('sub-calc').innerText = t.subCalc;
+            if(document.getElementById('txt-hr')) document.getElementById('txt-hr').innerText = t.hr;
+            if(document.getElementById('sub-hr')) document.getElementById('sub-hr').innerText = t.subHr;
+            if(document.getElementById('txt-branches')) document.getElementById('txt-branches').innerText = t.branches;
+            if(document.getElementById('sub-branches')) document.getElementById('sub-branches').innerText = t.subBranches;
+            if(document.getElementById('txt-mgr-dash')) document.getElementById('txt-mgr-dash').innerText = t.mgrDash;
+            if(document.getElementById('sub-mgr-dash')) document.getElementById('sub-mgr-dash').innerText = t.subMgrDash;
+            if(document.getElementById('txt-hr-dash')) document.getElementById('txt-hr-dash').innerText = t.hrDash;
+            if(document.getElementById('sub-hr-dash')) document.getElementById('sub-hr-dash').innerText = t.subHrDash;
         }
 
-        // الكود اللي بيتحقق من الصلاحية ويفتح الكروت
+        // 2. كود فحص الصلاحيات (Role-Based Access)
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
                 document.getElementById('userEmail').innerText = user.email;
 
-                // البحث عن دور الموظف في Firestore
+                // التوجه لجدول Users لمعرفة الرتبة
                 firebase.firestore().collection("Users").doc(user.email).get().then((doc) => {
                     if (doc.exists) {
-                        const userData = doc.data();
-                        const role = userData.role;
+                        const role = doc.data().role;
+                        console.log("تم التأكد من الرتبة:", role);
 
+                        // إظهار الكروت بناءً على الرتبة
                         if (role === 'manager') {
                             document.getElementById('manager-card').style.display = 'block';
-                        } 
-                        else if (role === 'hr') {
+                        } else if (role === 'hr') {
                             document.getElementById('manager-card').style.display = 'block';
                             document.getElementById('hr-admin-card').style.display = 'block';
                         }
                     } else {
-                        console.log("هذا المستخدم ليس له دور محدد في جدول Users");
+                        console.error("المستخدم مسجل دخول لكن ليس له ملف في جدول Users");
+                        alert("خطأ في ملف الصلاحيات، يرجى مراجعة الـ HR");
+                        logout(); // نخرجه لو ملوش صلاحيات عشان الأمان
                     }
                 }).catch((error) => {
-                    console.log("خطأ في جلب الصلاحيات:", error);
+                    console.error("خطأ في جلب بيانات الصلاحيات:", error);
                 });
             } else {
                 window.location.href = "index.html";
