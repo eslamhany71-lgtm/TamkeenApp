@@ -3,125 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="pageTitle">تسجيل الدخول - تمكين</title>
-    
-    <!-- ربط ملف التنسيق -->
+    <title>تسجيل دخول - تمكين</title>
     <link rel="stylesheet" href="css/style.css">
-    
-    <!-- استدعاء مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-
     <div class="login-card">
-        <!-- أزرار تبديل اللغة -->
-        <div class="lang-switcher" style="text-align: left; margin-bottom: 20px; font-size: 14px;">
-            <span onclick="changeLang('ar')" style="cursor:pointer; color:#2a5298; font-weight:bold; padding: 5px;">عربي</span> | 
-            <span onclick="changeLang('en')" style="cursor:pointer; color:#2a5298; font-weight:bold; padding: 5px;">English</span>
-        </div>
-
-        <div class="logo">
-            <h2 id="txt-brand">تمكين للتمويل</h2>
-        </div>
-
-        <h3 id="txt-welcome">مرحباً بك</h3>
-        <p id="txt-sub">قم بتسجيل الدخول للمتابعة</p>
-
+        <h2>نظام تمكين الموحد</h2>
+        <h3 id="txt-welcome">تسجيل الدخول</h3>
+        
         <div class="input-group">
-            <label id="lbl-email">البريد الإلكتروني</label>
-            <input type="email" id="email" placeholder="example@company.com" required>
+            <label>كود الموظف</label>
+            <input type="number" id="empCode" placeholder="أدخل كودك المكون من أرقام" required>
         </div>
 
         <div class="input-group">
-            <label id="lbl-pass">كلمة المرور</label>
+            <label>كلمة المرور</label>
             <input type="password" id="password" placeholder="********" required>
         </div>
 
-        <button id="btn-login" onclick="login()">تسجيل الدخول</button>
+        <button id="btn-login" onclick="loginById()">دخول</button>
         
-        <div id="errorMessage" class="error-msg" style="color: red; margin-top: 10px; font-size: 14px;"></div>
+        <div id="errorMessage" class="error-msg"></div>
+
+        <hr>
+        <p style="font-size: 13px;">موظف جديد؟ <a href="activate.html">تفعيل الحساب لأول مرة</a></p>
     </div>
 
-    <!-- ربط إعدادات Firebase -->
     <script src="js/firebase-config.js"></script>
-
-    <!-- كود البرمجة (اللغة + الدخول) -->
-    <script>
-        // دالة تغيير اللغة
-        function changeLang(lang) {
-            const translations = {
-                ar: {
-                    title: "تسجيل الدخول - تمكين",
-                    brand: "تمكين للتمويل",
-                    welcome: "مرحباً بك",
-                    sub: "قم بتسجيل الدخول للمتابعة",
-                    email: "البريد الإلكتروني",
-                    pass: "كلمة المرور",
-                    btn: "تسجيل الدخول",
-                    dir: "rtl"
-                },
-                en: {
-                    title: "Login - Tamkeen",
-                    brand: "Tamkeen Finance",
-                    welcome: "Welcome Back",
-                    sub: "Please login to continue",
-                    email: "Email Address",
-                    pass: "Password",
-                    btn: "Login Now",
-                    dir: "ltr"
-                }
-            };
-
-            const t = translations[lang];
-            
-            // تحديث النصوص في الصفحة
-            document.getElementById('pageTitle').innerText = t.title;
-            document.getElementById('txt-brand').innerText = t.brand;
-            document.getElementById('txt-welcome').innerText = t.welcome;
-            document.getElementById('txt-sub').innerText = t.sub;
-            document.getElementById('lbl-email').innerText = t.email;
-            document.getElementById('lbl-pass').innerText = t.pass;
-            document.getElementById('btn-login').innerText = t.btn;
-            
-            // تغيير اتجاه الصفحة
-            document.body.dir = t.dir;
-            
-            // حفظ اللغة المختارة
-            localStorage.setItem('preferredLang', lang);
-        }
-
-        // دالة تسجيل الدخول (مربوطة بـ Firebase)
-        function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const errorDiv = document.getElementById('errorMessage');
-            const loginBtn = document.getElementById('btn-login');
-
-            if (!email || !password) {
-                errorDiv.innerText = "برجاء إدخال البيانات كاملة";
-                return;
-            }
-
-            loginBtn.innerText = "...";
-            loginBtn.disabled = true;
-
-            firebase.auth().signInWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-                window.location.href = "home.html";
-            })
-            .catch((error) => {
-                loginBtn.innerText = document.body.dir === 'rtl' ? "تسجيل الدخول" : "Login Now";
-                loginBtn.disabled = false;
-                errorDiv.innerText = "خطأ: تأكد من الإيميل وباسورد الموظف";
-            });
-        }
-
-        // تشغيل اللغة المحفوظة عند فتح الصفحة
-        window.onload = () => {
-            const savedLang = localStorage.getItem('preferredLang') || 'ar';
-            changeLang(savedLang);
-        };
-    </script>
+    <script src="js/auth.js"></script>
 </body>
 </html>
