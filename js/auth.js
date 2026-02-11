@@ -35,53 +35,54 @@ function loginById() {
 
 // 2. دالة تفعيل الحساب لأول مرة
 async function activateAccount() {
-    const code = document.getElementById('reg-code').value;
-    const phone = document.getElementById('reg-phone').value;
-    const pass = document.getElementById('reg-pass').value;
+    const code = document.getElementById('reg-code').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
 
-    if(!code || !phone || !pass) { 
-        if (msg) msg.innerText = "أكمل البيانات المطلوبة"; 
-        return; 
-    }
+    if(!code || !phone || !pass) { msg.innerText = "أكمل البيانات"; return; }
 
     try {
+        // 1. جلب بيانات الموظف
         const empDoc = await db.collection("Employee_Database").doc(code).get();
 
         if (!empDoc.exists) {
-            if (msg) msg.innerText = "الكود غير مسجل، راجع الـ HR";
-            return;
+            msg.innerText = "الكود غير مسجل"; return;
         }
 
         const empData = empDoc.data();
-
         if (empData.phone !== phone) {
-            if (msg) msg.innerText = "رقم الموبايل غير مطابق";
-            return;
+            msg.innerText = "رقم الموبايل خطأ"; return;
         }
 
-        if (empData.activated === true) {
-            if (msg) msg.innerText = "الحساب مفعل بالفعل";
-            return;
-        }
-
-        const assignedRole = empData.role || "employee"; 
         const email = code + "@tamkeen.com";
+        const role = empData.role || "employee";
 
-        await auth.createUserWithEmailAndPassword(email, pass);
-        await db.collection("Employee_Database").doc(code).update({ activated: true });
-        
-        await db.collection("Users").doc(email).set({ 
-            role: assignedRole, 
+        // 2. إنشاء الحساب في Auth
+        const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+        const user = userCredential.user;
+
+        console.log("تم إنشاء الحساب، جاري كتابة الصلاحيات...");
+
+        // 3. كتابة الصلاحيات في جدول Users (بصيغة تضمن التنفيذ)
+        await db.collection("Users").doc(email).set({
+            role: role,
             name: empData.name,
-            empCode: code 
+            empCode: code,
+            email: email
         });
 
-        alert("تم التفعيل بنجاح! يمكنك الدخول الآن.");
+        // 4. تحديث حالة التفعيل في جدول الموظفين
+        await db.collection("Employee_Database").doc(code).update({
+            activated: true
+        });
+
+        alert("تم التفعيل بنجاح! رتبتك هي: " + role);
         window.location.href = "index.html";
 
     } catch (error) {
-        if (msg) msg.innerText = "خطأ: " + error.message;
+        console.error("خطأ التفعيل:", error);
+        msg.innerText = "خطأ: " + error.message;
     }
 }
 
