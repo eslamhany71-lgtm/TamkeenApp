@@ -181,3 +181,32 @@ function updatePageContent(lang) {
 window.onload = () => { 
     loadAllRequests(); 
 };
+function uploadCSV() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+    if (!file) { alert("اختار ملف CSV الأول"); return; }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const rows = text.split('\n');
+        
+        // تخطي أول سطر (العناوين) والبدء في الرفع
+        for (let i = 1; i < rows.length; i++) {
+            const cols = rows[i].split(',');
+            if (cols.length >= 3) {
+                const code = cols[0].trim(); // الكود
+                const name = cols[1].trim(); // الاسم
+                const phone = cols[2].trim(); // التليفون
+                
+                db.collection("Employee_Database").doc(code).set({
+                    name: name,
+                    phone: phone,
+                    activated: false
+                });
+            }
+        }
+        alert("تمت جدولة رفع البيانات بنجاح!");
+    };
+    reader.readAsText(file);
+}
