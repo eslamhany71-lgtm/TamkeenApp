@@ -1,0 +1,26 @@
+.requests-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.request-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-right: 5px solid #ccc;
+}
+
+.request-card.approved { border-right-color: #27ae60; }
+.request-card.rejected { border-right-color: #e74c3c; }
+.request-card.pending { border-right-color: #f1c40f; }
+
+.approve-btn { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-left: 5px;}
+.reject-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+
+.final-status { font-weight: bold; color: #7f8c8d; }
