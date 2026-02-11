@@ -1,4 +1,4 @@
-// ملاحظة: لا نعرف db هنا لتجنب التعارض مع auth.js
+// ملاحظة: نستخدم firebase.firestore() مباشرة لتجنب تعارض التعريفات مع ملف auth.js
 let allRequests = []; 
 
 // 1. دالة سحب كل طلبات الـ HR وعرضها في الجدول
@@ -17,6 +17,7 @@ function renderTable(dataArray) {
     const tableBody = document.getElementById('hr-requests-table');
     let total = 0, approved = 0;
     
+    if (!tableBody) return;
     tableBody.innerHTML = ""; 
 
     if (dataArray.length === 0) {
@@ -70,14 +71,13 @@ function uploadCSV() {
 
             console.log("بدء فحص الملف...");
 
+            // نبدأ من i=1 لتخطي سطر العناوين (Header)
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i].trim();
                 if (!row) continue;
 
                 // تقسيم السطر باستخدام Regex لدعم (,) و (;) وتنظيف علامات التنصيص "
                 const cols = row.split(/[;,]/).map(item => item.replace(/["]/g, "").trim());
-
-                console.log(`سطر ${i}: وجدنا ${cols.length} أعمدة. البيانات:`, cols);
 
                 if (cols.length >= 4) {
                     const code = cols[0];
@@ -96,15 +96,15 @@ function uploadCSV() {
                         });
                         count++;
                     } else {
-                        errorLog += `السطر ${i}: الرتبة "${role}" غير صحيحة (يجب أن تكون employee أو manager أو hr)\n`;
+                        errorLog += `السطر ${i+1}: الرتبة "${role}" غير صحيحة (يجب أن تكون employee أو manager أو hr)\n`;
                     }
                 } else {
-                    errorLog += `السطر ${i}: يحتوي على ${cols.length} أعمدة فقط، والمطلوب 4 (كود، اسم، موبايل، رتبة)\n`;
+                    errorLog += `السطر ${i+1}: يحتوي على ${cols.length} أعمدة فقط، والمطلوب 4 (كود، اسم، موبايل، رتبة)\n`;
                 }
             }
             
             if (count > 0) {
-                alert(`تم رفع ${count} موظف بنجاح! اعمل Refresh لصفحة Firebase للتأكد.`);
+                alert(`تم رفع ${count} موظف بنجاح!`);
                 if (errorLog) alert("ملاحظات على بعض السطور:\n" + errorLog);
                 fileInput.value = ""; 
             } else {
@@ -236,3 +236,10 @@ function updatePageContent(lang) {
     if(document.getElementById('lbl-upload')) document.getElementById('lbl-upload').innerText = t.upload;
     if(document.getElementById('btn-upload-start')) document.getElementById('btn-upload-start').innerText = t.start;
 }
+
+// 10. تشغيل عند تحميل الصفحة
+window.onload = () => {
+    loadAllRequests();
+    const savedLang = localStorage.getItem('preferredLang') || 'ar';
+    updatePageContent(savedLang);
+};
