@@ -37,54 +37,44 @@ async function activateAccount() {
     const pass = document.getElementById('reg-pass').value;
     const msg = document.getElementById('reg-msg');
 
-    if(!code || !phone || !pass) { 
-        msg.innerText = "برجاء إكمال الخانات"; return; 
-    }
-    if(pass.length < 6) { 
-        msg.innerText = "الباسورد يجب أن يكون 6 رموز فأكثر"; return; 
-    }
+    if(!code || !phone || !pass) { msg.innerText = "أكمل البيانات"; return; }
 
     try {
-        // أ- التأكد من وجود الموظف في قاعدة بيانات الشركة
+        // 1. نجيب بيانات الموظف من الجدول اللي ارفع بالـ CSV
         const empDoc = await db.collection("Employee_Database").doc(code).get();
 
         if (!empDoc.exists) {
-            msg.innerText = "كود الموظف غير مسجل بالنظام، راجع الـ HR";
+            msg.innerText = "الكود غير مسجل، راجع الـ HR";
             return;
         }
 
         const empData = empDoc.data();
 
-        // ب- التأكد من مطابقة رقم الموبايل
+        // 2. نتأكد من رقم الموبايل
         if (empData.phone !== phone) {
-            msg.innerText = "رقم الموبايل غير مطابق للكود المسجل";
+            msg.innerText = "رقم الموبايل غير مطابق";
             return;
         }
 
-        // ج- التأكد من أن الحساب لم يتم تفعيله من قبل
-        if (empData.activated === true) {
-            msg.innerText = "هذا الحساب مفعل بالفعل، اذهب للدخول";
-            return;
-        }
-
-        // د- سحب الصلاحية (Role) المحددة للموظف
-        const userRole = empData.role || "employee"; // لو مفيش رتبة هيخليه موظف عادي
+        // 3. سحب الرتبة (manager/hr/employee) من بيانات الـ CSV
+        // تأكد أن الاسم في الـ CSV كان role
+        const assignedRole = empData.role || "employee"; 
         const email = `${code}@tamkeen.com`;
 
-        // هـ- إنشاء الحساب في Firebase Auth
+        // 4. إنشاء الحساب
         await auth.createUserWithEmailAndPassword(email, pass);
 
-        // و- تحديث حالة الموظف في السجلات
+        // 5. تحديث الحالة
         await db.collection("Employee_Database").doc(code).update({ activated: true });
         
-        // ز- إنشاء ملف الصلاحيات في جدول Users (المحرك الأساسي للأبليكشن)
+        // 6. السر هنا: وضع الرتبة الصحيحة في جدول Users
         await db.collection("Users").doc(email).set({ 
-            role: userRole, 
+            role: assignedRole, 
             name: empData.name,
             empCode: code 
         });
 
-        alert("تم تفعيل حسابك بنجاح! يمكنك الدخول الآن.");
+        alert("تم التفعيل بنجاح بصلاحية: " + assignedRole);
         window.location.href = "index.html";
 
     } catch (error) {
