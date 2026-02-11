@@ -101,3 +101,17 @@ tr:hover {
         align-items: stretch;
     }
 }
+/* ضيف ده للتنسيق القديم أو حدثه */
+.filter-group select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    background-color: white;
+    cursor: pointer;
+}
+
+.filter-group select:focus {
+    border-color: #2a5298;
+}
