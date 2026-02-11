@@ -1,7 +1,7 @@
 // ملاحظة: نستخدم firebase.firestore() مباشرة لتجنب تعارض التعريفات مع ملف auth.js
 let allRequests = []; 
 
-// 1. دالة سحب كل طلبات الـ HR وعرضها في الجدول
+// 1. دالة سحب كل طلبات الـ HR وعرضها في الجدول (تحديث تلقائي)
 function loadAllRequests() {
     firebase.firestore().collection("HR_Requests").orderBy("submittedAt", "desc").onSnapshot((snapshot) => {
         allRequests = [];
@@ -12,7 +12,7 @@ function loadAllRequests() {
     });
 }
 
-// 2. دالة رسم الجدول بناءً على البيانات
+// 2. دالة رسم الجدول بناءً على البيانات (الكل أو المفلتر)
 function renderTable(dataArray) {
     const tableBody = document.getElementById('hr-requests-table');
     let total = 0, approved = 0;
@@ -38,7 +38,7 @@ function renderTable(dataArray) {
             <td>${data.jobTitle || "--"} / ${data.department || "--"}</td>
             <td>${translateType(data.type)} ${data.vacationType ? `(${data.vacationType})` : ""}</td>
             <td>${dateFrom}${dateTo}</td>
-            <td><span class="badge ${data.status?.toLowerCase() || ''}">${data.status || 'Pending'}</span></td>
+            <td><span class="badge ${(data.status || 'Pending').toLowerCase()}">${data.status || 'Pending'}</span></td>
             <td>
                 <button onclick="deleteRequest('${data.id}')" class="delete-btn">حذف</button>
             </td>
@@ -50,7 +50,7 @@ function renderTable(dataArray) {
     if(document.getElementById('approved-count')) document.getElementById('approved-count').innerText = approved;
 }
 
-// 3. دالة رفع ملف CSV (النسخة الاحترافية الذكية)
+// 3. دالة رفع ملف CSV (النسخة الاحترافية - معالجة الفواصل والتنظيف)
 function uploadCSV() {
     const fileInput = document.getElementById('csvFile');
     const file = fileInput.files[0];
@@ -69,14 +69,12 @@ function uploadCSV() {
             let count = 0;
             let errorLog = "";
 
-            console.log("بدء فحص الملف...");
-
             // نبدأ من i=1 لتخطي سطر العناوين (Header)
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i].trim();
                 if (!row) continue;
 
-                // تقسيم السطر باستخدام Regex لدعم (,) و (;) وتنظيف علامات التنصيص "
+                // تقسيم السطر (يدعم الفاصلة العادية والفاصلة المنقوطة) وتنظيف علامات التنصيص
                 const cols = row.split(/[;,]/).map(item => item.replace(/["]/g, "").trim());
 
                 if (cols.length >= 4) {
@@ -85,7 +83,7 @@ function uploadCSV() {
                     const phone = cols[2];
                     const role = cols[3].toLowerCase();
 
-                    // التأكد من أن الرتبة مكتوبة صحيحة
+                    // التأكد من أن الرتبة صحيحة قبل الرفع
                     if (['employee', 'manager', 'hr'].includes(role)) {
                         firebase.firestore().collection("Employee_Database").doc(code).set({
                             employeeId: code,
@@ -96,19 +94,19 @@ function uploadCSV() {
                         });
                         count++;
                     } else {
-                        errorLog += `السطر ${i+1}: الرتبة "${role}" غير صحيحة (يجب أن تكون employee أو manager أو hr)\n`;
+                        errorLog += `السطر ${i+1}: الرتبة "${role}" غير صالحة.\n`;
                     }
                 } else {
-                    errorLog += `السطر ${i+1}: يحتوي على ${cols.length} أعمدة فقط، والمطلوب 4 (كود، اسم، موبايل، رتبة)\n`;
+                    errorLog += `السطر ${i+1}: أعمدة ناقصة (مطلوب 4).\n`;
                 }
             }
             
             if (count > 0) {
                 alert(`تم رفع ${count} موظف بنجاح!`);
-                if (errorLog) alert("ملاحظات على بعض السطور:\n" + errorLog);
+                if (errorLog) console.warn("ملاحظات:\n" + errorLog);
                 fileInput.value = ""; 
             } else {
-                alert("لم يتم رفع أي بيانات!\nالأسباب المحتملة:\n" + errorLog);
+                alert("لم يتم رفع أي بيانات! تأكد من تنسيق الملف.\n" + errorLog);
             }
 
         } catch (err) {
@@ -119,7 +117,7 @@ function uploadCSV() {
     reader.readAsText(file, "UTF-8");
 }
 
-// 4. دالة الفلترة الذكية
+// 4. دالة الفلترة الذكية (تاريخ - نوع - قسم/وظيفة)
 function filterTable() {
     const dateFrom = document.getElementById('filter-date-from').value;
     const dateTo = document.getElementById('filter-date-to').value;
@@ -132,13 +130,16 @@ function filterTable() {
         const reqDept = (req.department || "").toLowerCase();
         const reqJob = (req.jobTitle || "").toLowerCase();
 
+        // فلتر التاريخ
         let dateMatch = true;
         if (dateFrom && reqDate < dateFrom) dateMatch = false;
         if (dateTo && reqDate > dateTo) dateMatch = false;
 
+        // فلتر النوع
         let typeMatch = true;
         if (typeSearch && reqType !== typeSearch) typeMatch = false;
 
+        // فلتر القسم/الوظيفة
         let deptMatch = true;
         if (deptSearch && !reqDept.includes(deptSearch) && !reqJob.includes(deptSearch)) deptMatch = false;
 
@@ -148,29 +149,34 @@ function filterTable() {
     renderTable(filteredData);
 }
 
-// 5. إعادة ضبط الفلاتر
+// 5. إعادة ضبط الفلاتر (عرض الكل)
 function resetFilters() {
-    document.getElementById('filter-date-from').value = "";
-    document.getElementById('filter-date-to').value = "";
-    document.getElementById('filter-type').value = "";
-    document.getElementById('filter-dept').value = "";
+    if(document.getElementById('filter-date-from')) document.getElementById('filter-date-from').value = "";
+    if(document.getElementById('filter-date-to')) document.getElementById('filter-date-to').value = "";
+    if(document.getElementById('filter-type')) document.getElementById('filter-type').value = "";
+    if(document.getElementById('filter-dept')) document.getElementById('filter-dept').value = "";
     renderTable(allRequests);
 }
 
-// 6. حذف سجل
+// 6. حذف سجل طلب نهائياً
 function deleteRequest(id) {
     if(confirm("هل أنت متأكد من حذف هذا السجل نهائياً؟")) {
         firebase.firestore().collection("HR_Requests").doc(id).delete();
     }
 }
 
-// 7. ترجمة نوع الطلب
+// 7. دالة مساعدة لترجمة نوع الطلب
 function translateType(type) {
-    const types = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const types = {
+        vacation: lang === 'ar' ? "إجازة" : "Vacation",
+        late: lang === 'ar' ? "إذن تأخير" : "Late Perm.",
+        exit: lang === 'ar' ? "تصريح خروج" : "Exit Permit"
+    };
     return types[type] || type;
 }
 
-// 8. تصدير للـ Excel
+// 8. تصدير البيانات الظاهرة في الجدول لملف Excel (CSV)
 function exportToExcel() {
     let csv = "\uFEFF"; 
     csv += "الكود,الموظف,الوظيفة/القسم,نوع الطلب,التاريخ,الحالة\n";
@@ -188,22 +194,24 @@ function exportToExcel() {
     const hiddenElement = document.createElement('a');
     hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
     hiddenElement.target = '_blank';
-    hiddenElement.download = 'تقرير_HR.csv';
+    hiddenElement.download = 'تقرير_الموارد_البشرية.csv';
     hiddenElement.click();
 }
 
-// 9. نظام اللغة
+// 9. نظام اللغة الكامل لصفحة لوحة تحكم الـ HR
 function updatePageContent(lang) {
     const translations = {
         ar: { 
-            title: "إدارة الـ HR", header: "لوحة تحكم الـ HR Admin", back: "رجوع", total: "إجمالي الطلبات:", approved: "الموافق عليها:", export: "تحميل تقرير",
+            title: "إدارة الـ HR - تمكين", header: "لوحة تحكم الـ HR Admin", back: "رجوع", 
+            total: "إجمالي الطلبات:", approved: "الموافق عليها:", export: "تحميل تقرير Excel",
             filterDate: "فلتر بالتاريخ:", filterType: "نوع الطلب:", filterDept: "البحث بالقسم / الوظيفة:", 
             optAll: "الكل", optVac: "إجازة", optLate: "إذن تأخير", optExit: "تصريح خروج",
             reset: "إعادة ضبط", code:"الكود", name:"الموظف", job:"الوظيفة/القسم", type:"نوع الطلب", date:"التاريخ", status:"الحالة", action:"إجراء",
             upload: "رفع بيانات الموظفين (ملف CSV):", start: "ابدأ الرفع الآن"
         },
         en: { 
-            title: "HR Admin", header: "HR Admin Dashboard", back: "Back", total: "Total:", approved: "Approved:", export: "Export Report",
+            title: "HR Admin - Tamkeen", header: "HR Admin Dashboard", back: "Back", 
+            total: "Total Requests:", approved: "Approved:", export: "Download Excel Report",
             filterDate: "Date Filter:", filterType: "Request Type:", filterDept: "Search Dept/Job:", 
             optAll: "All", optVac: "Vacation", optLate: "Late Perm.", optExit: "Exit Permit",
             reset: "Reset", code:"ID", name:"Name", job:"Job/Dept", type:"Type", date:"Date", status:"Status", action:"Action",
@@ -211,7 +219,9 @@ function updatePageContent(lang) {
         }
     };
     const t = translations[lang];
-    if(document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
+    
+    // تحديث كل عنصر ID موجود في الـ HTML
+    if(document.getElementById('txt-title')) document.title = t.title;
     if(document.getElementById('txt-header')) document.getElementById('txt-header').innerText = t.header;
     if(document.getElementById('btn-back')) document.getElementById('btn-back').innerText = t.back;
     if(document.getElementById('txt-total')) document.getElementById('txt-total').innerText = t.total;
@@ -225,6 +235,8 @@ function updatePageContent(lang) {
     if(document.getElementById('opt-late')) document.getElementById('opt-late').innerText = t.optLate;
     if(document.getElementById('opt-exit')) document.getElementById('opt-exit').innerText = t.optExit;
     if(document.getElementById('btn-reset-filter')) document.getElementById('btn-reset-filter').innerText = t.reset;
+    
+    // عناوين الجدول
     if(document.getElementById('th-code')) document.getElementById('th-code').innerText = t.code;
     if(document.getElementById('th-name')) document.getElementById('th-name').innerText = t.name;
     if(document.getElementById('th-job')) document.getElementById('th-job').innerText = t.job;
@@ -233,6 +245,7 @@ function updatePageContent(lang) {
     if(document.getElementById('th-status')) document.getElementById('th-status').innerText = t.status;
     if(document.getElementById('th-action')) document.getElementById('th-action').innerText = t.action;
     
+    // قسم الرفع
     if(document.getElementById('lbl-upload')) document.getElementById('lbl-upload').innerText = t.upload;
     if(document.getElementById('btn-upload-start')) document.getElementById('btn-upload-start').innerText = t.start;
 }
