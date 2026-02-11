@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">الخدمات الذاتية - تمكين</title>
     
-    <!-- ربط ملفات التنسيق -->
-    <link rel="stylesheet" href="css/hr-solution.css">
+        <link rel="stylesheet" href="css/hr-solution.css">
     
-    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -28,16 +26,14 @@
 
     <main class="container">
         <div class="hr-grid">
-            <!-- كارت طلب إجازة -->
             <div class="hr-card" onclick="openForm('vacation')">
                 <div class="card-icon">📅</div>
                 <div class="card-info">
                     <h3 id="txt-vacation">طلب إجازة</h3>
-                    <p id="sub-vacation">سنوية، عارضة، أو مرضية</p>
+                    <p id="sub-vacation">سنوية، مرضية، عارضة...</p>
                 </div>
             </div>
 
-            <!-- كارت إذن تأخير -->
             <div class="hr-card" onclick="openForm('late')">
                 <div class="card-icon">⏰</div>
                 <div class="card-info">
@@ -46,7 +42,6 @@
                 </div>
             </div>
 
-            <!-- كارت تصريح خروج -->
             <div class="hr-card" onclick="openForm('exit')">
                 <div class="card-icon">🚪</div>
                 <div class="card-info">
@@ -56,7 +51,7 @@
             </div>
         </div>
 
-        <!-- المودال الشيك (النموذج المطور) -->
+        <!-- المودال المطور (النموذج الشيك) -->
         <div id="formModal" class="modal">
             <div class="modal-content animate-top">
                 <div class="modal-header">
@@ -67,39 +62,78 @@
                 <form id="hrRequestForm" class="chic-form">
                     <input type="hidden" id="requestType">
                     
-                    <!-- خانة الاسم -->
-                    <div class="input-box">
-                        <span class="field-icon">👤</span>
-                        <input type="text" id="empName" placeholder="اسم الموظف بالكامل" required>
-                    </div>
-
-                    <!-- خانة التاريخ الأساسية -->
-                    <div class="input-box">
-                        <span class="field-icon">📅</span>
-                        <input type="date" id="reqDate" required>
-                    </div>
-
-                    <!-- خانة تاريخ العودة (تظهر في الإجازة فقط) -->
-                    <div id="vacation-only" style="display:none;">
+                    <!-- بيانات الموظف الأساسية -->
+                    <div class="form-row">
                         <div class="input-box">
-                            <span class="field-icon">🏁</span>
-                            <label style="font-size:11px; color:#2a5298; display:block; margin-right:35px;">تاريخ العودة من الإجازة</label>
-                            <input type="date" id="endDate">
+                            <span class="field-label" id="lbl-code">كود الموظف</span>
+                            <input type="text" id="empCode" required>
+                        </div>
+                        <div class="input-box">
+                            <span class="field-label" id="lbl-name">اسم الموظف</span>
+                            <input type="text" id="empName" required>
                         </div>
                     </div>
 
-                    <!-- خانة الوقت (تظهر في الإذن والتصريح فقط) -->
-                    <div id="time-only" style="display:none;">
+                    <div class="form-row">
                         <div class="input-box">
-                            <span class="field-icon">🕒</span>
+                            <span class="field-label" id="lbl-job">الوظيفة</span>
+                            <input type="text" id="empJob" required>
+                        </div>
+                        <div class="input-box">
+                            <span class="field-label" id="lbl-dept">الإدارة / القسم</span>
+                            <input type="text" id="empDept" required>
+                        </div>
+                    </div>
+
+                    <div class="input-box">
+                        <span class="field-label" id="lbl-hire">تاريخ التعيين</span>
+                        <input type="date" id="hireDate" required>
+                    </div>
+
+                    <hr> <!-- خط فاصل بين بيانات الموظف وبيانات الطلب -->
+
+                    <!-- خانات الإجازة فقط -->
+                    <div id="vacation-fields" style="display:none;">
+                        <div class="input-box">
+                            <span class="field-label" id="lbl-vac-type">نوع الإجازة</span>
+                            <select id="vacType">
+                                <option value="سنوية" id="opt-annual">سنوية</option>
+                                <option value="مرضية" id="opt-medical">مرضية</option>
+                                <option value="عارضة" id="opt-casual">عارضة</option>
+                                <option value="بدون أجر" id="opt-unpaid">بدون أجر</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <div class="input-box">
+                                <span class="field-label" id="lbl-from">من تاريخ</span>
+                                <input type="date" id="startDate">
+                            </div>
+                            <div class="input-box">
+                                <span class="field-label" id="lbl-to">إلى تاريخ</span>
+                                <input type="date" id="endDate">
+                            </div>
+                        </div>
+                        <div class="input-box">
+                            <span class="field-label" id="lbl-backup">الموظف البديل (اختياري)</span>
+                            <input type="text" id="backupEmp">
+                        </div>
+                    </div>
+
+                    <!-- خانات الأذونات (الوقت) -->
+                    <div id="time-fields" style="display:none;">
+                        <div class="input-box">
+                            <span class="field-label" id="lbl-req-date">تاريخ الإذن</span>
+                            <input type="date" id="reqDate">
+                        </div>
+                        <div class="input-box">
+                            <span class="field-label" id="lbl-time">الوقت</span>
                             <input type="time" id="reqTime">
                         </div>
                     </div>
 
-                    <!-- خانة السبب -->
                     <div class="input-box">
-                        <span class="field-icon">📝</span>
-                        <textarea id="reqReason" rows="3" placeholder="اكتب السبب أو التفاصيل هنا..." required></textarea>
+                        <span class="field-label" id="lbl-reason">السبب / التفاصيل</span>
+                        <textarea id="reqReason" rows="2" required></textarea>
                     </div>
 
                     <button type="submit" class="submit-btn" id="btn-submit">إرسال الطلب الآن</button>
@@ -108,7 +142,6 @@
         </div>
     </main>
 
-    <!-- الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
