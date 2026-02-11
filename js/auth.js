@@ -43,46 +43,37 @@ async function activateAccount() {
     if(!code || !phone || !pass) { msg.innerText = "أكمل البيانات"; return; }
 
     try {
-        // 1. جلب بيانات الموظف
+        // 1. جلب بيانات الموظف من الـ CSV المرفوع
         const empDoc = await db.collection("Employee_Database").doc(code).get();
-
-        if (!empDoc.exists) {
-            msg.innerText = "الكود غير مسجل"; return;
+        if (!empDoc.exists || empDoc.data().phone !== phone) {
+            msg.innerText = "بيانات غير مطابقة للسجلات"; return;
         }
 
         const empData = empDoc.data();
-        if (empData.phone !== phone) {
-            msg.innerText = "رقم الموبايل خطأ"; return;
-        }
-
-        const email = code + "@tamkeen.com";
         const role = empData.role || "employee";
+        const email = code + "@tamkeen.com";
 
-        // 2. إنشاء الحساب في Auth
-        const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
-        const user = userCredential.user;
+        // 2. إنشاء الحساب (هنا الموظف بيصبح Authenticated)
+        await auth.createUserWithEmailAndPassword(email, pass);
+        
+        console.log("تم إنشاء الحساب، جاري تسجيل الصلاحيات لـ " + role);
 
-        console.log("تم إنشاء الحساب، جاري كتابة الصلاحيات...");
-
-        // 3. كتابة الصلاحيات في جدول Users (بصيغة تضمن التنفيذ)
-        await db.collection("Users").doc(email).set({
-            role: role,
+        // 3. كتابة الصلاحيات (بما إنه بقا مسجل دخول، الـ Rules هتسمح له ينشئ ملفه)
+        await db.collection("Users").doc(email).set({ 
+            role: role, 
             name: empData.name,
-            empCode: code,
-            email: email
+            empCode: code 
         });
 
-        // 4. تحديث حالة التفعيل في جدول الموظفين
-        await db.collection("Employee_Database").doc(code).update({
-            activated: true
-        });
+        // 4. تحديث حالة الموظف في الجدول الرئيسي
+        await db.collection("Employee_Database").doc(code).update({ activated: true });
 
-        alert("تم التفعيل بنجاح! رتبتك هي: " + role);
+        alert("تم التفعيل بنجاح! رتبتك: " + role);
         window.location.href = "index.html";
 
-    } catch (error) {
-        console.error("خطأ التفعيل:", error);
-        msg.innerText = "خطأ: " + error.message;
+    } catch (error) { 
+        console.error(error);
+        msg.innerText = "خطأ: " + error.message; 
     }
 }
 
