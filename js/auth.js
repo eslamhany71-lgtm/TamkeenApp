@@ -46,62 +46,60 @@ async function activateAccount() {
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
 
-    if (!code || !phone || !pass) { 
-        if (msg) msg.innerText = "برجاء إكمال جميع البيانات"; 
-        return; 
-    }
-
-    if (pass.length < 6) {
-        if (msg) msg.innerText = "كلمة المرور يجب أن تكون 6 رموز على الأقل";
-        return;
+    if(!code || !phone || !pass) { 
+        msg.innerText = "برجاء إكمال البيانات"; return; 
     }
 
     try {
-        // أ- التأكد من وجود الموظف في قاعدة البيانات المرفوعة
+        // 1. جلب بيانات الموظف من الجدول المرفوع
         const empDoc = await db.collection("Employee_Database").doc(code).get();
 
         if (!empDoc.exists) {
-            if (msg) msg.innerText = "الكود غير مسجل، راجع الـ HR";
-            return;
+            msg.innerText = "الكود غير مسجل، راجع الـ HR"; return;
         }
 
         const empData = empDoc.data();
-
-        // ب- التأكد من مطابقة رقم الموبايل
         if (empData.phone !== phone) {
-            if (msg) msg.innerText = "رقم الموبايل غير مطابق للسجلات";
-            return;
+            msg.innerText = "رقم الموبايل غير مطابق للسجلات"; return;
         }
 
-        // ج- التأكد أن الحساب لم يفعل مسبقاً
         if (empData.activated === true) {
-            if (msg) msg.innerText = "هذا الحساب مفعل بالفعل، اذهب للدخول";
-            return;
+            msg.innerText = "هذا الحساب مفعل بالفعل"; return;
         }
 
         const email = code + "@tamkeen.com";
-        const assignedRole = (empData.role || "employee").toLowerCase().trim();
+        const role = (empData.role || "employee").toLowerCase().trim();
 
-        // د- إنشاء الحساب في Authentication
-        // بمجرد الإنشاء، سيتم تسجيل دخول المستخدم تلقائياً مما يسمح له بالكتابة في Firestore حسب القواعد
-        await auth.createUserWithEmailAndPassword(email, pass);
+        msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
-        // هـ- إنشاء ملف الصلاحيات في جدول Users (المحرك الأساسي)
-        await db.collection("Users").doc(email).set({ 
-            role: assignedRole, 
+        // 2. إنشاء الحساب في الـ Auth
+        const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+        
+        // 3. كتابة الصلاحيات في جدول Users (المهمة جداً)
+        // بنستخدم await هنا عشان نضمن إنه مش هيتحرك للسطر اللي بعده غير لما يخلص كتابة
+        await db.collection("Users").doc(email).set({
+            role: role,
             name: empData.name,
             empCode: code,
             email: email
         });
 
-        // و- تحديث حالة التفعيل في جدول الموظفين الرئيسي
-        await db.collection("Employee_Database").doc(code).update({ activated: true });
+        // 4. تحديث حالة التفعيل في جدول الموظفين
+        await db.collection("Employee_Database").doc(code).update({
+            activated: true
+        });
 
-        alert("تم تفعيل حسابك بنجاح بصلاحية: " + assignedRole);
-        window.location.href = "index.html";
+        // 5. تأكيد نهائي قبل التحويل
+        msg.innerText = "تم التفعيل بنجاح! جاري تحويلك...";
+        
+        setTimeout(() => {
+            alert("تم التفعيل بنجاح بصلاحية: " + role);
+            window.location.href = "index.html";
+        }, 1500); // بنستنى ثانية ونصف عشان نضمن إن الداتا سمعت في السيرفر
 
     } catch (error) {
-        if (msg) msg.innerText = "خطأ: " + error.message;
+        console.error("خطأ التفعيل:", error);
+        msg.innerText = "خطأ: " + error.message;
     }
 }
 
