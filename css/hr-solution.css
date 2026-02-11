@@ -1,0 +1,104 @@
+/* تصميم الصفحة العام */
+.hr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.hr-card {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: 0.3s;
+    border-right: 5px solid #2a5298;
+}
+
+.hr-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.card-icon { font-size: 40px; }
+.card-info h3 { margin: 0; color: #333; }
+.card-info p { margin: 5px 0 0; color: #777; font-size: 14px; }
+
+/* المودال الشيك */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+}
+
+.modal-content {
+    background: white;
+    margin: 5% auto;
+    width: 90%;
+    max-width: 450px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+}
+
+.close-btn {
+    position: absolute;
+    left: 20px; top: 15px;
+    font-size: 28px; cursor: pointer;
+}
+
+.chic-form { padding: 25px; }
+
+.input-box {
+    margin-bottom: 20px;
+    position: relative;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 5px;
+}
+
+.field-icon {
+    position: absolute;
+    right: 5px; top: 10px;
+    font-size: 18px;
+}
+
+.input-box input, .input-box textarea {
+    width: 100%;
+    border: none;
+    padding: 10px 40px 10px 10px;
+    font-size: 16px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.submit-btn:hover { background: #219150; }
+
+.animate-top { position: relative; animation: animatetop 0.4s; }
+@keyframes animatetop { from {top:-300px; opacity:0} to {top:0; opacity:1} }
