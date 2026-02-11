@@ -3,57 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الرئيسية - نظام الموظفين</title>
-    <link rel="stylesheet" href="css/home.css">
+    <title id="txt-title">الرئيسية - تمكين</title>
+    <link rel="stylesheet" href="css/style.css">
+    
     <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-    <!-- الهيدر (فوق) -->
     <header>
-        <div class="user-info">
-            <span id="userEmail">جاري التحميل...</span>
-            <button onclick="logout()" class="logout-btn">تسجيل خروج</button>
+        <div class="user-controls">
+            <button onclick="logout()" class="logout-btn" id="btn-logout">تسجيل خروج</button>
+            <div class="lang-switch">
+                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+            </div>
         </div>
-        <h2>لوحة التحكم</h2>
+        <h2 id="txt-header">لوحة التحكم</h2>
     </header>
 
-    <!-- المحتوى الرئيسي (الكروت) -->
     <main class="container">
         <div class="welcome-section">
-            <h1>أهلاً بك في نظام الإدارة الموحد</h1>
-            <p>اختر الخدمة التي تريد الوصول إليها</p>
+            <h1 id="txt-welcome">أهلاً بك في نظام تمكين</h1>
+            <p id="userEmail" style="color: #2a5298; font-weight: bold;"></p>
         </div>
 
         <div class="cards-grid">
-            <!-- كارت حاسبة القروض -->
+            <!-- كارت حاسبة القروض (يظهر للكل) -->
             <div class="card" onclick="location.href='calculator.html'">
                 <div class="icon">💰</div>
-                <h3>Loan Calculator</h3>
-                <p>حساب القروض، الفوائد، والرسوم الإدارية بدقة.</p>
+                <h3 id="txt-calc">حاسبة القروض</h3>
+                <p id="sub-calc">حساب الفوائد والرسوم الإدارية</p>
             </div>
 
-            <!-- كارت الفروع -->
-            <div class="card" onclick="location.href='branches.html'">
-                <div class="icon">📍</div>
-                <h3>Branches</h3>
-                <p>البحث عن الفروع، العناوين، وأرقام التواصل.</p>
-            </div>
-
-            <!-- كارت شؤون الموظفين -->
+            <!-- كارت شؤون الموظفين (يظهر للكل) -->
             <div class="card" onclick="location.href='hr-solution.html'">
                 <div class="icon">📝</div>
-                <h3>HR Solution</h3>
-                <p>طلب إجازات، أذونات تأخير، وتصاريح خروج.</p>
+                <h3 id="txt-hr">الخدمات الذاتية (HR)</h3>
+                <p id="sub-hr">طلب إجازات وأذونات</p>
+            </div>
+
+            <!-- كارت الفروع (يظهر للكل) -->
+            <div class="card" onclick="location.href='branches.html'">
+                <div class="icon">📍</div>
+                <h3 id="txt-branches">الفروع</h3>
+                <p id="sub-branches">عناوين ولوكيشن الفروع</p>
+            </div>
+
+            <!-- كارت لوحة تحكم المدير (مخفي ويظهر للمدير والـ HR فقط) -->
+            <div id="manager-card" class="card admin-card" style="display: none; border: 2px solid #27ae60;" onclick="location.href='manager-dashboard.html'">
+                <div class="icon">📊</div>
+                <h3 id="txt-mgr-dash">لوحة تحكم المدير</h3>
+                <p id="sub-mgr-dash">مراجعة طلبات الموظفين (موافقة/رفض)</p>
+            </div>
+
+            <!-- كارت لوحة تحكم الـ HR (مخفي ويظهر للـ HR فقط) -->
+            <div id="hr-admin-card" class="card admin-card" style="display: none; border: 2px solid #e67e22;" onclick="location.href='hr-dashboard.html'">
+                <div class="icon">🏢</div>
+                <h3 id="txt-hr-dash">إدارة الموارد البشرية</h3>
+                <p id="sub-hr-dash">التحكم في الطلبات والتقارير النهائية</p>
             </div>
         </div>
     </main>
 
+    <!-- ربط الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
+    <script src="js/lang-manager.js"></script> <!-- ملف مدير اللغة اللي اتفقنا عليه -->
     <script src="js/auth.js"></script>
     <script src="js/home.js"></script>
-    <script src="js/lang-manager.js"></script>
+
+    <script>
+        // دالة الترجمة الخاصة بصفحة الـ Home
+        function updatePageContent(lang) {
+            const translations = {
+                ar: {
+                    title: "الرئيسية - تمكين",
+                    header: "لوحة التحكم",
+                    welcome: "أهلاً بك في نظام تمكين",
+                    logout: "تسجيل خروج",
+                    calc: "حاسبة القروض",
+                    subCalc: "حساب الفوائد والرسوم الإدارية",
+                    hr: "الخدمات الذاتية (HR)",
+                    subHr: "طلب إجازات وأذونات",
+                    branches: "الفروع",
+                    subBranches: "عناوين ولوكيشن الفروع",
+                    mgrDash: "لوحة تحكم المدير",
+                    subMgrDash: "مراجعة طلبات الموظفين",
+                    hrDash: "إدارة الموارد البشرية",
+                    subHrDash: "التحكم في الطلبات والتقارير"
+                },
+                en: {
+                    title: "Home - Tamkeen",
+                    header: "Dashboard",
+                    welcome: "Welcome to Tamkeen System",
+                    logout: "Logout",
+                    calc: "Loan Calculator",
+                    subCalc: "Calculate interests and admin fees",
+                    hr: "HR Self-Service",
+                    subHr: "Request leaves and permissions",
+                    branches: "Branches",
+                    subBranches: "Addresses and locations",
+                    mgrDash: "Manager Dashboard",
+                    subMgrDash: "Review employee requests",
+                    hrDash: "HR Administration",
+                    subHrDash: "Full control and reports"
+                }
+            };
+
+            const t = translations[lang];
+            document.getElementById('txt-title').innerText = t.title;
+            document.getElementById('txt-header').innerText = t.header;
+            document.getElementById('txt-welcome').innerText = t.welcome;
+            document.getElementById('btn-logout').innerText = t.logout;
+            document.getElementById('txt-calc').innerText = t.calc;
+            document.getElementById('sub-calc').innerText = t.subCalc;
+            document.getElementById('txt-hr').innerText = t.hr;
+            document.getElementById('sub-hr').innerText = t.subHr;
+            document.getElementById('txt-branches').innerText = t.branches;
+            document.getElementById('sub-branches').innerText = t.subBranches;
+            document.getElementById('txt-mgr-dash').innerText = t.mgrDash;
+            document.getElementById('sub-mgr-dash').innerText = t.subMgrDash;
+            document.getElementById('txt-hr-dash').innerText = t.hrDash;
+            document.getElementById('sub-hr-dash').innerText = t.subHrDash;
+        }
+
+        // الكود اللي بيتحقق من الصلاحية ويفتح الكروت
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('userEmail').innerText = user.email;
+
+                // البحث عن دور الموظف في Firestore
+                firebase.firestore().collection("Users").doc(user.email).get().then((doc) => {
+                    if (doc.exists) {
+                        const userData = doc.data();
+                        const role = userData.role;
+
+                        if (role === 'manager') {
+                            document.getElementById('manager-card').style.display = 'block';
+                        } 
+                        else if (role === 'hr') {
+                            document.getElementById('manager-card').style.display = 'block';
+                            document.getElementById('hr-admin-card').style.display = 'block';
+                        }
+                    } else {
+                        console.log("هذا المستخدم ليس له دور محدد في جدول Users");
+                    }
+                }).catch((error) => {
+                    console.log("خطأ في جلب الصلاحيات:", error);
+                });
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+    </script>
 </body>
 </html>
