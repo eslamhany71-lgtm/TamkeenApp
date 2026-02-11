@@ -40,41 +40,33 @@ async function activateAccount() {
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
 
-    if(!code || !phone || !pass) { msg.innerText = "أكمل البيانات"; return; }
-
     try {
-        // 1. جلب بيانات الموظف من الـ CSV المرفوع
         const empDoc = await db.collection("Employee_Database").doc(code).get();
         if (!empDoc.exists || empDoc.data().phone !== phone) {
             msg.innerText = "بيانات غير مطابقة للسجلات"; return;
         }
 
         const empData = empDoc.data();
-        const role = empData.role || "employee";
         const email = code + "@tamkeen.com";
+        const role = empData.role.toLowerCase().trim(); // تأكدنا إنها lowercase
 
-        // 2. إنشاء الحساب (هنا الموظف بيصبح Authenticated)
+        // 1. إنشاء الحساب
         await auth.createUserWithEmailAndPassword(email, pass);
-        
-        console.log("تم إنشاء الحساب، جاري تسجيل الصلاحيات لـ " + role);
 
-        // 3. كتابة الصلاحيات (بما إنه بقا مسجل دخول، الـ Rules هتسمح له ينشئ ملفه)
+        // 2. كتابة الرتبة في جدول Users (مهم جداً)
         await db.collection("Users").doc(email).set({ 
             role: role, 
             name: empData.name,
             empCode: code 
         });
 
-        // 4. تحديث حالة الموظف في الجدول الرئيسي
+        // 3. تحديث جدول الموظفين
         await db.collection("Employee_Database").doc(code).update({ activated: true });
 
-        alert("تم التفعيل بنجاح! رتبتك: " + role);
+        alert("تم التفعيل بنجاح! رتبتك هي: " + role);
         window.location.href = "index.html";
 
-    } catch (error) { 
-        console.error(error);
-        msg.innerText = "خطأ: " + error.message; 
-    }
+    } catch (error) { msg.innerText = error.message; }
 }
 
 // 3. مراقب الحالة وحماية الصفحات
