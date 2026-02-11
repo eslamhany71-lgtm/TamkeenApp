@@ -16,12 +16,13 @@ function loginById() {
     const email = `${code}@tamkeen.com`;
     const btn = document.getElementById('btn-login');
     const originalText = btn.innerText;
+    
     btn.innerText = "...";
     btn.disabled = true;
 
     auth.signInWithEmailAndPassword(email, pass)
     .then(() => {
-        // سيتم التوجيه أوتوماتيكياً بواسطة المراقب (Observer) بالأسفل
+        // التوجيه يتم أوتوماتيكياً بواسطة المراقب بالأسفل
     })
     .catch((error) => {
         btn.innerText = originalText;
@@ -37,48 +38,56 @@ async function activateAccount() {
     const pass = document.getElementById('reg-pass').value;
     const msg = document.getElementById('reg-msg');
 
-    if(!code || !phone || !pass) { msg.innerText = "أكمل البيانات"; return; }
+    if(!code || !phone || !pass) { 
+        msg.innerText = document.body.dir === 'rtl' ? "أكمل البيانات" : "Complete data"; 
+        return; 
+    }
 
     try {
-        // 1. نجيب بيانات الموظف من الجدول اللي ارفع بالـ CSV
+        // أ- التأكد من وجود الموظف في قاعدة بيانات الشركة
         const empDoc = await db.collection("Employee_Database").doc(code).get();
 
         if (!empDoc.exists) {
-            msg.innerText = "الكود غير مسجل، راجع الـ HR";
+            msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع الـ HR" : "ID not found, check HR";
             return;
         }
 
         const empData = empDoc.data();
 
-        // 2. نتأكد من رقم الموبايل
+        // ب- التأكد من مطابقة رقم الموبايل
         if (empData.phone !== phone) {
-            msg.innerText = "رقم الموبايل غير مطابق";
+            msg.innerText = document.body.dir === 'rtl' ? "رقم الموبايل غير مطابق" : "Phone number mismatch";
             return;
         }
 
-        // 3. سحب الرتبة (manager/hr/employee) من بيانات الـ CSV
-        // تأكد أن الاسم في الـ CSV كان role
+        // ج- التأكد أن الحساب لم يفعل مسبقاً
+        if (empData.activated === true) {
+            msg.innerText = document.body.dir === 'rtl' ? "الحساب مفعل بالفعل" : "Account already active";
+            return;
+        }
+
+        // د- سحب الصلاحية (Role) المحددة من الـ CSV
         const assignedRole = empData.role || "employee"; 
         const email = `${code}@tamkeen.com`;
 
-        // 4. إنشاء الحساب
+        // هـ- إنشاء الحساب في Firebase Auth
         await auth.createUserWithEmailAndPassword(email, pass);
 
-        // 5. تحديث الحالة
+        // و- تحديث حالة التفعيل في جدول الموظفين
         await db.collection("Employee_Database").doc(code).update({ activated: true });
         
-        // 6. السر هنا: وضع الرتبة الصحيحة في جدول Users
+        // ز- إنشاء ملف الصلاحيات في جدول Users
         await db.collection("Users").doc(email).set({ 
             role: assignedRole, 
             name: empData.name,
             empCode: code 
         });
 
-        alert("تم التفعيل بنجاح بصلاحية: " + assignedRole);
+        alert(document.body.dir === 'rtl' ? "تم التفعيل بنجاح بصلاحية: " + assignedRole : "Activated successfully as: " + assignedRole);
         window.location.href = "index.html";
 
     } catch (error) {
-        msg.innerText = "خطأ: " + error.message;
+        msg.innerText = error.message;
     }
 }
 
@@ -89,12 +98,12 @@ auth.onAuthStateChanged((user) => {
     const isLoginPage = fileName === "index.html" || fileName === "activate.html" || fileName === "" || fileName === "undefined";
 
     if (user) {
-        // لو مسجل دخول وهو في صفحة الدخول، ابعته للهوم
+        // لو مسجل دخول وهو في صفحة الدخول، وديه للهوم
         if (isLoginPage) {
             window.location.href = "home.html";
         }
     } else {
-        // لو مش مسجل دخول وهو في صفحة محتاجة حماية، ابعته للدخول
+        // لو مش مسجل وهو في صفحة حماية، ارجع للدخول
         if (!isLoginPage) {
             window.location.href = "index.html";
         }
@@ -105,10 +114,10 @@ auth.onAuthStateChanged((user) => {
 function logout() {
     auth.signOut().then(() => {
         window.location.href = "index.html";
-    }).catch(err => alert("حدث خطأ أثناء الخروج"));
+    }).catch(err => alert("Error logging out"));
 }
 
-// 5. نظام اللغة لصفحات الدخول والتفعيل
+// 5. نظام اللغة الكامل (Login & Activate)
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -146,6 +155,8 @@ function updatePageContent(lang) {
     };
 
     const t = translations[lang];
+    
+    // عناصر صفحة الدخول (index.html)
     if (document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
     if (document.getElementById('txt-brand')) document.getElementById('txt-brand').innerText = t.brand;
     if (document.getElementById('txt-welcome')) document.getElementById('txt-welcome').innerText = t.welcome;
@@ -155,10 +166,8 @@ function updatePageContent(lang) {
     if (document.getElementById('txt-new')) document.getElementById('txt-new').innerText = t.new;
     if (document.getElementById('link-activate')) document.getElementById('link-activate').innerText = t.act;
     
-    // عناصر صفحة التفعيل
+    // عناصر صفحة التفعيل (activate.html)
     if (document.getElementById('txt-act-title')) document.getElementById('txt-act-title').innerText = t.actTitle;
     if (document.getElementById('lbl-phone')) document.getElementById('lbl-phone').innerText = t.lblPhone;
     if (document.getElementById('lbl-new-pass')) document.getElementById('lbl-new-pass').innerText = t.lblNewPass;
-    if (document.getElementById('btn-activate')) document.getElementById('btn-activate').innerText = t.btnAct;
-    if (document.getElementById('link-back')) document.getElementById('link-back').innerText = t.back;
-}
+    if (document.getElementById('btn-activate')) document.getElementById('btn-activate'
