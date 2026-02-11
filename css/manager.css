@@ -1,26 +1,123 @@
-.requests-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 15px;
-    margin-top: 20px;
-}
+/* --- تنسيق لوحة تحكم المدير --- */
 
-.request-card {
-    background: white;
-    padding: 20px;
+/* شريط الإحصائيات العلوي */
+.stats-bar {
+    background: #fff;
+    padding: 15px 25px;
     border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border-right: 5px solid #2a5298;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-right: 5px solid #ccc;
 }
 
-.request-card.approved { border-right-color: #27ae60; }
-.request-card.rejected { border-right-color: #e74c3c; }
-.request-card.pending { border-right-color: #f1c40f; }
+.stats-bar p {
+    margin: 0;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #333;
+}
 
-.approve-btn { background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-left: 5px;}
-.reject-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+#pending-count {
+    color: #e67e22; /* لون برتقالي للطلبات المعلقة */
+    font-size: 1.4rem;
+}
 
-.final-status { font-weight: bold; color: #7f8c8d; }
+/* شبكة الطلبات */
+.requests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+}
+
+/* كارت الطلب */
+.request-card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: 0.3s;
+    border-top: 4px solid #ccc;
+    position: relative;
+}
+
+.request-card:hover {
+    transform: translateY(-5px);
+}
+
+/* ألوان الحالة في الكروت */
+.request-card.pending { border-top-color: #f1c40f; }   /* أصفر */
+.request-card.approved { border-top-color: #2ecc71; }  /* أخضر */
+.request-card.rejected { border-top-color: #e74c3c; }  /* أحمر */
+
+.req-info h4 {
+    margin: 0 0 15px 0;
+    color: #2a5298;
+    font-size: 1.2rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.req-info p {
+    margin: 8px 0;
+    font-size: 0.95rem;
+    color: #555;
+}
+
+.status-label {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.pending .status-label { background: #fef9e7; color: #f1c40f; }
+.approved .status-label { background: #eafaf1; color: #2ecc71; }
+.rejected .status-label { background: #fdedec; color: #e74c3c; }
+
+/* أزرار التحكم */
+.req-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.approve-btn, .reject-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+    color: white;
+}
+
+.approve-btn { background-color: #2ecc71; }
+.approve-btn:hover { background-color: #27ae60; }
+
+.reject-btn { background-color: #e74c3c; }
+.reject-btn:hover { background-color: #c0392b; }
+
+.final-status {
+    width: 100%;
+    text-align: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    color: #7f8c8d;
+    font-weight: bold;
+}
+
+/* ريسبونسيف للموبايل */
+@media (max-width: 600px) {
+    .request-card {
+        padding: 15px;
+    }
+}
