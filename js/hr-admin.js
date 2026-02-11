@@ -1,24 +1,23 @@
 const db = firebase.firestore();
-let allRequests = []; // مصفوفة لتخزين كل البيانات محلياً عشان الفلترة تكون سريعة جداً
+let allRequests = []; // لتخزين البيانات محلياً للفلترة السريعة
 
-// 1. دالة سحب كل الطلبات من Firestore
+// 1. دالة سحب كل طلبات الـ HR وعرضها في الجدول
 function loadAllRequests() {
     db.collection("HR_Requests").orderBy("submittedAt", "desc").onSnapshot((snapshot) => {
         allRequests = [];
         snapshot.forEach(doc => {
             allRequests.push({ id: doc.id, ...doc.data() });
         });
-        // أول ما البيانات تيجي، بنرسم الجدول بالكامل
         renderTable(allRequests);
     });
 }
 
-// 2. دالة رسم الجدول بناءً على البيانات (المفلترة أو الكاملة)
+// 2. دالة رسم الجدول بناءً على البيانات
 function renderTable(dataArray) {
     const tableBody = document.getElementById('hr-requests-table');
     let total = 0, approved = 0;
     
-    tableBody.innerHTML = ""; // مسح الجدول القديم
+    tableBody.innerHTML = ""; 
 
     if (dataArray.length === 0) {
         tableBody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>لا توجد بيانات مطابقة للبحث</td></tr>";
@@ -28,7 +27,6 @@ function renderTable(dataArray) {
         total++;
         if(data.status === "Approved") approved++;
 
-        // معالجة التواريخ للعرض
         const dateFrom = data.startDate || data.reqDate || "--";
         const dateTo = data.endDate ? ` إلى ${data.endDate}` : "";
 
@@ -47,12 +45,55 @@ function renderTable(dataArray) {
         tableBody.appendChild(row);
     });
 
-    // تحديث الأرقام في شريط الإحصائيات
     document.getElementById('total-count').innerText = total;
     document.getElementById('approved-count').innerText = approved;
 }
 
-// 3. دالة الفلترة الذكية (تاريخ + نوع + قسم)
+// 3. دالة رفع ملف CSV (النظام الاحترافي الجديد - 4 أعمدة)
+function uploadCSV() {
+    const fileInput = document.getElementById('csvFile');
+    const file = fileInput.files[0];
+    if (!file) { 
+        alert("يرجى اختيار ملف CSV أولاً"); 
+        return; 
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const rows = text.split('\n'); // تقسيم الملف لأسطر
+        let count = 0;
+
+        // نبدأ من السطر الثاني (تخطي العناوين)
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i].trim();
+            if (!row) continue; // تخطي السطور الفاضية
+
+            const cols = row.split(','); // تقسيم السطر لأعمدة
+
+            if (cols.length >= 4) {
+                const code = cols[0].trim();
+                const name = cols[1].trim();
+                const phone = cols[2].trim();
+                const role = cols[3].trim().toLowerCase(); // الرتبة: employee, manager, hr
+
+                // رفع البيانات لجدول قاعدة بيانات الموظفين
+                db.collection("Employee_Database").doc(code).set({
+                    name: name,
+                    phone: phone,
+                    role: role,
+                    activated: false // الحساب لسه مفعلوش الموظف
+                });
+                count++;
+            }
+        }
+        alert(`تم رفع بيانات ${count} موظف بنجاح!`);
+        fileInput.value = ""; // مسح الملف من الخانة بعد الرفع
+    };
+    reader.readAsText(file, "UTF-8");
+}
+
+// 4. دالة الفلترة الذكية
 function filterTable() {
     const dateFrom = document.getElementById('filter-date-from').value;
     const dateTo = document.getElementById('filter-date-to').value;
@@ -65,16 +106,13 @@ function filterTable() {
         const reqDept = (req.department || "").toLowerCase();
         const reqJob = (req.jobTitle || "").toLowerCase();
 
-        // فلتر التاريخ
         let dateMatch = true;
         if (dateFrom && reqDate < dateFrom) dateMatch = false;
         if (dateTo && reqDate > dateTo) dateMatch = false;
 
-        // فلتر نوع الطلب
         let typeMatch = true;
         if (typeSearch && reqType !== typeSearch) typeMatch = false;
 
-        // فلتر القسم والوظيفة
         let deptMatch = true;
         if (deptSearch && !reqDept.includes(deptSearch) && !reqJob.includes(deptSearch)) deptMatch = false;
 
@@ -84,7 +122,7 @@ function filterTable() {
     renderTable(filteredData);
 }
 
-// 4. إعادة ضبط الفلاتر
+// 5. إعادة ضبط الفلاتر
 function resetFilters() {
     document.getElementById('filter-date-from').value = "";
     document.getElementById('filter-date-to').value = "";
@@ -93,27 +131,23 @@ function resetFilters() {
     renderTable(allRequests);
 }
 
-// 5. حذف طلب
+// 6. حذف سجل
 function deleteRequest(id) {
     if(confirm("هل أنت متأكد من حذف هذا السجل نهائياً؟")) {
-        db.collection("HR_Requests").doc(id).delete()
-        .then(() => console.log("تم الحذف"))
-        .catch(err => alert("خطأ في الحذف: " + err.message));
+        db.collection("HR_Requests").doc(id).delete();
     }
 }
 
-// 6. ترجمة نوع الطلب للعرض
+// 7. ترجمة نوع الطلب
 function translateType(type) {
     const types = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
     return types[type] || type;
 }
 
-// 7. تصدير البيانات الظاهرة في الجدول حالياً لملف Excel (CSV)
+// 8. تصدير للـ Excel
 function exportToExcel() {
-    let csv = "\uFEFF"; // لدعم اللغة العربية
+    let csv = "\uFEFF"; 
     csv += "الكود,الموظف,الوظيفة/القسم,نوع الطلب,التاريخ,الحالة\n";
-    
-    // بناخد البيانات اللي ظاهرة حالياً في الـ Table Body
     const rows = document.querySelectorAll("#hr-requests-table tr");
     rows.forEach(row => {
         const cols = row.querySelectorAll("td");
@@ -125,88 +159,25 @@ function exportToExcel() {
             csv += rowData.join(",") + "\n";
         }
     });
-
     const hiddenElement = document.createElement('a');
     hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
     hiddenElement.target = '_blank';
-    hiddenElement.download = 'تقرير_HR_مفلتر.csv';
+    hiddenElement.download = 'تقرير_HR.csv';
     hiddenElement.click();
 }
 
-// 8. نظام اللغة (Arabic/English) لصفحة الـ HR
+// 9. نظام اللغة
 function updatePageContent(lang) {
     const translations = {
         ar: { 
-            title: "إدارة الـ HR", header: "لوحة تحكم الـ HR Admin", back: "رجوع", total: "إجمالي الطلبات:", approved: "الموافق عليها:", export: "تحميل تقرير مفلتر",
+            title: "إدارة الـ HR", header: "لوحة تحكم الـ HR Admin", back: "رجوع", total: "إجمالي الطلبات:", approved: "الموافق عليها:", export: "تحميل تقرير",
             filterDate: "فلتر بالتاريخ:", filterType: "نوع الطلب:", filterDept: "البحث بالقسم / الوظيفة:", 
             optAll: "الكل", optVac: "إجازة", optLate: "إذن تأخير", optExit: "تصريح خروج",
-            reset: "إعادة ضبط", code:"الكود", name:"الموظف", job:"الوظيفة/القسم", type:"نوع الطلب", date:"التاريخ", status:"الحالة", action:"إجراء" 
+            reset: "إعادة ضبط", code:"الكود", name:"الموظف", job:"الوظيفة/القسم", type:"نوع الطلب", date:"التاريخ", status:"الحالة", action:"إجراء",
+            upload: "رفع بيانات الموظفين (ملف CSV):", start: "ابدأ الرفع الآن"
         },
         en: { 
-            title: "HR Admin", header: "HR Admin Dashboard", back: "Back", total: "Total:", approved: "Approved:", export: "Export Filtered Report",
+            title: "HR Admin", header: "HR Admin Dashboard", back: "Back", total: "Total:", approved: "Approved:", export: "Export Report",
             filterDate: "Date Filter:", filterType: "Request Type:", filterDept: "Search Dept/Job:", 
-            optAll: "All", optVac: "Vacation", optLate: "Late Permission", optExit: "Exit Permit",
-            reset: "Reset", code:"ID", name:"Name", job:"Job/Dept", type:"Type", date:"Date", status:"Status", action:"Action"
-        }
-    };
-    const t = translations[lang];
-    
-    // تحديث النصوص
-    document.getElementById('txt-title').innerText = t.title;
-    document.getElementById('txt-header').innerText = t.header;
-    document.getElementById('btn-back').innerText = t.back;
-    document.getElementById('txt-total').innerText = t.total;
-    document.getElementById('txt-approved').innerText = t.approved;
-    document.getElementById('btn-export').innerText = t.export;
-    document.getElementById('lbl-filter-date').innerText = t.filterDate;
-    document.getElementById('lbl-filter-type').innerText = t.filterType;
-    document.getElementById('lbl-filter-dept').innerText = t.filterDept;
-    document.getElementById('opt-all').innerText = t.optAll;
-    document.getElementById('opt-vac').innerText = t.optVac;
-    document.getElementById('opt-late').innerText = t.optLate;
-    document.getElementById('opt-exit').innerText = t.optExit;
-    document.getElementById('btn-reset-filter').innerText = t.reset;
-    
-    // تحديث عناوين الجدول
-    document.getElementById('th-code').innerText = t.code;
-    document.getElementById('th-name').innerText = t.name;
-    document.getElementById('th-job').innerText = t.job;
-    document.getElementById('th-type').innerText = t.type;
-    document.getElementById('th-date').innerText = t.date;
-    document.getElementById('th-status').innerText = t.status;
-    document.getElementById('th-action').innerText = t.action;
-}
-
-// تشغيل جلب البيانات عند فتح الصفحة
-window.onload = () => { 
-    loadAllRequests(); 
-};
-function uploadCSV() {
-    const fileInput = document.getElementById('csvFile');
-    const file = fileInput.files[0];
-    if (!file) { alert("اختار ملف CSV الأول"); return; }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const text = e.target.result;
-        const rows = text.split('\n');
-        
-        // تخطي أول سطر (العناوين) والبدء في الرفع
-        for (let i = 1; i < rows.length; i++) {
-            const cols = rows[i].split(',');
-            if (cols.length >= 3) {
-                const code = cols[0].trim(); // الكود
-                const name = cols[1].trim(); // الاسم
-                const phone = cols[2].trim(); // التليفون
-                
-                db.collection("Employee_Database").doc(code).set({
-                    name: name,
-                    phone: phone,
-                    activated: false
-                });
-            }
-        }
-        alert("تمت جدولة رفع البيانات بنجاح!");
-    };
-    reader.readAsText(file);
-}
+            optAll: "All", optVac: "Vacation", optLate: "Late Perm.", optExit: "Exit Permit",
+            reset: "Reset", code:
