@@ -91,3 +91,27 @@ document.getElementById('hrRequestForm').addEventListener('submit', (e) => {
 window.onload = () => {
     changeLang(localStorage.getItem('preferredLang') || 'ar');
 };
+function openForm(type) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    document.getElementById('requestType').value = type;
+    
+    // إخفاء كل الخانات الخاصة أولاً
+    document.getElementById('vacation-only').style.display = 'none';
+    document.getElementById('time-only').style.display = 'none';
+
+    // إظهار الخانات بناءً على النوع
+    if (type === 'vacation') {
+        document.getElementById('vacation-only').style.display = 'block';
+        document.getElementById('modal-title').innerText = (lang === 'ar') ? "طلب إجازة" : "Vacation Request";
+    } 
+    else if (type === 'late') {
+        document.getElementById('time-only').style.display = 'block';
+        document.getElementById('modal-title').innerText = (lang === 'ar') ? "إذن تأخير" : "Late Permission";
+    } 
+    else if (type === 'exit') {
+        document.getElementById('time-only').style.display = 'block';
+        document.getElementById('modal-title').innerText = (lang === 'ar') ? "تصريح خروج" : "Exit Permit";
+    }
+
+    document.getElementById('formModal').style.display = "block";
+}
