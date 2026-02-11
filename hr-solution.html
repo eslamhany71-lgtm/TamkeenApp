@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">شؤون الموظفين - HR Solution</title>
-    <link rel="stylesheet" href="css/hr.css">
+    <title id="txt-title">الخدمات الذاتية - تمكين</title>
+    
+    <!-- ربط ملفات التنسيق -->
+    <link rel="stylesheet" href="css/hr-solution.css">
+    
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -14,61 +18,99 @@
     <header>
         <div class="header-right">
             <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
-            <span onclick="changeLang('ar')">عربي</span> | <span onclick="changeLang('en')">EN</span>
+            <div class="lang-switch" style="display:inline; margin-right:10px;">
+                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+            </div>
         </div>
         <h2 id="txt-header">الخدمات الذاتية للموظفين</h2>
     </header>
 
     <main class="container">
         <div class="hr-grid">
-            <!-- طلب إجازة -->
+            <!-- كارت طلب إجازة -->
             <div class="hr-card" onclick="openForm('vacation')">
-                <div class="icon">📅</div>
-                <h3 id="txt-vacation">طلب إجازة</h3>
-                <p id="sub-vacation">تقديم طلب إجازة سنوية أو عارضة</p>
+                <div class="card-icon">📅</div>
+                <div class="card-info">
+                    <h3 id="txt-vacation">طلب إجازة</h3>
+                    <p id="sub-vacation">سنوية، عارضة، أو مرضية</p>
+                </div>
             </div>
 
-            <!-- إذن تأخير -->
+            <!-- كارت إذن تأخير -->
             <div class="hr-card" onclick="openForm('late')">
-                <div class="icon">⏰</div>
-                <h3 id="txt-late">إذن تأخير</h3>
-                <p id="sub-late">طلب إذن حضور متأخر للعمل</p>
+                <div class="card-icon">⏰</div>
+                <div class="card-info">
+                    <h3 id="txt-late">إذن تأخير</h3>
+                    <p id="sub-late">إذن حضور متأخر للعمل</p>
+                </div>
             </div>
 
-            <!-- تصريح خروج -->
+            <!-- كارت تصريح خروج -->
             <div class="hr-card" onclick="openForm('exit')">
-                <div class="icon">🚪</div>
-                <h3 id="txt-exit">تصريح خروج</h3>
-                <p id="sub-exit">طلب تصريح خروج أثناء ساعات العمل</p>
+                <div class="card-icon">🚪</div>
+                <div class="card-info">
+                    <h3 id="txt-exit">تصريح خروج</h3>
+                    <p id="sub-exit">خروج مؤقت أثناء العمل</p>
+                </div>
             </div>
         </div>
 
-        <!-- مودال (نموذج الطلب) -->
+        <!-- المودال الشيك (النموذج المطور) -->
         <div id="formModal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeForm()">&times;</span>
-                <h2 id="modal-title">تقديم طلب</h2>
-                <form id="hrRequestForm">
+            <div class="modal-content animate-top">
+                <div class="modal-header">
+                    <h2 id="modal-title">تقديم طلب</h2>
+                    <span class="close-btn" onclick="closeForm()">&times;</span>
+                </div>
+                
+                <form id="hrRequestForm" class="chic-form">
                     <input type="hidden" id="requestType">
-                    <div class="input-group">
-                        <label id="lbl-name">اسم الموظف</label>
-                        <input type="text" id="empName" required>
+                    
+                    <!-- خانة الاسم -->
+                    <div class="input-box">
+                        <span class="field-icon">👤</span>
+                        <input type="text" id="empName" placeholder="اسم الموظف بالكامل" required>
                     </div>
-                    <div class="input-group">
-                        <label id="lbl-date">التاريخ</label>
+
+                    <!-- خانة التاريخ الأساسية -->
+                    <div class="input-box">
+                        <span class="field-icon">📅</span>
                         <input type="date" id="reqDate" required>
                     </div>
-                    <div class="input-group">
-                        <label id="lbl-reason">السبب / التفاصيل</label>
-                        <textarea id="reqReason" rows="4" required></textarea>
+
+                    <!-- خانة تاريخ العودة (تظهر في الإجازة فقط) -->
+                    <div id="vacation-only" style="display:none;">
+                        <div class="input-box">
+                            <span class="field-icon">🏁</span>
+                            <label style="font-size:11px; color:#2a5298; display:block; margin-right:35px;">تاريخ العودة من الإجازة</label>
+                            <input type="date" id="endDate">
+                        </div>
                     </div>
-                    <button type="submit" class="calc-btn" id="btn-submit">إرسال الطلب</button>
+
+                    <!-- خانة الوقت (تظهر في الإذن والتصريح فقط) -->
+                    <div id="time-only" style="display:none;">
+                        <div class="input-box">
+                            <span class="field-icon">🕒</span>
+                            <input type="time" id="reqTime">
+                        </div>
+                    </div>
+
+                    <!-- خانة السبب -->
+                    <div class="input-box">
+                        <span class="field-icon">📝</span>
+                        <textarea id="reqReason" rows="3" placeholder="اكتب السبب أو التفاصيل هنا..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="btn-submit">إرسال الطلب الآن</button>
                 </form>
             </div>
         </div>
     </main>
 
+    <!-- الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
+    <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/hr.js"></script>
 </body>
