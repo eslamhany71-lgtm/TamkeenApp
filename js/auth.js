@@ -3,17 +3,23 @@ const db = firebase.firestore();
 
 // 1. دالة تسجيل الدخول بكود الموظف
 function loginById() {
-    const code = document.getElementById('empCode').value;
-    const pass = document.getElementById('password').value;
+    const codeInput = document.getElementById('empCode');
+    const passInput = document.getElementById('password');
     const errorDiv = document.getElementById('errorMessage');
 
-    if(!code || !pass) { 
-        if (errorDiv) errorDiv.innerText = "برجاء إكمال البيانات"; 
+    if (!codeInput || !passInput) return;
+
+    const code = codeInput.value.trim();
+    const pass = passInput.value.trim();
+
+    if (!code || !pass) { 
+        if (errorDiv) errorDiv.innerText = document.body.dir === 'rtl' ? "برجاء إكمال البيانات" : "Please complete data"; 
         return; 
     }
 
     const email = code + "@tamkeen.com";
     const btn = document.getElementById('btn-login');
+    const originalText = btn ? btn.innerText : "";
     
     if (btn) {
         btn.innerText = "...";
@@ -22,64 +28,97 @@ function loginById() {
 
     auth.signInWithEmailAndPassword(email, pass)
     .then(() => {
-        // التوجيه يتم بواسطة المراقب بالأسفل
+        // التوجيه يتم تلقائياً عبر مراقب الحالة بالأسفل
     })
     .catch((error) => {
         if (btn) {
-            btn.innerText = "دخول";
+            btn.innerText = originalText;
             btn.disabled = false;
         }
-        if (errorDiv) errorDiv.innerText = "خطأ في الكود أو كلمة المرور";
+        if (errorDiv) errorDiv.innerText = document.body.dir === 'rtl' ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
     });
 }
 
-// 2. دالة تفعيل الحساب لأول مرة
+// 2. دالة تفعيل الحساب لأول مرة (النسخة المضمونة)
 async function activateAccount() {
     const code = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
 
+    if (!code || !phone || !pass) { 
+        if (msg) msg.innerText = "برجاء إكمال جميع البيانات"; 
+        return; 
+    }
+
+    if (pass.length < 6) {
+        if (msg) msg.innerText = "كلمة المرور يجب أن تكون 6 رموز على الأقل";
+        return;
+    }
+
     try {
+        // أ- التأكد من وجود الموظف في قاعدة البيانات المرفوعة
         const empDoc = await db.collection("Employee_Database").doc(code).get();
-        if (!empDoc.exists || empDoc.data().phone !== phone) {
-            msg.innerText = "بيانات غير مطابقة للسجلات"; return;
+
+        if (!empDoc.exists) {
+            if (msg) msg.innerText = "الكود غير مسجل، راجع الـ HR";
+            return;
         }
 
         const empData = empDoc.data();
-        const email = code + "@tamkeen.com";
-        const role = empData.role.toLowerCase().trim(); // تأكدنا إنها lowercase
 
-        // 1. إنشاء الحساب
+        // ب- التأكد من مطابقة رقم الموبايل
+        if (empData.phone !== phone) {
+            if (msg) msg.innerText = "رقم الموبايل غير مطابق للسجلات";
+            return;
+        }
+
+        // ج- التأكد أن الحساب لم يفعل مسبقاً
+        if (empData.activated === true) {
+            if (msg) msg.innerText = "هذا الحساب مفعل بالفعل، اذهب للدخول";
+            return;
+        }
+
+        const email = code + "@tamkeen.com";
+        const assignedRole = (empData.role || "employee").toLowerCase().trim();
+
+        // د- إنشاء الحساب في Authentication
+        // بمجرد الإنشاء، سيتم تسجيل دخول المستخدم تلقائياً مما يسمح له بالكتابة في Firestore حسب القواعد
         await auth.createUserWithEmailAndPassword(email, pass);
 
-        // 2. كتابة الرتبة في جدول Users (مهم جداً)
+        // هـ- إنشاء ملف الصلاحيات في جدول Users (المحرك الأساسي)
         await db.collection("Users").doc(email).set({ 
-            role: role, 
+            role: assignedRole, 
             name: empData.name,
-            empCode: code 
+            empCode: code,
+            email: email
         });
 
-        // 3. تحديث جدول الموظفين
+        // و- تحديث حالة التفعيل في جدول الموظفين الرئيسي
         await db.collection("Employee_Database").doc(code).update({ activated: true });
 
-        alert("تم التفعيل بنجاح! رتبتك هي: " + role);
+        alert("تم تفعيل حسابك بنجاح بصلاحية: " + assignedRole);
         window.location.href = "index.html";
 
-    } catch (error) { msg.innerText = error.message; }
+    } catch (error) {
+        if (msg) msg.innerText = "خطأ: " + error.message;
+    }
 }
 
-// 3. مراقب الحالة وحماية الصفحات
+// 3. مراقب الحالة وحماية الصفحات (Observer)
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop();
+    // تحديد صفحات الدخول
     const isLoginPage = fileName === "index.html" || fileName === "activate.html" || fileName === "" || fileName === "undefined";
 
     if (user) {
+        // لو مسجل دخول وهو في صفحة الدخول، ابعته للهوم
         if (isLoginPage) {
             window.location.href = "home.html";
         }
     } else {
+        // لو مش مسجل وهو في صفحة حماية، ارجع للدخول
         if (!isLoginPage) {
             window.location.href = "index.html";
         }
@@ -93,7 +132,7 @@ function logout() {
     }).catch(err => console.log("Logout Error"));
 }
 
-// 5. نظام اللغة
+// 5. نظام اللغة الكامل (Login & Activate)
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -108,6 +147,7 @@ function updatePageContent(lang) {
 
     const t = translations[lang];
     
+    // عناصر صفحة الدخول (index.html)
     if (document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
     if (document.getElementById('txt-brand')) document.getElementById('txt-brand').innerText = t.brand;
     if (document.getElementById('txt-welcome')) document.getElementById('txt-welcome').innerText = t.welcome;
@@ -117,6 +157,7 @@ function updatePageContent(lang) {
     if (document.getElementById('txt-new')) document.getElementById('txt-new').innerText = t.new;
     if (document.getElementById('link-activate')) document.getElementById('link-activate').innerText = t.act;
     
+    // عناصر صفحة التفعيل (activate.html)
     if (document.getElementById('txt-act-title')) document.getElementById('txt-act-title').innerText = t.actTitle;
     if (document.getElementById('lbl-phone')) document.getElementById('lbl-phone').innerText = t.lblPhone;
     if (document.getElementById('lbl-new-pass')) document.getElementById('lbl-new-pass').innerText = t.lblNewPass;
