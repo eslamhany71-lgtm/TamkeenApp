@@ -1,14 +1,13 @@
 const db = firebase.firestore();
 
-// 1. دالة سحب الطلبات وعرضها
+// 1. دالة سحب الطلبات وعرضها بالتفاصيل الجديدة
 function loadRequests() {
-    // بنسحب من جدول HR_Requests وبنرتبهم من الأحدث للأقدم
     db.collection("HR_Requests").orderBy("submittedAt", "desc").onSnapshot((snapshot) => {
         const list = document.getElementById('requests-list');
         const countSpan = document.getElementById('pending-count');
         let pendingCount = 0;
         
-        list.innerHTML = ""; // مسح القائمة عشان نحدثها بالجديد
+        list.innerHTML = ""; 
 
         if (snapshot.empty) {
             list.innerHTML = "<p>لا توجد طلبات مقدمة حتى الآن.</p>";
@@ -19,15 +18,22 @@ function loadRequests() {
             const data = doc.data();
             if(data.status === "Pending") pendingCount++;
 
-            // إنشاء كارت لكل طلب
+            // تحديد التاريخ اللي هيظهر (لو إجازة يظهر startDate ولو إذن يظهر reqDate)
+            const displayDate = data.startDate || data.reqDate || "غير محدد";
+            const displayEndDate = data.endDate ? ` إلى ${data.endDate}` : "";
+
             const card = document.createElement('div');
             card.className = `request-card ${data.status.toLowerCase()}`;
             
+            // تصميم كارت المدير الجديد ليحتوي على كل البيانات
             card.innerHTML = `
                 <div class="req-info">
-                    <h4>${data.employee}</h4>
-                    <p><strong>النوع:</strong> ${translateType(data.type)}</p>
-                    <p><strong>التاريخ:</strong> ${data.date}</p>
+                    <h4>${data.employeeName || "اسم غير معروف"} <small>(${data.employeeCode || "بدون كود"})</small></h4>
+                    <p><strong>الوظيفة/القسم:</strong> ${data.jobTitle || "--"} / ${data.department || "--"}</p>
+                    <p><strong>نوع الطلب:</strong> ${translateType(data.type)} ${data.vacationType ? `(${data.vacationType})` : ""}</p>
+                    <p><strong>التاريخ:</strong> ${displayDate}${displayEndDate}</p>
+                    ${data.reqTime ? `<p><strong>الوقت:</strong> ${data.reqTime}</p>` : ""}
+                    ${data.backupEmployee && data.backupEmployee !== "N/A" ? `<p><strong>البديل:</strong> ${data.backupEmployee}</p>` : ""}
                     <p><strong>السبب:</strong> ${data.reason}</p>
                     <p><strong>الحالة:</strong> <span class="status-label">${data.status}</span></p>
                 </div>
@@ -45,30 +51,25 @@ function loadRequests() {
     });
 }
 
-// 2. دالة تحديث حالة الطلب (موافقة أو رفض)
 function updateStatus(requestId, newStatus) {
     if(confirm("هل أنت متأكد من تغيير حالة الطلب؟")) {
         db.collection("HR_Requests").doc(requestId).update({
             status: newStatus
         }).then(() => {
-            console.log("تم التحديث بنجاح");
-        }).catch((error) => {
-            alert("خطأ في التحديث: " + error.message);
-        });
+            console.log("تم التحديث");
+        }).catch((err) => alert("خطأ: " + err.message));
     }
 }
 
-// دالة مساعدة لترجمة نوع الطلب
 function translateType(type) {
     const types = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
     return types[type] || type;
 }
 
-// 3. نظام اللغة لصفحة المدير
 function updatePageContent(lang) {
     const translations = {
         ar: { title: "لوحة تحكم المدير", header: "مراجعة طلبات الموظفين", back: "رجوع", total: "الطلبات المعلقة: " },
-        en: { title: "Manager Dashboard", header: "Review Employee Requests", back: "Back", total: "Pending Requests: " }
+        en: { title: "Manager Dashboard", header: "Review Requests", back: "Back", total: "Pending Requests: " }
     };
     const t = translations[lang];
     document.getElementById('txt-title').innerText = t.title;
@@ -77,7 +78,4 @@ function updatePageContent(lang) {
     document.getElementById('txt-total-requests').firstChild.textContent = t.total;
 }
 
-// تشغيل السحب عند فتح الصفحة
-window.onload = () => {
-    loadRequests();
-};
+window.onload = () => { loadRequests(); };
