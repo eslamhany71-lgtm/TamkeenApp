@@ -3,22 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">الرئيسية - تمكين</title>
-    <link rel="stylesheet" href="css/home.css">
-    
-    <!-- مكتبات Firebase -->
+    <title>الرئيسية - تمكين</title>
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-
     <header>
         <div class="user-controls">
-            <button onclick="logout()" class="logout-btn" id="btn-logout">تسجيل خروج</button>
+            <button onclick="logout()" class="logout-btn">تسجيل خروج</button>
             <div class="lang-switch">
-                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold; padding:5px;">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold; padding:5px;">EN</span>
+                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold;">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold;">EN</span>
             </div>
         </div>
         <h2 id="txt-header">لوحة التحكم</h2>
@@ -26,7 +23,7 @@
 
     <main class="container">
         <div class="welcome-section">
-            <h1 id="txt-welcome">أهلاً بك في نظام تمكين الموحد</h1>
+            <h1 id="txt-welcome">جاري التحميل...</h1>
             <p id="userEmail" style="color: #2a5298; font-weight: bold;"></p>
         </div>
 
@@ -34,42 +31,41 @@
             <div class="card" onclick="location.href='calculator.html'">
                 <div class="icon">💰</div>
                 <h3 id="txt-calc">حاسبة القروض</h3>
-                <p id="sub-calc">حساب الفوائد والرسوم</p>
             </div>
-
             <div class="card" onclick="location.href='hr-solution.html'">
                 <div class="icon">📝</div>
                 <h3 id="txt-hr">شؤون الموظفين</h3>
-                <p id="sub-hr">طلب إجازات وأذونات</p>
             </div>
-
             <div class="card" onclick="location.href='branches.html'">
                 <div class="icon">📍</div>
                 <h3 id="txt-branches">الفروع</h3>
-                <p id="sub-branches">العناوين واللوكيشن</p>
             </div>
 
+            <!-- لوحة المدير (تظهر للمدير والأدمن والـ HR) -->
             <div id="manager-card" class="card" style="display: none; border: 2px solid #27ae60;" onclick="location.href='manager-dashboard.html'">
                 <div class="icon">📊</div>
                 <h3 id="txt-mgr-dash">لوحة تحكم المدير</h3>
-                <p id="sub-mgr-dash">مراجعة الطلبات</p>
             </div>
 
+            <!-- لوحة الـ HR (تظهر للـ HR والأدمن) -->
             <div id="hr-admin-card" class="card" style="display: none; border: 2px solid #e67e22;" onclick="location.href='hr-dashboard.html'">
                 <div class="icon">🏢</div>
                 <h3 id="txt-hr-dash">لوحة تحكم الـ HR</h3>
-                <p id="sub-hr-dash">إدارة الموظفين والتقارير</p>
+            </div>
+
+            <!-- لوحة الأدمن الخاصة بالفروع (تظهر لك إنت فقط) -->
+            <div id="admin-branch-card" class="card" style="display: none; border: 2px solid #9b59b6;" onclick="location.href='admin-branches.html'">
+                <div class="icon">⚙️</div>
+                <h3 id="txt-admin-dash">إدارة الفروع (Admin)</h3>
             </div>
         </div>
     </main>
 
-    <!-- الملفات البرمجية الخارجية -->
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/home.js"></script>
-    
-    <!-- كود الجافا سكريبت الخاص بالصلاحيات والإصلاح الذاتي -->
+
     <script>
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
@@ -77,66 +73,54 @@
                 document.getElementById('userEmail').innerText = userEmail;
                 const empCode = userEmail.split('@')[0];
 
-                // 1. محاولة قراءة الرتبة من جدول Users
                 firebase.firestore().collection("Users").doc(userEmail).get().then((doc) => {
+                    let role = "employee";
                     if (doc.exists) {
-                        // الموظف موجود وبياناته كاملة
-                        applyRoles(doc.data().role);
-                    } else {
-                        // --- نظام الإصلاح الذاتي المحترف ---
-                        console.log("ملف الصلاحيات ناقص.. جاري الإصلاح من جدول الموظفين...");
-                        
-                        return firebase.firestore().collection("Employee_Database").doc(empCode).get().then((empDoc) => {
-                            if (empDoc.exists) {
-                                const empData = empDoc.data();
-                                const assignedRole = empData.role || "employee";
-                                
-                                // إنشاء الملف الناقص فوراً
-                                return firebase.firestore().collection("Users").doc(userEmail).set({
-                                    role: assignedRole,
-                                    name: empData.name,
-                                    empCode: empCode,
-                                    email: userEmail
-                                }).then(() => {
-                                    console.log("تم إصلاح الحساب بنجاح!");
-                                    applyRoles(assignedRole);
+                        role = doc.data().role;
+                    } 
+                    // نظام الإصلاح الذاتي لو الملف ناقص
+                    else {
+                        return firebase.firestore().collection("Employee_Database").doc(empCode).get().then(empDoc => {
+                            if(empDoc.exists) {
+                                role = empDoc.data().role;
+                                firebase.firestore().collection("Users").doc(userEmail).set({
+                                    role: role, name: empDoc.data().name, empCode: empCode, email: userEmail
                                 });
-                            } else {
-                                alert("عذراً، كودك غير مسجل في قاعدة بيانات الموظفين.");
-                                logout();
                             }
                         });
                     }
-                }).catch((error) => {
-                    console.error("خطأ في نظام الصلاحيات:", error);
+                    document.getElementById('txt-welcome').innerText = "أهلاً بك في نظام تمكين";
+                    showCardsByRole(role);
                 });
             } else {
                 window.location.href = "index.html";
             }
         });
 
-        function applyRoles(role) {
-            if (role === 'manager') {
+        function showCardsByRole(role) {
+            if (role === 'manager' || role === 'admin' || role === 'hr') {
                 document.getElementById('manager-card').style.display = 'block';
-            } else if (role === 'hr') {
-                document.getElementById('manager-card').style.display = 'block';
+            }
+            if (role === 'hr' || role === 'admin') {
                 document.getElementById('hr-admin-card').style.display = 'block';
+            }
+            if (role === 'admin') {
+                document.getElementById('admin-branch-card').style.display = 'block';
             }
         }
 
         function updatePageContent(lang) {
             const translations = {
-                ar: { welcome: "أهلاً بك في نظام تمكين الموحد", calc: "حاسبة القروض", hr: "شؤون الموظفين", branches: "الفروع", mgr: "لوحة تحكم المدير", hrd: "لوحة تحكم الـ HR", logout: "تسجيل خروج" },
-                en: { welcome: "Welcome to Tamkeen Unified System", calc: "Loan Calculator", hr: "HR Solution", branches: "Branches", mgr: "Manager Dashboard", hrd: "HR Dashboard", logout: "Logout" }
+                ar: { calc: "حاسبة القروض", hr: "شؤون الموظفين", branches: "الفروع", mgr: "لوحة تحكم المدير", hrd: "لوحة تحكم الـ HR", adm: "إدارة الفروع (Admin)" },
+                en: { calc: "Loan Calculator", hr: "HR Solution", branches: "Branches", mgr: "Manager Panel", hrd: "HR Panel", adm: "Manage Branches" }
             };
             const t = translations[lang];
-            if(document.getElementById('txt-welcome')) document.getElementById('txt-welcome').innerText = t.welcome;
             if(document.getElementById('txt-calc')) document.getElementById('txt-calc').innerText = t.calc;
             if(document.getElementById('txt-hr')) document.getElementById('txt-hr').innerText = t.hr;
             if(document.getElementById('txt-branches')) document.getElementById('txt-branches').innerText = t.branches;
             if(document.getElementById('txt-mgr-dash')) document.getElementById('txt-mgr-dash').innerText = t.mgr;
             if(document.getElementById('txt-hr-dash')) document.getElementById('txt-hr-dash').innerText = t.hrd;
-            if(document.getElementById('btn-logout')) document.getElementById('btn-logout').innerText = t.logout;
+            if(document.getElementById('txt-admin-dash')) document.getElementById('txt-admin-dash').innerText = t.adm;
         }
     </script>
 </body>
