@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الرئيسية - تمكين</title>
+    <title id="txt-title">الرئيسية - تمكين</title>
+    <!-- تأكد أن المسار css/style.css هو المسار الصحيح لتنسيقك العام -->
     <link rel="stylesheet" href="css/home.css">
+    
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -12,10 +14,10 @@
 <body>
     <header>
         <div class="user-controls">
-            <button onclick="logout()" class="logout-btn">تسجيل خروج</button>
+            <button onclick="logout()" class="logout-btn" id="btn-logout">تسجيل خروج</button>
             <div class="lang-switch">
-                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold;">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold;">EN</span>
+                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold; padding:5px;">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold; padding:5px;">EN</span>
             </div>
         </div>
         <h2 id="txt-header">لوحة التحكم</h2>
@@ -28,6 +30,7 @@
         </div>
 
         <div class="cards-grid">
+            <!-- كروت عامة للكل -->
             <div class="card" onclick="location.href='calculator.html'">
                 <div class="icon">💰</div>
                 <h3 id="txt-calc">حاسبة القروض</h3>
@@ -53,7 +56,7 @@
                 <h3 id="txt-hr-dash">لوحة تحكم الـ HR</h3>
             </div>
 
-            <!-- لوحة الأدمن الخاصة بالفروع (تظهر لك إنت فقط) -->
+            <!-- لوحة الأدمن (تظهر لك إنت فقط) -->
             <div id="admin-branch-card" class="card" style="display: none; border: 2px solid #9b59b6;" onclick="location.href='admin-branches.html'">
                 <div class="icon">⚙️</div>
                 <h3 id="txt-admin-dash">إدارة الفروع (Admin)</h3>
@@ -61,10 +64,10 @@
         </div>
     </main>
 
+    <!-- الملفات البرمجية الأساسية -->
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/home.js"></script>
 
     <script>
         firebase.auth().onAuthStateChanged((user) => {
@@ -74,53 +77,74 @@
                 const empCode = userEmail.split('@')[0];
 
                 firebase.firestore().collection("Users").doc(userEmail).get().then((doc) => {
-                    let role = "employee";
+                    let role = "employee"; // افتراضي
+                    
                     if (doc.exists) {
                         role = doc.data().role;
+                        document.getElementById('txt-welcome').innerText = "أهلاً بك في نظام تمكين";
+                        showCardsByRole(role);
                     } 
-                    // نظام الإصلاح الذاتي لو الملف ناقص
+                    // نظام الإصلاح الذاتي المحترف
                     else {
                         return firebase.firestore().collection("Employee_Database").doc(empCode).get().then(empDoc => {
                             if(empDoc.exists) {
-                                role = empDoc.data().role;
-                                firebase.firestore().collection("Users").doc(userEmail).set({
-                                    role: role, name: empDoc.data().name, empCode: empCode, email: userEmail
+                                role = empDoc.data().role || "employee";
+                                return firebase.firestore().collection("Users").doc(userEmail).set({
+                                    role: role, 
+                                    name: empDoc.data().name, 
+                                    empCode: empCode, 
+                                    email: userEmail
+                                }).then(() => {
+                                    document.getElementById('txt-welcome').innerText = "تم إعداد حسابك";
+                                    showCardsByRole(role);
                                 });
+                            } else {
+                                alert("هذا المستخدم غير مسجل في قاعدة البيانات");
+                                logout();
                             }
                         });
                     }
-                    document.getElementById('txt-welcome').innerText = "أهلاً بك في نظام تمكين";
-                    showCardsByRole(role);
+                }).catch((error) => {
+                    console.error("Error fetching role:", error);
                 });
             } else {
                 window.location.href = "index.html";
             }
         });
 
+        // دالة إظهار الكروت بناءً على الدور
         function showCardsByRole(role) {
-            if (role === 'manager' || role === 'admin' || role === 'hr') {
+            // كارت المدير والـ HR والأدمن يشوفوا لوحة مراجعة الطلبات
+            if (role === 'manager' || role === 'hr' || role === 'admin') {
                 document.getElementById('manager-card').style.display = 'block';
             }
+            // كارت الـ HR والأدمن يشوفوا لوحة الـ HR والرفع
             if (role === 'hr' || role === 'admin') {
                 document.getElementById('hr-admin-card').style.display = 'block';
             }
+            // الأدمن فقط يشوف كارت إدارة الفروع
             if (role === 'admin') {
                 document.getElementById('admin-branch-card').style.display = 'block';
             }
         }
 
+        // دالة الترجمة
         function updatePageContent(lang) {
             const translations = {
-                ar: { calc: "حاسبة القروض", hr: "شؤون الموظفين", branches: "الفروع", mgr: "لوحة تحكم المدير", hrd: "لوحة تحكم الـ HR", adm: "إدارة الفروع (Admin)" },
-                en: { calc: "Loan Calculator", hr: "HR Solution", branches: "Branches", mgr: "Manager Panel", hrd: "HR Panel", adm: "Manage Branches" }
+                ar: { title:"الرئيسية", welcome: "أهلاً بك في نظام تمكين الموحد", calc: "حاسبة القروض", hr: "شؤون الموظفين", branches: "الفروع", mgr: "لوحة تحكم المدير", hrd: "لوحة تحكم الـ HR", adm: "إدارة الفروع (Admin)", logout: "تسجيل خروج" },
+                en: { title:"Home", welcome: "Welcome to Tamkeen System", calc: "Loan Calculator", hr: "HR Solution", branches: "Branches", mgr: "Manager Panel", hrd: "HR Dashboard", adm: "Manage Branches", logout: "Logout" }
             };
             const t = translations[lang];
+            if(document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
+            if(document.getElementById('txt-welcome') && document.getElementById('txt-welcome').innerText !== "جاري التحميل...") 
+                document.getElementById('txt-welcome').innerText = t.welcome;
             if(document.getElementById('txt-calc')) document.getElementById('txt-calc').innerText = t.calc;
             if(document.getElementById('txt-hr')) document.getElementById('txt-hr').innerText = t.hr;
             if(document.getElementById('txt-branches')) document.getElementById('txt-branches').innerText = t.branches;
             if(document.getElementById('txt-mgr-dash')) document.getElementById('txt-mgr-dash').innerText = t.mgr;
             if(document.getElementById('txt-hr-dash')) document.getElementById('txt-hr-dash').innerText = t.hrd;
             if(document.getElementById('txt-admin-dash')) document.getElementById('txt-admin-dash').innerText = t.adm;
+            if(document.getElementById('btn-logout')) document.getElementById('btn-logout').innerText = t.logout;
         }
     </script>
 </body>
