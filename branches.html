@@ -1,1 +1,75 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="txt-title">فروع تمكين</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/branches.css">
+    <!-- مكتبات Firebase الأساسية فقط -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+</head>
+<body>
 
+    <header>
+        <div class="header-right">
+            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
+            <div class="lang-switch">
+                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold;">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold;">EN</span>
+            </div>
+        </div>
+        <h2 id="txt-header">دليل الفروع</h2>
+    </header>
+
+    <main class="container">
+        <!-- قسم البحث والفلترة -->
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" id="branchSearch" onkeyup="filterBranches()" placeholder="ابحث باسم الفرع...">
+                <span class="search-icon">🔍</span>
+            </div>
+            
+            <div class="filter-group">
+                <select id="branchSelect" onchange="selectBranch()">
+                    <option value="" id="opt-default">اختر الفرع من القائمة...</option>
+                    <!-- الفروع هتنزل هنا أوتوماتيك -->
+                </select>
+            </div>
+        </div>
+
+        <!-- مكان عرض نتيجة البحث -->
+        <div id="branchResult" class="branch-result-card" style="display: none;">
+            <div class="branch-header">
+                <h3 id="res-name">اسم الفرع</h3>
+                <span class="branch-tag">تمكين</span>
+            </div>
+            <div class="branch-body">
+                <div class="info-item">
+                    <span class="icon">📍</span>
+                    <p id="res-address">العنوان بالتفصيل يظهر هنا</p>
+                </div>
+                <div class="info-item">
+                    <span class="icon">📞</span>
+                    <p id="res-phone">010XXXXXXXX</p>
+                </div>
+            </div>
+            <div class="branch-footer">
+                <a id="res-map-link" href="#" target="_blank" class="map-btn">دخول مباشر للموقع (Maps)</a>
+                <button onclick="copyLocation()" class="copy-btn" id="btn-copy">نسخ الموقع</button>
+            </div>
+        </div>
+
+        <!-- قائمة الفروع السريعة (اختياري) -->
+        <div id="allBranchesList" class="branches-grid">
+            <!-- سيتم ملؤها بواسطة JS -->
+        </div>
+    </main>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/lang-manager.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/branches.js"></script>
+</body>
+</html>
