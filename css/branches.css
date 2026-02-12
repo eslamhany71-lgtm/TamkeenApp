@@ -1,0 +1,110 @@
+.search-section {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 2px solid #eee;
+    border-radius: 10px;
+    font-size: 16px;
+    outline: none;
+    transition: 0.3s;
+}
+
+.search-box input:focus { border-color: #2a5298; }
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 12px;
+    font-size: 18px;
+}
+
+#branchSelect {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid #eee;
+    background: #f9f9f9;
+    cursor: pointer;
+}
+
+/* كارت النتيجة */
+.branch-result-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    overflow: hidden;
+    animation: fadeIn 0.5s ease;
+    border-right: 8px solid #2a5298;
+}
+
+.branch-header {
+    background: #f8f9fa;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.branch-tag {
+    background: #2a5298;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.branch-body { padding: 25px; }
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.info-item .icon { font-size: 24px; }
+.info-item p { margin: 0; color: #444; line-height: 1.6; }
+
+.branch-footer {
+    padding: 20px;
+    display: flex;
+    gap: 10px;
+    background: #f8f9fa;
+}
+
+.map-btn {
+    flex: 2;
+    background: #27ae60;
+    color: white;
+    text-decoration: none;
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+.copy-btn {
+    flex: 1;
+    background: #555;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+@keyframes fadeIn { from {opacity:0; transform: translateY(10px);} to {opacity:1; transform: translateY(0);} }
