@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة الفروع - Admin</title>
+    <link rel="stylesheet" href="css/hr-admin.css"> <!-- سنستخدم نفس تنسيق الـ HR -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <header style="background: #8e44ad;">
+        <button onclick="location.href='home.html'" class="back-btn">رجوع</button>
+        <h2>إدارة دليل الفروع (الأدمن)</h2>
+    </header>
+
+    <main class="container">
+        <div class="summary-bar" style="background: #f3e5f5; border-right: 5px solid #8e44ad; flex-direction: column; align-items: flex-start; gap: 10px;">
+            <label style="font-weight: bold; color: #8e44ad;">رفع شيت الفروع الجديد (CSV):</label>
+            <div style="display: flex; gap: 10px; width: 100%;">
+                <input type="file" id="branchCsvFile" accept=".csv" style="padding: 10px; background: white; border-radius: 5px; flex: 1;">
+                <button onclick="uploadBranchesCSV()" class="export-btn" style="background:#8e44ad">ابدأ الرفع الآن</button>
+            </div>
+            <p style="font-size: 11px; color: #555;">الترتيب: (الكود, الاسم_عربي, الاسم_انجليزي, العنوان, التليفون, رابط_الخريطة)</p>
+        </div>
+
+        <div id="status-msg" style="margin-top: 10px; font-weight: bold;"></div>
+    </main>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function uploadBranchesCSV() {
+            const fileInput = document.getElementById('branchCsvFile');
+            const file = fileInput.files[0];
+            if (!file) return alert("اختار الملف أولاً");
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = text.split(/\r?\n/);
+                let count = 0;
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i].trim();
+                    if (!row) continue;
+                    const cols = row.split(/[;,]/).map(item => item.replace(/["]/g, "").trim());
+
+                    if (cols.length >= 6) {
+                        firebase.firestore().collection("Branches").doc(cols[0]).set({
+                            id: cols[0],
+                            nameAr: cols[1],
+                            nameEn: cols[2],
+                            address: cols[3],
+                            phone: cols[4],
+                            mapUrl: cols[5]
+                        });
+                        count++;
+                    }
+                }
+                alert("تم رفع " + count + " فرع بنجاح!");
+                fileInput.value = "";
+            };
+            reader.readAsText(file, "UTF-8");
+        }
+    </script>
+</body>
+</html>
