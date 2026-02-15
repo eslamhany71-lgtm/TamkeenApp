@@ -1,12 +1,21 @@
-// hr.js - النظام الموحد للخدمات الذاتية (نسخة الحماية القصوى من التكرار والرفع المجاني)
+// hr.js - الموظف (النسخة الاحترافية: سرعة عالية + إشعارات + منع تكرار)
 
 let currentUserData = null;
 let totalAnnualUsed = 0;
 
-// 1. مراقبة الدخول وجلب البيانات
+// 1. مراقبة الدخول + حل مشكلة التهنيج (Cache System)
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const empCode = user.email.split('@')[0];
+        
+        // استعادة البيانات من الذاكرة المؤقتة فوراً لسرعة العرض
+        const cachedData = sessionStorage.getItem('userData');
+        if (cachedData) {
+            currentUserData = JSON.parse(cachedData);
+            applyLockedFields(currentUserData);
+        }
+        
+        // تحديث البيانات من الفايربيز للتأكد من دقتها
         fetchEmployeeData(empCode);
         loadMyRequests(empCode);
     } else {
@@ -19,20 +28,26 @@ async function fetchEmployeeData(code) {
         const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
         if (doc.exists) {
             currentUserData = doc.data();
+            sessionStorage.setItem('userData', JSON.stringify(currentUserData)); // حفظ للسرعة
             applyLockedFields(currentUserData);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Error:", e); }
 }
 
 function applyLockedFields(data) {
+    if(!data) return;
     const fields = { 'empCode': data.employeeId, 'empName': data.name, 'empDept': data.department };
     for (let id in fields) {
         const el = document.getElementById(id);
-        if (el) { el.value = fields[id] || ""; el.readOnly = true; el.style.background = "#eee"; }
+        if (el) { 
+            el.value = fields[id] || ""; 
+            el.readOnly = true; 
+            el.style.background = "#f0f0f0"; // تمييز الخانات المقفولة
+        }
     }
 }
 
-// 2. تحميل سجل طلباتي وتحديث الإحصائيات
+// 2. تحميل "طلباتي" والإحصائيات (تحديث لحظي)
 function loadMyRequests(empCode) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     firebase.firestore().collection("HR_Requests")
@@ -54,12 +69,11 @@ function loadMyRequests(empCode) {
                     }
                 } else if (data.status === "Rejected") { rejected++; } else { pending++; }
 
-                const row = `<tr>
+                tableBody.innerHTML += `<tr>
                     <td>${translateType(data.type)} ${data.vacationType ? '('+data.vacationType+')' : ''}</td>
                     <td>${data.startDate || data.reqDate}</td>
                     <td><span class="badge ${data.status.toLowerCase()}">${translateStatus(data.status, lang)}</span></td>
                 </tr>`;
-                tableBody.innerHTML += row;
             });
 
             document.getElementById('vacation-balance').innerText = Math.max(0, 21 - totalAnnualUsed);
@@ -69,84 +83,42 @@ function loadMyRequests(empCode) {
         });
 }
 
-// 3. الدوال الحسابية والتحويل
-function calculateDays(start, end) {
-    if (!start || !end) return 1;
-    const s = new Date(start), e = new Date(end);
-    return Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1;
-}
-
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-}
-
-// 4. دالة إرسال الطلب (المعدلة لمنع التكرار نهائياً)
+// 3. إرسال الطلب (منع التكرار + إشعار للمدير + Base64)
 document.getElementById('hrRequestForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
     const lang = localStorage.getItem('preferredLang') || 'ar';
     
-    // جلب قيم الحقول
     const type = document.getElementById('requestType').value;
     const empCode = document.getElementById('empCode').value;
-    const startDate = document.getElementById('startDate').value; // للإجازات
-    const reqDate = document.getElementById('reqDate').value;     // للأذونات
-    
-    // تحديد التاريخ الذي سنقوم بفحصه (التاريخ المستهدف)
+    const startDate = document.getElementById('startDate').value;
+    const reqDate = document.getElementById('reqDate').value;
     const targetDate = (type === 'vacation') ? startDate : reqDate;
 
     if (!targetDate) {
-        alert(lang === 'ar' ? "برجاء اختيار التاريخ أولاً" : "Please select a date first");
+        alert(lang === 'ar' ? "يرجى اختيار التاريخ" : "Please select date");
         return;
     }
 
     btn.disabled = true;
-    btn.innerText = (lang === 'ar') ? "جاري التحقق..." : "Checking...";
+    btn.innerText = lang === 'ar' ? "جاري التحقق والإرسال..." : "Checking & Sending...";
 
     try {
-        // --- [خطوة الحماية من التكرار] ---
-        // بنفحص هل فيه طلب مسجل بنفس الكود وبنفس التاريخ (سواء كان في startDate أو reqDate)
+        // --- حماية التكرار المزدوجة ---
         const requestsRef = firebase.firestore().collection("HR_Requests");
-        
-        // فحص في خانة إجازات
-        const checkVacation = await requestsRef.where("employeeCode", "==", empCode).where("startDate", "==", targetDate).get();
-        // فحص في خانة أذونات
-        const checkPermit = await requestsRef.where("employeeCode", "==", empCode).where("reqDate", "==", targetDate).get();
+        const q1 = await requestsRef.where("employeeCode", "==", empCode).where("startDate", "==", targetDate).get();
+        const q2 = await requestsRef.where("employeeCode", "==", empCode).where("reqDate", "==", targetDate).get();
 
-        if (!checkVacation.empty || !checkPermit.empty) {
-            alert(lang === 'ar' ? `خطأ: لديك طلب مسجل بالفعل في تاريخ ${targetDate}` : `Error: You already have a request on ${targetDate}`);
-            btn.disabled = false;
-            btn.innerText = (lang === 'ar') ? "إرسال الطلب الآن" : "Submit Request";
-            return; // توقف الإرسال فوراً
+        if (!q1.empty || !q2.empty) {
+            alert(lang === 'ar' ? `خطأ: لديك طلب مسجل بتاريخ ${targetDate}` : `Error: Duplicate request on ${targetDate}`);
+            btn.disabled = false; btn.innerText = "إرسال"; return;
         }
 
-        // --- [فحص رصيد الإجازات السنوية] ---
-        if (type === 'vacation' && document.getElementById('vacType').value === 'سنوية') {
-            const days = calculateDays(startDate, document.getElementById('endDate').value);
-            if (totalAnnualUsed + days > 21) {
-                if (!confirm(lang === 'ar' ? "تنبيه: تجاوزت الرصيد السنوي. هل تريد الإرسال كإجازة بدون أجر؟" : "Balance exceeded. Submit as unpaid?")) {
-                    btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; return;
-                }
-            }
-        }
-
-        // --- [رفع المرفق إن وجد] ---
+        // تحويل المرفق (Base64)
         let fileData = null;
         const file = document.getElementById('reqAttachment').files[0];
-        if (file) {
-            if (file.size > 800 * 1024) {
-                alert("الملف كبير جداً! الحد الأقصى 800 كيلوبايت.");
-                btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; return;
-            }
-            fileData = await fileToBase64(file);
-        }
+        if (file && file.size <= 800 * 1024) fileData = await fileToBase64(file);
 
-        // --- [تنفيذ الحفظ النهائي] ---
         const requestData = {
             employeeCode: empCode,
             employeeName: document.getElementById('empName').value,
@@ -165,40 +137,38 @@ document.getElementById('hrRequestForm').addEventListener('submit', async (e) =>
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await firebase.firestore().collection("HR_Requests").add(requestData);
-        alert(lang === 'ar' ? "تم إرسال طلبك بنجاح!" : "Sent successfully!");
+        // 1. حفظ الطلب
+        const docRef = await firebase.firestore().collection("HR_Requests").add(requestData);
+
+        // 2. إرسال إشعار للمدير
+        await firebase.firestore().collection("Notifications").add({
+            targetDept: requestData.department,
+            message: `طلب ${translateType(type)} جديد من: ${requestData.employeeName}`,
+            isRead: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert(lang === 'ar' ? "تم الإرسال بنجاح!" : "Sent successfully!");
         closeForm();
-        
-    } catch (err) {
-        alert("Error: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = (lang === 'ar') ? "إرسال الطلب الآن" : "Submit Request";
-    }
+    } catch (err) { alert("Error: " + err.message); }
+    finally { btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; }
 });
 
-// 5. دوال الواجهة
+// دوال مساعدة
+function fileToBase64(file) { return new Promise((resolve, reject) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => resolve(r.result); r.onerror = e => reject(e); }); }
+function calculateDays(s, e) { const d1 = new Date(s), d2 = new Date(e); return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)) + 1; }
+function translateType(t) { const map = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" }; return map[t] || t; }
+function translateStatus(s, l) { const map = { 'Pending': l === 'ar' ? 'قيد الانتظار' : 'Pending', 'Approved': l === 'ar' ? 'مقبول' : 'Approved', 'Rejected': l === 'ar' ? 'مرفوض' : 'Rejected' }; return map[s] || s; }
+
 function openForm(type) {
     document.getElementById('formModal').style.display = "block";
     document.getElementById('requestType').value = type;
     document.getElementById('vacation-fields').style.display = (type === 'vacation') ? 'block' : 'none';
     document.getElementById('time-fields').style.display = (type !== 'vacation') ? 'block' : 'none';
+    // حل مشكلة التهنيج: تطبيق البيانات فوراً عند الفتح
+    if (currentUserData) applyLockedFields(currentUserData);
 }
-function closeForm() { 
-    document.getElementById('formModal').style.display = "none"; 
-    document.getElementById('hrRequestForm').reset(); 
-    if (currentUserData) applyLockedFields(currentUserData); 
-}
+function closeForm() { document.getElementById('formModal').style.display = "none"; document.getElementById('hrRequestForm').reset(); if(currentUserData) applyLockedFields(currentUserData); }
 function openMyRequests() { document.getElementById('requestsModal').style.display = 'block'; }
 function closeRequests() { document.getElementById('requestsModal').style.display = 'none'; }
-
-function translateType(type) {
-    const t = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
-    return t[type] || type;
-}
-function translateStatus(status, lang) {
-    const s = { 'Pending': 'قيد الانتظار', 'Approved': 'مقبول', 'Rejected': 'مرفوض' };
-    return lang === 'ar' ? (s[status] || status) : status;
-}
-
 window.onclick = (e) => { if (e.target.className === 'modal') { closeForm(); closeRequests(); } }
