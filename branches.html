@@ -4,65 +4,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">فروع تمكين</title>
-   <link rel="stylesheet" href="css/branches.css">
-    <!-- مكتبات Firebase الأساسية فقط -->
+    <link rel="stylesheet" href="css/branches.css">
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-    <header>
-        <div class="header-right">
-            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
+    <header class="main-header">
+        <div class="header-content container">
+            <button onclick="location.href='home.html'" class="btn-icon-back">
+                <span class="icon">⬅</span> <span id="txt-back">رجوع</span>
+            </button>
+            <h2 id="txt-header">دليل فروع تمكين</h2>
             <div class="lang-switch">
-                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold;">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold;">EN</span>
+                <span onclick="setLanguage('ar')">عربي</span> | 
+                <span onclick="setLanguage('en')">EN</span>
             </div>
         </div>
-        <h2 id="txt-header">دليل الفروع</h2>
     </header>
 
     <main class="container">
-        <!-- قسم البحث والفلترة -->
-        <div class="search-section">
+        <!-- قسم البحث والفلترة بتصميم عصري -->
+        <div class="search-wrapper">
             <div class="search-box">
-                <input type="text" id="branchSearch" onkeyup="filterBranches()" placeholder="ابحث باسم الفرع...">
                 <span class="search-icon">🔍</span>
+                <input type="text" id="branchSearch" onkeyup="searchBranch()" placeholder="ابحث باسم الفرع أو المدينة...">
             </div>
             
-            <div class="filter-group">
+            <div class="filter-box">
                 <select id="branchSelect" onchange="selectBranch()">
-                    <option value="" id="opt-default">اختر الفرع من القائمة...</option>
-                    <!-- الفروع هتنزل هنا أوتوماتيك -->
+                    <option value="" id="opt-default">اختر الفرع من القائمة مباشرة...</option>
                 </select>
             </div>
         </div>
 
-        <!-- مكان عرض نتيجة البحث -->
-        <div id="branchResult" class="branch-result-card" style="display: none;">
-            <div class="branch-header">
-                <h3 id="res-name">اسم الفرع</h3>
-                <span class="branch-tag">تمكين</span>
-            </div>
-            <div class="branch-body">
-                <div class="info-item">
-                    <span class="icon">📍</span>
-                    <p id="res-address">العنوان بالتفصيل يظهر هنا</p>
+        <!-- كارت نتيجة البحث المطور -->
+        <div id="branchResult" class="result-container" style="display: none;">
+            <div class="branch-card-pro">
+                <div class="card-sidebar"></div>
+                <div class="card-main">
+                    <div class="card-top">
+                        <h3 id="res-name">اسم الفرع</h3>
+                        <span class="badge-status" id="txt-active">نشط</span>
+                    </div>
+                    
+                    <div class="card-details">
+                        <div class="detail-row">
+                            <span class="detail-icon">📍</span>
+                            <div class="detail-text">
+                                <label id="lbl-address">العنوان</label>
+                                <p id="res-address">...</p>
+                            </div>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-icon">📞</span>
+                            <div class="detail-text">
+                                <label id="lbl-phone">رقم التواصل</label>
+                                <p id="res-phone">...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-actions">
+                        <a id="res-map-link" href="#" target="_blank" class="btn-map">
+                            <span id="txt-view-map">فتح في خرائط Google</span>
+                        </a>
+                        <button onclick="copyLocation()" class="btn-copy" id="btn-copy">
+                            <span id="txt-copy">نسخ البيانات</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="info-item">
-                    <span class="icon">📞</span>
-                    <p id="res-phone">010XXXXXXXX</p>
-                </div>
-            </div>
-            <div class="branch-footer">
-                <a id="res-map-link" href="#" target="_blank" class="map-btn">دخول مباشر للموقع (Maps)</a>
-                <button onclick="copyLocation()" class="copy-btn" id="btn-copy">نسخ الموقع</button>
             </div>
         </div>
 
-        <!-- قائمة الفروع السريعة (اختياري) -->
-        <div id="allBranchesList" class="branches-grid">
+        <!-- قسم استعراض كافة الفروع (Grid) -->
+        <div class="section-title">
+            <h4 id="txt-all-branches">جميع الفروع</h4>
+            <div class="line"></div>
+        </div>
+        <div id="allBranchesList" class="branches-pro-grid">
             <!-- سيتم ملؤها بواسطة JS -->
+            <p id="loading-msg">جاري تحميل الفروع...</p>
         </div>
     </main>
 
