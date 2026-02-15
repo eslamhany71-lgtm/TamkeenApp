@@ -1,7 +1,9 @@
-// hr.js - نسخة الرفع المجانية (Base64) - Tamkeen App
+// hr.js - النظام الموحد للخدمات الذاتية (نسخة الحماية القصوى من التكرار والرفع المجاني)
+
 let currentUserData = null;
 let totalAnnualUsed = 0;
 
+// 1. مراقبة الدخول وجلب البيانات
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const empCode = user.email.split('@')[0];
@@ -30,6 +32,7 @@ function applyLockedFields(data) {
     }
 }
 
+// 2. تحميل سجل طلباتي وتحديث الإحصائيات
 function loadMyRequests(empCode) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     firebase.firestore().collection("HR_Requests")
@@ -54,7 +57,7 @@ function loadMyRequests(empCode) {
                 const row = `<tr>
                     <td>${translateType(data.type)} ${data.vacationType ? '('+data.vacationType+')' : ''}</td>
                     <td>${data.startDate || data.reqDate}</td>
-                    <td><span class="badge ${data.status.toLowerCase()}">${data.status}</span></td>
+                    <td><span class="badge ${data.status.toLowerCase()}">${translateStatus(data.status, lang)}</span></td>
                 </tr>`;
                 tableBody.innerHTML += row;
             });
@@ -66,7 +69,13 @@ function loadMyRequests(empCode) {
         });
 }
 
-// دالة تحويل الملف إلى نص Base64
+// 3. الدوال الحسابية والتحويل
+function calculateDays(start, end) {
+    if (!start || !end) return 1;
+    const s = new Date(start), e = new Date(end);
+    return Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1;
+}
+
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -76,54 +85,120 @@ function fileToBase64(file) {
     });
 }
 
+// 4. دالة إرسال الطلب (المعدلة لمنع التكرار نهائياً)
 document.getElementById('hrRequestForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
-    const fileInput = document.getElementById('reqAttachment');
-    const file = fileInput.files[0];
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    
+    // جلب قيم الحقول
+    const type = document.getElementById('requestType').value;
+    const empCode = document.getElementById('empCode').value;
+    const startDate = document.getElementById('startDate').value; // للإجازات
+    const reqDate = document.getElementById('reqDate').value;     // للأذونات
+    
+    // تحديد التاريخ الذي سنقوم بفحصه (التاريخ المستهدف)
+    const targetDate = (type === 'vacation') ? startDate : reqDate;
+
+    if (!targetDate) {
+        alert(lang === 'ar' ? "برجاء اختيار التاريخ أولاً" : "Please select a date first");
+        return;
+    }
 
     btn.disabled = true;
-    btn.innerText = "جاري حفظ الطلب...";
+    btn.innerText = (lang === 'ar') ? "جاري التحقق..." : "Checking...";
 
     try {
+        // --- [خطوة الحماية من التكرار] ---
+        // بنفحص هل فيه طلب مسجل بنفس الكود وبنفس التاريخ (سواء كان في startDate أو reqDate)
+        const requestsRef = firebase.firestore().collection("HR_Requests");
+        
+        // فحص في خانة إجازات
+        const checkVacation = await requestsRef.where("employeeCode", "==", empCode).where("startDate", "==", targetDate).get();
+        // فحص في خانة أذونات
+        const checkPermit = await requestsRef.where("employeeCode", "==", empCode).where("reqDate", "==", targetDate).get();
+
+        if (!checkVacation.empty || !checkPermit.empty) {
+            alert(lang === 'ar' ? `خطأ: لديك طلب مسجل بالفعل في تاريخ ${targetDate}` : `Error: You already have a request on ${targetDate}`);
+            btn.disabled = false;
+            btn.innerText = (lang === 'ar') ? "إرسال الطلب الآن" : "Submit Request";
+            return; // توقف الإرسال فوراً
+        }
+
+        // --- [فحص رصيد الإجازات السنوية] ---
+        if (type === 'vacation' && document.getElementById('vacType').value === 'سنوية') {
+            const days = calculateDays(startDate, document.getElementById('endDate').value);
+            if (totalAnnualUsed + days > 21) {
+                if (!confirm(lang === 'ar' ? "تنبيه: تجاوزت الرصيد السنوي. هل تريد الإرسال كإجازة بدون أجر؟" : "Balance exceeded. Submit as unpaid?")) {
+                    btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; return;
+                }
+            }
+        }
+
+        // --- [رفع المرفق إن وجد] ---
         let fileData = null;
+        const file = document.getElementById('reqAttachment').files[0];
         if (file) {
-            if (file.size > 800 * 1024) { // منع الملفات أكبر من 800KB لضمان المجانية
-                alert("الملف كبير جداً! يرجى اختيار صورة أو ملف PDF أقل من 1 ميجابايت.");
+            if (file.size > 800 * 1024) {
+                alert("الملف كبير جداً! الحد الأقصى 800 كيلوبايت.");
                 btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; return;
             }
             fileData = await fileToBase64(file);
         }
 
+        // --- [تنفيذ الحفظ النهائي] ---
         const requestData = {
-            employeeCode: document.getElementById('empCode').value,
+            employeeCode: empCode,
             employeeName: document.getElementById('empName').value,
             department: document.getElementById('empDept').value,
             jobTitle: document.getElementById('empJob').value,
             hiringDate: document.getElementById('hireDate').value,
-            type: document.getElementById('requestType').value,
-            vacationType: document.getElementById('vacType').value || null,
-            startDate: document.getElementById('startDate').value || null,
-            endDate: document.getElementById('endDate').value || null,
-            reqDate: document.getElementById('reqDate').value || null,
-            reqTime: document.getElementById('reqTime').value || null,
+            type: type,
+            vacationType: (type === 'vacation') ? document.getElementById('vacType').value : null,
+            startDate: (type === 'vacation') ? startDate : null,
+            endDate: (type === 'vacation') ? document.getElementById('endDate').value : null,
+            reqDate: (type !== 'vacation') ? reqDate : null,
+            reqTime: (type !== 'vacation') ? document.getElementById('reqTime').value : null,
             reason: document.getElementById('reqReason').value,
-            fileBase64: fileData, // تخزين المرفق هنا
+            fileBase64: fileData,
             status: "Pending",
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         await firebase.firestore().collection("HR_Requests").add(requestData);
-        alert("تم إرسال طلبك بنجاح!");
+        alert(lang === 'ar' ? "تم إرسال طلبك بنجاح!" : "Sent successfully!");
         closeForm();
-    } catch (err) { alert("خطأ: " + err.message); }
-    finally { btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; }
+        
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = (lang === 'ar') ? "إرسال الطلب الآن" : "Submit Request";
+    }
 });
 
-function calculateDays(start, end) { const s = new Date(start), e = new Date(end); return Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1; }
-function openForm(type) { document.getElementById('formModal').style.display = "block"; document.getElementById('requestType').value = type; document.getElementById('vacation-fields').style.display = (type === 'vacation') ? 'block' : 'none'; document.getElementById('time-fields').style.display = (type !== 'vacation') ? 'block' : 'none'; }
-function closeForm() { document.getElementById('formModal').style.display = "none"; document.getElementById('hrRequestForm').reset(); }
+// 5. دوال الواجهة
+function openForm(type) {
+    document.getElementById('formModal').style.display = "block";
+    document.getElementById('requestType').value = type;
+    document.getElementById('vacation-fields').style.display = (type === 'vacation') ? 'block' : 'none';
+    document.getElementById('time-fields').style.display = (type !== 'vacation') ? 'block' : 'none';
+}
+function closeForm() { 
+    document.getElementById('formModal').style.display = "none"; 
+    document.getElementById('hrRequestForm').reset(); 
+    if (currentUserData) applyLockedFields(currentUserData); 
+}
 function openMyRequests() { document.getElementById('requestsModal').style.display = 'block'; }
 function closeRequests() { document.getElementById('requestsModal').style.display = 'none'; }
-function translateType(type) { const t = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" }; return t[type] || type; }
+
+function translateType(type) {
+    const t = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
+    return t[type] || type;
+}
+function translateStatus(status, lang) {
+    const s = { 'Pending': 'قيد الانتظار', 'Approved': 'مقبول', 'Rejected': 'مرفوض' };
+    return lang === 'ar' ? (s[status] || status) : status;
+}
+
 window.onclick = (e) => { if (e.target.className === 'modal') { closeForm(); closeRequests(); } }
