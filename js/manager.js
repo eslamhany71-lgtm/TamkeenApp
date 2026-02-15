@@ -1,4 +1,4 @@
-// manager.js - لوحة تحكم المدير (نظام الربط بالأقسام)
+// manager.js - لوحة تحكم المدير (نظام الربط بالأقسام وعرض المرفقات)
 
 let currentManagerDept = null;
 
@@ -44,7 +44,6 @@ function loadRequestsByDept(deptName) {
     const list = document.getElementById('requests-list');
     const countSpan = document.getElementById('pending-count');
 
-    // كويري الفلترة بالقسم
     firebase.firestore().collection("HR_Requests")
         .where("department", "==", deptName)
         .orderBy("submittedAt", "desc")
@@ -70,6 +69,15 @@ function loadRequestsByDept(deptName) {
                 const displayEndDate = data.endDate ? ` إلى ${data.endDate}` : "";
                 const requestTypeTranslated = translateType(data.type, lang);
 
+                // فحص وجود مرفق
+                const attachmentLink = data.attachmentUrl ? `
+                    <p style="margin-top:10px;">
+                        <a href="${data.attachmentUrl}" target="_blank" style="color: #2980b9; text-decoration: none; font-weight: bold; border: 1px solid #2980b9; padding: 4px 8px; border-radius: 4px; display: inline-block;">
+                            📎 ${lang === 'ar' ? 'مشاهدة المرفق (إثبات)' : 'View Attachment'}
+                        </a>
+                    </p>
+                ` : "";
+
                 const card = document.createElement('div');
                 card.className = `request-card ${data.status.toLowerCase()}`;
                 
@@ -84,6 +92,7 @@ function loadRequestsByDept(deptName) {
                             <p><strong>${lang === 'ar' ? 'نوع الطلب:' : 'Request Type:'}</strong> ${requestTypeTranslated} ${data.vacationType ? `(${data.vacationType})` : ""}</p>
                             <p><strong>${lang === 'ar' ? 'التاريخ:' : 'Date:'}</strong> ${displayDate}${displayEndDate}</p>
                             <p><strong>${lang === 'ar' ? 'السبب:' : 'Reason:'}</strong> ${data.reason || "--"}</p>
+                            ${attachmentLink}
                         </div>
                     </div>
                     <div class="req-actions">
@@ -102,10 +111,10 @@ function loadRequestsByDept(deptName) {
         });
 }
 
-// 4. تحديث حالة الطلب (موافقة / رفض)
+// 4. تحديث حالة الطلب
 async function updateStatus(requestId, newStatus) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
-    const confirmMsg = lang === 'ar' ? "هل أنت متأكد من اتخاذ هذا الإجراء؟" : "Are you sure you want to take this action?";
+    const confirmMsg = lang === 'ar' ? "هل أنت متأكد من اتخاذ هذا الإجراء؟" : "Are you sure?";
     
     if(confirm(confirmMsg)) {
         try {
@@ -121,36 +130,18 @@ async function updateStatus(requestId, newStatus) {
 
 // 5. ترجمة الأنواع
 function translateType(type, lang) {
-    const types = {
-        vacation: lang === 'ar' ? "إجازة" : "Vacation",
-        late: lang === 'ar' ? "إذن تأخير" : "Late Permission",
-        exit: lang === 'ar' ? "تصريح خروج" : "Exit Permit"
-    };
+    const types = { vacation: lang === 'ar' ? "إجازة" : "Vacation", late: lang === 'ar' ? "إذن تأخير" : "Late Perm.", exit: lang === 'ar' ? "تصريح خروج" : "Exit Permit" };
     return types[type] || type;
 }
 
-// 6. نظام اللغة (تحديث النصوص الثابتة)
 function updateManagerPageContent(lang) {
     const translations = {
-        ar: {
-            header: "مراجعة طلبات القسم",
-            back: "رجوع",
-            total: "إجمالي الطلبات المعلقة: ",
-            loading: "جاري تحميل الطلبات..."
-        },
-        en: {
-            header: "Department Requests Review",
-            back: "Back",
-            total: "Total Pending Requests: ",
-            loading: "Loading requests..."
-        }
+        ar: { header: "مراجعة طلبات القسم", back: "رجوع", total: "إجمالي الطلبات المعلقة: " },
+        en: { header: "Department Requests Review", back: "Back", total: "Total Pending Requests: " }
     };
     const t = translations[lang];
     if (document.getElementById('txt-header')) document.getElementById('txt-header').innerText = t.header;
     if (document.getElementById('btn-back')) document.getElementById('btn-back').innerText = t.back;
-    if (document.getElementById('txt-total-requests')) {
-        document.getElementById('txt-total-requests').firstChild.textContent = t.total;
-    }
 }
 
 window.onload = () => {
