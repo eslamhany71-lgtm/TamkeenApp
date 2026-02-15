@@ -1,4 +1,4 @@
-// ملاحظة: نستخدم firebase.firestore() مباشرة لتجنب تعارض التعريفات مع ملف auth.js
+// hr-admin.js - نظام إدارة شؤون الموظفين (النسخة المطورة)
 let allRequests = []; 
 
 // 1. دالة سحب كل طلبات الـ HR وعرضها في الجدول (تحديث تلقائي)
@@ -35,7 +35,7 @@ function renderTable(dataArray) {
         row.innerHTML = `
             <td>${data.employeeCode || "--"}</td>
             <td><strong>${data.employeeName || "غير معروف"}</strong></td>
-            <td>${data.jobTitle || "--"} / ${data.department || "--"}</td>
+            <td>${data.jobTitle || "--"} / <span class="dept-tag">${data.department || "--"}</span></td>
             <td>${translateType(data.type)} ${data.vacationType ? `(${data.vacationType})` : ""}</td>
             <td>${dateFrom}${dateTo}</td>
             <td><span class="badge ${(data.status || 'Pending').toLowerCase()}">${data.status || 'Pending'}</span></td>
@@ -50,7 +50,7 @@ function renderTable(dataArray) {
     if(document.getElementById('approved-count')) document.getElementById('approved-count').innerText = approved;
 }
 
-// 3. دالة رفع ملف CSV (النسخة الاحترافية - معالجة الفواصل والتنظيف)
+// 3. دالة رفع ملف CSV (المطورة لدعم 5 أعمدة: الكود، الاسم، الهاتف، الرتبة، القسم)
 function uploadCSV() {
     const fileInput = document.getElementById('csvFile');
     const file = fileInput.files[0];
@@ -74,44 +74,48 @@ function uploadCSV() {
                 const row = rows[i].trim();
                 if (!row) continue;
 
-                // تقسيم السطر (يدعم الفاصلة العادية والفاصلة المنقوطة) وتنظيف علامات التنصيص
+                // تقسيم السطر وتنظيف البيانات (يدعم الفاصلة والفاصلة المنقوطة)
                 const cols = row.split(/[;,]/).map(item => item.replace(/["]/g, "").trim());
 
-                if (cols.length >= 4) {
+                // التحقق من وجود 5 أعمدة (كود، اسم، هاتف، رتبة، قسم)
+                if (cols.length >= 5) {
                     const code = cols[0];
                     const name = cols[1];
                     const phone = cols[2];
                     const role = cols[3].toLowerCase();
+                    const department = cols[4];
 
                     // التأكد من أن الرتبة صحيحة قبل الرفع
-                    if (['employee', 'manager', 'hr'].includes(role)) {
+                    if (['employee', 'manager', 'hr', 'admin'].includes(role)) {
                         firebase.firestore().collection("Employee_Database").doc(code).set({
                             employeeId: code,
                             name: name,
                             phone: phone,
                             role: role,
-                            activated: false
-                        });
+                            department: department,
+                            // لا نغير حالة التفعيل إذا كان الموظف موجوداً مسبقاً
+                        }, { merge: true }); 
+                        
                         count++;
                     } else {
                         errorLog += `السطر ${i+1}: الرتبة "${role}" غير صالحة.\n`;
                     }
                 } else {
-                    errorLog += `السطر ${i+1}: أعمدة ناقصة (مطلوب 4).\n`;
+                    errorLog += `السطر ${i+1}: أعمدة ناقصة (يجب توفر 5 أعمدة: كود، اسم، هاتف، رتبة، قسم).\n`;
                 }
             }
             
             if (count > 0) {
-                alert(`تم رفع ${count} موظف بنجاح!`);
-                if (errorLog) console.warn("ملاحظات:\n" + errorLog);
+                alert(`تم بنجاح رفع/تحديث بيانات ${count} موظف مع أقسامهم.`);
+                if (errorLog) console.warn("ملاحظات الأخطاء:\n" + errorLog);
                 fileInput.value = ""; 
             } else {
-                alert("لم يتم رفع أي بيانات! تأكد من تنسيق الملف.\n" + errorLog);
+                alert("فشل الرفع! تأكد من أن الملف يحتوي على 5 أعمدة مفصولة بفاصلة.\n" + errorLog);
             }
 
         } catch (err) {
             console.error(err);
-            alert("خطأ تقني: " + err.message);
+            alert("خطأ تقني أثناء معالجة الملف: " + err.message);
         }
     };
     reader.readAsText(file, "UTF-8");
@@ -130,16 +134,13 @@ function filterTable() {
         const reqDept = (req.department || "").toLowerCase();
         const reqJob = (req.jobTitle || "").toLowerCase();
 
-        // فلتر التاريخ
         let dateMatch = true;
         if (dateFrom && reqDate < dateFrom) dateMatch = false;
         if (dateTo && reqDate > dateTo) dateMatch = false;
 
-        // فلتر النوع
         let typeMatch = true;
         if (typeSearch && reqType !== typeSearch) typeMatch = false;
 
-        // فلتر القسم/الوظيفة
         let deptMatch = true;
         if (deptSearch && !reqDept.includes(deptSearch) && !reqJob.includes(deptSearch)) deptMatch = false;
 
@@ -149,7 +150,7 @@ function filterTable() {
     renderTable(filteredData);
 }
 
-// 5. إعادة ضبط الفلاتر (عرض الكل)
+// 5. إعادة ضبط الفلاتر
 function resetFilters() {
     if(document.getElementById('filter-date-from')) document.getElementById('filter-date-from').value = "";
     if(document.getElementById('filter-date-to')) document.getElementById('filter-date-to').value = "";
@@ -165,7 +166,7 @@ function deleteRequest(id) {
     }
 }
 
-// 7. دالة مساعدة لترجمة نوع الطلب
+// 7. ترجمة نوع الطلب بناءً على اللغة المختارة
 function translateType(type) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const types = {
@@ -220,7 +221,6 @@ function updatePageContent(lang) {
     };
     const t = translations[lang];
     
-    // تحديث كل عنصر ID موجود في الـ HTML
     if(document.getElementById('txt-title')) document.title = t.title;
     if(document.getElementById('txt-header')) document.getElementById('txt-header').innerText = t.header;
     if(document.getElementById('btn-back')) document.getElementById('btn-back').innerText = t.back;
@@ -236,7 +236,6 @@ function updatePageContent(lang) {
     if(document.getElementById('opt-exit')) document.getElementById('opt-exit').innerText = t.optExit;
     if(document.getElementById('btn-reset-filter')) document.getElementById('btn-reset-filter').innerText = t.reset;
     
-    // عناوين الجدول
     if(document.getElementById('th-code')) document.getElementById('th-code').innerText = t.code;
     if(document.getElementById('th-name')) document.getElementById('th-name').innerText = t.name;
     if(document.getElementById('th-job')) document.getElementById('th-job').innerText = t.job;
@@ -245,7 +244,6 @@ function updatePageContent(lang) {
     if(document.getElementById('th-status')) document.getElementById('th-status').innerText = t.status;
     if(document.getElementById('th-action')) document.getElementById('th-action').innerText = t.action;
     
-    // قسم الرفع
     if(document.getElementById('lbl-upload')) document.getElementById('lbl-upload').innerText = t.upload;
     if(document.getElementById('btn-upload-start')) document.getElementById('btn-upload-start').innerText = t.start;
 }
