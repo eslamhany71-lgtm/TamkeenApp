@@ -1,7 +1,8 @@
-// hr-admin.js - نظام إدارة شؤون الموظفين (النسخة المطورة)
+// hr-admin.js - لوحة تحكم الموارد البشرية الموحدة (النسخة الكاملة الاحترافية)
+
 let allRequests = []; 
 
-// 1. دالة سحب كل طلبات الـ HR وعرضها في الجدول (تحديث تلقائي)
+// 1. دالة سحب كل طلبات الموظفين من Firestore (تحديث لحظي)
 function loadAllRequests() {
     firebase.firestore().collection("HR_Requests").orderBy("submittedAt", "desc").onSnapshot((snapshot) => {
         allRequests = [];
@@ -35,12 +36,17 @@ function renderTable(dataArray) {
         row.innerHTML = `
             <td>${data.employeeCode || "--"}</td>
             <td><strong>${data.employeeName || "غير معروف"}</strong></td>
-            <td>${data.jobTitle || "--"} / <span class="dept-tag">${data.department || "--"}</span></td>
+            <td>
+                <span class="job-info">${data.jobTitle || "--"}</span> / 
+                <span class="dept-badge" style="background:#e3f2fd; color:#1976d2; padding:2px 8px; border-radius:4px; font-size:0.85em;">
+                    ${data.department || "--"}
+                </span>
+            </td>
             <td>${translateType(data.type)} ${data.vacationType ? `(${data.vacationType})` : ""}</td>
             <td>${dateFrom}${dateTo}</td>
             <td><span class="badge ${(data.status || 'Pending').toLowerCase()}">${data.status || 'Pending'}</span></td>
             <td>
-                <button onclick="deleteRequest('${data.id}')" class="delete-btn">حذف</button>
+                <button onclick="deleteRequest('${data.id}')" class="delete-btn" style="background:#ff4d4d; color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:4px;">حذف</button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -50,7 +56,7 @@ function renderTable(dataArray) {
     if(document.getElementById('approved-count')) document.getElementById('approved-count').innerText = approved;
 }
 
-// 3. دالة رفع ملف CSV (المطورة لدعم 5 أعمدة: الكود، الاسم، الهاتف، الرتبة، القسم)
+// 3. دالة رفع ملف CSV (تدعم 5 أعمدة: الكود، الاسم، الهاتف، الرتبة، القسم)
 function uploadCSV() {
     const fileInput = document.getElementById('csvFile');
     const file = fileInput.files[0];
@@ -69,15 +75,15 @@ function uploadCSV() {
             let count = 0;
             let errorLog = "";
 
-            // نبدأ من i=1 لتخطي سطر العناوين (Header)
+            // نبدأ من i=1 لتخطي سطر العناوين
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i].trim();
                 if (!row) continue;
 
-                // تقسيم السطر وتنظيف البيانات (يدعم الفاصلة والفاصلة المنقوطة)
+                // تنظيف البيانات والتقسيم
                 const cols = row.split(/[;,]/).map(item => item.replace(/["]/g, "").trim());
 
-                // التحقق من وجود 5 أعمدة (كود، اسم، هاتف، رتبة، قسم)
+                // التحقق من الأعمدة الخمسة: (0:كود، 1:اسم، 2:هاتف، 3:رتبة، 4:قسم)
                 if (cols.length >= 5) {
                     const code = cols[0];
                     const name = cols[1];
@@ -85,37 +91,35 @@ function uploadCSV() {
                     const role = cols[3].toLowerCase();
                     const department = cols[4];
 
-                    // التأكد من أن الرتبة صحيحة قبل الرفع
                     if (['employee', 'manager', 'hr', 'admin'].includes(role)) {
                         firebase.firestore().collection("Employee_Database").doc(code).set({
                             employeeId: code,
                             name: name,
                             phone: phone,
                             role: role,
-                            department: department,
-                            // لا نغير حالة التفعيل إذا كان الموظف موجوداً مسبقاً
-                        }, { merge: true }); 
-                        
+                            department: department, // الحقل الجديد للربط
+                            activated: false
+                        }, { merge: true }); // Merge لعدم مسح بيانات التفعيل السابقة
                         count++;
                     } else {
                         errorLog += `السطر ${i+1}: الرتبة "${role}" غير صالحة.\n`;
                     }
                 } else {
-                    errorLog += `السطر ${i+1}: أعمدة ناقصة (يجب توفر 5 أعمدة: كود، اسم، هاتف، رتبة، قسم).\n`;
+                    errorLog += `السطر ${i+1}: بيانات ناقصة (مطلوب 5 أعمدة).\n`;
                 }
             }
             
             if (count > 0) {
                 alert(`تم بنجاح رفع/تحديث بيانات ${count} موظف مع أقسامهم.`);
-                if (errorLog) console.warn("ملاحظات الأخطاء:\n" + errorLog);
+                if (errorLog) console.warn("ملاحظات:\n" + errorLog);
                 fileInput.value = ""; 
             } else {
-                alert("فشل الرفع! تأكد من أن الملف يحتوي على 5 أعمدة مفصولة بفاصلة.\n" + errorLog);
+                alert("فشل الرفع! تأكد من تنسيق الملف (CSV) ووجود 5 أعمدة.");
             }
 
         } catch (err) {
             console.error(err);
-            alert("خطأ تقني أثناء معالجة الملف: " + err.message);
+            alert("خطأ تقني: " + err.message);
         }
     };
     reader.readAsText(file, "UTF-8");
@@ -166,7 +170,7 @@ function deleteRequest(id) {
     }
 }
 
-// 7. ترجمة نوع الطلب بناءً على اللغة المختارة
+// 7. دالة مساعدة لترجمة نوع الطلب
 function translateType(type) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const types = {
@@ -177,29 +181,33 @@ function translateType(type) {
     return types[type] || type;
 }
 
-// 8. تصدير البيانات الظاهرة في الجدول لملف Excel (CSV)
+// 8. تصدير البيانات إلى ملف Excel (بما في ذلك عمود القسم)
 function exportToExcel() {
-    let csv = "\uFEFF"; 
-    csv += "الكود,الموظف,الوظيفة/القسم,نوع الطلب,التاريخ,الحالة\n";
-    const rows = document.querySelectorAll("#hr-requests-table tr");
-    rows.forEach(row => {
-        const cols = row.querySelectorAll("td");
-        if (cols.length > 1) {
-            let rowData = [];
-            for (let i = 0; i < 6; i++) {
-                rowData.push(cols[i].innerText.replace(/,/g, " "));
-            }
-            csv += rowData.join(",") + "\n";
-        }
+    let csv = "\uFEFF"; // UTF-8 BOM لضمان ظهور اللغة العربية بشكل صحيح في Excel
+    csv += "كود الموظف,الاسم,الوظيفة,القسم,نوع الطلب,التاريخ,الحالة\n";
+    
+    allRequests.forEach(req => {
+        const date = req.startDate || req.reqDate || "--";
+        const row = [
+            req.employeeCode || "",
+            (req.employeeName || "").replace(/,/g, " "),
+            (req.jobTitle || "").replace(/,/g, " "),
+            (req.department || "").replace(/,/g, " "),
+            translateType(req.type),
+            date,
+            req.status || "Pending"
+        ].join(",");
+        csv += row + "\n";
     });
+
     const hiddenElement = document.createElement('a');
     hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
     hiddenElement.target = '_blank';
-    hiddenElement.download = 'تقرير_الموارد_البشرية.csv';
+    hiddenElement.download = `تقرير_تمكين_${new Date().toLocaleDateString()}.csv`;
     hiddenElement.click();
 }
 
-// 9. نظام اللغة الكامل لصفحة لوحة تحكم الـ HR
+// 9. نظام اللغة الكامل (متوافق مع IDs صفحة HR Dashboard)
 function updatePageContent(lang) {
     const translations = {
         ar: { 
@@ -208,7 +216,7 @@ function updatePageContent(lang) {
             filterDate: "فلتر بالتاريخ:", filterType: "نوع الطلب:", filterDept: "البحث بالقسم / الوظيفة:", 
             optAll: "الكل", optVac: "إجازة", optLate: "إذن تأخير", optExit: "تصريح خروج",
             reset: "إعادة ضبط", code:"الكود", name:"الموظف", job:"الوظيفة/القسم", type:"نوع الطلب", date:"التاريخ", status:"الحالة", action:"إجراء",
-            upload: "رفع بيانات الموظفين (ملف CSV):", start: "ابدأ الرفع الآن"
+            upload: "رفع بيانات الموظفين (CSV):", start: "ابدأ الرفع"
         },
         en: { 
             title: "HR Admin - Tamkeen", header: "HR Admin Dashboard", back: "Back", 
@@ -216,11 +224,13 @@ function updatePageContent(lang) {
             filterDate: "Date Filter:", filterType: "Request Type:", filterDept: "Search Dept/Job:", 
             optAll: "All", optVac: "Vacation", optLate: "Late Perm.", optExit: "Exit Permit",
             reset: "Reset", code:"ID", name:"Name", job:"Job/Dept", type:"Type", date:"Date", status:"Status", action:"Action",
-            upload: "Upload Employees Data (CSV):", start: "Start Upload"
+            upload: "Upload Employees (CSV):", start: "Upload Now"
         }
     };
     const t = translations[lang];
+    if(!t) return;
     
+    // تطبيق الترجمة على كافة العناصر
     if(document.getElementById('txt-title')) document.title = t.title;
     if(document.getElementById('txt-header')) document.getElementById('txt-header').innerText = t.header;
     if(document.getElementById('btn-back')) document.getElementById('btn-back').innerText = t.back;
@@ -236,6 +246,7 @@ function updatePageContent(lang) {
     if(document.getElementById('opt-exit')) document.getElementById('opt-exit').innerText = t.optExit;
     if(document.getElementById('btn-reset-filter')) document.getElementById('btn-reset-filter').innerText = t.reset;
     
+    // رؤوس الجدول
     if(document.getElementById('th-code')) document.getElementById('th-code').innerText = t.code;
     if(document.getElementById('th-name')) document.getElementById('th-name').innerText = t.name;
     if(document.getElementById('th-job')) document.getElementById('th-job').innerText = t.job;
@@ -248,7 +259,7 @@ function updatePageContent(lang) {
     if(document.getElementById('btn-upload-start')) document.getElementById('btn-upload-start').innerText = t.start;
 }
 
-// 10. تشغيل عند تحميل الصفحة
+// 10. التشغيل عند التحميل
 window.onload = () => {
     loadAllRequests();
     const savedLang = localStorage.getItem('preferredLang') || 'ar';
