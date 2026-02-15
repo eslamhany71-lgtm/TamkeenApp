@@ -10,6 +10,19 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* تنسيقات سريعة لضمان المظهر الاحترافي للـ Badges */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; color: white; }
+        .badge.pending { background-color: #f39c12; } /* برتقالي */
+        .badge.approved { background-color: #27ae60; } /* أخضر */
+        .badge.rejected { background-color: #e74c3c; } /* أحمر */
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .mini-stat { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #ddd; }
+        .stat-val { display: block; font-size: 1.5em; font-weight: bold; }
+        .stat-label { font-size: 0.9em; color: #666; }
+    </style>
 </head>
 <body>
 
@@ -25,7 +38,6 @@
     </header>
 
     <main class="container">
-        <!-- شبكة الخيارات الرئيسية -->
         <div class="hr-grid">
             <div class="hr-card" onclick="openForm('vacation')">
                 <div class="card-icon">📅</div>
@@ -51,23 +63,24 @@
                 </div>
             </div>
 
-            <!-- الكارت الجديد الاحترافي لسجل الطلبات -->
-            <div class="hr-card special-card" onclick="openMyRequests()">
+            <!-- زر سجل طلباتي المطور -->
+            <div class="hr-card" style="border: 2px solid #3498db;" onclick="openMyRequests()">
                 <div class="card-icon">📊</div>
                 <div class="card-info">
                     <h3 id="txt-my-orders">سجل طلباتي</h3>
-                    <p id="sub-my-orders">الإحصائيات وحالة الطلبات</p>
+                    <p id="sub-my-orders">متابعة الحالات والإحصائيات</p>
                 </div>
             </div>
         </div>
 
-        <!-- مودال تقديم الطلبات -->
+        <!-- مودال طلب جديد -->
         <div id="formModal" class="modal">
             <div class="modal-content animate-top">
                 <div class="modal-header">
                     <h2 id="modal-title">تقديم طلب</h2>
                     <span class="close-btn" onclick="closeForm()">&times;</span>
                 </div>
+                
                 <form id="hrRequestForm" class="chic-form">
                     <input type="hidden" id="requestType">
                     <div class="form-row">
@@ -106,26 +119,14 @@
                             </select>
                         </div>
                         <div class="form-row">
-                            <div class="input-box">
-                                <span class="field-label">من تاريخ</span>
-                                <input type="date" id="startDate">
-                            </div>
-                            <div class="input-box">
-                                <span class="field-label">إلى تاريخ</span>
-                                <input type="date" id="endDate">
-                            </div>
+                            <div class="input-box"><span>من تاريخ</span><input type="date" id="startDate"></div>
+                            <div class="input-box"><span>إلى تاريخ</span><input type="date" id="endDate"></div>
                         </div>
                     </div>
                     <div id="time-fields" style="display:none;">
                         <div class="form-row">
-                            <div class="input-box">
-                                <span class="field-label">تاريخ الإذن</span>
-                                <input type="date" id="reqDate">
-                            </div>
-                            <div class="input-box">
-                                <span class="field-label">الوقت</span>
-                                <input type="time" id="reqTime">
-                            </div>
+                            <div class="input-box"><span>تاريخ الإذن</span><input type="date" id="reqDate"></div>
+                            <div class="input-box"><span>الوقت</span><input type="time" id="reqTime"></div>
                         </div>
                     </div>
                     <div class="input-box">
@@ -137,37 +138,36 @@
             </div>
         </div>
 
-        <!-- مودال "طلباتي" المطور (لوحة التحكم المصغرة) -->
+        <!-- مودال "سجل طلباتي" -->
         <div id="requestsModal" class="modal">
             <div class="modal-content animate-bottom" style="max-width: 900px;">
                 <div class="modal-header">
-                    <h2>سجل طلباتي وإحصائياتي</h2>
+                    <h2 id="txt-modal-history">سجل طلباتي وإحصائياتي</h2>
                     <span class="close-btn" onclick="closeRequests()">&times;</span>
                 </div>
                 
-                <!-- قسم الإحصائيات داخل المودال -->
+                <!-- لوحة الإحصائيات -->
                 <div class="stats-grid">
                     <div class="mini-stat">
-                        <span class="stat-val" id="vacation-balance">21</span>
+                        <span class="stat-val" id="vacation-balance" style="color: #2980b9;">21</span>
                         <span class="stat-label">الرصيد المتبقي</span>
                     </div>
                     <div class="mini-stat">
+                        <span class="stat-val" id="my-pending-count" style="color: #f39c12;">0</span>
+                        <span class="stat-label">قيد الانتظار</span>
+                    </div>
+                    <div class="mini-stat">
                         <span class="stat-val" id="my-approved-count" style="color: #27ae60;">0</span>
-                        <span class="stat-label">المقبولة</span>
+                        <span class="stat-label">مقبولة</span>
                     </div>
                     <div class="mini-stat">
                         <span class="stat-val" id="my-rejected-count" style="color: #e74c3c;">0</span>
-                        <span class="stat-label">المرفوضة</span>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="stat-val" id="my-permits-count" style="color: #f39c12;">0</span>
-                        <span class="stat-label">الأذونات</span>
+                        <span class="stat-label">مرفوضة</span>
                     </div>
                 </div>
 
-                <!-- جدول الطلبات -->
-                <div class="table-container">
-                    <table class="styled-table">
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table class="styled-table" style="width: 100%;">
                         <thead>
                             <tr>
                                 <th>النوع</th>
@@ -176,7 +176,7 @@
                             </tr>
                         </thead>
                         <tbody id="my-requests-table">
-                            <!-- سيتم ملؤه بواسطة JS -->
+                            <!-- البيانات تظهر هنا لحظياً -->
                         </tbody>
                     </table>
                 </div>
