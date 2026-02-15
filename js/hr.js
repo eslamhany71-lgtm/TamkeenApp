@@ -1,5 +1,4 @@
-// hr.js - نسخة الرفع المجانية (Base64) بدون الحاجة لـ Firebase Storage
-
+// hr.js - نسخة الرفع المجانية (Base64) - Tamkeen App
 let currentUserData = null;
 let totalAnnualUsed = 0;
 
@@ -53,7 +52,7 @@ function loadMyRequests(empCode) {
                 } else if (data.status === "Rejected") { rejected++; } else { pending++; }
 
                 const row = `<tr>
-                    <td>${translateType(data.type)}</td>
+                    <td>${translateType(data.type)} ${data.vacationType ? '('+data.vacationType+')' : ''}</td>
                     <td>${data.startDate || data.reqDate}</td>
                     <td><span class="badge ${data.status.toLowerCase()}">${data.status}</span></td>
                 </tr>`;
@@ -67,12 +66,7 @@ function loadMyRequests(empCode) {
         });
 }
 
-function calculateDays(start, end) {
-    const s = new Date(start), e = new Date(end);
-    return Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1;
-}
-
-// دالة تحويل الملف إلى نص (Base64)
+// دالة تحويل الملف إلى نص Base64
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -85,21 +79,18 @@ function fileToBase64(file) {
 document.getElementById('hrRequestForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
-    const type = document.getElementById('requestType').value;
     const fileInput = document.getElementById('reqAttachment');
     const file = fileInput.files[0];
 
     btn.disabled = true;
-    btn.innerText = "جاري الحفظ...";
+    btn.innerText = "جاري حفظ الطلب...";
 
     try {
         let fileData = null;
-        
-        // إذا كان هناك ملف، نتأكد أن حجمه صغير (أقل من 800 كيلوبايت لضمان الأمان)
         if (file) {
-            if (file.size > 800 * 1024) {
-                alert("الملف كبير جداً! يرجى اختيار ملف أقل من 1 ميجابايت.");
-                btn.disabled = false; return;
+            if (file.size > 800 * 1024) { // منع الملفات أكبر من 800KB لضمان المجانية
+                alert("الملف كبير جداً! يرجى اختيار صورة أو ملف PDF أقل من 1 ميجابايت.");
+                btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; return;
             }
             fileData = await fileToBase64(file);
         }
@@ -110,35 +101,27 @@ document.getElementById('hrRequestForm').addEventListener('submit', async (e) =>
             department: document.getElementById('empDept').value,
             jobTitle: document.getElementById('empJob').value,
             hiringDate: document.getElementById('hireDate').value,
-            type: type,
-            vacationType: (type === 'vacation') ? document.getElementById('vacType').value : null,
-            startDate: (type === 'vacation') ? document.getElementById('startDate').value : null,
-            endDate: (type === 'vacation') ? document.getElementById('endDate').value : null,
-            reqDate: (type !== 'vacation') ? document.getElementById('reqDate').value : null,
-            reqTime: (type !== 'vacation') ? document.getElementById('reqTime').value : null,
+            type: document.getElementById('requestType').value,
+            vacationType: document.getElementById('vacType').value || null,
+            startDate: document.getElementById('startDate').value || null,
+            endDate: document.getElementById('endDate').value || null,
+            reqDate: document.getElementById('reqDate').value || null,
+            reqTime: document.getElementById('reqTime').value || null,
             reason: document.getElementById('reqReason').value,
-            fileBase64: fileData, // تخزين الملف كنص
+            fileBase64: fileData, // تخزين المرفق هنا
             status: "Pending",
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
         await firebase.firestore().collection("HR_Requests").add(requestData);
-        alert("تم إرسال الطلب بنجاح!");
+        alert("تم إرسال طلبك بنجاح!");
         closeForm();
-    } catch (err) {
-        alert("خطأ: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "إرسال الطلب الآن";
-    }
+    } catch (err) { alert("خطأ: " + err.message); }
+    finally { btn.disabled = false; btn.innerText = "إرسال الطلب الآن"; }
 });
 
-function openForm(type) {
-    document.getElementById('formModal').style.display = "block";
-    document.getElementById('requestType').value = type;
-    document.getElementById('vacation-fields').style.display = (type === 'vacation') ? 'block' : 'none';
-    document.getElementById('time-fields').style.display = (type !== 'vacation') ? 'block' : 'none';
-}
+function calculateDays(start, end) { const s = new Date(start), e = new Date(end); return Math.floor((e - s) / (1000 * 60 * 60 * 24)) + 1; }
+function openForm(type) { document.getElementById('formModal').style.display = "block"; document.getElementById('requestType').value = type; document.getElementById('vacation-fields').style.display = (type === 'vacation') ? 'block' : 'none'; document.getElementById('time-fields').style.display = (type !== 'vacation') ? 'block' : 'none'; }
 function closeForm() { document.getElementById('formModal').style.display = "none"; document.getElementById('hrRequestForm').reset(); }
 function openMyRequests() { document.getElementById('requestsModal').style.display = 'block'; }
 function closeRequests() { document.getElementById('requestsModal').style.display = 'none'; }
