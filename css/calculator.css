@@ -1,67 +1,137 @@
-.calculator-box {
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+:root {
+    --primary-color: #2a5298;
+    --secondary-color: #1e3c72;
+    --accent-color: #27ae60;
+    --bg-light: #f4f7f6;
+    --text-dark: #333;
+    --shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+body {
+    font-family: 'Cairo', sans-serif;
+    background-color: var(--bg-light);
+    margin: 0;
+    color: var(--text-dark);
+}
+
+.container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+
+/* Header Style */
+.main-header {
+    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+    color: white;
+    padding: 15px 0;
+    box-shadow: var(--shadow);
+    margin-bottom: 40px;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-icon-back {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-icon-back:hover { background: white; color: var(--primary-color); }
+
+/* Layout Wrapper */
+.calc-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 30px;
+}
+
+@media (max-width: 768px) { .calc-wrapper { grid-template-columns: 1fr; } }
+
+/* Cards Style */
+.calculator-card, .results-card {
     background: white;
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    max-width: 500px;
-    margin: 0 auto 30px;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: var(--shadow);
 }
 
-.input-group {
-    margin-bottom: 15px;
-    text-align: right;
+.card-header h3 {
+    margin: 0 0 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+    color: var(--primary-color);
 }
 
-.input-group label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-}
+/* Inputs */
+.input-group { margin-bottom: 20px; }
+.input-group label { display: block; margin-bottom: 8px; font-weight: bold; }
 
 .input-group input, .input-group select {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     border: 1px solid #ddd;
-    border-radius: 5px;
+    border-radius: 8px;
     font-size: 16px;
+    box-sizing: border-box;
 }
 
-.calc-btn {
-    width: 100%;
-    padding: 12px;
-    background: #27ae60;
+.input-with-icon { position: relative; }
+.currency { position: absolute; left: 15px; top: 12px; color: #999; font-size: 12px; }
+
+/* Buttons */
+.actions { display: flex; gap: 10px; margin-top: 25px; }
+.btn-primary {
+    flex: 2;
+    background: var(--accent-color);
     color: white;
     border: none;
-    border-radius: 5px;
-    font-size: 18px;
+    padding: 15px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-secondary {
+    flex: 1;
+    background: #95a5a6;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
     cursor: pointer;
 }
 
-.results-container {
-    background: #fff;
-    padding: 20px;
-    border-radius: 12px;
-    border-right: 5px solid #27ae60;
-    text-align: right;
-}
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3); }
 
-.result-item {
+/* Results Grid */
+.results-grid { display: grid; gap: 15px; }
+.res-item {
     display: flex;
     justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px dashed #eee;
+    padding: 12px;
+    background: #fdfdfd;
+    border-radius: 8px;
+    border: 1px solid #f0f0f0;
 }
 
-.result-item strong {
-    color: #2c3e50;
+.res-item.highlight {
+    background: #e8f4fd;
+    border-color: #3498db;
 }
-.reset-btn {
-    flex: 1;
-    padding: 12px;
-    background: #7f8c8d; /* لون رمادي شيك */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-size: 18px;
-    cursor: pointer;
-}
+
+.res-item strong { color: var(--primary-color); font-size: 1.1em; }
+.res-item.net { background: #eafaf1; border-color: #27ae60; }
+.res-item.net strong { color: var(--accent-color); font-size: 1.3em; }
+
+.note { margin-top: 20px; font-size: 12px; color: #7f8c8d; text-align: center; }
