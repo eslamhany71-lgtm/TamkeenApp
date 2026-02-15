@@ -1,39 +1,58 @@
-// manager.js - لوحة تحكم المدير (عرض المرفقات بنظام Base64 المجاني)
+// manager.js - المدير (النسخة الاحترافية: فلترة قسم + إشعارات لحظية + مرفقات)
 
 let currentManagerDept = null;
 
-// 1. التأكد من هوية المدير وقسمه عند تحميل الصفحة
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const managerCode = user.email.split('@')[0];
         fetchManagerInfo(managerCode);
-    } else {
-        window.location.href = "index.html";
-    }
+    } else { window.location.href = "index.html"; }
 });
 
-// 2. جلب بيانات المدير لمعرفة القسم المسؤول عنه
 async function fetchManagerInfo(code) {
-    try {
-        const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
-        if (doc.exists) {
-            const data = doc.data();
-            currentManagerDept = data.department;
-            
-            const headerTag = document.getElementById('txt-header');
-            if (headerTag) {
-                const lang = localStorage.getItem('preferredLang') || 'ar';
-                headerTag.innerText += ` - ${currentManagerDept}`;
-            }
+    const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
+    if (doc.exists) {
+        currentManagerDept = doc.data().department;
+        
+        const header = document.getElementById('txt-header');
+        if (header) header.innerText += ` - ${currentManagerDept}`;
 
-            loadRequestsByDept(currentManagerDept);
-        } else {
-            document.getElementById('requests-list').innerHTML = "<p>خطأ: لم يتم تحديد قسم لهذا الحساب.</p>";
-        }
-    } catch (error) { console.error(error); }
+        loadRequestsByDept(currentManagerDept);
+        startNotificationListener(currentManagerDept); // بدء مراقبة الإشعارات
+    }
 }
 
-// 3. سحب الطلبات الخاصة بقسم المدير فقط وعرض المرفقات
+// 1. مراقب الإشعارات اللحظي (يظهر للمدير وهو فاتح الصفحة)
+function startNotificationListener(dept) {
+    firebase.firestore().collection("Notifications")
+        .where("targetDept", "==", dept)
+        .where("isRead", "==", false)
+        .onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    const notify = change.doc.data();
+                    showNotificationToast(notify.message);
+                    // تعليم الإشعار كـ "مقروء" فورياً
+                    change.doc.ref.update({ isRead: true });
+                }
+            });
+        });
+}
+
+function showNotificationToast(msg) {
+    const toast = document.createElement('div');
+    toast.innerHTML = `🔔 ${msg}`;
+    toast.style = "position:fixed; top:20px; right:20px; background:#27ae60; color:white; padding:15px 25px; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2); z-index:9999; font-weight:bold; border-right: 5px solid #1e8449; animation: slideIn 0.5s forwards;";
+    document.body.appendChild(toast);
+    
+    // تشغيل صوت تنبيه
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+    audio.play().catch(() => {});
+
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
+}
+
+// 2. تحميل الطلبات (قسم المدير فقط)
 function loadRequestsByDept(deptName) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const list = document.getElementById('requests-list');
@@ -43,12 +62,11 @@ function loadRequestsByDept(deptName) {
         .where("department", "==", deptName)
         .orderBy("submittedAt", "desc")
         .onSnapshot((snapshot) => {
-            if (!list) return;
-            list.innerHTML = ""; 
+            list.innerHTML = "";
             let pendingCount = 0;
 
             if (snapshot.empty) {
-                list.innerHTML = lang === 'ar' ? "<p>لا توجد طلبات مقدمة لقسمك.</p>" : "<p>No requests for your dept.</p>";
+                list.innerHTML = "<p style='text-align:center; padding:20px;'>لا توجد طلبات حالياً.</p>";
                 if (countSpan) countSpan.innerText = "0";
                 return;
             }
@@ -57,10 +75,9 @@ function loadRequestsByDept(deptName) {
                 const data = doc.data();
                 if(data.status === "Pending") pendingCount++;
 
-                // منطق عرض زر المرفق
                 const attachmentBtn = data.fileBase64 ? `
-                    <button onclick="viewFile('${doc.id}')" class="view-file-btn" style="margin-top:10px; background:#3498db; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; width:100%; font-weight:bold;">
-                        📎 ${lang === 'ar' ? 'عرض المرفق (إثبات)' : 'View Attachment'}
+                    <button onclick="viewFile('${doc.id}')" style="margin-top:10px; background:#3498db; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; width:100%;">
+                        📎 عرض المرفق (إثبات)
                     </button>
                     <div id="data-${doc.id}" style="display:none;">${data.fileBase64}</div>
                 ` : "";
@@ -70,7 +87,7 @@ function loadRequestsByDept(deptName) {
                 card.innerHTML = `
                     <div class="req-info">
                         <h4>${data.employeeName} <small>#${data.employeeCode}</small></h4>
-                        <p><strong>نوع الطلب:</strong> ${translateType(data.type, lang)} ${data.vacationType ? '('+data.vacationType+')' : ''}</p>
+                        <p><strong>نوع الطلب:</strong> ${translateType(data.type)}</p>
                         <p><strong>التاريخ:</strong> ${data.startDate || data.reqDate}</p>
                         <p><strong>السبب:</strong> ${data.reason}</p>
                         ${attachmentBtn}
@@ -88,35 +105,19 @@ function loadRequestsByDept(deptName) {
         });
 }
 
-// 4. دالة عرض الملف في نافذة جديدة
 function viewFile(docId) {
-    const base64Data = document.getElementById(`data-${docId}`).innerText;
-    const newWindow = window.open();
-    newWindow.document.write(`
-        <html>
-            <title>معاينة المرفق - تمكين</title>
-            <body style="margin:0; background:#333; display:flex; justify-content:center; align-items:center;">
-                <iframe src="${base64Data}" frameborder="0" style="width:100%; height:100vh;" allowfullscreen></iframe>
-            </body>
-        </html>
-    `);
+    const data = document.getElementById(`data-${docId}`).innerText;
+    const win = window.open();
+    win.document.write(`<html><body style="margin:0;"><iframe src="${data}" frameborder="0" style="width:100%; height:100vh;"></iframe></body></html>`);
 }
 
-async function updateStatus(requestId, newStatus) {
+async function updateStatus(id, status) {
     if(confirm("هل أنت متأكد؟")) {
-        await firebase.firestore().collection("HR_Requests").doc(requestId).update({
-            status: newStatus,
+        await firebase.firestore().collection("HR_Requests").doc(id).update({
+            status: status,
             reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     }
 }
 
-function translateType(type, lang) {
-    const types = { vacation: lang === 'ar' ? "إجازة" : "Vacation", late: lang === 'ar' ? "إذن تأخير" : "Late Perm.", exit: lang === 'ar' ? "تصريح خروج" : "Exit Permit" };
-    return types[type] || type;
-}
-
-window.onload = () => {
-    const savedLang = localStorage.getItem('preferredLang') || 'ar';
-    if(typeof updateManagerPageContent === 'function') updateManagerPageContent(savedLang);
-};
+function translateType(t) { const map = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" }; return map[t] || t; }
