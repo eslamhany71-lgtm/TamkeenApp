@@ -3,59 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>حاسبة القروض</title>
-    <!-- تأكد إن اسم الملف هنا هو style.css أو calculator.css حسب ما إنت مسميه عندك -->
+    <title id="txt-calc-title">حاسبة القروض - تمكين</title>
     <link rel="stylesheet" href="css/calculator.css"> 
+    
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
 </head>
 <body>
-    <header>
-        <button onclick="location.href='home.html'" class="logout-btn" style="background:#444">رجوع</button>
-        <h2>حاسبة القروض الدقيقة</h2>
+    <header class="main-header">
+        <div class="header-content container">
+            <button onclick="location.href='home.html'" class="btn-icon-back" id="btn-back">
+                <span class="icon">⬅</span> <span id="txt-back">رجوع</span>
+            </button>
+            <h2 id="txt-header-title">حاسبة القروض الذكية</h2>
+            <div class="lang-switch">
+                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
+                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+            </div>
+        </div>
     </header>
 
     <main class="container">
-        <div class="calculator-box">
-            <div class="input-group">
-                <label>مبلغ التمويل</label>
-                <input type="number" id="loanAmount" placeholder="أدخل المبلغ">
+        <div class="calc-wrapper">
+            <!-- جانب المدخلات -->
+            <div class="calculator-card">
+                <div class="card-header">
+                    <h3 id="txt-input-data">بيانات التمويل</h3>
+                </div>
+                
+                <div class="input-group">
+                    <label id="lbl-amount">مبلغ التمويل</label>
+                    <div class="input-with-icon">
+                        <input type="number" id="loanAmount" placeholder="0.00">
+                        <span class="currency">EGP</span>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label id="lbl-months">المدة (بالشهور)</label>
+                    <input type="number" id="loanMonths" placeholder="12">
+                </div>
+
+                <div class="input-group">
+                    <label id="lbl-product">نوع المنتج</label>
+                    <select id="productType">
+                        <option value="0.3152">MEL 1/1 - 5K:45K</option>
+                        <option value="0.3200288">MEL 2/2 - 45.1K:75K</option>
+                        <option value="0.260132">VSE 1/1 - 75.1K:150K</option>
+                        <option value="0.24002">VSE 2/2 - 150.1K:292K</option>
+                    </select>
+                </div>
+                
+                <div class="actions">
+                    <button onclick="calculateLoan()" class="btn-primary" id="btn-calc">احسب الآن</button>
+                    <button onclick="resetCalculator()" class="btn-secondary" id="btn-reset">إعادة</button>
+                </div>
             </div>
 
-            <div class="input-group">
-                <label>المدة (بالشهور)</label>
-                <input type="number" id="loanMonths" placeholder="مثلاً: 12">
+            <!-- جانب النتائج -->
+            <div id="results" class="results-card" style="display:none;">
+                <div class="card-header">
+                    <h3 id="txt-results-title">نتائج الحسبة</h3>
+                </div>
+                <div class="results-grid">
+                    <div class="res-item highlight">
+                        <span id="txt-monthly">القسط الشهري</span>
+                        <strong id="resMonthly">0</strong>
+                    </div>
+                    <div class="res-item">
+                        <span id="txt-admin-fees">الرسوم الإدارية (5%)</span>
+                        <strong id="resAdmin">0</strong>
+                    </div>
+                    <div class="res-item">
+                        <span id="txt-total-interest">إجمالي الفائدة</span>
+                        <strong id="resPureInterest">0</strong>
+                    </div>
+                    <div class="res-item">
+                        <span id="txt-grand-total">إجمالي المبلغ (فائدة+رسوم)</span>
+                        <strong id="resGrandTotal">0</strong>
+                    </div>
+                    <div class="res-item net">
+                        <span id="txt-net-receive">صافي المبلغ المستلم</span>
+                        <strong id="resFinalNet">0</strong>
+                    </div>
+                </div>
+                <div class="note">
+                    * <span id="txt-disclaimer">جميع الحسابات تقريبية وتخضع لموافقة الائتمان.</span>
+                </div>
             </div>
-
-            <div class="input-group">
-                <label>نوع المنتج</label>
-                <select id="productType">
-                    <option value="0.3152">MEL 1/1 - 5K:45K</option>
-                    <option value="0.3200288">MEL 2/2 - 45.1K:75K</option>
-                    <option value="0.260132">VSE 1/1 - 75.1K:150K</option>
-                    <option value="0.24002">VSE 2/2 - 150.1K:292K</option>
-                </select>
-            </div>
-            
-           <div style="display: flex; gap: 10px; margin-top: 15px;">
-    <button onclick="calculateLoan()" class="calc-btn">احسب الآن</button>
-    <!-- زرار الإعادة الجديد -->
-    <button type="button" onclick="resetCalculator()" class="reset-btn">إعادة</button>
-</div>
-        </div> <!-- قفلة الـ calculator-box هنا صح -->
-
-        <!-- جدول النتائج -->
-        <div id="results" class="results-container" style="display:none;">
-            <h3>نتائج الحسبة</h3>
-            <div class="result-item"><span>الرسوم الإدارية (5%):</span> <strong id="resAdmin">0</strong></div>
-            <div class="result-item"><span>قيمة القسط الشهري:</span> <strong id="resMonthly">0</strong></div>
-            <div class="result-item"><span>إجمالي المبلغ بعد الفائدة:</span> <strong id="resTotalWithInterest">0</strong></div>
-            <div class="result-item"><span>إجمالي الرسوم + أول قسط:</span> <strong id="resFeesFirst">0</strong></div>
-            <div class="result-item"><span>نسبة الفائدة السنوية:</span> <strong id="resInterestRate">0</strong></div>
-            <div class="result-item"><span>إجمالي المبلغ (فائدة + رسوم):</span> <strong id="resGrandTotal">0</strong></div>
-            <div class="result-item"><span>إجمالي قيمة الفائدة فقط:</span> <strong id="resPureInterest">0</strong></div>
-            <div class="result-item"><span>المبلغ المستلم (بعد الرسوم وأول قسط):</span> <strong id="resFinalNet">0</strong></div>
-            <div class="result-item"><span>المبلغ المستلم (بعد الرسوم فقط):</span> <strong id="resFinalAdminOnly">0</strong></div>
         </div>
     </main>
 
