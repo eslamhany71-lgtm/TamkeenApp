@@ -5,21 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-calc-title">حاسبة القروض - تمكين</title>
     <link rel="stylesheet" href="css/calculator.css"> 
-    
-    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
 </head>
 <body>
     <header class="main-header">
         <div class="header-content container">
-            <button onclick="location.href='home.html'" class="btn-icon-back" id="btn-back">
+            <button onclick="location.href='home.html'" class="btn-icon-back">
                 <span class="icon">⬅</span> <span id="txt-back">رجوع</span>
             </button>
             <h2 id="txt-header-title">حاسبة القروض الذكية</h2>
             <div class="lang-switch">
-                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+                <span onclick="setLanguage('ar')">عربي</span> | 
+                <span onclick="setLanguage('en')">EN</span>
             </div>
         </div>
     </header>
@@ -28,16 +26,11 @@
         <div class="calc-wrapper">
             <!-- جانب المدخلات -->
             <div class="calculator-card">
-                <div class="card-header">
-                    <h3 id="txt-input-data">بيانات التمويل</h3>
-                </div>
+                <div class="card-header"><h3 id="txt-input-data">بيانات التمويل</h3></div>
                 
                 <div class="input-group">
                     <label id="lbl-amount">مبلغ التمويل</label>
-                    <div class="input-with-icon">
-                        <input type="number" id="loanAmount" placeholder="0.00">
-                        <span class="currency">EGP</span>
-                    </div>
+                    <input type="number" id="loanAmount" placeholder="0.00">
                 </div>
 
                 <div class="input-group">
@@ -61,35 +54,47 @@
                 </div>
             </div>
 
-            <!-- جانب النتائج -->
+            <!-- جانب النتائج (الـ 9 نتائج كاملة) -->
             <div id="results" class="results-card" style="display:none;">
-                <div class="card-header">
-                    <h3 id="txt-results-title">نتائج الحسبة</h3>
-                </div>
+                <div class="card-header"><h3 id="txt-results-title">نتائج الحسبة الدقيقة</h3></div>
+                
                 <div class="results-grid">
                     <div class="res-item highlight">
-                        <span id="txt-monthly">القسط الشهري</span>
+                        <span id="txt-resMonthly">قيمة القسط الشهري</span>
                         <strong id="resMonthly">0</strong>
                     </div>
                     <div class="res-item">
-                        <span id="txt-admin-fees">الرسوم الإدارية (5%)</span>
+                        <span id="txt-resAdmin">الرسوم الإدارية (5%)</span>
                         <strong id="resAdmin">0</strong>
                     </div>
                     <div class="res-item">
-                        <span id="txt-total-interest">إجمالي الفائدة</span>
+                        <span id="txt-resPureInterest">إجمالي الفائدة فقط</span>
                         <strong id="resPureInterest">0</strong>
                     </div>
                     <div class="res-item">
-                        <span id="txt-grand-total">إجمالي المبلغ (فائدة+رسوم)</span>
+                        <span id="txt-resTotalWithInterest">المبلغ بعد الفائدة</span>
+                        <strong id="resTotalWithInterest">0</strong>
+                    </div>
+                    <div class="res-item">
+                        <span id="txt-resFeesFirst">الرسوم + أول قسط</span>
+                        <strong id="resFeesFirst">0</strong>
+                    </div>
+                    <div class="res-item">
+                        <span id="txt-resInterestRate">نسبة الفائدة السنوية</span>
+                        <strong id="resInterestRate">0</strong>
+                    </div>
+                    <div class="res-item">
+                        <span id="txt-resGrandTotal">الإجمالي (فائدة + رسوم)</span>
                         <strong id="resGrandTotal">0</strong>
                     </div>
-                    <div class="res-item net">
-                        <span id="txt-net-receive">صافي المبلغ المستلم</span>
+                    <div class="res-item net-box">
+                        <span id="txt-resFinalNet">المستلم (بعد الرسوم والقسط)</span>
                         <strong id="resFinalNet">0</strong>
                     </div>
-                </div>
-                <div class="note">
-                    * <span id="txt-disclaimer">جميع الحسابات تقريبية وتخضع لموافقة الائتمان.</span>
+                    <div class="res-item net-box">
+                        <span id="txt-resFinalAdminOnly">المستلم (بعد الرسوم فقط)</span>
+                        <strong id="resFinalAdminOnly">0</strong>
+                    </div>
                 </div>
             </div>
         </div>
