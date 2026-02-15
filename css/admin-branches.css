@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+
+body {
+    font-family: 'Cairo', sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+    direction: rtl;
+}
+
+.container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.admin-header {
+    background: #8e44ad; /* اللون البنفسجي لتمييز الأدمن */
+    color: white;
+    padding: 15px 0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.header-flex { display: flex; justify-content: space-between; align-items: center; }
+
+.btn-back {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid white;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #f0f2f5;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+}
+
+/* Upload Controls */
+.upload-controls { display: flex; gap: 15px; margin: 15px 0; }
+.upload-controls input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+
+.btn-upload {
+    background: #8e44ad;
+    color: white;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.format-note { font-size: 12px; color: #7f8c8d; }
+
+/* Table */
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; text-align: right; }
+th { background: #f8f9fa; padding: 12px; color: #2c3e50; border-bottom: 2px solid #ddd; }
+td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+
+.btn-delete {
+    background: #ff4757;
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.info-tag { background: #e8f4fd; color: #3498db; padding: 3px 10px; border-radius: 20px; font-size: 11px; }
