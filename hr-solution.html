@@ -10,18 +10,29 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <!-- مكتبة التخزين لرفع الملفات -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
 
     <style>
-        /* تنسيقات سريعة لضمان المظهر الاحترافي للـ Badges */
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; color: white; }
-        .badge.pending { background-color: #f39c12; } /* برتقالي */
-        .badge.approved { background-color: #27ae60; } /* أخضر */
-        .badge.rejected { background-color: #e74c3c; } /* أحمر */
+        .badge.pending { background-color: #f39c12; } 
+        .badge.approved { background-color: #27ae60; } 
+        .badge.rejected { background-color: #e74c3c; } 
         
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
         .mini-stat { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #ddd; }
         .stat-val { display: block; font-size: 1.5em; font-weight: bold; }
         .stat-label { font-size: 0.9em; color: #666; }
+        
+        /* تنسيق خانة الرفع */
+        .file-input-wrapper {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px dashed #3498db;
+            border-radius: 8px;
+            background: #f0f7ff;
+        }
+        .file-input-wrapper input { cursor: pointer; width: 100%; }
     </style>
 </head>
 <body>
@@ -44,7 +55,6 @@
                 <div class="card-info">
                     <h3 id="txt-vacation">طلب إجازة</h3>
                     <p id="sub-vacation">سنوية، مرضية، عارضة...</p>
-  
                 </div>
             </div>
 
@@ -64,7 +74,6 @@
                 </div>
             </div>
 
-            <!-- زر سجل طلباتي المطور -->
             <div class="hr-card" style="border: 2px solid #3498db;" onclick="openMyRequests()">
                 <div class="card-icon">📊</div>
                 <div class="card-info">
@@ -134,7 +143,14 @@
                         <span class="field-label">السبب</span>
                         <textarea id="reqReason" rows="2" required></textarea>
                     </div>
-                    <button type="submit" class="submit-btn" id="btn-submit">إرسال الطلب الآن</button>
+
+                    <!-- خانة رفع الملف (جديد) -->
+                    <div class="file-input-wrapper">
+                        <span class="field-label" id="lbl-attachment">إرفاق مستند إثبات (اختياري)</span>
+                        <input type="file" id="reqAttachment" accept=".jpg, .jpeg, .png, .pdf, .xlsx, .xls, .csv">
+                    </div>
+
+                    <button type="submit" class="submit-btn" id="btn-submit" style="margin-top: 20px;">إرسال الطلب الآن</button>
                 </form>
             </div>
         </div>
@@ -146,8 +162,6 @@
                     <h2 id="txt-modal-history">سجل طلباتي وإحصائياتي</h2>
                     <span class="close-btn" onclick="closeRequests()">&times;</span>
                 </div>
-                
-                <!-- لوحة الإحصائيات -->
                 <div class="stats-grid">
                     <div class="mini-stat">
                         <span class="stat-val" id="vacation-balance" style="color: #2980b9;">21</span>
@@ -166,7 +180,6 @@
                         <span class="stat-label">مرفوضة</span>
                     </div>
                 </div>
-
                 <div style="max-height: 400px; overflow-y: auto;">
                     <table class="styled-table" style="width: 100%;">
                         <thead>
@@ -176,9 +189,7 @@
                                 <th>الحالة</th>
                             </tr>
                         </thead>
-                        <tbody id="my-requests-table">
-                            <!-- البيانات تظهر هنا لحظياً -->
-                        </tbody>
+                        <tbody id="my-requests-table"></tbody>
                     </table>
                 </div>
             </div>
