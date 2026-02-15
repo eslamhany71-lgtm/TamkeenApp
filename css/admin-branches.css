@@ -2,19 +2,19 @@
 
 body {
     font-family: 'Cairo', sans-serif;
-    background-color: #f0f2f5;
+    background-color: #f4f7f6;
     margin: 0;
     direction: rtl;
 }
 
 .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
 
-/* Header */
 .admin-header {
-    background: #8e44ad; /* اللون البنفسجي لتمييز الأدمن */
+    background: #8e44ad;
     color: white;
-    padding: 15px 0;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    padding: 20px 0;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
 }
 
 .header-flex { display: flex; justify-content: space-between; align-items: center; }
@@ -23,58 +23,57 @@ body {
     background: rgba(255,255,255,0.2);
     border: 1px solid white;
     color: white;
-    padding: 8px 20px;
-    border-radius: 5px;
+    padding: 8px 25px;
+    border-radius: 20px;
     cursor: pointer;
+    transition: 0.3s;
 }
+.btn-back:hover { background: white; color: #8e44ad; }
 
-/* Cards */
 .card {
     background: white;
-    border-radius: 12px;
+    border-radius: 15px;
     padding: 25px;
     margin-bottom: 30px;
-    box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.05);
 }
 
 .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #f0f2f5;
+    border-bottom: 2px solid #f8f9fa;
     margin-bottom: 20px;
     padding-bottom: 10px;
 }
 
-/* Upload Controls */
-.upload-controls { display: flex; gap: 15px; margin: 15px 0; }
-.upload-controls input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+.upload-controls { display: flex; gap: 15px; margin: 20px 0; }
+.upload-controls input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
 
 .btn-upload {
-    background: #8e44ad;
+    background: #27ae60;
     color: white;
     border: none;
-    padding: 10px 30px;
-    border-radius: 5px;
+    padding: 10px 40px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
 }
 
-.format-note { font-size: 12px; color: #7f8c8d; }
+.format-note { font-size: 13px; color: #888; background: #fffdf0; padding: 10px; border-radius: 5px; }
 
-/* Table */
 .table-wrapper { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; text-align: right; }
-th { background: #f8f9fa; padding: 12px; color: #2c3e50; border-bottom: 2px solid #ddd; }
-td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th { background: #f8f9fa; padding: 15px; text-align: right; color: #8e44ad; border-bottom: 3px solid #eee; }
+td { padding: 15px; border-bottom: 1px solid #eee; font-size: 15px; }
 
 .btn-delete {
-    background: #ff4757;
+    background: #e74c3c;
     color: white;
     border: none;
-    padding: 5px 12px;
-    border-radius: 4px;
+    padding: 6px 15px;
+    border-radius: 5px;
     cursor: pointer;
 }
 
-.info-tag { background: #e8f4fd; color: #3498db; padding: 3px 10px; border-radius: 20px; font-size: 11px; }
+.info-tag { background: #8e44ad; color: white; padding: 4px 12px; border-radius: 15px; font-size: 11px; }
