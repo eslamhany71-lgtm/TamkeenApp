@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>إدارة الفروع - تمكين</title>
-    <!-- ربط التنسيق الجديد -->
     <link rel="stylesheet" href="css/admin-branches.css">
     
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -23,35 +23,35 @@
         <!-- قسم الرفع -->
         <section class="upload-section card">
             <div class="card-header">
-                <h3>تحديث قاعدة بيانات الفروع</h3>
-                <span class="info-tag">CSV فقط</span>
+                <h3>رفع وتحديث دليل الفروع</h3>
+                <span class="info-tag">CSV ملف</span>
             </div>
             <div class="upload-controls">
                 <input type="file" id="branchCsvFile" accept=".csv">
-                <button onclick="uploadBranchesCSV()" class="btn-upload">ابدأ الرفع الآن</button>
+                <button onclick="uploadBranchesCSV()" class="btn-upload">بدأ الرفع الآن</button>
             </div>
-            <p class="format-note">الترتيب المطلوب: (الكود, الاسم_عربي, الاسم_انجليزي, العنوان, التليفون, رابط_الخريطة)</p>
+            <p class="format-note">الترتيب المطلوب في الملف: (اسم الفرع , العنوان , التليفون , رابط الموقع)</p>
         </section>
 
-        <!-- قسم عرض الفروع الحالية -->
+        <!-- قسم عرض الفروع -->
         <section class="table-section card">
             <div class="card-header">
-                <h3>الفروع المسجلة حالياً</h3>
-                <div class="stats">إجمالي الفروع: <strong id="branch-count">0</strong></div>
+                <h3>قائمة الفروع المسجلة</h3>
+                <div class="stats">الإجمالي: <strong id="branch-count">0</strong></div>
             </div>
             <div class="table-wrapper">
-                <table id="branchesTable">
+                <table>
                     <thead>
                         <tr>
-                            <th>الكود</th>
-                            <th>اسم الفرع (AR)</th>
-                            <th>الاسم (EN)</th>
+                            <th>اسم الفرع</th>
                             <th>العنوان</th>
+                            <th>التليفون</th>
+                            <th>الموقع</th>
                             <th>إجراء</th>
                         </tr>
                     </thead>
                     <tbody id="branches-list-body">
-                        <!-- البيانات ستظهر هنا -->
+                        <!-- البيانات تظهر هنا لحظياً -->
                     </tbody>
                 </table>
             </div>
