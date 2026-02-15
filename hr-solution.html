@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">الخدمات الذاتية - تمكين</title>
+    <link rel="stylesheet" href="css/hr-solution.css">
     
-        <link rel="stylesheet" href="css/hr-solution.css">
-    
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -23,46 +23,9 @@
         </div>
         <h2 id="txt-header">الخدمات الذاتية للموظفين</h2>
     </header>
-    <!-- قسم إحصائيات الموظف -->
-<div class="employee-dashboard container">
-    <div class="stat-card">
-        <h4 id="txt-remaining-vacation">الرصيد المتبقي (سنوي)</h4>
-        <span id="vacation-balance">21</span> <small>أيام</small>
-    </div>
-    <div class="stat-card">
-        <h4 id="txt-approved-count">الطلبات المقبولة</h4>
-        <span id="my-approved-count">0</span>
-    </div>
-    <div class="stat-card">
-        <h4 id="txt-rejected-count">الطلبات المرفوضة</h4>
-        <span id="my-rejected-count">0</span>
-    </div>
-    <div class="stat-card">
-        <h4 id="txt-permits-count">الأذونات والتصاريح</h4>
-        <span id="my-permits-count">0</span>
-    </div>
-</div>
-
-<!-- جدول طلباتي -->
-<section class="container my-requests-section">
-    <h3 id="txt-my-requests-title">سجل طلباتي</h3>
-    <div class="table-responsive">
-        <table class="styled-table">
-            <thead>
-                <tr>
-                    <th id="th-type">النوع</th>
-                    <th id="th-date">التاريخ</th>
-                    <th id="th-status">الحالة</th>
-                </tr>
-            </thead>
-            <tbody id="my-requests-table">
-                <!-- البيانات ستظهر هنا -->
-            </tbody>
-        </table>
-    </div>
-</section>
 
     <main class="container">
+        <!-- شبكة الخيارات الرئيسية -->
         <div class="hr-grid">
             <div class="hr-card" onclick="openForm('vacation')">
                 <div class="card-icon">📅</div>
@@ -87,20 +50,26 @@
                     <p id="sub-exit">خروج مؤقت أثناء العمل</p>
                 </div>
             </div>
+
+            <!-- الكارت الجديد الاحترافي لسجل الطلبات -->
+            <div class="hr-card special-card" onclick="openMyRequests()">
+                <div class="card-icon">📊</div>
+                <div class="card-info">
+                    <h3 id="txt-my-orders">سجل طلباتي</h3>
+                    <p id="sub-my-orders">الإحصائيات وحالة الطلبات</p>
+                </div>
+            </div>
         </div>
 
-        <!-- المودال المطور (النموذج الشيك) -->
+        <!-- مودال تقديم الطلبات -->
         <div id="formModal" class="modal">
             <div class="modal-content animate-top">
                 <div class="modal-header">
                     <h2 id="modal-title">تقديم طلب</h2>
                     <span class="close-btn" onclick="closeForm()">&times;</span>
                 </div>
-                
                 <form id="hrRequestForm" class="chic-form">
                     <input type="hidden" id="requestType">
-                    
-                    <!-- بيانات الموظف الأساسية -->
                     <div class="form-row">
                         <div class="input-box">
                             <span class="field-label" id="lbl-code">كود الموظف</span>
@@ -111,7 +80,6 @@
                             <input type="text" id="empName" required>
                         </div>
                     </div>
-
                     <div class="form-row">
                         <div class="input-box">
                             <span class="field-label" id="lbl-job">الوظيفة</span>
@@ -122,60 +90,96 @@
                             <input type="text" id="empDept" required>
                         </div>
                     </div>
-
                     <div class="input-box">
                         <span class="field-label" id="lbl-hire">تاريخ التعيين</span>
                         <input type="date" id="hireDate" required>
                     </div>
-
-                    <hr> <!-- خط فاصل بين بيانات الموظف وبيانات الطلب -->
-
-                    <!-- خانات الإجازة فقط -->
+                    <hr>
                     <div id="vacation-fields" style="display:none;">
                         <div class="input-box">
                             <span class="field-label" id="lbl-vac-type">نوع الإجازة</span>
                             <select id="vacType">
-                                <option value="سنوية" id="opt-annual">سنوية</option>
-                                <option value="مرضية" id="opt-medical">مرضية</option>
-                                <option value="عارضة" id="opt-casual">عارضة</option>
-                                <option value="بدون أجر" id="opt-unpaid">بدون أجر</option>
+                                <option value="سنوية">سنوية</option>
+                                <option value="مرضية">مرضية</option>
+                                <option value="عارضة">عارضة</option>
+                                <option value="بدون أجر">بدون أجر</option>
                             </select>
                         </div>
                         <div class="form-row">
                             <div class="input-box">
-                                <span class="field-label" id="lbl-from">من تاريخ</span>
+                                <span class="field-label">من تاريخ</span>
                                 <input type="date" id="startDate">
                             </div>
                             <div class="input-box">
-                                <span class="field-label" id="lbl-to">إلى تاريخ</span>
+                                <span class="field-label">إلى تاريخ</span>
                                 <input type="date" id="endDate">
                             </div>
                         </div>
-                        <div class="input-box">
-                            <span class="field-label" id="lbl-backup">الموظف البديل (اختياري)</span>
-                            <input type="text" id="backupEmp">
-                        </div>
                     </div>
-
-                    <!-- خانات الأذونات (الوقت) -->
                     <div id="time-fields" style="display:none;">
-                        <div class="input-box">
-                            <span class="field-label" id="lbl-req-date">تاريخ الإذن</span>
-                            <input type="date" id="reqDate">
-                        </div>
-                        <div class="input-box">
-                            <span class="field-label" id="lbl-time">الوقت</span>
-                            <input type="time" id="reqTime">
+                        <div class="form-row">
+                            <div class="input-box">
+                                <span class="field-label">تاريخ الإذن</span>
+                                <input type="date" id="reqDate">
+                            </div>
+                            <div class="input-box">
+                                <span class="field-label">الوقت</span>
+                                <input type="time" id="reqTime">
+                            </div>
                         </div>
                     </div>
-
                     <div class="input-box">
-                        <span class="field-label" id="lbl-reason">السبب / التفاصيل</span>
+                        <span class="field-label">السبب</span>
                         <textarea id="reqReason" rows="2" required></textarea>
                     </div>
-
                     <button type="submit" class="submit-btn" id="btn-submit">إرسال الطلب الآن</button>
                 </form>
+            </div>
+        </div>
+
+        <!-- مودال "طلباتي" المطور (لوحة التحكم المصغرة) -->
+        <div id="requestsModal" class="modal">
+            <div class="modal-content animate-bottom" style="max-width: 900px;">
+                <div class="modal-header">
+                    <h2>سجل طلباتي وإحصائياتي</h2>
+                    <span class="close-btn" onclick="closeRequests()">&times;</span>
+                </div>
+                
+                <!-- قسم الإحصائيات داخل المودال -->
+                <div class="stats-grid">
+                    <div class="mini-stat">
+                        <span class="stat-val" id="vacation-balance">21</span>
+                        <span class="stat-label">الرصيد المتبقي</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="stat-val" id="my-approved-count" style="color: #27ae60;">0</span>
+                        <span class="stat-label">المقبولة</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="stat-val" id="my-rejected-count" style="color: #e74c3c;">0</span>
+                        <span class="stat-label">المرفوضة</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="stat-val" id="my-permits-count" style="color: #f39c12;">0</span>
+                        <span class="stat-label">الأذونات</span>
+                    </div>
+                </div>
+
+                <!-- جدول الطلبات -->
+                <div class="table-container">
+                    <table class="styled-table">
+                        <thead>
+                            <tr>
+                                <th>النوع</th>
+                                <th>التاريخ</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="my-requests-table">
+                            <!-- سيتم ملؤه بواسطة JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </main>
