@@ -23,6 +23,44 @@
         </div>
         <h2 id="txt-header">الخدمات الذاتية للموظفين</h2>
     </header>
+    <!-- قسم إحصائيات الموظف -->
+<div class="employee-dashboard container">
+    <div class="stat-card">
+        <h4 id="txt-remaining-vacation">الرصيد المتبقي (سنوي)</h4>
+        <span id="vacation-balance">21</span> <small>أيام</small>
+    </div>
+    <div class="stat-card">
+        <h4 id="txt-approved-count">الطلبات المقبولة</h4>
+        <span id="my-approved-count">0</span>
+    </div>
+    <div class="stat-card">
+        <h4 id="txt-rejected-count">الطلبات المرفوضة</h4>
+        <span id="my-rejected-count">0</span>
+    </div>
+    <div class="stat-card">
+        <h4 id="txt-permits-count">الأذونات والتصاريح</h4>
+        <span id="my-permits-count">0</span>
+    </div>
+</div>
+
+<!-- جدول طلباتي -->
+<section class="container my-requests-section">
+    <h3 id="txt-my-requests-title">سجل طلباتي</h3>
+    <div class="table-responsive">
+        <table class="styled-table">
+            <thead>
+                <tr>
+                    <th id="th-type">النوع</th>
+                    <th id="th-date">التاريخ</th>
+                    <th id="th-status">الحالة</th>
+                </tr>
+            </thead>
+            <tbody id="my-requests-table">
+                <!-- البيانات ستظهر هنا -->
+            </tbody>
+        </table>
+    </div>
+</section>
 
     <main class="container">
         <div class="hr-grid">
