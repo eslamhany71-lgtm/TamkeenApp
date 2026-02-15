@@ -1,11 +1,10 @@
-// admin-branches.js - إدارة الفروع للأدمن
+// admin-branches.js - نسخة الـ 4 أعمدة المطورة
 
-// 1. تشغيل عند تحميل الصفحة
 window.onload = () => {
     loadBranchesList();
 };
 
-// 2. دالة رفع ملف الـ CSV وتحديث الفروع
+// 1. دالة الرفع والمعالجة
 function uploadBranchesCSV() {
     const fileInput = document.getElementById('branchCsvFile');
     const file = fileInput.files[0];
@@ -21,40 +20,44 @@ function uploadBranchesCSV() {
             const rows = text.split(/\r?\n/);
             let successCount = 0;
 
-            // البدء من i=1 لتخطي العناوين
+            // نبدأ من 1 لتخطي سطر العنوان في الإكسيل
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i].trim();
                 if (!row) continue;
 
-                // تقسيم الصف ودعم الفواصل المختلفة
+                // تقسيم الصف بناءً على الفاصلة (,) أو الفاصلة المنقوطة (;)
                 const cols = row.split(/[;,]/).map(item => item.replace(/["]/g, "").trim());
 
-                if (cols.length >= 6) {
-                    const branchData = {
-                        id: cols[0],
-                        nameAr: cols[1],
-                        nameEn: cols[2],
-                        address: cols[3],
-                        phone: cols[4],
-                        mapUrl: cols[5],
-                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    };
+                // التحقق من وجود 4 أعمدة (الاسم، العنوان، التليفون، الموقع)
+                if (cols.length >= 4) {
+                    const branchName = cols[0];
+                    const address = cols[1];
+                    const phone = cols[2];
+                    const mapUrl = cols[3];
 
-                    firebase.firestore().collection("Branches").doc(branchData.id).set(branchData, { merge: true });
+                    // رفع للفايربيز (اسم الفرع هو الـ ID لضمان عدم التكرار)
+                    firebase.firestore().collection("Branches").doc(branchName).set({
+                        nameAr: branchName, // بنخزنه كاسم عربي وافتراضي
+                        nameEn: branchName, 
+                        address: address,
+                        phone: phone,
+                        mapUrl: mapUrl,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+
                     successCount++;
                 }
             }
             alert(`تم بنجاح رفع/تحديث ${successCount} فرع!`);
             fileInput.value = "";
-            loadBranchesList(); // تحديث الجدول فوراً
         } catch (err) {
-            alert("حدث خطأ في قراءة الملف: " + err.message);
+            alert("خطأ في قراءة الملف: " + err.message);
         }
     };
     reader.readAsText(file, "UTF-8");
 }
 
-// 3. دالة جلب وعرض الفروع الموجودة في Firestore
+// 2. دالة عرض الفروع لحظياً
 function loadBranchesList() {
     const tableBody = document.getElementById('branches-list-body');
     const countSpan = document.getElementById('branch-count');
@@ -68,12 +71,12 @@ function loadBranchesList() {
             count++;
             const row = `
                 <tr>
-                    <td>${b.id}</td>
                     <td><strong>${b.nameAr}</strong></td>
-                    <td>${b.nameEn}</td>
                     <td>${b.address}</td>
+                    <td>${b.phone}</td>
+                    <td><a href="${b.mapUrl}" target="_blank">📍 خريطة</a></td>
                     <td>
-                        <button onclick="deleteBranch('${b.id}')" class="btn-delete">حذف</button>
+                        <button onclick="deleteBranch('${doc.id}')" class="btn-delete">حذف</button>
                     </td>
                 </tr>
             `;
@@ -83,11 +86,9 @@ function loadBranchesList() {
     });
 }
 
-// 4. دالة حذف فرع معين
+// 3. دالة الحذف
 function deleteBranch(id) {
-    if (confirm("هل أنت متأكد من حذف هذا الفرع نهائياً؟")) {
-        firebase.firestore().collection("Branches").doc(id).delete()
-            .then(() => alert("تم حذف الفرع"))
-            .catch(err => alert("خطأ: " + err.message));
+    if (confirm("حذف هذا الفرع؟")) {
+        firebase.firestore().collection("Branches").doc(id).delete();
     }
 }
