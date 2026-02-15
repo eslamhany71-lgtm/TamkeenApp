@@ -135,3 +135,54 @@ body {
 .res-item.net strong { color: var(--accent-color); font-size: 1.3em; }
 
 .note { margin-top: 20px; font-size: 12px; color: #7f8c8d; text-align: center; }
+/* تحسين زر الرجوع الأيقوني */
+.btn-icon-back {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: 0.3s ease;
+}
+
+.btn-icon-back:hover {
+    background: white;
+    color: #2a5298;
+}
+
+/* تنظيم شبكة النتائج */
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.res-item {
+    background: #fdfdfd;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.res-item.highlight {
+    background: #e8f4fd;
+    border-left: 5px solid #3498db;
+}
+
+.res-item.net-box {
+    background: #eafaf1;
+    border-left: 5px solid #27ae60;
+}
+
+.res-item strong {
+    font-size: 1.1em;
+    color: #2c3e50;
+}
