@@ -1,17 +1,20 @@
-// hr.js - النظام الموحد للخدمات الذاتية (نسخة منع التكرار الاحترافية)
+// hr.js - النظام الموحد للخدمات الذاتية (النسخة الاحترافية الشاملة)
 
 let currentUserData = null;
+let totalAnnualUsed = 0; // رصيد الإجازات السنوية المستخدمة
 
-// 1. مراقبة حالة تسجيل الدخول وجلب بيانات الموظف
+// 1. مراقبة حالة تسجيل الدخول وجلب البيانات
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const empCode = user.email.split('@')[0];
         fetchEmployeeData(empCode);
+        loadMyRequests(empCode); // تحميل سجل الطلبات والإحصائيات
     } else {
         window.location.href = "index.html";
     }
 });
 
+// 2. جلب بيانات الموظف الأساسية من Firestore
 async function fetchEmployeeData(code) {
     try {
         const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
@@ -24,6 +27,7 @@ async function fetchEmployeeData(code) {
     }
 }
 
+// 3. قفل الخانات الأساسية (كود، اسم، قسم)
 function applyLockedFields(data) {
     const fixedFields = {
         'empCode': data.employeeId || "",
@@ -35,31 +39,83 @@ function applyLockedFields(data) {
         if (el) {
             el.value = fixedFields[id];
             el.readOnly = true;
-            el.style.backgroundColor = "#e9ecef";
+            el.style.backgroundColor = "#e9ecef"; // لون رمادي للقفل
         }
     }
 }
 
-// 2. فتح وإغلاق المودال
+// 4. تحميل سجل "طلباتي" وحساب الإحصائيات ورصيد الإجازات
+function loadMyRequests(empCode) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    
+    firebase.firestore().collection("HR_Requests")
+        .where("employeeCode", "==", empCode)
+        .onSnapshot((snapshot) => {
+            const tableBody = document.getElementById('my-requests-table');
+            if (!tableBody) return;
+
+            tableBody.innerHTML = "";
+            let approved = 0, rejected = 0, permits = 0;
+            totalAnnualUsed = 0;
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                
+                // حساب الحالات للإحصائيات
+                if (data.status === "Approved") {
+                    approved++;
+                    // إذا كانت إجازة سنوية مقبولة، نحسب أيامها من الرصيد
+                    if (data.type === "vacation" && data.vacationType === "سنوية") {
+                        totalAnnualUsed += calculateDays(data.startDate, data.endDate);
+                    }
+                }
+                if (data.status === "Rejected") rejected++;
+                if (data.type === "late" || data.type === "exit") permits++;
+
+                // إضافة سطر للجدول
+                const row = `<tr>
+                    <td>${translateType(data.type)} ${data.vacationType ? '('+data.vacationType+')' : ''}</td>
+                    <td>${data.startDate || data.reqDate}</td>
+                    <td><span class="badge ${data.status.toLowerCase()}">${data.status}</span></td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            });
+
+            // تحديث واجهة الإحصائيات
+            const balanceVal = Math.max(0, 21 - totalAnnualUsed);
+            if(document.getElementById('vacation-balance')) document.getElementById('vacation-balance').innerText = balanceVal;
+            if(document.getElementById('my-approved-count')) document.getElementById('my-approved-count').innerText = approved;
+            if(document.getElementById('my-rejected-count')) document.getElementById('my-rejected-count').innerText = rejected;
+            if(document.getElementById('my-permits-count')) document.getElementById('my-permits-count').innerText = permits;
+        });
+}
+
+// دالة مساعدة لحساب فرق الأيام
+function calculateDays(start, end) {
+    const s = new Date(start);
+    const e = new Date(end);
+    const diffTime = Math.abs(e - s);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+}
+
+// 5. وظائف فتح وإغلاق المودالات
 function openForm(type) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const modal = document.getElementById('formModal');
     if (!modal) return;
 
     document.getElementById('requestType').value = type;
-    document.getElementById('vacation-fields').style.display = 'none';
-    document.getElementById('time-fields').style.display = 'none';
+    document.getElementById('vacation-fields').style.display = (type === 'vacation') ? 'block' : 'none';
+    document.getElementById('time-fields').style.display = (type !== 'vacation') ? 'block' : 'none';
 
-    if (type === 'vacation') {
-        document.getElementById('vacation-fields').style.display = 'block';
-        document.getElementById('modal-title').innerText = (lang === 'ar') ? "طلب إجازة" : "Vacation Request";
-    } else {
-        document.getElementById('time-fields').style.display = 'block';
-        const title = (type === 'late') ? 
-            (lang === 'ar' ? "إذن تأخير" : "Late Permission") : 
-            (lang === 'ar' ? "تصريح خروج" : "Exit Permit");
-        document.getElementById('modal-title').innerText = title;
-    }
+    // تحديث عنوان المودال
+    const titleObj = {
+        vacation: lang === 'ar' ? "طلب إجازة" : "Vacation Request",
+        late: lang === 'ar' ? "إذن تأخير" : "Late Permission",
+        exit: lang === 'ar' ? "تصريح خروج" : "Exit Permit"
+    };
+    document.getElementById('modal-title').innerText = titleObj[type];
+
     modal.style.display = "block";
     if (currentUserData) applyLockedFields(currentUserData);
 }
@@ -68,24 +124,15 @@ function closeForm() {
     document.getElementById('formModal').style.display = "none";
 }
 
-// 3. دالة التحقق من وجود طلب مسبق في نفس التاريخ
-async function checkDuplicateRequest(empCode, date, type) {
-    // سنبحث عن أي طلب لهذا الموظف في هذا التاريخ
-    // ملحوظة: في الإجازات نبحث في startDate، وفي الأذونات نبحث في reqDate
-    const collection = firebase.firestore().collection("HR_Requests");
-    
-    let query;
-    if (type === 'vacation') {
-        query = collection.where("employeeCode", "==", empCode).where("startDate", "==", date);
-    } else {
-        query = collection.where("employeeCode", "==", empCode).where("reqDate", "==", date);
-    }
-
-    const snapshot = await query.get();
-    return !snapshot.empty; // إذا كانت ليست فارغة، يعني يوجد طلب مسبق
+function openMyRequests() {
+    document.getElementById('requestsModal').style.display = 'block';
 }
 
-// 4. إرسال الطلب مع التحقق من التكرار
+function closeRequests() {
+    document.getElementById('requestsModal').style.display = 'none';
+}
+
+// 6. معالجة إرسال الطلب مع الفحص (التكرار + الرصيد)
 const hrForm = document.getElementById('hrRequestForm');
 if (hrForm) {
     hrForm.addEventListener('submit', async (e) => {
@@ -94,12 +141,13 @@ if (hrForm) {
         const lang = localStorage.getItem('preferredLang') || 'ar';
         const submitBtn = document.getElementById('btn-submit');
         const type = document.getElementById('requestType').value;
+        const vType = document.getElementById('vacType').value;
         const empCode = document.getElementById('empCode').value;
 
-        // تحديد التاريخ المراد فحصه بناءً على نوع الطلب
-        const targetDate = (type === 'vacation') ? 
-            document.getElementById('startDate').value : 
-            document.getElementById('reqDate').value;
+        // تحديد التاريخ المراد فحصه
+        const startDate = document.getElementById('startDate').value;
+        const reqDate = document.getElementById('reqDate').value;
+        const targetDate = (type === 'vacation') ? startDate : reqDate;
 
         if (!targetDate) {
             alert(lang === 'ar' ? "يرجى تحديد التاريخ!" : "Please select a date!");
@@ -110,20 +158,35 @@ if (hrForm) {
         submitBtn.innerText = (lang === 'ar') ? "جاري التحقق..." : "Checking...";
 
         try {
-            // --- خطوة الحماية: التحقق من التكرار ---
-            const isDuplicate = await checkDuplicateRequest(empCode, targetDate, type);
-            
-            if (isDuplicate) {
-                const msg = (lang === 'ar') ? 
-                    `لديك طلب مسجل بالفعل لهذا التاريخ (${targetDate}). لا يمكن التكرار.` : 
-                    `You already have a request for this date (${targetDate}). Duplicate not allowed.`;
-                alert(msg);
+            // أ- فحص التكرار (طلب في نفس اليوم)
+            const dupSnapshot = await firebase.firestore().collection("HR_Requests")
+                .where("employeeCode", "==", empCode)
+                .where(type === 'vacation' ? "startDate" : "reqDate", "==", targetDate)
+                .get();
+
+            if (!dupSnapshot.empty) {
+                alert(lang === 'ar' ? "لديك طلب مسجل بالفعل في هذا التاريخ!" : "Duplicate request for this date!");
                 submitBtn.disabled = false;
                 submitBtn.innerText = (lang === 'ar') ? "إرسال الطلب الآن" : "Submit Request";
-                return; // إيقاف العملية هنا
+                return;
             }
 
-            // إذا لم يكن مكرراً، نكمل الإرسال
+            // ب- فحص رصيد الإجازات السنوية (21 يوم)
+            if (type === 'vacation' && vType === 'سنوية') {
+                const requestedDays = calculateDays(startDate, document.getElementById('endDate').value);
+                if (totalAnnualUsed + requestedDays > 21) {
+                    const confirmMsg = lang === 'ar' 
+                        ? `لقد تجاوزت رصيد الـ 21 يوماً. هل تريد الإرسال كإجازة قد تخصم من الراتب؟`
+                        : `You have exceeded 21 days balance. Submit as unpaid leave?`;
+                    if (!confirm(confirmMsg)) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = (lang === 'ar') ? "إرسال الطلب الآن" : "Submit Request";
+                        return;
+                    }
+                }
+            }
+
+            // ج- تنفيذ الإرسال
             const requestData = {
                 type: type,
                 employeeCode: empCode,
@@ -131,12 +194,11 @@ if (hrForm) {
                 department: document.getElementById('empDept').value,
                 jobTitle: document.getElementById('empJob').value,
                 hiringDate: document.getElementById('hireDate').value,
-                vacationType: document.getElementById('vacType')?.value || null,
-                startDate: document.getElementById('startDate')?.value || null,
-                endDate: document.getElementById('endDate')?.value || null,
-                backupEmployee: document.getElementById('backupEmp')?.value || "N/A",
-                reqDate: document.getElementById('reqDate')?.value || null,
-                reqTime: document.getElementById('reqTime')?.value || null,
+                vacationType: (type === 'vacation') ? vType : null,
+                startDate: (type === 'vacation') ? startDate : null,
+                endDate: (type === 'vacation') ? document.getElementById('endDate').value : null,
+                reqDate: (type !== 'vacation') ? reqDate : null,
+                reqTime: (type !== 'vacation') ? document.getElementById('reqTime').value : null,
                 reason: document.getElementById('reqReason').value,
                 status: "Pending",
                 submittedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -158,35 +220,55 @@ if (hrForm) {
     });
 }
 
-// 5. نظام اللغة
+// 7. نظام اللغة
 function updatePageContent(lang) {
     const translations = {
         ar: {
             header: "الخدمات الذاتية للموظفين", back: "رجوع", vacation: "طلب إجازة", late: "إذن تأخير", exit: "تصريح خروج",
             code: "كود الموظف", name: "اسم الموظف", job: "الوظيفة", dept: "الإدارة / القسم", hire: "تاريخ التعيين",
-            vType: "نوع الإجازة", from: "من تاريخ", to: "إلى تاريخ", backup: "الموظف البديل (اختياري)",
-            rDate: "تاريخ الإذن", time: "الوقت", reason: "السبب / التفاصيل", submit: "إرسال الطلب الآن"
+            vType: "نوع الإجازة", from: "من تاريخ", to: "إلى تاريخ", reason: "السبب / التفاصيل", submit: "إرسال الطلب الآن",
+            myOrders: "سجل طلباتي", subMyOrders: "الإحصائيات وحالة الطلبات"
         },
         en: {
             header: "Employees Self Services", back: "Back", vacation: "Vacation Request", late: "Late Permission", exit: "Exit Permit",
             code: "Emp. Code", name: "Emp. Name", job: "Job Title", dept: "Department", hire: "Hiring Date",
-            vType: "Vacation Type", from: "From Date", to: "To Date", backup: "Backup Person (Optional)",
-            rDate: "Request Date", time: "Time", reason: "Reason / Details", submit: "Submit Request"
+            vType: "Vacation Type", from: "From Date", to: "To Date", reason: "Reason / Details", submit: "Submit Request",
+            myOrders: "My Requests", subMyOrders: "Stats & History"
         }
     };
     const t = translations[lang];
     if(!t) return;
-    Object.keys(t).forEach(key => {
-        const el = document.getElementById(`txt-${key}`) || document.getElementById(`lbl-${key}`) || document.getElementById(`btn-${key}`);
-        if(el) el.innerText = t[key];
-    });
+    
+    // تحديث النصوص
+    const elements = {
+        'txt-header': t.header, 'btn-back': t.back, 'txt-vacation': t.vacation, 'txt-late': t.late, 'txt-exit': t.exit,
+        'lbl-code': t.code, 'lbl-name': t.name, 'lbl-job': t.job, 'lbl-dept': t.dept, 'lbl-hire': t.hire,
+        'lbl-reason': t.reason, 'btn-submit': t.submit, 'txt-my-orders': t.myOrders, 'sub-my-orders': t.subMyOrders
+    };
+
+    for (let id in elements) {
+        const el = document.getElementById(id);
+        if(el) el.innerText = elements[id];
+    }
 }
 
+function translateType(type) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const types = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
+    const typesEn = { vacation: "Vacation", late: "Late Perm.", exit: "Exit Permit" };
+    return lang === 'ar' ? (types[type] || type) : (typesEn[type] || type);
+}
+
+// تشغيل عند التحميل
 window.onload = () => {
     const savedLang = localStorage.getItem('preferredLang') || 'ar';
     updatePageContent(savedLang);
 };
 
+// إغلاق المودالات عند الضغط خارجها
 window.onclick = (event) => {
-    if (event.target == document.getElementById('formModal')) closeForm();
+    if (event.target.className === 'modal') {
+        closeForm();
+        closeRequests();
+    }
 }
