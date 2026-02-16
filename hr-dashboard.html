@@ -3,108 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">إدارة الموارد البشرية - نظام تمكين</title>
-    <link rel="stylesheet" href="css/hr-admin.css">
+    <title id="manager-page-title">لوحة تحكم المدير - تمكين</title>
+    
+    <!-- خطوط جوجل لتحسين المظهر -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/manager.css">
+    
+    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-    <header>
-        <div class="header-right">
-            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
-            <div class="lang-switch">
-                <span onclick="setLanguage('ar')" class="lang-link">عربي</span> | 
-                <span onclick="setLanguage('en')" class="lang-link">EN</span>
-            </div>
-        </div>
-        <h2 id="txt-header">لوحة تحكم الـ HR Admin</h2>
-    </header>
-
-    <main class="container">
-        <!-- الإحصائيات -->
-        <div class="summary-bar">
-            <div class="sum-item">
-                <span id="txt-total">إجمالي الطلبات:</span>
-                <strong id="total-count">0</strong>
-            </div>
-            <div class="sum-item">
-                <span id="txt-approved">الموافق عليها:</span>
-                <strong id="approved-count" style="color: #27ae60;">0</strong>
-            </div>
-            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير Excel</button>
-        </div>
-
-        <!-- أداة رفع الموظفين -->
-        <div class="upload-section">
-            <label id="lbl-upload">رفع بيانات موظفين جدد (CSV):</label>
-            <div class="upload-controls">
-                <input type="file" id="csvFile" accept=".csv">
-                <button onclick="uploadCSV()" id="btn-upload-start">ابدأ الرفع الآن</button>
-            </div>
-            <p id="txt-upload-note">الترتيب: (الكود, الاسم, الموبايل, الرتبة/role, القسم)</p>
-        </div>
-
-        <!-- الفلاتر المطورة -->
-        <div class="filter-section">
-            <div class="filter-group">
-                <label id="lbl-filter-date">فلتر بالتاريخ:</label>
-                <div class="date-inputs">
-                    <input type="date" id="filter-date-from" onchange="filterTable()">
-                    <input type="date" id="filter-date-to" onchange="filterTable()">
+    <header class="main-header">
+        <div class="header-content">
+            <div class="header-right">
+                <button onclick="location.href='home.html'" class="glass-btn" id="btn-back">رجوع</button>
+                <div class="dept-badge-header">
+                    <span id="dept-name">جاري التحميل...</span>
                 </div>
             </div>
             
-            <div class="filter-group">
-                <label id="lbl-filter-dept-select">القسم (قائمة):</label>
-                <select id="filter-dept-dropdown" onchange="filterTable()">
-                    <option value="">الكل</option>
-                </select>
+            <h2 id="txt-header-main">مراجعة طلبات الموظفين</h2>
+            
+            <div class="lang-switcher">
+                <span onclick="setLanguage('ar')" class="lang-opt">AR</span>
+                <span class="separator">|</span>
+                <span onclick="setLanguage('en')" class="lang-opt">EN</span>
             </div>
+        </div>
+    </header>
 
-            <div class="filter-group">
-                <label id="lbl-filter-status">حالة الطلب:</label>
-                <select id="filter-status" onchange="filterTable()">
-                    <option value="">الكل</option>
-                    <option value="Approved">Approved (مقبول)</option>
-                    <option value="Pending">Pending (معلق)</option>
-                    <option value="Rejected">Rejected (مرفوض)</option>
-                </select>
+    <main class="dashboard-container">
+        <!-- شريط الحالة العلوى -->
+        <div class="status-summary">
+            <div class="stat-card pending-stat">
+                <div class="stat-icon">🕒</div>
+                <div class="stat-info">
+                    <span id="txt-pending-label">طلبات بانتظار المراجعة</span>
+                    <strong id="pending-count">0</strong>
+                </div>
+                <div class="live-pulse">
+                    <span class="pulse-dot"></span>
+                    <span class="pulse-text">Live</span>
+                </div>
             </div>
-
-            <div class="filter-group">
-                <label id="lbl-search">بحث سريع (اسم/كود/قسم):</label>
-                <input type="text" id="filter-general" onkeyup="filterTable()" placeholder="ابحث هنا...">
-            </div>
-
-            <button class="reset-filter-btn" onclick="resetFilters()" id="btn-reset-filter">إعادة ضبط</button>
         </div>
 
-        <!-- جدول البيانات -->
-        <div class="table-container">
-            <table id="requestsTable">
-                <thead>
-                    <tr>
-                        <th>الكود</th>
-                        <th>الموظف</th>
-                        <th>الوظيفة</th>
-                        <th>القسم</th>
-                        <th>نوع الطلب</th>
-                        <th>التاريخ</th>
-                        <th>الحالة</th>
-                        <th>تم الإجراء بواسطة</th>
-                        <th>إجراء</th>
-                    </tr>
-                </thead>
-                <tbody id="hr-requests-table"></tbody>
-            </table>
+        <!-- شبكة الطلبات -->
+        <div id="requests-list" class="requests-masonry">
+            <!-- الكروت تظهر هنا عبر JS -->
+            <div class="loader-container">
+                <div class="spinner"></div>
+                <p id="loading-msg">جاري مزامنة الطلبات...</p>
+            </div>
         </div>
     </main>
 
+    <!-- حاوية الإشعارات (Toasts) -->
+    <div id="toast-container"></div>
+
+    <!-- مودال عرض المرفقات -->
+    <div id="fileModal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-window" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span id="modal-filename">معاينة المرفق</span>
+                <button class="close-modal-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modal-body-content" class="modal-body">
+                <!-- المحتوى يظهر هنا -->
+            </div>
+        </div>
+    </div>
+
+    <!-- الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/hr-admin.js"></script>
+    <script src="js/manager.js"></script>
 </body>
 </html>
