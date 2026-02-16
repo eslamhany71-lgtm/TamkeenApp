@@ -93,9 +93,12 @@
                     <label id="lbl-search">بحث سريع:</label>
                     <input type="text" id="filter-general" onkeyup="filterTable()" placeholder="اسم، كود، وظيفة...">
                 </div>
-                <div class="filter-item">
-                    <button class="btn-reset" onclick="resetFilters()">🔄</button>
-                </div>
+               <!-- الجزء الخاص بالزرار داخل الـ filter-row -->
+<div class="filter-item reset-wrapper">
+    <button class="btn-reset" onclick="resetFilters()" title="إعادة ضبط الفلاتر">
+        🔄
+    </button>
+</div>
             </div>
         </div>
 
