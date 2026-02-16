@@ -1,7 +1,7 @@
-// manager.js - النسخة الاحترافية الشاملة (Dashboard + Permissions + Smart Reminder + Reviewer Info)
+// manager.js - النسخة الاحترافية الشاملة (Dashboard + Permissions + Smart Reminder + Reviewer Link)
 
 let currentManagerDept = sessionStorage.getItem('managerDept') || null;
-let currentManagerData = null; // متغير جديد لحفظ بيانات المدير بالكامل (اسم، كود، قسم)
+let currentManagerData = null; // مخزن بيانات المدير (اسم، كود، قسم)
 let pendingCountGlobal = 0;
 let reminderTimer = null;
 
@@ -36,7 +36,7 @@ async function fetchManagerInfo(code) {
     try {
         const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
         if (doc.exists) {
-            currentManagerData = doc.data(); // حفظ بيانات المدير بالكامل لاستخدامها في التحديث
+            currentManagerData = doc.data(); // حفظ بيانات المدير بالكامل
             currentManagerDept = currentManagerData.department;
             sessionStorage.setItem('managerDept', currentManagerDept);
             initManagerDashboard();
@@ -46,22 +46,26 @@ async function fetchManagerInfo(code) {
 
 function initManagerDashboard() {
     const deptDisplay = document.getElementById('dept-name');
-    if(deptDisplay) deptDisplay.innerText = `(${currentManagerDept})`;
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    
+    if(deptDisplay) {
+        deptDisplay.innerText = lang === 'ar' ? `قسم: ${currentManagerDept}` : `Dept: ${currentManagerDept}`;
+    }
     
     loadRequestsByDept(currentManagerDept);
     startNotificationListener(currentManagerDept);
     
-    // تشغيل التذكير كل 6 ثوانٍ (فقط إذا كانت هناك طلبات معلقة)
+    // تشغيل التذكير كل 6 ثوانٍ
     if (reminderTimer) clearInterval(reminderTimer);
     reminderTimer = setInterval(() => {
         if (pendingCountGlobal > 0) {
             playSystemSound('remind');
             flashBadge();
         }
-    }, 6000); // 6 ثوانٍ كما طلبت
+    }, 6000);
 
     if (typeof applyLanguage === 'function') {
-        applyLanguage(localStorage.getItem('preferredLang') || 'ar');
+        applyLanguage(lang);
     }
 }
 
@@ -82,20 +86,23 @@ function startNotificationListener(dept) {
 }
 
 function showToast(msg) {
-    let container = document.getElementById('toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toast-container';
-        document.body.appendChild(container);
-    }
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    let container = document.getElementById('toast-container') || createToastContainer();
     const toast = document.createElement('div');
     toast.className = "notification-toast";
-    toast.innerHTML = `🔔 <b>إشعار جديد</b><p>${msg}</p>`;
+    toast.innerHTML = `🔔 <b>${lang === 'ar' ? 'إشعار جديد' : 'New Notification'}</b><p>${msg}</p>`;
     container.appendChild(toast);
     setTimeout(() => { 
         toast.style.opacity = '0'; 
         setTimeout(() => toast.remove(), 500); 
     }, 5000);
+}
+
+function createToastContainer() {
+    const c = document.createElement('div');
+    c.id = 'toast-container';
+    document.body.appendChild(c);
+    return c;
 }
 
 function flashBadge() {
@@ -136,7 +143,7 @@ function loadRequestsByDept(deptName) {
                 if(data.status === "Pending") pCount++;
 
                 const attachmentBtn = data.fileBase64 ? `
-                    <button onclick="viewFile('${doc.id}')" class="view-file-btn">📎 عرض المرفق</button>
+                    <button onclick="viewFile('${doc.id}')" class="view-file-btn">📎 ${lang === 'ar' ? 'عرض المرفق' : 'View Attachment'}</button>
                     <textarea id="data-${doc.id}" style="display:none;">${data.fileBase64}</textarea>
                 ` : "";
 
@@ -145,16 +152,16 @@ function loadRequestsByDept(deptName) {
                 card.innerHTML = `
                     <div class="req-info">
                         <h4>${data.employeeName} <small>#${data.employeeCode}</small></h4>
-                        <p><b>نوع الطلب:</b> ${translateType(data.type)}</p>
-                        <p><b>التاريخ:</b> ${data.startDate || data.reqDate}</p>
-                        <p><b>السبب:</b> ${data.reason}</p>
+                        <p><b>${lang === 'ar' ? 'نوع الطلب:' : 'Request Type:'}</b> ${translateType(data.type)}</p>
+                        <p><b>${lang === 'ar' ? 'التاريخ:' : 'Date:'}</b> ${data.startDate || data.reqDate}</p>
+                        <p><b>${lang === 'ar' ? 'السبب:' : 'Reason:'}</b> ${data.reason}</p>
                         ${attachmentBtn}
                     </div>
                     <div class="req-actions">
                         ${data.status === "Pending" ? `
-                            <button onclick="updateStatus('${doc.id}', 'Approved', '${data.employeeCode}', '${data.days || 0}')" class="approve-btn">موافقة</button>
-                            <button onclick="updateStatus('${doc.id}', 'Rejected')" class="reject-btn">رفض</button>
-                        ` : `<p class="final-status">✅ تم الإجراء: ${data.status}</p>`}
+                            <button onclick="updateStatus('${doc.id}', 'Approved', '${data.employeeCode}', '${data.days || 0}')" class="approve-btn">${lang === 'ar' ? 'موافقة' : 'Approve'}</button>
+                            <button onclick="updateStatus('${doc.id}', 'Rejected')" class="reject-btn">${lang === 'ar' ? 'رفض' : 'Reject'}</button>
+                        ` : `<p class="final-status">✅ ${lang === 'ar' ? 'تم الإجراء:' : 'Action Taken:'} ${data.status}</p>`}
                     </div>
                 `;
                 list.appendChild(card);
@@ -164,35 +171,49 @@ function loadRequestsByDept(deptName) {
         });
 }
 
-// --- 5. تحديث الحالة وخصم الرصيد مع (إضافة بيانات المدير المراجع) ---
+// --- 5. تحديث الحالة مع إرسال بيانات المدير لجدول الـ HR ---
 async function updateStatus(id, status, empCode, days) {
-    if(!confirm(localStorage.getItem('preferredLang') === 'en' ? "Confirm action?" : "تأكيد الإجراء؟")) return;
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const confirmMsg = lang === 'en' ? "Confirm action?" : "تأكيد الإجراء؟";
+    
+    if(!confirm(confirmMsg)) return;
+
+    if (!currentManagerData) {
+        alert(lang === 'ar' ? "خطأ: بيانات المدير لم تتحمل بعد" : "Error: Manager data not loaded");
+        return;
+    }
+
     try {
         const batch = firebase.firestore().batch();
         const reqRef = firebase.firestore().collection("HR_Requests").doc(id);
         
-        // هنا تم دمج بيانات المدير في التحديث لتظهر في صفحة الـ HR
+        // إرسال بيانات المدير (المراجع) كاملة لكي تظهر في صفحة الـ HR
         batch.update(reqRef, { 
             status: status, 
             reviewedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            reviewerName: currentManagerData.name,      // اسم المدير
-            reviewerCode: currentManagerData.employeeId, // كود المدير
-            reviewerDept: currentManagerData.department  // قسم المدير
+            reviewerName: currentManagerData.name,                  // اسم المدير
+            reviewerCode: currentManagerData.employeeId || currentManagerData.empCode, // كود المدير
+            reviewerDept: currentManagerData.department             // قسم المدير
         });
 
+        // خصم الرصيد في حالة الموافقة
         if(status === "Approved" && days > 0) {
             const empRef = firebase.firestore().collection("Employee_Database").doc(empCode);
             batch.update(empRef, { leaveBalance: firebase.firestore.FieldValue.increment(-days) });
         }
+
         await batch.commit();
-        alert(localStorage.getItem('preferredLang') === 'ar' ? "تم تحديث الطلب" : "Request updated");
-    } catch (e) { alert("Error: " + e.message); }
+        alert(lang === 'ar' ? "تم تحديث الطلب بنجاح" : "Request updated successfully");
+    } catch (e) { 
+        alert("Error: " + e.message); 
+    }
 }
 
-// --- 6. عرض الملفات والمساعدة ---
+// --- 6. المرفقات والمساعدة ---
 function viewFile(docId) {
     const data = document.getElementById(`data-${docId}`).value;
     const body = document.getElementById('modal-body-content');
+    if(!body) return;
     document.getElementById('fileModal').style.display = "flex";
     if (data.includes("image")) {
         body.innerHTML = `<img src="${data}" style="max-width:100%; border-radius:10px;">`;
@@ -201,10 +222,17 @@ function viewFile(docId) {
     }
 }
 
-function closeModal() { document.getElementById('fileModal').style.display = "none"; }
+function closeModal() {
+    const modal = document.getElementById('fileModal');
+    if(modal) modal.style.display = "none";
+}
 
 function translateType(t) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
-    const map = { vacation: {ar:"إجازة", en:"Vacation"}, late: {ar:"تأخير", en:"Late"}, exit: {ar:"خروج", en:"Exit"} };
+    const map = { 
+        vacation: {ar:"إجازة", en:"Vacation"}, 
+        late: {ar:"تأخير", en:"Late Arrival"}, 
+        exit: {ar:"خروج", en:"Exit Permit"} 
+    };
     return map[t] ? map[t][lang] : t;
 }
