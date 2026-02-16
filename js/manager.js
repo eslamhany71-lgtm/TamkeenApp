@@ -1,6 +1,7 @@
-// manager.js - النسخة الاحترافية الشاملة (Dashboard + Permissions + Smart Reminder + Multi-Lang)
+// manager.js - النسخة الاحترافية الشاملة (Dashboard + Permissions + Smart Reminder + Reviewer Info)
 
 let currentManagerDept = sessionStorage.getItem('managerDept') || null;
+let currentManagerData = null; // متغير جديد لحفظ بيانات المدير بالكامل (اسم، كود، قسم)
 let pendingCountGlobal = 0;
 let reminderTimer = null;
 
@@ -11,7 +12,7 @@ function playSystemSound(type) {
         const osc = context.createOscillator();
         const gain = context.createGain();
         osc.type = 'sine';
-        osc.frequency.value = (type === 'new') ? 880 : 440; // نغمة حادة للجديد، هادئة للتذكير
+        osc.frequency.value = (type === 'new') ? 880 : 440; 
         gain.gain.setValueAtTime(0.1, context.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
         osc.connect(gain);
@@ -35,7 +36,8 @@ async function fetchManagerInfo(code) {
     try {
         const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
         if (doc.exists) {
-            currentManagerDept = doc.data().department;
+            currentManagerData = doc.data(); // حفظ بيانات المدير بالكامل لاستخدامها في التحديث
+            currentManagerDept = currentManagerData.department;
             sessionStorage.setItem('managerDept', currentManagerDept);
             initManagerDashboard();
         }
@@ -49,14 +51,14 @@ function initManagerDashboard() {
     loadRequestsByDept(currentManagerDept);
     startNotificationListener(currentManagerDept);
     
-    // تشغيل التذكير كل 10 ثوانٍ (فقط إذا كانت هناك طلبات معلقة)
+    // تشغيل التذكير كل 6 ثوانٍ (فقط إذا كانت هناك طلبات معلقة)
     if (reminderTimer) clearInterval(reminderTimer);
     reminderTimer = setInterval(() => {
         if (pendingCountGlobal > 0) {
             playSystemSound('remind');
             flashBadge();
         }
-    }, 6000);
+    }, 6000); // 6 ثوانٍ كما طلبت
 
     if (typeof applyLanguage === 'function') {
         applyLanguage(localStorage.getItem('preferredLang') || 'ar');
@@ -99,6 +101,7 @@ function showToast(msg) {
 function flashBadge() {
     const badge = document.getElementById('pending-count');
     if (badge) {
+        badge.style.transition = "0.3s";
         badge.style.color = "red";
         badge.style.transform = "scale(1.4)";
         setTimeout(() => { 
@@ -151,7 +154,7 @@ function loadRequestsByDept(deptName) {
                         ${data.status === "Pending" ? `
                             <button onclick="updateStatus('${doc.id}', 'Approved', '${data.employeeCode}', '${data.days || 0}')" class="approve-btn">موافقة</button>
                             <button onclick="updateStatus('${doc.id}', 'Rejected')" class="reject-btn">رفض</button>
-                        ` : `<p class="final-status">✅ ${data.status}</p>`}
+                        ` : `<p class="final-status">✅ تم الإجراء: ${data.status}</p>`}
                     </div>
                 `;
                 list.appendChild(card);
@@ -161,16 +164,20 @@ function loadRequestsByDept(deptName) {
         });
 }
 
-// --- 5. تحديث الحالة وخصم الرصيد ---
+// --- 5. تحديث الحالة وخصم الرصيد مع (إضافة بيانات المدير المراجع) ---
 async function updateStatus(id, status, empCode, days) {
     if(!confirm(localStorage.getItem('preferredLang') === 'en' ? "Confirm action?" : "تأكيد الإجراء؟")) return;
     try {
         const batch = firebase.firestore().batch();
         const reqRef = firebase.firestore().collection("HR_Requests").doc(id);
         
+        // هنا تم دمج بيانات المدير في التحديث لتظهر في صفحة الـ HR
         batch.update(reqRef, { 
             status: status, 
-            reviewedAt: firebase.firestore.FieldValue.serverTimestamp() 
+            reviewedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            reviewerName: currentManagerData.name,      // اسم المدير
+            reviewerCode: currentManagerData.employeeId, // كود المدير
+            reviewerDept: currentManagerData.department  // قسم المدير
         });
 
         if(status === "Approved" && days > 0) {
@@ -178,6 +185,7 @@ async function updateStatus(id, status, empCode, days) {
             batch.update(empRef, { leaveBalance: firebase.firestore.FieldValue.increment(-days) });
         }
         await batch.commit();
+        alert(localStorage.getItem('preferredLang') === 'ar' ? "تم تحديث الطلب" : "Request updated");
     } catch (e) { alert("Error: " + e.message); }
 }
 
