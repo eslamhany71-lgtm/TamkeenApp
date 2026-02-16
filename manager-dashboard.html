@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">لوحة تحكم المدير - تمكين</title>
+    <title id="txt-title" data-i18n="manager_title">لوحة تحكم المدير - تمكين</title>
     <link rel="stylesheet" href="css/manager.css">
     
     <!-- مكتبات Firebase -->
@@ -15,29 +15,42 @@
 
     <header>
         <div class="header-right">
-            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
-            <div class="lang-switch" style="display:inline; margin-right:10px;">
-                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+            <button onclick="location.href='home.html'" class="back-btn" id="btn-back" data-i18n="back">رجوع</button>
+            <div class="lang-switch">
+                <span onclick="setLanguage('ar')" class="lang-btn">AR</span> | 
+                <span onclick="setLanguage('en')" class="lang-btn">EN</span>
             </div>
         </div>
-        <h2 id="txt-header">مراجعة طلبات الموظفين</h2>
+        <h2 id="txt-header"><span data-i18n="review_requests">مراجعة طلبات الموظفين</span> <span id="dept-name"></span></h2>
     </header>
 
     <main class="container">
         <div class="stats-bar">
-            <p id="txt-total-requests">إجمالي الطلبات المعلقة: <span id="pending-count">0</span></p>
+            <p>
+                <span data-i18n="total_pending">إجمالي الطلبات المعلقة:</span> 
+                <span id="pending-count">0</span>
+            </p>
+            <div id="live-indicator" class="live-dot">● Live</div>
         </div>
 
-        <!-- المكان اللي هتظهر فيه الطلبات -->
+        <!-- شبكة الطلبات -->
         <div id="requests-list" class="requests-grid">
-            <p id="loading-msg">جاري تحميل الطلبات...</p>
+            <p id="loading-msg" data-i18n="loading">جاري تحميل الطلبات...</p>
         </div>
     </main>
+
+    <!-- Modal لعرض الصور بشكل احترافي -->
+    <div id="fileModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <img id="modalImg" src="" style="width:100%; display:none;">
+            <iframe id="modalIframe" src="" style="width:100%; height:80vh; border:none; display:none;"></iframe>
+        </div>
+    </div>
 
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/manager.js"></script> <!-- الكود اللي إنت بتسأل عليه هيتحط هنا -->
+    <script src="js/manager.js"></script>
 </body>
 </html>
