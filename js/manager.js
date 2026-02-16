@@ -1,10 +1,27 @@
-// manager.js - النسخة الشاملة (Dashboard + Smart Reminder + Notifications)
+// manager.js - النسخة الاحترافية الشاملة (Dashboard + Permissions + Smart Reminder + Multi-Lang)
 
 let currentManagerDept = sessionStorage.getItem('managerDept') || null;
-let pendingCountGlobal = 0; // لمراقبة الطلبات المعلقة عالمياً
-let reminderTimer = null;   // دورة التذكير
+let pendingCountGlobal = 0;
+let reminderTimer = null;
 
-// 1. مراقب حالة الدخول وجلب بيانات المدير
+// --- 1. نظام الصوت الذكي (توليد نغمة لمنع حظر الأنتي فيرس) ---
+function playSystemSound(type) {
+    try {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = context.createOscillator();
+        const gain = context.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = (type === 'new') ? 880 : 440; // نغمة حادة للجديد، هادئة للتذكير
+        gain.gain.setValueAtTime(0.1, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(context.destination);
+        osc.start();
+        osc.stop(context.currentTime + 0.5);
+    } catch (e) { console.log("Audio logic failed - user interaction needed"); }
+}
+
+// --- 2. التحقق من الصلاحيات والبيانات ---
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const managerCode = user.email.split('@')[0];
@@ -22,12 +39,9 @@ async function fetchManagerInfo(code) {
             sessionStorage.setItem('managerDept', currentManagerDept);
             initManagerDashboard();
         }
-    } catch (error) { 
-        console.error("Error fetching manager info:", error); 
-    }
+    } catch (error) { console.error("Error fetching manager info:", error); }
 }
 
-// 2. تشغيل لوحة التحكم
 function initManagerDashboard() {
     const deptDisplay = document.getElementById('dept-name');
     if(deptDisplay) deptDisplay.innerText = `(${currentManagerDept})`;
@@ -35,15 +49,21 @@ function initManagerDashboard() {
     loadRequestsByDept(currentManagerDept);
     startNotificationListener(currentManagerDept);
     
-    // بدء دورة التذكير الذكية (كل 10 ثوانٍ)
-    startReminderLoop();
+    // تشغيل التذكير كل 10 ثوانٍ (فقط إذا كانت هناك طلبات معلقة)
+    if (reminderTimer) clearInterval(reminderTimer);
+    reminderTimer = setInterval(() => {
+        if (pendingCountGlobal > 0) {
+            playSystemSound('remind');
+            flashBadge();
+        }
+    }, 10000);
 
     if (typeof applyLanguage === 'function') {
         applyLanguage(localStorage.getItem('preferredLang') || 'ar');
     }
 }
 
-// 3. نظام الإشعارات اللحظية
+// --- 3. الإشعارات اللحظية ---
 function startNotificationListener(dept) {
     firebase.firestore().collection("Notifications")
         .where("targetDept", "==", dept)
@@ -51,69 +71,44 @@ function startNotificationListener(dept) {
         .onSnapshot((snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added") {
-                    showNotificationToast(change.doc.data().message);
+                    showToast(change.doc.data().message);
+                    playSystemSound('new');
                     change.doc.ref.update({ isRead: true });
                 }
             });
         });
 }
 
-// 4. نظام التذكير (كل 10 ثوانٍ طالما يوجد طلبات معلقة)
-function startReminderLoop() {
-    if (reminderTimer) clearInterval(reminderTimer);
-    
-    reminderTimer = setInterval(() => {
-        if (pendingCountGlobal > 0) {
-            console.log("Reminder: You have " + pendingCountGlobal + " pending requests!");
-            playReminderSound();
-            flashUI();
-        }
-    }, 10000); // تذكير كل 10 ثوانٍ
-}
-
-function playReminderSound() {
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2857/2857-preview.mp3');
-    audio.volume = 0.4; // صوت هادئ للتذكير
-    audio.play().catch(() => {});
-}
-
-function flashUI() {
-    const badge = document.getElementById('pending-count');
-    if (badge) {
-        badge.style.transition = "0.3s";
-        badge.style.color = "red";
-        badge.style.transform = "scale(1.4)";
-        setTimeout(() => {
-            badge.style.color = "#2a5298";
-            badge.style.transform = "scale(1)";
-        }, 800);
+function showToast(msg) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
     }
-}
-
-function showNotificationToast(msg) {
-    let container = document.getElementById('toast-container') || createToastContainer();
     const toast = document.createElement('div');
     toast.className = "notification-toast";
     toast.innerHTML = `🔔 <b>إشعار جديد</b><p>${msg}</p>`;
     container.appendChild(toast);
-    
-    // صوت إشعار قوي للوصول لأول مرة
-    new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(()=>{});
-
-    setTimeout(() => {
-        toast.style.animation = "slideOut 0.5s forwards";
-        setTimeout(() => toast.remove(), 500);
+    setTimeout(() => { 
+        toast.style.opacity = '0'; 
+        setTimeout(() => toast.remove(), 500); 
     }, 5000);
 }
 
-function createToastContainer() {
-    const c = document.createElement('div');
-    c.id = 'toast-container';
-    document.body.appendChild(c);
-    return c;
+function flashBadge() {
+    const badge = document.getElementById('pending-count');
+    if (badge) {
+        badge.style.color = "red";
+        badge.style.transform = "scale(1.4)";
+        setTimeout(() => { 
+            badge.style.color = "#2a5298"; 
+            badge.style.transform = "scale(1)"; 
+        }, 800);
+    }
 }
 
-// 5. تحميل الطلبات (الفلترة بالقسم وتحديث العداد)
+// --- 4. جلب الطلبات (الفلترة بالقسم) ---
 function loadRequestsByDept(deptName) {
     const list = document.getElementById('requests-list');
     const countSpan = document.getElementById('pending-count');
@@ -126,6 +121,13 @@ function loadRequestsByDept(deptName) {
             list.innerHTML = "";
             let pCount = 0;
             
+            if (snapshot.empty) {
+                list.innerHTML = `<p class="no-data">${lang === 'ar' ? 'لا توجد طلبات حالياً.' : 'No requests found.'}</p>`;
+                if(countSpan) countSpan.innerText = "0";
+                pendingCountGlobal = 0;
+                return;
+            }
+
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 if(data.status === "Pending") pCount++;
@@ -140,9 +142,9 @@ function loadRequestsByDept(deptName) {
                 card.innerHTML = `
                     <div class="req-info">
                         <h4>${data.employeeName} <small>#${data.employeeCode}</small></h4>
-                        <p><strong>الطلب:</strong> ${translateType(data.type)}</p>
-                        <p><strong>التاريخ:</strong> ${data.startDate || data.reqDate}</p>
-                        <p><strong>السبب:</strong> ${data.reason}</p>
+                        <p><b>نوع الطلب:</b> ${translateType(data.type)}</p>
+                        <p><b>التاريخ:</b> ${data.startDate || data.reqDate}</p>
+                        <p><b>السبب:</b> ${data.reason}</p>
                         ${attachmentBtn}
                     </div>
                     <div class="req-actions">
@@ -154,19 +156,22 @@ function loadRequestsByDept(deptName) {
                 `;
                 list.appendChild(card);
             });
-            // تحديث العداد العالمي لإيقاف/تشغيل التذكير
             pendingCountGlobal = pCount;
             if(countSpan) countSpan.innerText = pCount;
         });
 }
 
-// 6. تحديث الحالة وخصم الرصيد
+// --- 5. تحديث الحالة وخصم الرصيد ---
 async function updateStatus(id, status, empCode, days) {
-    if(!confirm("تأكيد العملية؟")) return;
+    if(!confirm(localStorage.getItem('preferredLang') === 'en' ? "Confirm action?" : "تأكيد الإجراء؟")) return;
     try {
         const batch = firebase.firestore().batch();
         const reqRef = firebase.firestore().collection("HR_Requests").doc(id);
-        batch.update(reqRef, { status: status, reviewedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        
+        batch.update(reqRef, { 
+            status: status, 
+            reviewedAt: firebase.firestore.FieldValue.serverTimestamp() 
+        });
 
         if(status === "Approved" && days > 0) {
             const empRef = firebase.firestore().collection("Employee_Database").doc(empCode);
@@ -176,19 +181,22 @@ async function updateStatus(id, status, empCode, days) {
     } catch (e) { alert("Error: " + e.message); }
 }
 
-// 7. عرض المرفقات (Modal)
+// --- 6. عرض الملفات والمساعدة ---
 function viewFile(docId) {
     const data = document.getElementById(`data-${docId}`).value;
-    const modal = document.getElementById('fileModal');
     const body = document.getElementById('modal-body-content');
-    modal.style.display = "flex";
-    if (data.includes("image")) body.innerHTML = `<img src="${data}" style="max-width:100%;">`;
-    else body.innerHTML = `<iframe src="${data}" style="width:100%; height:80vh; border:none;"></iframe>`;
+    document.getElementById('fileModal').style.display = "flex";
+    if (data.includes("image")) {
+        body.innerHTML = `<img src="${data}" style="max-width:100%; border-radius:10px;">`;
+    } else {
+        body.innerHTML = `<iframe src="${data}" style="width:100%; height:80vh; border:none;"></iframe>`;
+    }
 }
 
 function closeModal() { document.getElementById('fileModal').style.display = "none"; }
 
 function translateType(t) {
-    const map = { vacation: "إجازة", late: "تأخير", exit: "خروج" };
-    return map[t] || t;
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const map = { vacation: {ar:"إجازة", en:"Vacation"}, late: {ar:"تأخير", en:"Late"}, exit: {ar:"خروج", en:"Exit"} };
+    return map[t] ? map[t][lang] : t;
 }
