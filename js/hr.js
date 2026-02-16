@@ -1,21 +1,20 @@
-// hr.js - النسخة الاحترافية الكاملة والمستقرة (Tamkeen App)
+// hr.js - نظام الخدمات الذاتية الموحد (النسخة الاحترافية الكاملة)
 
 let currentUserData = null;
 let totalAnnualUsed = 0;
 
-// 1. مراقبة الدخول + نظام الكاش (التخزين المؤقت) لمنع التهنيج
+// 1. مراقبة الدخول + حل التهنيج (Cache System)
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const empCode = user.email.split('@')[0];
         
-        // جلب البيانات من الذاكرة المؤقتة فوراً لسرعة العرض
+        // استعادة سريعة من الكاش
         const cachedData = sessionStorage.getItem('userData');
         if (cachedData) {
             currentUserData = JSON.parse(cachedData);
             applyLockedFields(currentUserData);
         }
         
-        // تحديث البيانات من الفايربيز للتأكد من دقتها
         fetchEmployeeData(empCode);
         loadMyRequests(empCode);
     } else {
@@ -23,19 +22,17 @@ firebase.auth().onAuthStateChanged((user) => {
     }
 });
 
-// 2. جلب بيانات الموظف من Firestore
 async function fetchEmployeeData(code) {
     try {
         const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
         if (doc.exists) {
             currentUserData = doc.data();
-            sessionStorage.setItem('userData', JSON.stringify(currentUserData)); // تحديث الكاش
+            sessionStorage.setItem('userData', JSON.stringify(currentUserData));
             applyLockedFields(currentUserData);
         }
-    } catch (e) { console.error("Error fetching data:", e); }
+    } catch (e) { console.error(e); }
 }
 
-// 3. قفل الخانات الأساسية
 function applyLockedFields(data) {
     if(!data) return;
     const fields = { 'empCode': data.employeeId, 'empName': data.name, 'empDept': data.department };
@@ -49,7 +46,7 @@ function applyLockedFields(data) {
     }
 }
 
-// 4. تحميل سجل الطلبات والإحصائيات (تحديث لحظي)
+// 2. تحميل "طلباتي" والإحصائيات
 function loadMyRequests(empCode) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     firebase.firestore().collection("HR_Requests")
@@ -59,7 +56,7 @@ function loadMyRequests(empCode) {
             const tableBody = document.getElementById('my-requests-table');
             if (!tableBody) return;
             tableBody.innerHTML = "";
-            let approved = 0, rejected = 0, pending = 0;
+            let approved = 0, pending = 0;
             totalAnnualUsed = 0;
 
             snapshot.forEach((doc) => {
@@ -69,23 +66,22 @@ function loadMyRequests(empCode) {
                     if (data.type === "vacation" && data.vacationType === "سنوية") {
                         totalAnnualUsed += calculateDays(data.startDate, data.endDate);
                     }
-                } else if (data.status === "Rejected") { rejected++; } else { pending++; }
+                } else if (data.status === "Pending") { pending++; }
 
                 tableBody.innerHTML += `<tr>
-                    <td>${translateType(data.type)} ${data.vacationType ? '('+data.vacationType+')' : ''}</td>
+                    <td>${translateTypeLocal(data.type)} ${data.vacationType ? '('+data.vacationType+')' : ''}</td>
                     <td>${data.startDate || data.reqDate}</td>
-                    <td><span class="badge ${data.status.toLowerCase()}">${translateStatus(data.status, lang)}</span></td>
+                    <td><span class="badge ${data.status.toLowerCase()}">${translateStatusLocal(data.status, lang)}</span></td>
                 </tr>`;
             });
 
-            if(document.getElementById('vacation-balance')) document.getElementById('vacation-balance').innerText = Math.max(0, 21 - totalAnnualUsed);
-            if(document.getElementById('my-approved-count')) document.getElementById('my-approved-count').innerText = approved;
-            if(document.getElementById('my-rejected-count')) document.getElementById('my-rejected-count').innerText = rejected;
-            if(document.getElementById('my-pending-count')) document.getElementById('my-pending-count').innerText = pending;
+            document.getElementById('vacation-balance').innerText = Math.max(0, 21 - totalAnnualUsed);
+            document.getElementById('my-approved-count').innerText = approved;
+            document.getElementById('my-pending-count').innerText = pending;
         });
 }
 
-// 5. إرسال الطلب (الحماية من التكرار + إشعار المدير + المرفقات)
+// 3. إرسال الطلب (الحماية القصوى)
 document.getElementById('hrRequestForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
@@ -106,25 +102,23 @@ document.getElementById('hrRequestForm').addEventListener('submit', async (e) =>
     btn.innerText = lang === 'ar' ? "جاري المعالجة..." : "Processing...";
 
     try {
-        // حماية من التكرار المزدوج
+        // فحص التكرار
         const requestsRef = firebase.firestore().collection("HR_Requests");
         const q1 = await requestsRef.where("employeeCode", "==", empCode).where("startDate", "==", targetDate).get();
         const q2 = await requestsRef.where("employeeCode", "==", empCode).where("reqDate", "==", targetDate).get();
 
         if (!q1.empty || !q2.empty) {
-            alert(lang === 'ar' ? `خطأ: لديك طلب مسجل بتاريخ ${targetDate}` : `Error: Duplicate request on ${targetDate}`);
-            btn.disabled = false; btn.innerText = lang === 'ar' ? "إرسال" : "Submit"; return;
+            alert(lang === 'ar' ? `خطأ: لديك طلب مسجل بتاريخ ${targetDate}` : `Duplicate request on ${targetDate}`);
+            btn.disabled = false; return;
         }
 
-        // تحويل المرفق إن وجد (Base64)
+        // رفع الملف
         let fileData = null;
         const file = document.getElementById('reqAttachment').files[0];
-        if (file) {
-            if(file.size > 800 * 1024) {
-                alert("الملف كبير جداً! الحد الأقصى 800 كيلوبايت");
-                btn.disabled = false; return;
-            }
-            fileData = await fileToBase64(file);
+        if (file && file.size <= 800 * 1024) {
+            fileData = await new Promise((res) => {
+                const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res(r.result);
+            });
         }
 
         const requestData = {
@@ -145,10 +139,9 @@ document.getElementById('hrRequestForm').addEventListener('submit', async (e) =>
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        // 1. حفظ الطلب
-        await firebase.firestore().collection("HR_Requests").add(requestData);
+        const docRef = await firebase.firestore().collection("HR_Requests").add(requestData);
 
-        // 2. إرسال إشعار للمدير
+        // إشعار للمدير
         await firebase.firestore().collection("Notifications").add({
             targetDept: requestData.department,
             message: lang === 'ar' ? `طلب جديد من: ${requestData.employeeName}` : `New request from: ${requestData.employeeName}`,
@@ -158,72 +151,103 @@ document.getElementById('hrRequestForm').addEventListener('submit', async (e) =>
 
         alert(lang === 'ar' ? "تم الإرسال بنجاح!" : "Sent successfully!");
         closeForm();
-    } catch (err) { alert("Error: " + err.message); }
-    finally { btn.disabled = false; btn.innerText = lang === 'ar' ? "إرسال الطلب الآن" : "Submit Request"; }
+    } catch (err) { alert(err.message); }
+    finally { btn.disabled = false; btn.innerText = lang === 'ar' ? "إرسال" : "Submit"; }
 });
 
-// 6. دوال الواجهة (Modals)
+// دوال الواجهة
 function openForm(type) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
     document.getElementById('formModal').style.display = "block";
     document.getElementById('requestType').value = type;
     document.getElementById('vacation-fields').style.display = (type === 'vacation') ? 'block' : 'none';
     document.getElementById('time-fields').style.display = (type !== 'vacation') ? 'block' : 'none';
     
-    // حل مشكلة التهنيج: إعادة تعبئة البيانات المقفولة فوراً
-    if (currentUserData) {
-        applyLockedFields(currentUserData);
-    } else {
-        const cached = sessionStorage.getItem('userData');
-        if(cached) applyLockedFields(JSON.parse(cached));
-    }
+    const titles = { vacation: lang === 'ar' ? 'إجازة' : 'Vacation', late: lang === 'ar' ? 'تأخير' : 'Late', exit: lang === 'ar' ? 'خروج' : 'Exit' };
+    document.getElementById('modal-title').innerText = titles[type];
+    
+    if (currentUserData) applyLockedFields(currentUserData);
 }
 
-function closeForm() {
-    document.getElementById('formModal').style.display = "none";
-    document.getElementById('hrRequestForm').reset();
-    if(currentUserData) applyLockedFields(currentUserData);
-}
+function closeForm() { document.getElementById('formModal').style.display = "none"; document.getElementById('hrRequestForm').reset(); if(currentUserData) applyLockedFields(currentUserData); }
+function openMyRequests() { document.getElementById('requestsModal').style.display = 'block'; }
+function closeRequests() { document.getElementById('requestsModal').style.display = 'none'; }
 
-function openMyRequests() {
-    document.getElementById('requestsModal').style.display = 'block';
-}
+function calculateDays(s, e) { const d1 = new Date(s), d2 = new Date(e); return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)) + 1; }
 
-function closeRequests() {
-    document.getElementById('requestsModal').style.display = 'none';
-}
-
-// 7. دوال مساعدة
-function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = e => reject(e);
-    });
-}
-
-function calculateDays(s, e) {
-    if (!s || !e) return 1;
-    const d1 = new Date(s), d2 = new Date(e);
-    return Math.floor((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
-}
-
-function translateType(t) {
+function translateTypeLocal(t) { 
     const l = localStorage.getItem('preferredLang') || 'ar';
-    const mapAr = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" };
-    const mapEn = { vacation: "Vacation", late: "Late Perm.", exit: "Exit Permit" };
-    return l === 'ar' ? (mapAr[t] || t) : (mapEn[t] || t);
+    const map = { vacation: l==='ar'?'إجازة':'Vacation', late: l==='ar'?'إذن تأخير':'Late Perm.', exit: l==='ar'?'تصريح خروج':'Exit Permit' };
+    return map[t] || t;
 }
 
-function translateStatus(s, l) {
-    const map = { 'Pending': l === 'ar' ? 'قيد الانتظار' : 'Pending', 'Approved': l === 'ar' ? 'مقبول' : 'Approved', 'Rejected': l === 'ar' ? 'مرفوض' : 'Rejected' };
+function translateStatusLocal(s, l) {
+    const map = { 'Pending': l==='ar'?'قيد الانتظار':'Pending', 'Approved': l==='ar'?'مقبول':'Approved', 'Rejected': l==='ar'?'مرفوض':'Rejected' };
     return map[s] || s;
 }
 
-// إغلاق المودالات عند الضغط خارجها
-window.onclick = (e) => {
-    if (e.target.className === 'modal') {
-        closeForm();
-        closeRequests();
-    }
-};
+// نظام اللغة
+function updatePageContent(lang) {
+    const translations = {
+        ar: {
+            title: "الخدمات الذاتية - تمكين", back: "رجوع", header: "الخدمات الذاتية للموظفين",
+            vacation: "طلب إجازة", late: "إذن تأخير", exit: "تصريح خروج", myOrders: "سجل طلباتي",
+            subVac: "سنوية، مرضية، عارضة...", subLate: "إذن حضور متأخر للعمل", subExit: "خروج مؤقت أثناء العمل",
+            subMy: "متابعة الحالات والإحصائيات", code: "كود الموظف", name: "اسم الموظف", job: "الوظيفة",
+            dept: "الإدارة / القسم", hire: "تاريخ التعيين", reason: "السبب / التفاصيل", attachment: "إرفاق مستند (اختياري)",
+            submit: "إرسال الطلب الآن", history: "سجل طلباتي وإحصائياتي", balance: "الرصيد المتبقي", pending: "قيد الانتظار", 
+            approved: "مقبولة", type: "النوع", date: "التاريخ", status: "الحالة", vType: "نوع الإجازة", from: "من تاريخ", to: "إلى تاريخ", rDate: "تاريخ الإذن", time: "الوقت"
+        },
+        en: {
+            title: "Self Service - Tamkeen", back: "Back", header: "Employees Self Services",
+            vacation: "Vacation Request", late: "Late Permission", exit: "Exit Permit", myOrders: "My Requests",
+            subVac: "Annual, Medical, etc.", subLate: "Late arrival permission", subExit: "Temporary work exit",
+            subMy: "Track status & statistics", code: "Employee Code", name: "Employee Name", job: "Job Title",
+            dept: "Department", hire: "Hiring Date", reason: "Reason / Details", attachment: "Attach File (Optional)",
+            submit: "Submit Request", history: "My Requests & Stats", balance: "Vacation Balance", pending: "Pending", 
+            approved: "Approved", type: "Type", date: "Date", status: "Status", vType: "Vacation Type", from: "From Date", to: "To Date", rDate: "Request Date", time: "Time"
+        }
+    };
+    const t = translations[lang];
+    if(!t) return;
+
+    document.title = t.title;
+    document.getElementById('txt-back').innerText = t.back;
+    document.getElementById('txt-header-main').innerText = t.header;
+    document.getElementById('txt-vacation').innerText = t.vacation;
+    document.getElementById('sub-vacation').innerText = t.subVac;
+    document.getElementById('txt-late').innerText = t.late;
+    document.getElementById('sub-late').innerText = t.subLate;
+    document.getElementById('txt-exit').innerText = t.exit;
+    document.getElementById('sub-exit').innerText = t.subExit;
+    document.getElementById('txt-my-orders').innerText = t.myOrders;
+    document.getElementById('sub-my-orders').innerText = t.subMy;
+
+    document.getElementById('lbl-code').innerText = t.code;
+    document.getElementById('lbl-name').innerText = t.name;
+    document.getElementById('lbl-job').innerText = t.job;
+    document.getElementById('lbl-dept').innerText = t.dept;
+    document.getElementById('lbl-hire').innerText = t.hire;
+    document.getElementById('lbl-reason').innerText = t.reason;
+    document.getElementById('lbl-attachment').innerText = t.attachment;
+    document.getElementById('btn-submit').innerText = t.submit;
+    
+    document.getElementById('txt-history-title').innerText = t.history;
+    document.getElementById('txt-stat-balance').innerText = t.balance;
+    document.getElementById('txt-stat-pending').innerText = t.pending;
+    document.getElementById('txt-stat-approved').innerText = t.approved;
+
+    document.getElementById('th-type').innerText = t.type;
+    document.getElementById('th-date').innerText = t.date;
+    document.getElementById('th-status').innerText = t.status;
+
+    // حقول المودال
+    document.getElementById('lbl-vac-type').innerText = t.vType;
+    document.getElementById('lbl-from').innerText = t.from;
+    document.getElementById('lbl-to').innerText = t.to;
+    document.getElementById('lbl-req-date').innerText = t.rDate;
+    document.getElementById('lbl-time').innerText = t.time;
+}
+
+window.onload = () => { updatePageContent(localStorage.getItem('preferredLang') || 'ar'); };
+window.onclick = (e) => { if (e.target.className === 'modal') { closeForm(); closeRequests(); } };
