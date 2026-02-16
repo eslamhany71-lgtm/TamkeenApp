@@ -56,7 +56,7 @@ function initManagerDashboard() {
             playSystemSound('remind');
             flashBadge();
         }
-    }, 10000);
+    }, 6000);
 
     if (typeof applyLanguage === 'function') {
         applyLanguage(localStorage.getItem('preferredLang') || 'ar');
