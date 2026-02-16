@@ -1,6 +1,8 @@
-// manager.js - النسخة الشاملة (Dashboard + Permissions + Notifications + Base64 View)
+// manager.js - النسخة الشاملة (Dashboard + Smart Reminder + Notifications)
 
 let currentManagerDept = sessionStorage.getItem('managerDept') || null;
+let pendingCountGlobal = 0; // لمراقبة الطلبات المعلقة عالمياً
+let reminderTimer = null;   // دورة التذكير
 
 // 1. مراقب حالة الدخول وجلب بيانات المدير
 firebase.auth().onAuthStateChanged((user) => {
@@ -30,17 +32,18 @@ function initManagerDashboard() {
     const deptDisplay = document.getElementById('dept-name');
     if(deptDisplay) deptDisplay.innerText = `(${currentManagerDept})`;
     
-    // تحميل الداتا والاشعارات بناءً على القسم
     loadRequestsByDept(currentManagerDept);
     startNotificationListener(currentManagerDept);
     
-    // تطبيق اللغة
+    // بدء دورة التذكير الذكية (كل 10 ثوانٍ)
+    startReminderLoop();
+
     if (typeof applyLanguage === 'function') {
         applyLanguage(localStorage.getItem('preferredLang') || 'ar');
     }
 }
 
-// 3. نظام الإشعارات (لحظي + صوتي + شكلي)
+// 3. نظام الإشعارات اللحظية
 function startNotificationListener(dept) {
     firebase.firestore().collection("Notifications")
         .where("targetDept", "==", dept)
@@ -49,28 +52,53 @@ function startNotificationListener(dept) {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added") {
                     showNotificationToast(change.doc.data().message);
-                    change.doc.ref.update({ isRead: true }); // تعليم كـ مقروء
+                    change.doc.ref.update({ isRead: true });
                 }
             });
         });
 }
 
-function showNotificationToast(msg) {
-    let container = document.getElementById('toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'toast-container';
-        document.body.appendChild(container);
-    }
+// 4. نظام التذكير (كل 10 ثوانٍ طالما يوجد طلبات معلقة)
+function startReminderLoop() {
+    if (reminderTimer) clearInterval(reminderTimer);
+    
+    reminderTimer = setInterval(() => {
+        if (pendingCountGlobal > 0) {
+            console.log("Reminder: You have " + pendingCountGlobal + " pending requests!");
+            playReminderSound();
+            flashUI();
+        }
+    }, 10000); // تذكير كل 10 ثوانٍ
+}
 
+function playReminderSound() {
+    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2857/2857-preview.mp3');
+    audio.volume = 0.4; // صوت هادئ للتذكير
+    audio.play().catch(() => {});
+}
+
+function flashUI() {
+    const badge = document.getElementById('pending-count');
+    if (badge) {
+        badge.style.transition = "0.3s";
+        badge.style.color = "red";
+        badge.style.transform = "scale(1.4)";
+        setTimeout(() => {
+            badge.style.color = "#2a5298";
+            badge.style.transform = "scale(1)";
+        }, 800);
+    }
+}
+
+function showNotificationToast(msg) {
+    let container = document.getElementById('toast-container') || createToastContainer();
     const toast = document.createElement('div');
     toast.className = "notification-toast";
     toast.innerHTML = `🔔 <b>إشعار جديد</b><p>${msg}</p>`;
     container.appendChild(toast);
     
-    // تشغيل الصوت
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-    audio.play().catch(() => console.log("User must interact for sound"));
+    // صوت إشعار قوي للوصول لأول مرة
+    new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(()=>{});
 
     setTimeout(() => {
         toast.style.animation = "slideOut 0.5s forwards";
@@ -78,7 +106,14 @@ function showNotificationToast(msg) {
     }, 5000);
 }
 
-// 4. تحميل الطلبات (الفلترة بالقسم)
+function createToastContainer() {
+    const c = document.createElement('div');
+    c.id = 'toast-container';
+    document.body.appendChild(c);
+    return c;
+}
+
+// 5. تحميل الطلبات (الفلترة بالقسم وتحديث العداد)
 function loadRequestsByDept(deptName) {
     const list = document.getElementById('requests-list');
     const countSpan = document.getElementById('pending-count');
@@ -89,22 +124,14 @@ function loadRequestsByDept(deptName) {
         .orderBy("submittedAt", "desc")
         .onSnapshot((snapshot) => {
             list.innerHTML = "";
-            let pendingCount = 0;
+            let pCount = 0;
             
-            if (snapshot.empty) {
-                list.innerHTML = `<p class="no-data">${lang === 'ar' ? 'لا توجد طلبات حالياً.' : 'No requests found.'}</p>`;
-                if(countSpan) countSpan.innerText = "0";
-                return;
-            }
-
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                if(data.status === "Pending") pendingCount++;
+                if(data.status === "Pending") pCount++;
 
                 const attachmentBtn = data.fileBase64 ? `
-                    <button onclick="viewFile('${doc.id}')" class="view-file-btn">
-                        📎 <span>${lang === 'ar' ? 'عرض المرفق' : 'View Attachment'}</span>
-                    </button>
+                    <button onclick="viewFile('${doc.id}')" class="view-file-btn">📎 عرض المرفق</button>
                     <textarea id="data-${doc.id}" style="display:none;">${data.fileBase64}</textarea>
                 ` : "";
 
@@ -127,17 +154,18 @@ function loadRequestsByDept(deptName) {
                 `;
                 list.appendChild(card);
             });
-            if(countSpan) countSpan.innerText = pendingCount;
+            // تحديث العداد العالمي لإيقاف/تشغيل التذكير
+            pendingCountGlobal = pCount;
+            if(countSpan) countSpan.innerText = pCount;
         });
 }
 
-// 5. تحديث الحالة وخصم الرصيد
+// 6. تحديث الحالة وخصم الرصيد
 async function updateStatus(id, status, empCode, days) {
-    if(!confirm("هل أنت متأكد؟")) return;
+    if(!confirm("تأكيد العملية؟")) return;
     try {
         const batch = firebase.firestore().batch();
         const reqRef = firebase.firestore().collection("HR_Requests").doc(id);
-        
         batch.update(reqRef, { status: status, reviewedAt: firebase.firestore.FieldValue.serverTimestamp() });
 
         if(status === "Approved" && days > 0) {
@@ -148,32 +176,19 @@ async function updateStatus(id, status, empCode, days) {
     } catch (e) { alert("Error: " + e.message); }
 }
 
-// 6. عرض المرفقات (Modal)
+// 7. عرض المرفقات (Modal)
 function viewFile(docId) {
     const data = document.getElementById(`data-${docId}`).value;
     const modal = document.getElementById('fileModal');
     const body = document.getElementById('modal-body-content');
-    
-    if(!modal || !body) {
-        window.open().document.write(`<iframe src="${data}" style="width:100%;height:100%;"></iframe>`);
-        return;
-    }
-
     modal.style.display = "flex";
-    if (data.includes("image")) {
-        body.innerHTML = `<img src="${data}" style="max-width:100%; border-radius:10px;">`;
-    } else {
-        body.innerHTML = `<iframe src="${data}" style="width:100%; height:80vh; border:none;"></iframe>`;
-    }
+    if (data.includes("image")) body.innerHTML = `<img src="${data}" style="max-width:100%;">`;
+    else body.innerHTML = `<iframe src="${data}" style="width:100%; height:80vh; border:none;"></iframe>`;
 }
 
-function closeModal() {
-    const modal = document.getElementById('fileModal');
-    if(modal) modal.style.display = "none";
-}
+function closeModal() { document.getElementById('fileModal').style.display = "none"; }
 
 function translateType(t) {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    const map = { vacation: {ar:"إجازة", en:"Vacation"}, late: {ar:"تأخير", en:"Late"}, exit: {ar:"خروج", en:"Exit"} };
-    return map[t] ? map[t][lang] : t;
+    const map = { vacation: "إجازة", late: "تأخير", exit: "خروج" };
+    return map[t] || t;
 }
