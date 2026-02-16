@@ -1,10 +1,11 @@
-// manager.js - النسخة الاحترافية الكاملة (تعديل على كود المستخدم)
+// manager.js - النسخة الشاملة (Dashboard + Permissions + Notifications + Base64 View)
+
 let currentManagerDept = sessionStorage.getItem('managerDept') || null;
 
+// 1. مراقب حالة الدخول وجلب بيانات المدير
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const managerCode = user.email.split('@')[0];
-        // نحدث البيانات دائماً للتأكد من الصلاحيات (حتى لو فيه Cache)
         fetchManagerInfo(managerCode);
     } else { 
         window.location.href = "index.html"; 
@@ -15,37 +16,31 @@ async function fetchManagerInfo(code) {
     try {
         const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
         if (doc.exists) {
-            const freshDept = doc.data().department;
-            // إذا تغير القسم أو لم يكن موجوداً، نحدثه فوراً
-            currentManagerDept = freshDept;
-            sessionStorage.setItem('managerDept', freshDept);
+            currentManagerDept = doc.data().department;
+            sessionStorage.setItem('managerDept', currentManagerDept);
             initManagerDashboard();
-        } else {
-            console.error("Manager data not found in Database");
         }
     } catch (error) { 
         console.error("Error fetching manager info:", error); 
     }
 }
 
+// 2. تشغيل لوحة التحكم
 function initManagerDashboard() {
     const deptDisplay = document.getElementById('dept-name');
     if(deptDisplay) deptDisplay.innerText = `(${currentManagerDept})`;
     
-    // الأمان: لا نحمل الطلبات إلا إذا كان القسم معروفاً
-    if (currentManagerDept) {
-        loadRequestsByDept(currentManagerDept);
-        startNotificationListener(currentManagerDept);
-    }
-
-    // تفعيل اللغات (استدعاء آمن)
+    // تحميل الداتا والاشعارات بناءً على القسم
+    loadRequestsByDept(currentManagerDept);
+    startNotificationListener(currentManagerDept);
+    
+    // تطبيق اللغة
     if (typeof applyLanguage === 'function') {
-        const currentLang = localStorage.getItem('preferredLang') || 'ar';
-        applyLanguage(currentLang);
+        applyLanguage(localStorage.getItem('preferredLang') || 'ar');
     }
 }
 
-// 1. مراقب الإشعارات اللحظي
+// 3. نظام الإشعارات (لحظي + صوتي + شكلي)
 function startNotificationListener(dept) {
     firebase.firestore().collection("Notifications")
         .where("targetDept", "==", dept)
@@ -54,42 +49,50 @@ function startNotificationListener(dept) {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added") {
                     showNotificationToast(change.doc.data().message);
-                    change.doc.ref.update({ isRead: true });
+                    change.doc.ref.update({ isRead: true }); // تعليم كـ مقروء
                 }
             });
         });
 }
 
 function showNotificationToast(msg) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+
     const toast = document.createElement('div');
     toast.className = "notification-toast";
-    toast.innerHTML = `🔔 ${msg}`;
-    document.body.appendChild(toast);
+    toast.innerHTML = `🔔 <b>إشعار جديد</b><p>${msg}</p>`;
+    container.appendChild(toast);
     
+    // تشغيل الصوت
     const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-    audio.play().catch(()=>{});
+    audio.play().catch(() => console.log("User must interact for sound"));
 
-    setTimeout(() => { 
-        toast.classList.add('fade-out'); 
-        setTimeout(() => toast.remove(), 500); 
-    }, 4000);
+    setTimeout(() => {
+        toast.style.animation = "slideOut 0.5s forwards";
+        setTimeout(() => toast.remove(), 500);
+    }, 5000);
 }
 
-// 2. تحميل الطلبات (تم تأكيد فلترة القسم هنا)
+// 4. تحميل الطلبات (الفلترة بالقسم)
 function loadRequestsByDept(deptName) {
     const list = document.getElementById('requests-list');
     const countSpan = document.getElementById('pending-count');
     const lang = localStorage.getItem('preferredLang') || 'ar';
 
     firebase.firestore().collection("HR_Requests")
-        .where("department", "==", deptName) // قفل الأمان: القسم فقط
+        .where("department", "==", deptName)
         .orderBy("submittedAt", "desc")
         .onSnapshot((snapshot) => {
             list.innerHTML = "";
             let pendingCount = 0;
             
             if (snapshot.empty) {
-                list.innerHTML = `<p class="no-data">${lang === 'ar' ? 'لا توجد طلبات حالياً لقسمك.' : 'No requests for your department.'}</p>`;
+                list.innerHTML = `<p class="no-data">${lang === 'ar' ? 'لا توجد طلبات حالياً.' : 'No requests found.'}</p>`;
                 if(countSpan) countSpan.innerText = "0";
                 return;
             }
@@ -110,15 +113,15 @@ function loadRequestsByDept(deptName) {
                 card.innerHTML = `
                     <div class="req-info">
                         <h4>${data.employeeName} <small>#${data.employeeCode}</small></h4>
-                        <p><strong>${lang === 'ar' ? 'الطلب:' : 'Request:'}</strong> ${translateType(data.type)}</p>
-                        <p><strong>${lang === 'ar' ? 'التاريخ:' : 'Date:'}</strong> ${data.startDate || data.reqDate}</p>
-                        <p class="reason-text"><strong>${lang === 'ar' ? 'السبب:' : 'Reason:'}</strong> ${data.reason}</p>
+                        <p><strong>الطلب:</strong> ${translateType(data.type)}</p>
+                        <p><strong>التاريخ:</strong> ${data.startDate || data.reqDate}</p>
+                        <p><strong>السبب:</strong> ${data.reason}</p>
                         ${attachmentBtn}
                     </div>
                     <div class="req-actions">
                         ${data.status === "Pending" ? `
-                            <button onclick="updateStatus('${doc.id}', 'Approved', '${data.employeeCode}', '${data.days || 0}')" class="approve-btn">${lang === 'ar' ? 'موافقة' : 'Approve'}</button>
-                            <button onclick="updateStatus('${doc.id}', 'Rejected')" class="reject-btn">${lang === 'ar' ? 'رفض' : 'Reject'}</button>
+                            <button onclick="updateStatus('${doc.id}', 'Approved', '${data.employeeCode}', '${data.days || 0}')" class="approve-btn">موافقة</button>
+                            <button onclick="updateStatus('${doc.id}', 'Rejected')" class="reject-btn">رفض</button>
                         ` : `<p class="final-status">✅ ${data.status}</p>`}
                     </div>
                 `;
@@ -128,51 +131,37 @@ function loadRequestsByDept(deptName) {
         });
 }
 
-// 3. تحديث الحالة + خصم الرصيد
+// 5. تحديث الحالة وخصم الرصيد
 async function updateStatus(id, status, empCode, days) {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    const confirmMsg = lang === 'en' ? "Are you sure?" : "هل أنت متأكد من تنفيذ الإجراء؟";
-    
-    if(!confirm(confirmMsg)) return;
-
+    if(!confirm("هل أنت متأكد؟")) return;
     try {
         const batch = firebase.firestore().batch();
         const reqRef = firebase.firestore().collection("HR_Requests").doc(id);
         
-        batch.update(reqRef, { 
-            status: status, 
-            reviewedAt: firebase.firestore.FieldValue.serverTimestamp() 
-        });
+        batch.update(reqRef, { status: status, reviewedAt: firebase.firestore.FieldValue.serverTimestamp() });
 
         if(status === "Approved" && days > 0) {
             const empRef = firebase.firestore().collection("Employee_Database").doc(empCode);
-            batch.update(empRef, { 
-                leaveBalance: firebase.firestore.FieldValue.increment(-days) 
-            });
+            batch.update(empRef, { leaveBalance: firebase.firestore.FieldValue.increment(-days) });
         }
-
         await batch.commit();
-    } catch (e) {
-        alert("Error: " + e.message);
-    }
+    } catch (e) { alert("Error: " + e.message); }
 }
 
-// 4. عرض المرفقات (Modal)
+// 6. عرض المرفقات (Modal)
 function viewFile(docId) {
     const data = document.getElementById(`data-${docId}`).value;
     const modal = document.getElementById('fileModal');
-    const body = document.getElementById('modal-body-content'); // تأكد من وجود الـ ID ده في الـ HTML
+    const body = document.getElementById('modal-body-content');
     
     if(!modal || !body) {
-        // إذا لم يجد المودال، يفتح في نافذة جديدة (طريقة احتياطية)
-        const win = window.open();
-        win.document.write(`<iframe src="${data}" frameborder="0" style="width:100%; height:100vh;"></iframe>`);
+        window.open().document.write(`<iframe src="${data}" style="width:100%;height:100%;"></iframe>`);
         return;
     }
 
     modal.style.display = "flex";
     if (data.includes("image")) {
-        body.innerHTML = `<img src="${data}" style="max-width:100%; border-radius:10px; box-shadow:0 0 20px rgba(0,0,0,0.2);">`;
+        body.innerHTML = `<img src="${data}" style="max-width:100%; border-radius:10px;">`;
     } else {
         body.innerHTML = `<iframe src="${data}" style="width:100%; height:80vh; border:none;"></iframe>`;
     }
@@ -185,10 +174,6 @@ function closeModal() {
 
 function translateType(t) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
-    const map = { 
-        vacation: {ar:"إجازة", en:"Vacation"}, 
-        late: {ar:"إذن تأخير", en:"Late Arrival"}, 
-        exit: {ar:"خروج", en:"Exit Permit"} 
-    };
+    const map = { vacation: {ar:"إجازة", en:"Vacation"}, late: {ar:"تأخير", en:"Late"}, exit: {ar:"خروج", en:"Exit"} };
     return map[t] ? map[t][lang] : t;
 }
