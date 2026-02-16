@@ -1,89 +1,43 @@
-/* تحسينات عامة */
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f9; margin: 0; }
+:root { --primary: #2a5298; --success: #27ae60; --danger: #e74c3c; --gray: #7f8c8d; }
 
-.container { max-width: 1100px; margin: auto; padding: 20px; }
+body { background: #f0f2f5; margin: 0; font-family: sans-serif; }
 
-/* شريط الإحصائيات */
-.stats-bar {
-    background: #fff;
-    padding: 15px 25px;
-    border-radius: 12px;
-    margin-bottom: 25px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-right: 5px solid #2a5298;
-}
+.main-header { background: var(--primary); color: white; padding: 15px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+.header-container { max-width: 1200px; margin: auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
 
-.live-dot {
-    color: #27ae60;
-    font-size: 0.9rem;
-    font-weight: bold;
-    animation: blink 1.5s infinite;
-}
+.back-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+.lang-switch { cursor: pointer; font-size: 0.9rem; }
 
-@keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+.container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
 
-/* الكروت */
-.requests-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 20px;
-}
+.stats-bar { background: white; padding: 15px 25px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-right: 5px solid var(--primary); }
+.stats-bar p { margin: 0; font-weight: bold; color: #333; }
+#pending-count { color: var(--primary); font-size: 1.5rem; }
 
-.request-card {
-    background: #fff;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-    transition: 0.3s ease;
-    border-top: 5px solid #ccc;
-}
+.dot { height: 10px; width: 10px; background-color: var(--success); border-radius: 50%; display: inline-block; animation: blink 1s infinite; }
+@keyframes blink { 0% {opacity: 0;} 50% {opacity: 1;} 100% {opacity: 0;} }
 
-.request-card:hover { transform: translateY(-8px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+.requests-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+
+.request-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-top: 4px solid #ccc; }
+.request-card.approved { border-top-color: var(--success); }
+.request-card.rejected { border-top-color: var(--danger); }
 .request-card.pending { border-top-color: #f1c40f; }
-.request-card.approved { border-top-color: #2ecc71; }
-.request-card.rejected { border-top-color: #e74c3c; }
 
-.view-file-btn {
-    background: #ebf5ff;
-    color: #007bff;
-    border: 1px dashed #007bff;
-    padding: 10px;
-    width: 100%;
-    border-radius: 8px;
-    cursor: pointer;
-    margin: 10px 0;
-    font-weight: 600;
-}
+.card-body { padding: 20px; flex-grow: 1; }
+.card-body h3 { margin: 0 0 15px; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; }
+.card-body h3 span { font-size: 0.8rem; color: var(--gray); }
+.info-row { margin-bottom: 8px; font-size: 0.9rem; color: #555; }
 
-/* التنبيهات */
-.notification-toast {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #27ae60;
-    color: white;
-    padding: 15px 30px;
-    border-radius: 10px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    z-index: 10000;
-    animation: slideIn 0.5s ease-out;
-}
+.view-btn { width: 100%; padding: 8px; margin-top: 10px; background: #f8f9fa; border: 1px dashed var(--primary); color: var(--primary); cursor: pointer; border-radius: 5px; }
 
-@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-.fade-out { opacity: 0; transition: 0.5s; }
+.card-footer { padding: 15px; background: #fafafa; display: flex; gap: 10px; }
+.btn-acc { flex: 2; background: var(--success); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+.btn-rej { flex: 1; background: white; color: var(--danger); border: 1px solid var(--danger); padding: 10px; border-radius: 6px; cursor: pointer; }
 
-/* المودال (عرض المرفقات) */
-.modal { display: none; position: fixed; z-index: 10001; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
-.modal-content { background: #fff; margin: 5% auto; padding: 20px; width: 80%; border-radius: 10px; position: relative; }
-.close { position: absolute; left: 20px; top: 10px; font-size: 30px; cursor: pointer; color: #333; }
+.status-done { width: 100%; text-align: center; font-weight: bold; color: var(--gray); }
 
-/* أزرار التحكم */
-.req-actions { display: flex; gap: 10px; margin-top: 15px; }
-.approve-btn { background: #2ecc71; color: #fff; flex: 2; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
-.reject-btn { background: #fff; color: #e74c3c; border: 1px solid #e74c3c; flex: 1; padding: 12px; border-radius: 8px; cursor: pointer; }
-.final-status { width: 100%; text-align: center; color: #7f8c8d; font-weight: bold; background: #f8f9fa; padding: 10px; border-radius: 8px; }
-
-.lang-btn { cursor: pointer; font-weight: bold; padding: 5px; color: #2a5298; }
+/* Modal */
+.modal { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+.modal-content { background: white; padding: 20px; border-radius: 10px; width: 80%; max-width: 800px; position: relative; }
+.close-modal { position: absolute; top: 10px; right: 20px; font-size: 25px; cursor: pointer; }
