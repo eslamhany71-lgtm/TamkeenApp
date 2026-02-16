@@ -1,28 +1,37 @@
-// manager.js - المدير (النسخة الاحترافية: فلترة قسم + إشعارات لحظية + مرفقات)
-
-let currentManagerDept = null;
+// manager.js - النسخة الاحترافية 2.0
+let currentManagerDept = sessionStorage.getItem('managerDept') || null;
 
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         const managerCode = user.email.split('@')[0];
-        fetchManagerInfo(managerCode);
+        if (!currentManagerDept) {
+            fetchManagerInfo(managerCode);
+        } else {
+            initManagerDashboard();
+        }
     } else { window.location.href = "index.html"; }
 });
 
 async function fetchManagerInfo(code) {
-    const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
-    if (doc.exists) {
-        currentManagerDept = doc.data().department;
-        
-        const header = document.getElementById('txt-header');
-        if (header) header.innerText += ` - ${currentManagerDept}`;
-
-        loadRequestsByDept(currentManagerDept);
-        startNotificationListener(currentManagerDept); // بدء مراقبة الإشعارات
-    }
+    try {
+        const doc = await firebase.firestore().collection("Employee_Database").doc(code).get();
+        if (doc.exists) {
+            currentManagerDept = doc.data().department;
+            sessionStorage.setItem('managerDept', currentManagerDept);
+            initManagerDashboard();
+        }
+    } catch (error) { console.error("Error fetching manager info:", error); }
 }
 
-// 1. مراقب الإشعارات اللحظي (يظهر للمدير وهو فاتح الصفحة)
+function initManagerDashboard() {
+    document.getElementById('dept-name').innerText = `(${currentManagerDept})`;
+    loadRequestsByDept(currentManagerDept);
+    startNotificationListener(currentManagerDept);
+    // تفعيل اللغات عند بدء التحميل
+    if (window.applyLanguage) window.applyLanguage(); 
+}
+
+// 1. مراقب الإشعارات اللحظي مع صوت تنبيه
 function startNotificationListener(dept) {
     firebase.firestore().collection("Notifications")
         .where("targetDept", "==", dept)
@@ -30,9 +39,7 @@ function startNotificationListener(dept) {
         .onSnapshot((snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added") {
-                    const notify = change.doc.data();
-                    showNotificationToast(notify.message);
-                    // تعليم الإشعار كـ "مقروء" فورياً
+                    showNotificationToast(change.doc.data().message);
                     change.doc.ref.update({ isRead: true });
                 }
             });
@@ -41,20 +48,16 @@ function startNotificationListener(dept) {
 
 function showNotificationToast(msg) {
     const toast = document.createElement('div');
+    toast.className = "notification-toast";
     toast.innerHTML = `🔔 ${msg}`;
-    toast.style = "position:fixed; top:20px; right:20px; background:#27ae60; color:white; padding:15px 25px; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.2); z-index:9999; font-weight:bold; border-right: 5px solid #1e8449; animation: slideIn 0.5s forwards;";
     document.body.appendChild(toast);
     
-    // تشغيل صوت تنبيه
-    const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
-    audio.play().catch(() => {});
-
-    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 4000);
+    new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3').play().catch(()=>{});
+    setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => toast.remove(), 500); }, 4000);
 }
 
-// 2. تحميل الطلبات (قسم المدير فقط)
+// 2. تحميل الطلبات مع دعم اللغات
 function loadRequestsByDept(deptName) {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
     const list = document.getElementById('requests-list');
     const countSpan = document.getElementById('pending-count');
 
@@ -66,8 +69,8 @@ function loadRequestsByDept(deptName) {
             let pendingCount = 0;
 
             if (snapshot.empty) {
-                list.innerHTML = "<p style='text-align:center; padding:20px;'>لا توجد طلبات حالياً.</p>";
-                if (countSpan) countSpan.innerText = "0";
+                list.innerHTML = `<p class="no-data" data-i18n="no_requests">لا توجد طلبات حالياً لموظفي قسم ${deptName}</p>`;
+                countSpan.innerText = "0";
                 return;
             }
 
@@ -76,10 +79,10 @@ function loadRequestsByDept(deptName) {
                 if(data.status === "Pending") pendingCount++;
 
                 const attachmentBtn = data.fileBase64 ? `
-                    <button onclick="viewFile('${doc.id}')" style="margin-top:10px; background:#3498db; color:white; border:none; padding:8px; border-radius:5px; cursor:pointer; width:100%;">
-                        📎 عرض المرفق (إثبات)
+                    <button onclick="viewFile('${doc.id}')" class="view-file-btn">
+                        📎 <span data-i18n="view_attachment">عرض المرفق</span>
                     </button>
-                    <div id="data-${doc.id}" style="display:none;">${data.fileBase64}</div>
+                    <textarea id="data-${doc.id}" style="display:none;">${data.fileBase64}</textarea>
                 ` : "";
 
                 const card = document.createElement('div');
@@ -87,37 +90,79 @@ function loadRequestsByDept(deptName) {
                 card.innerHTML = `
                     <div class="req-info">
                         <h4>${data.employeeName} <small>#${data.employeeCode}</small></h4>
-                        <p><strong>نوع الطلب:</strong> ${translateType(data.type)}</p>
-                        <p><strong>التاريخ:</strong> ${data.startDate || data.reqDate}</p>
-                        <p><strong>السبب:</strong> ${data.reason}</p>
+                        <p><strong><span data-i18n="req_type">الطلب:</span></strong> ${translateType(data.type)}</p>
+                        <p><strong><span data-i18n="req_date">التاريخ:</span></strong> ${data.startDate || data.reqDate}</p>
+                        <p class="reason-text"><strong><span data-i18n="reason">السبب:</span></strong> ${data.reason}</p>
                         ${attachmentBtn}
                     </div>
                     <div class="req-actions">
                         ${data.status === "Pending" ? `
-                            <button onclick="updateStatus('${doc.id}', 'Approved')" class="approve-btn">موافقة</button>
-                            <button onclick="updateStatus('${doc.id}', 'Rejected')" class="reject-btn">رفض</button>
-                        ` : `<p class="final-status">تمت المراجعة (${data.status})</p>`}
+                            <button onclick="updateStatus('${doc.id}', 'Approved', '${data.employeeCode}', '${data.days || 0}')" class="approve-btn" data-i18n="approve">موافقة</button>
+                            <button onclick="updateStatus('${doc.id}', 'Rejected')" class="reject-btn" data-i18n="reject">رفض</button>
+                        ` : `<p class="final-status">✅ <span data-i18n="${data.status.toLowerCase()}">${data.status}</span></p>`}
                     </div>
                 `;
                 list.appendChild(card);
             });
-            if (countSpan) countSpan.innerText = pendingCount;
+            countSpan.innerText = pendingCount;
+            if (window.applyLanguage) window.applyLanguage(); 
         });
 }
 
+// 3. تحديث الحالة مع خصم الرصيد (للموافقة فقط)
+async function updateStatus(id, status, empCode, days) {
+    const confirmMsg = localStorage.getItem('preferredLang') === 'en' ? "Are you sure?" : "هل أنت متأكد؟";
+    if(!confirm(confirmMsg)) return;
+
+    const batch = firebase.firestore().batch();
+    const reqRef = firebase.firestore().collection("HR_Requests").doc(id);
+    
+    batch.update(reqRef, { 
+        status: status, 
+        reviewedAt: firebase.firestore.FieldValue.serverTimestamp() 
+    });
+
+    // إذا تمت الموافقة، يتم خصم الإجازة تلقائياً من الموظف
+    if(status === "Approved" && days > 0) {
+        const empRef = firebase.firestore().collection("Employee_Database").doc(empCode);
+        batch.update(empRef, { 
+            leaveBalance: firebase.firestore.FieldValue.increment(-days) 
+        });
+    }
+
+    try {
+        await batch.commit();
+    } catch (e) { alert("Error: " + e.message); }
+}
+
+// 4. عرض الملفات الاحترافي (Base64)
 function viewFile(docId) {
-    const data = document.getElementById(`data-${docId}`).innerText;
-    const win = window.open();
-    win.document.write(`<html><body style="margin:0;"><iframe src="${data}" frameborder="0" style="width:100%; height:100vh;"></iframe></body></html>`);
-}
+    const base64Data = document.getElementById(`data-${docId}`).value;
+    const modal = document.getElementById('fileModal');
+    const img = document.getElementById('modalImg');
+    const iframe = document.getElementById('modalIframe');
 
-async function updateStatus(id, status) {
-    if(confirm("هل أنت متأكد؟")) {
-        await firebase.firestore().collection("HR_Requests").doc(id).update({
-            status: status,
-            reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+    modal.style.display = "block";
+    
+    if (base64Data.includes("image")) {
+        img.src = base64Data;
+        img.style.display = "block";
+        iframe.style.display = "none";
+    } else {
+        iframe.src = base64Data;
+        iframe.style.display = "block";
+        img.style.display = "none";
     }
 }
 
-function translateType(t) { const map = { vacation: "إجازة", late: "إذن تأخير", exit: "تصريح خروج" }; return map[t] || t; }
+function closeModal() { document.getElementById('fileModal').style.display = "none"; }
+
+function translateType(t) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const map = {
+        vacation: { ar: "إجازة", en: "Vacation" },
+        late: { ar: "إذن تأخير", en: "Late Arrival" },
+        exit: { ar: "تصريح خروج", en: "Exit Permit" }
+    };
+    return map[t] ? map[t][lang] : t;
+}
