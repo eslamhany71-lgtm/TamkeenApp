@@ -39,7 +39,7 @@ function loginById() {
     });
 }
 
-// 2. دالة تفعيل الحساب لأول مرة (النسخة المضمونة)
+// 2. دالة تفعيل الحساب لأول مرة (النسخة الكاملة والمضمونة)
 async function activateAccount() {
     const code = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -47,11 +47,10 @@ async function activateAccount() {
     const msg = document.getElementById('reg-msg');
 
     if(!code || !phone || !pass) { 
-        msg.innerText = "برجاء إكمال البيانات"; return; 
+        if(msg) msg.innerText = "برجاء إكمال البيانات"; return; 
     }
 
     try {
-        // 1. جلب بيانات الموظف من الجدول المرفوع
         const empDoc = await db.collection("Employee_Database").doc(code).get();
 
         if (!empDoc.exists) {
@@ -72,11 +71,8 @@ async function activateAccount() {
 
         msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
-        // 2. إنشاء الحساب في الـ Auth
         const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
         
-        // 3. كتابة الصلاحيات في جدول Users (المهمة جداً)
-        // بنستخدم await هنا عشان نضمن إنه مش هيتحرك للسطر اللي بعده غير لما يخلص كتابة
         await db.collection("Users").doc(email).set({
             role: role,
             name: empData.name,
@@ -84,22 +80,20 @@ async function activateAccount() {
             email: email
         });
 
-        // 4. تحديث حالة التفعيل في جدول الموظفين
         await db.collection("Employee_Database").doc(code).update({
             activated: true
         });
 
-        // 5. تأكيد نهائي قبل التحويل
         msg.innerText = "تم التفعيل بنجاح! جاري تحويلك...";
         
         setTimeout(() => {
             alert("تم التفعيل بنجاح بصلاحية: " + role);
             window.location.href = "index.html";
-        }, 1500); // بنستنى ثانية ونصف عشان نضمن إن الداتا سمعت في السيرفر
+        }, 1500);
 
     } catch (error) {
         console.error("خطأ التفعيل:", error);
-        msg.innerText = "خطأ: " + error.message;
+        if(msg) msg.innerText = "خطأ: " + error.message;
     }
 }
 
@@ -107,16 +101,13 @@ async function activateAccount() {
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop();
-    // تحديد صفحات الدخول
     const isLoginPage = fileName === "index.html" || fileName === "activate.html" || fileName === "" || fileName === "undefined";
 
     if (user) {
-        // لو مسجل دخول وهو في صفحة الدخول، ابعته للهوم
         if (isLoginPage) {
             window.location.href = "home.html";
         }
     } else {
-        // لو مش مسجل وهو في صفحة حماية، ارجع للدخول
         if (!isLoginPage) {
             window.location.href = "index.html";
         }
@@ -130,37 +121,61 @@ function logout() {
     }).catch(err => console.log("Logout Error"));
 }
 
-// 5. نظام اللغة الكامل (Login & Activate)
+// 5. نظام اللغة الكامل (Login & Activate & Manager Dashboard)
 function updatePageContent(lang) {
     const translations = {
         ar: {
+            // ترجمات صفحة الدخول والتفعيل
             title: "دخول - نظام تمكين", brand: "تمكين للتمويل", welcome: "تسجيل الدخول", code: "كود الموظف", pass: "كلمة المرور", btn: "دخول", new: "موظف جديد؟", act: "تفعيل الحساب",
-            actTitle: "تفعيل الحساب (للموظفين الجدد)", lblPhone: "رقم الموبايل", lblNewPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن", back: "العودة للدخول"
+            actTitle: "تفعيل الحساب (للموظفين الجدد)", lblPhone: "رقم الموبايل", lblNewPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن", back: "رجوع",
+            // ترجمات صفحة المدير (المضافة لحل مشكلة الـ Error)
+            m_title: "لوحة تحكم المدير - نظام تمكين",
+            m_header: "مراجعة طلبات الموظفين",
+            m_pending_label: "إجمالي الطلبات المعلقة:",
+            m_loading: "جاري تحميل الطلبات...",
+            m_no_requests: "لا توجد طلبات حالياً."
         },
         en: {
             title: "Login - Tamkeen", brand: "Tamkeen Finance", welcome: "User Login", code: "Employee ID", pass: "Password", btn: "Login", new: "New Employee?", act: "Activate Account",
-            actTitle: "Account Activation", lblPhone: "Mobile Number", lblNewPass: "New Password", btnAct: "Activate Now", back: "Back to Login"
+            actTitle: "Account Activation", lblPhone: "Mobile Number", lblNewPass: "New Password", btnAct: "Activate Now", back: "Back",
+            // Manager Dashboard
+            m_title: "Manager Dashboard - Tamkeen",
+            m_header: "Review Employee Requests",
+            m_pending_label: "Total Pending Requests:",
+            m_loading: "Loading requests...",
+            m_no_requests: "No requests available at the moment."
         }
     };
 
     const t = translations[lang];
-    
-    // عناصر صفحة الدخول (index.html)
-    if (document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
-    if (document.getElementById('txt-brand')) document.getElementById('txt-brand').innerText = t.brand;
-    if (document.getElementById('txt-welcome')) document.getElementById('txt-welcome').innerText = t.welcome;
-    if (document.getElementById('lbl-code')) document.getElementById('lbl-code').innerText = t.code;
-    if (document.getElementById('lbl-pass')) document.getElementById('lbl-pass').innerText = t.pass;
-    if (document.getElementById('btn-login')) document.getElementById('btn-login').innerText = t.btn;
-    if (document.getElementById('txt-new')) document.getElementById('txt-new').innerText = t.new;
-    if (document.getElementById('link-activate')) document.getElementById('link-activate').innerText = t.act;
-    
-    // عناصر صفحة التفعيل (activate.html)
-    if (document.getElementById('txt-act-title')) document.getElementById('txt-act-title').innerText = t.actTitle;
-    if (document.getElementById('lbl-phone')) document.getElementById('lbl-phone').innerText = t.lblPhone;
-    if (document.getElementById('lbl-new-pass')) document.getElementById('lbl-new-pass').innerText = t.lblNewPass;
-    if (document.getElementById('btn-activate')) document.getElementById('btn-activate').innerText = t.btnAct;
-    if (document.getElementById('link-back')) document.getElementById('link-back').innerText = t.back;
-    
     document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
+
+    // دالة مساعدة لتجنب أخطاء undefined
+    const safeSetText = (id, text) => {
+        const element = document.getElementById(id);
+        if (element) element.innerText = text;
+    };
+
+    // 1. عناصر صفحة الدخول (index.html)
+    safeSetText('txt-title', t.title);
+    safeSetText('txt-brand', t.brand);
+    safeSetText('txt-welcome', t.welcome);
+    safeSetText('lbl-code', t.code);
+    safeSetText('lbl-pass', t.pass);
+    safeSetText('btn-login', t.btn);
+    safeSetText('txt-new', t.new);
+    safeSetText('link-activate', t.act);
+    
+    // 2. عناصر صفحة التفعيل (activate.html)
+    safeSetText('txt-act-title', t.actTitle);
+    safeSetText('lbl-phone', t.lblPhone);
+    safeSetText('lbl-new-pass', t.lblNewPass);
+    safeSetText('btn-activate', t.btnAct);
+    safeSetText('link-back', t.back);
+
+    // 3. عناصر صفحة المدير (manager-dashboard.html)
+    safeSetText('manager-page-title', t.m_title); // تحديث التايتل لمنع الخطأ
+    safeSetText('txt-header-main', t.m_header);
+    safeSetText('txt-pending-label', t.m_pending_label);
+    safeSetText('loading-msg', t.m_loading);
 }
