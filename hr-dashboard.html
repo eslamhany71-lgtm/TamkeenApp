@@ -93,12 +93,13 @@
                     <label id="lbl-search">بحث سريع:</label>
                     <input type="text" id="filter-general" onkeyup="filterTable()" placeholder="اسم، كود، وظيفة...">
                 </div>
-               <!-- الجزء الخاص بالزرار داخل الـ filter-row -->
-<div class="filter-item reset-wrapper">
-    <button class="btn-reset" onclick="resetFilters()" title="إعادة ضبط الفلاتر">
-        🔄
-    </button>
-</div>
+                
+                <!-- تم تعديل الزرار هنا ليكون منسقاً -->
+                <div class="filter-item reset-wrapper">
+                    <button class="btn-reset" onclick="resetFilters()" title="إعادة ضبط الفلاتر">
+                        🔄
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -125,7 +126,6 @@
         </div>
     </main>
 
-    <!-- الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
