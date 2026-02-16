@@ -1,123 +1,89 @@
-/* --- تنسيق لوحة تحكم المدير --- */
+/* تحسينات عامة */
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f9; margin: 0; }
 
-/* شريط الإحصائيات العلوي */
+.container { max-width: 1100px; margin: auto; padding: 20px; }
+
+/* شريط الإحصائيات */
 .stats-bar {
     background: #fff;
     padding: 15px 25px;
-    border-radius: 10px;
+    border-radius: 12px;
     margin-bottom: 25px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    border-right: 5px solid #2a5298;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-right: 5px solid #2a5298;
 }
 
-.stats-bar p {
-    margin: 0;
+.live-dot {
+    color: #27ae60;
+    font-size: 0.9rem;
     font-weight: bold;
-    font-size: 1.1rem;
-    color: #333;
+    animation: blink 1.5s infinite;
 }
 
-#pending-count {
-    color: #e67e22; /* لون برتقالي للطلبات المعلقة */
-    font-size: 1.4rem;
-}
+@keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-/* شبكة الطلبات */
+/* الكروت */
 .requests-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 20px;
 }
 
-/* كارت الطلب */
 .request-card {
     background: #fff;
     padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    transition: 0.3s;
-    border-top: 4px solid #ccc;
-    position: relative;
+    border-radius: 15px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    transition: 0.3s ease;
+    border-top: 5px solid #ccc;
 }
 
-.request-card:hover {
-    transform: translateY(-5px);
+.request-card:hover { transform: translateY(-8px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+.request-card.pending { border-top-color: #f1c40f; }
+.request-card.approved { border-top-color: #2ecc71; }
+.request-card.rejected { border-top-color: #e74c3c; }
+
+.view-file-btn {
+    background: #ebf5ff;
+    color: #007bff;
+    border: 1px dashed #007bff;
+    padding: 10px;
+    width: 100%;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 10px 0;
+    font-weight: 600;
 }
 
-/* ألوان الحالة في الكروت */
-.request-card.pending { border-top-color: #f1c40f; }   /* أصفر */
-.request-card.approved { border-top-color: #2ecc71; }  /* أخضر */
-.request-card.rejected { border-top-color: #e74c3c; }  /* أحمر */
-
-.req-info h4 {
-    margin: 0 0 15px 0;
-    color: #2a5298;
-    font-size: 1.2rem;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+/* التنبيهات */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #27ae60;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 10px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    z-index: 10000;
+    animation: slideIn 0.5s ease-out;
 }
 
-.req-info p {
-    margin: 8px 0;
-    font-size: 0.95rem;
-    color: #555;
-}
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.fade-out { opacity: 0; transition: 0.5s; }
 
-.status-label {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    text-transform: uppercase;
-}
-
-.pending .status-label { background: #fef9e7; color: #f1c40f; }
-.approved .status-label { background: #eafaf1; color: #2ecc71; }
-.rejected .status-label { background: #fdedec; color: #e74c3c; }
+/* المودال (عرض المرفقات) */
+.modal { display: none; position: fixed; z-index: 10001; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+.modal-content { background: #fff; margin: 5% auto; padding: 20px; width: 80%; border-radius: 10px; position: relative; }
+.close { position: absolute; left: 20px; top: 10px; font-size: 30px; cursor: pointer; color: #333; }
 
 /* أزرار التحكم */
-.req-actions {
-    margin-top: 20px;
-    display: flex;
-    gap: 10px;
-}
+.req-actions { display: flex; gap: 10px; margin-top: 15px; }
+.approve-btn { background: #2ecc71; color: #fff; flex: 2; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+.reject-btn { background: #fff; color: #e74c3c; border: 1px solid #e74c3c; flex: 1; padding: 12px; border-radius: 8px; cursor: pointer; }
+.final-status { width: 100%; text-align: center; color: #7f8c8d; font-weight: bold; background: #f8f9fa; padding: 10px; border-radius: 8px; }
 
-.approve-btn, .reject-btn {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.2s;
-    color: white;
-}
-
-.approve-btn { background-color: #2ecc71; }
-.approve-btn:hover { background-color: #27ae60; }
-
-.reject-btn { background-color: #e74c3c; }
-.reject-btn:hover { background-color: #c0392b; }
-
-.final-status {
-    width: 100%;
-    text-align: center;
-    padding: 8px;
-    background: #f8f9fa;
-    border-radius: 6px;
-    color: #7f8c8d;
-    font-weight: bold;
-}
-
-/* ريسبونسيف للموبايل */
-@media (max-width: 600px) {
-    .request-card {
-        padding: 15px;
-    }
-}
+.lang-btn { cursor: pointer; font-weight: bold; padding: 5px; color: #2a5298; }
