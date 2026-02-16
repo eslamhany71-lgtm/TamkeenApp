@@ -3,48 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title" data-i18n="manager_title">لوحة تحكم المدير - تمكين</title>
+    <title id="manager-page-title">لوحة تحكم المدير - تمكين</title>
     <link rel="stylesheet" href="css/manager.css">
-    
-    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-    <header>
-        <div class="header-right">
-            <button onclick="location.href='home.html'" class="back-btn" id="btn-back" data-i18n="back">رجوع</button>
+    <header class="main-header">
+        <div class="header-container">
+            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
+            <h2 id="txt-header-main">مراجعة طلبات الموظفين</h2>
             <div class="lang-switch">
-                <span onclick="setLanguage('ar')" class="lang-btn">AR</span> | 
-                <span onclick="setLanguage('en')" class="lang-btn">EN</span>
+                <span onclick="setLanguage('ar')">AR</span> | <span onclick="setLanguage('en')">EN</span>
             </div>
         </div>
-        <h2 id="txt-header"><span data-i18n="review_requests">مراجعة طلبات الموظفين</span> <span id="dept-name"></span></h2>
     </header>
 
     <main class="container">
         <div class="stats-bar">
-            <p>
-                <span data-i18n="total_pending">إجمالي الطلبات المعلقة:</span> 
-                <span id="pending-count">0</span>
-            </p>
-            <div id="live-indicator" class="live-dot">● Live</div>
+            <p><span id="txt-pending-label">إجمالي الطلبات المعلقة:</span> <span id="pending-count">0</span></p>
+            <div class="live-status"><span class="dot"></span> Live</div>
         </div>
 
-        <!-- شبكة الطلبات -->
         <div id="requests-list" class="requests-grid">
-            <p id="loading-msg" data-i18n="loading">جاري تحميل الطلبات...</p>
+            <p id="loading-msg">جاري تحميل الطلبات...</p>
         </div>
     </main>
 
-    <!-- Modal لعرض الصور بشكل احترافي -->
-    <div id="fileModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <img id="modalImg" src="" style="width:100%; display:none;">
-            <iframe id="modalIframe" src="" style="width:100%; height:80vh; border:none; display:none;"></iframe>
+    <!-- Modal لعرض المرفقات -->
+    <div id="fileModal" class="modal" onclick="closeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
         </div>
     </div>
 
