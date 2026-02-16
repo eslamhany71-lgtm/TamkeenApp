@@ -10,45 +10,24 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    <!-- مكتبة التخزين لرفع الملفات -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
-
-    <style>
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; color: white; }
-        .badge.pending { background-color: #f39c12; } 
-        .badge.approved { background-color: #27ae60; } 
-        .badge.rejected { background-color: #e74c3c; } 
-        
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .mini-stat { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #ddd; }
-        .stat-val { display: block; font-size: 1.5em; font-weight: bold; }
-        .stat-label { font-size: 0.9em; color: #666; }
-        
-        /* تنسيق خانة الرفع */
-        .file-input-wrapper {
-            margin-top: 10px;
-            padding: 10px;
-            border: 1px dashed #3498db;
-            border-radius: 8px;
-            background: #f0f7ff;
-        }
-        .file-input-wrapper input { cursor: pointer; width: 100%; }
-    </style>
 </head>
 <body>
 
-    <header>
-        <div class="header-right">
-            <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
-            <div class="lang-switch" style="display:inline; margin-right:10px;">
-                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+    <header class="main-header">
+        <div class="header-content container">
+            <button onclick="location.href='home.html'" class="btn-icon-back" id="btn-back">
+                <span class="icon">⬅</span> <span id="txt-back">رجوع</span>
+            </button>
+            <h2 id="txt-header-main">الخدمات الذاتية للموظفين</h2>
+            <div class="lang-switch">
+                <span onclick="setLanguage('ar')" class="lang-btn">عربي</span> | 
+                <span onclick="setLanguage('en')" class="lang-btn">EN</span>
             </div>
         </div>
-        <h2 id="txt-header">الخدمات الذاتية للموظفين</h2>
     </header>
 
     <main class="container">
+        <!-- شبكة الخيارات -->
         <div class="hr-grid">
             <div class="hr-card" onclick="openForm('vacation')">
                 <div class="card-icon">📅</div>
@@ -74,7 +53,7 @@
                 </div>
             </div>
 
-            <div class="hr-card" style="border: 2px solid #3498db;" onclick="openMyRequests()">
+            <div class="hr-card special-card" onclick="openMyRequests()">
                 <div class="card-icon">📊</div>
                 <div class="card-info">
                     <h3 id="txt-my-orders">سجل طلباتي</h3>
@@ -83,7 +62,7 @@
             </div>
         </div>
 
-        <!-- مودال طلب جديد -->
+        <!-- مودال تقديم الطلبات -->
         <div id="formModal" class="modal">
             <div class="modal-content animate-top">
                 <div class="modal-header">
@@ -93,6 +72,7 @@
                 
                 <form id="hrRequestForm" class="chic-form">
                     <input type="hidden" id="requestType">
+                    
                     <div class="form-row">
                         <div class="input-box">
                             <span class="field-label" id="lbl-code">كود الموظف</span>
@@ -103,6 +83,7 @@
                             <input type="text" id="empName" required>
                         </div>
                     </div>
+
                     <div class="form-row">
                         <div class="input-box">
                             <span class="field-label" id="lbl-job">الوظيفة</span>
@@ -113,80 +94,82 @@
                             <input type="text" id="empDept" required>
                         </div>
                     </div>
+
                     <div class="input-box">
                         <span class="field-label" id="lbl-hire">تاريخ التعيين</span>
                         <input type="date" id="hireDate" required>
                     </div>
+
                     <hr>
+
+                    <!-- حقول الإجازة -->
                     <div id="vacation-fields" style="display:none;">
                         <div class="input-box">
                             <span class="field-label" id="lbl-vac-type">نوع الإجازة</span>
                             <select id="vacType">
-                                <option value="سنوية">سنوية</option>
-                                <option value="مرضية">مرضية</option>
-                                <option value="عارضة">عارضة</option>
-                                <option value="بدون أجر">بدون أجر</option>
+                                <option value="سنوية" id="opt-annual">سنوية</option>
+                                <option value="مرضية" id="opt-medical">مرضية</option>
+                                <option value="عارضة" id="opt-casual">عارضة</option>
+                                <option value="بدون أجر" id="opt-unpaid">بدون أجر</option>
                             </select>
                         </div>
                         <div class="form-row">
-                            <div class="input-box"><span>من تاريخ</span><input type="date" id="startDate"></div>
-                            <div class="input-box"><span>إلى تاريخ</span><input type="date" id="endDate"></div>
+                            <div class="input-box"><span id="lbl-from">من تاريخ</span><input type="date" id="startDate"></div>
+                            <div class="input-box"><span id="lbl-to">إلى تاريخ</span><input type="date" id="endDate"></div>
                         </div>
                     </div>
+
+                    <!-- حقول الأذونات -->
                     <div id="time-fields" style="display:none;">
                         <div class="form-row">
-                            <div class="input-box"><span>تاريخ الإذن</span><input type="date" id="reqDate"></div>
-                            <div class="input-box"><span>الوقت</span><input type="time" id="reqTime"></div>
+                            <div class="input-box"><span id="lbl-req-date">تاريخ الإذن</span><input type="date" id="reqDate"></div>
+                            <div class="input-box"><span id="lbl-time">الوقت</span><input type="time" id="reqTime"></div>
                         </div>
                     </div>
+
                     <div class="input-box">
-                        <span class="field-label">السبب</span>
+                        <span class="field-label" id="lbl-reason">السبب / التفاصيل</span>
                         <textarea id="reqReason" rows="2" required></textarea>
                     </div>
 
-                    <!-- خانة رفع الملف (جديد) -->
                     <div class="file-input-wrapper">
-                        <span class="field-label" id="lbl-attachment">إرفاق مستند إثبات (اختياري)</span>
-                        <input type="file" id="reqAttachment" accept=".jpg, .jpeg, .png, .pdf, .xlsx, .xls, .csv">
+                        <span class="field-label" id="lbl-attachment">إرفاق مستند (اختياري)</span>
+                        <input type="file" id="reqAttachment" accept=".jpg,.png,.pdf,.xlsx">
                     </div>
 
-                    <button type="submit" class="submit-btn" id="btn-submit" style="margin-top: 20px;">إرسال الطلب الآن</button>
+                    <button type="submit" class="submit-btn" id="btn-submit">إرسال الطلب الآن</button>
                 </form>
             </div>
         </div>
 
-        <!-- مودال "سجل طلباتي" -->
+        <!-- مودال سجل طلباتي -->
         <div id="requestsModal" class="modal">
-            <div class="modal-content animate-bottom" style="max-width: 900px;">
+            <div class="modal-content animate-bottom" style="max-width: 800px;">
                 <div class="modal-header">
-                    <h2 id="txt-modal-history">سجل طلباتي وإحصائياتي</h2>
+                    <h2 id="txt-history-title">سجل طلباتي وإحصائياتي</h2>
                     <span class="close-btn" onclick="closeRequests()">&times;</span>
                 </div>
                 <div class="stats-grid">
                     <div class="mini-stat">
-                        <span class="stat-val" id="vacation-balance" style="color: #2980b9;">21</span>
-                        <span class="stat-label">الرصيد المتبقي</span>
+                        <span class="stat-val" id="vacation-balance">21</span>
+                        <span class="stat-label" id="txt-stat-balance">الرصيد المتبقي</span>
                     </div>
                     <div class="mini-stat">
-                        <span class="stat-val" id="my-pending-count" style="color: #f39c12;">0</span>
-                        <span class="stat-label">قيد الانتظار</span>
+                        <span class="stat-val" id="my-pending-count" style="color:orange">0</span>
+                        <span class="stat-label" id="txt-stat-pending">قيد الانتظار</span>
                     </div>
                     <div class="mini-stat">
-                        <span class="stat-val" id="my-approved-count" style="color: #27ae60;">0</span>
-                        <span class="stat-label">مقبولة</span>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="stat-val" id="my-rejected-count" style="color: #e74c3c;">0</span>
-                        <span class="stat-label">مرفوضة</span>
+                        <span class="stat-val" id="my-approved-count" style="color:green">0</span>
+                        <span class="stat-label" id="txt-stat-approved">مقبولة</span>
                     </div>
                 </div>
-                <div style="max-height: 400px; overflow-y: auto;">
-                    <table class="styled-table" style="width: 100%;">
+                <div class="table-container">
+                    <table class="styled-table">
                         <thead>
                             <tr>
-                                <th>النوع</th>
-                                <th>التاريخ</th>
-                                <th>الحالة</th>
+                                <th id="th-type">النوع</th>
+                                <th id="th-date">التاريخ</th>
+                                <th id="th-status">الحالة</th>
                             </tr>
                         </thead>
                         <tbody id="my-requests-table"></tbody>
