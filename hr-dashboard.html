@@ -3,12 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">إدارة الموارد البشرية - تمكين</title>
-    
-    <!-- ربط ملفات التنسيق -->
+    <title id="txt-title">إدارة الموارد البشرية - نظام تمكين</title>
     <link rel="stylesheet" href="css/hr-admin.css">
-    
-    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -18,17 +14,16 @@
     <header>
         <div class="header-right">
             <button onclick="location.href='home.html'" class="back-btn" id="btn-back">رجوع</button>
-            <div class="lang-switch" style="display:inline; margin-right:10px;">
-                <span onclick="setLanguage('ar')" style="cursor:pointer">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer">EN</span>
+            <div class="lang-switch">
+                <span onclick="setLanguage('ar')" class="lang-link">عربي</span> | 
+                <span onclick="setLanguage('en')" class="lang-link">EN</span>
             </div>
         </div>
         <h2 id="txt-header">لوحة تحكم الـ HR Admin</h2>
     </header>
 
     <main class="container">
-        
-        <!-- القسم الأول: إحصائيات وتقارير -->
+        <!-- الإحصائيات -->
         <div class="summary-bar">
             <div class="sum-item">
                 <span id="txt-total">إجمالي الطلبات:</span>
@@ -36,71 +31,77 @@
             </div>
             <div class="sum-item">
                 <span id="txt-approved">الموافق عليها:</span>
-                <strong id="approved-count" style="color: green;">0</strong>
+                <strong id="approved-count" style="color: #27ae60;">0</strong>
             </div>
-            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير (Excel)</button>
+            <button onclick="exportToExcel()" class="export-btn" id="btn-export">تحميل تقرير Excel</button>
         </div>
 
-        <!-- القسم الثاني (الجديد): أداة رفع بيانات الموظفين الجدد -->
-        <div class="summary-bar" style="background: #e8f4fd; border-right: 5px solid #2a5298; flex-direction: column; align-items: flex-start; gap: 10px;">
-            <label style="font-weight: bold; color: #2a5298;" id="lbl-upload">رفع بيانات الموظفين (ملف CSV):</label>
-            <div style="display: flex; gap: 10px; width: 100%; flex-wrap: wrap;">
-                <input type="file" id="csvFile" accept=".csv" style="padding: 5px; background: white; border-radius: 5px; flex: 1;">
-                <button onclick="uploadCSV()" class="export-btn" style="background:#2a5298" id="btn-upload-start">ابدأ الرفع الآن</button>
+        <!-- أداة رفع الموظفين -->
+        <div class="upload-section">
+            <label id="lbl-upload">رفع بيانات موظفين جدد (CSV):</label>
+            <div class="upload-controls">
+                <input type="file" id="csvFile" accept=".csv">
+                <button onclick="uploadCSV()" id="btn-upload-start">ابدأ الرفع الآن</button>
             </div>
-            <p style="font-size: 11px; color: #555;" id="txt-upload-note">ملحوظة: ترتيب الأعمدة في الملف يجب أن يكون: (الكود, الاسم, الموبايل)</p>
+            <p id="txt-upload-note">الترتيب: (الكود, الاسم, الموبايل, الرتبة/role, القسم)</p>
         </div>
 
-        <!-- القسم الثالث: الفلاتر -->
+        <!-- الفلاتر المطورة -->
         <div class="filter-section">
             <div class="filter-group">
                 <label id="lbl-filter-date">فلتر بالتاريخ:</label>
-                <div style="display: flex; gap: 5px;">
+                <div class="date-inputs">
                     <input type="date" id="filter-date-from" onchange="filterTable()">
                     <input type="date" id="filter-date-to" onchange="filterTable()">
                 </div>
             </div>
             
             <div class="filter-group">
-                <label id="lbl-filter-type">نوع الطلب:</label>
-                <select id="filter-type" onchange="filterTable()">
-                    <option value="" id="opt-all">الكل</option>
-                    <option value="vacation" id="opt-vac">إجازة</option>
-                    <option value="late" id="opt-late">إذن تأخير</option>
-                    <option value="exit" id="opt-exit">تصريح خروج</option>
+                <label id="lbl-filter-dept-select">القسم (قائمة):</label>
+                <select id="filter-dept-dropdown" onchange="filterTable()">
+                    <option value="">الكل</option>
                 </select>
             </div>
 
             <div class="filter-group">
-                <label id="lbl-filter-dept">البحث بالقسم / الوظيفة:</label>
-                <input type="text" id="filter-dept" onkeyup="filterTable()" placeholder="...">
+                <label id="lbl-filter-status">حالة الطلب:</label>
+                <select id="filter-status" onchange="filterTable()">
+                    <option value="">الكل</option>
+                    <option value="Approved">Approved (مقبول)</option>
+                    <option value="Pending">Pending (معلق)</option>
+                    <option value="Rejected">Rejected (مرفوض)</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label id="lbl-search">بحث سريع (اسم/كود/قسم):</label>
+                <input type="text" id="filter-general" onkeyup="filterTable()" placeholder="ابحث هنا...">
             </div>
 
             <button class="reset-filter-btn" onclick="resetFilters()" id="btn-reset-filter">إعادة ضبط</button>
         </div>
 
-        <!-- القسم الرابع: جدول البيانات -->
+        <!-- جدول البيانات -->
         <div class="table-container">
             <table id="requestsTable">
                 <thead>
                     <tr>
-                        <th id="th-code">الكود</th>
-                        <th id="th-name">الموظف</th>
-                        <th id="th-job">الوظيفة / القسم</th>
-                        <th id="th-type">نوع الطلب</th>
-                        <th id="th-date">التاريخ</th>
-                        <th id="th-status">الحالة</th>
-                        <th id="th-action">إجراء</th>
+                        <th>الكود</th>
+                        <th>الموظف</th>
+                        <th>الوظيفة</th>
+                        <th>القسم</th>
+                        <th>نوع الطلب</th>
+                        <th>التاريخ</th>
+                        <th>الحالة</th>
+                        <th>تم الإجراء بواسطة</th>
+                        <th>إجراء</th>
                     </tr>
                 </thead>
-                <tbody id="hr-requests-table">
-                    <!-- البيانات ستظهر هنا -->
-                </tbody>
+                <tbody id="hr-requests-table"></tbody>
             </table>
         </div>
     </main>
 
-    <!-- الملفات البرمجية -->
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
