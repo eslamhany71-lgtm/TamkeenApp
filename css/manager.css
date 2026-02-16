@@ -37,3 +37,55 @@ body { background: #f4f7f6; margin: 0; font-family: 'Segoe UI', sans-serif; }
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; }
 .modal-content { background: white; width: 85%; max-width: 900px; padding: 25px; border-radius: 15px; position: relative; }
 .close-modal { position: absolute; top: 10px; left: 15px; font-size: 30px; cursor: pointer; color: #333; }
+/* حاوية الإشعارات */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.notification-toast {
+    background: #27ae60; /* لون أخضر تمكين */
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    min-width: 280px;
+    border-right: 6px solid #1e8449;
+    animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.toast-icon { font-size: 1.5rem; }
+.toast-text b { font-size: 1rem; display: block; margin-bottom: 2px; }
+.toast-text p { margin: 0; font-size: 0.85rem; opacity: 0.9; }
+
+@keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(120%); opacity: 0; }
+}
+
+/* تحسين شكل كارت الطلب */
+.request-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    border-top: 5px solid #ccc;
+    transition: 0.3s;
+}
+.request-card:hover { transform: translateY(-5px); }
