@@ -1,4 +1,4 @@
-// hr-admin.js - النسخة الاحترافية الشاملة 2026 (دعم كامل للغتين + مراجع + CSV + Charts)
+// hr-admin.js - النسخة الاحترافية الشاملة 2026 (دعم كامل للغتين + مراجع + CSV + Charts + Modal)
 
 let allRequests = []; 
 let statusChart = null;
@@ -65,7 +65,7 @@ function updateCharts(dataArray) {
     });
 }
 
-// 3. رسم الجدول المطور (يدعم الترجمة اللحظية)
+// 3. رسم الجدول المطور (يدعم الترجمة والمودال)
 function renderTable(dataArray) {
     const tableBody = document.getElementById('hr-requests-table');
     const lang = localStorage.getItem('preferredLang') || 'ar';
@@ -93,15 +93,17 @@ function renderTable(dataArray) {
 
         const row = document.createElement('tr');
         row.style.cursor = "pointer";
+        row.onclick = () => showRequestDetails(data.id); // تشغيل المودال عند الضغط على السطر
+
         row.innerHTML = `
             <td onclick="event.stopPropagation()"><input type="checkbox" class="row-checkbox" value="${data.id}" onchange="updateBulkDeleteUI()"></td>
-            <td onclick="showRequestDetails('${data.id}')">${data.employeeCode || "--"}</td>
-            <td onclick="showRequestDetails('${data.id}')"><b>${data.employeeName}</b></td>
-            <td onclick="showRequestDetails('${data.id}')"><span class="dept-badge">${data.department || "--"}</span></td>
-            <td onclick="showRequestDetails('${data.id}')">${translateType(data.type)}</td>
-            <td onclick="showRequestDetails('${data.id}')">${dateRange}</td>
-            <td onclick="showRequestDetails('${data.id}')"><span class="badge ${data.status.toLowerCase()}">${translateStatus(data.status)}</span></td>
-            <td onclick="showRequestDetails('${data.id}')">${reviewerHtml}</td>
+            <td>${data.employeeCode || "--"}</td>
+            <td><b>${data.employeeName}</b></td>
+            <td><span class="dept-badge">${data.department || "--"}</span></td>
+            <td>${translateType(data.type)}</td>
+            <td>${dateRange}</td>
+            <td><span class="badge ${data.status.toLowerCase()}">${translateStatus(data.status)}</span></td>
+            <td>${reviewerHtml}</td>
             <td onclick="event.stopPropagation()"><button class="delete-btn" onclick="deleteSingleRequest('${data.id}')">🗑️</button></td>
         `;
         tableBody.appendChild(row);
@@ -143,7 +145,7 @@ async function uploadCSV() {
     reader.readAsText(fileInput.files[0], "UTF-8");
 }
 
-// 5. نظام الحذف الجماعي
+// 5. نظام الحذف الجماعي (Bulk Delete)
 function toggleSelectAll() {
     const isChecked = document.getElementById('selectAll').checked;
     document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
@@ -173,12 +175,12 @@ function showRequestDetails(id) {
     if (!data) return;
     const lang = localStorage.getItem('preferredLang') || 'ar';
 
-    document.getElementById('modal-emp-name').innerText = data.employeeName;
+    document.getElementById('modal-emp-name-header').innerText = data.employeeName;
     document.getElementById('det-name').innerText = data.employeeName;
     document.getElementById('det-code').innerText = data.employeeCode;
     document.getElementById('det-dept').innerText = data.department;
     document.getElementById('det-type').innerText = translateType(data.type) + (data.vacationType ? ` (${data.vacationType})` : "");
-    document.getElementById('det-dates').innerText = (data.type === 'vacation') ? `${data.startDate} إلى ${data.endDate}` : data.reqDate;
+    document.getElementById('det-dates').innerText = (data.type === 'vacation') ? `${data.startDate} إلى ${data.endDate}` : (data.reqDate || "--");
     document.getElementById('det-reason').innerText = data.reason || "--";
     document.getElementById('det-manager-note').innerText = data.managerComment || (lang === 'ar' ? "لا يوجد رد" : "No comment");
     document.getElementById('det-reviewer-name').innerText = data.reviewerName || "--";
@@ -188,7 +190,7 @@ function showRequestDetails(id) {
     container.innerHTML = "";
     if (data.fileBase64) {
         if (data.fileBase64.includes("image")) {
-            container.innerHTML = `<img src="${data.fileBase64}" style="max-width:100%; border-radius:15px; margin-top:10px;">`;
+            container.innerHTML = `<img src="${data.fileBase64}" style="max-width:100%; border-radius:15px; margin-top:10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">`;
         } else {
             container.innerHTML = `<button onclick="viewFileAdmin('${data.id}')" class="btn-export" style="margin-top:10px; background:#2a5298">${lang === 'ar' ? 'فتح المرفق' : 'Open Attachment'}</button>
             <textarea id="admin-data-${data.id}" style="display:none;">${data.fileBase64}</textarea>`;
@@ -218,6 +220,7 @@ function filterTable() {
 
 function populateDeptFilter(depts) {
     const dropdown = document.getElementById('filter-dept-dropdown');
+    if(!dropdown) return;
     const val = dropdown.value;
     dropdown.innerHTML = `<option value="">${localStorage.getItem('preferredLang')==='en'?'All Depts':'الكل'}</option>`;
     depts.forEach(d => dropdown.innerHTML += `<option value="${d}">${d}</option>`);
@@ -259,7 +262,7 @@ function exportToExcel() {
     const link = document.createElement('a'); link.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); link.download = `HR_Report_Tamkeen.csv`; link.click();
 }
 
-// 8. نظام اللغة الموحد (الذي يتم استدعاؤه من lang-manager.js)
+// 8. نظام اللغة الموحد
 function updatePageContent(lang) {
     const trans = {
         ar: {
@@ -273,19 +276,14 @@ function updatePageContent(lang) {
     };
     const t = trans[lang] || trans.ar;
 
-    // تحديث العناوين
     const set = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
     set('txt-title', t.title); set('btn-back-txt', t.back); set('txt-total', t.total); set('txt-approved', t.approved); set('lbl-upload', t.upload); set('btn-upload-start', t.btnUpload);
     set('txt-chart-status', t.chartStatus); set('txt-chart-dept', t.chartDept);
-    
-    // تحديث رءوس الجدول
     set('th-code', t.code); set('th-name', t.name); set('th-dept', t.dept); set('th-type', t.type); set('th-dates', t.dates); set('th-status', t.status); set('th-reviewer', t.reviewer); set('th-action', t.action);
 
-    // إعادة رندر الجدول والشارت لتحديث البيانات الداخلية
     renderTable(allRequests);
     updateCharts(allRequests);
 }
 
-// التشغيل عند التحميل
 window.onload = () => { loadAllRequests(); };
 window.onclick = (e) => { if (e.target.className === 'modal') closeDetailsModal(); };
