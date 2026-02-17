@@ -1,4 +1,4 @@
-// hr-admin.js - النسخة الاحترافية المتكاملة 2026
+// hr-admin.js - النسخة النهائية المصلحة 2026 (CSV FIX + Charts + Bulk Delete)
 
 let allRequests = []; 
 let statusChart = null;
@@ -6,6 +6,7 @@ let deptChart = null;
 
 // 1. جلب البيانات من Firestore (تحديث لحظي)
 function loadAllRequests() {
+    console.log("جاري مزامنة بيانات HR...");
     firebase.firestore().collection("HR_Requests").orderBy("submittedAt", "desc").onSnapshot((snapshot) => {
         allRequests = [];
         let departments = new Set(); 
@@ -32,7 +33,7 @@ function updateCharts(dataArray) {
 
     dataArray.forEach(r => {
         if(statusCounts[r.status] !== undefined) statusCounts[r.status]++;
-        const d = r.department || "N/A";
+        const d = r.department || "غير محدد";
         deptCounts[d] = (deptCounts[d] || 0) + 1;
     });
 
@@ -73,13 +74,9 @@ function renderTable(dataArray) {
     dataArray.forEach((data) => {
         if (data.status === "Approved") approved++;
 
-        // دمج التواريخ (من - إلى)
-        let dateRange = "";
-        if (data.type === 'vacation') {
-            dateRange = `<span style="font-size:11px;">${data.startDate} ⬅ ${data.endDate}</span>`;
-        } else {
-            dateRange = data.reqDate || data.startDate || "--";
-        }
+        let dateRange = (data.type === 'vacation') ? 
+            `<span style="font-size:11px;">${data.startDate} ⬅ ${data.endDate}</span>` : 
+            (data.reqDate || data.startDate || "--");
 
         const row = document.createElement('tr');
         row.style.cursor = "pointer";
@@ -101,32 +98,101 @@ function renderTable(dataArray) {
     applyLanguage(lang);
 }
 
-// 4. نظام الحذف الجماعي (Bulk Delete)
+// 4. دالة رفع ملف الـ CSV (تم إصلاحها بالكامل)
+async function uploadCSV() {
+    const fileInput = document.getElementById('csvFile');
+    const btn = document.getElementById('btn-upload-start');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        alert("يرجى اختيار ملف CSV أولاً");
+        return;
+    }
+
+    btn.innerText = "جاري المعالجة...";
+    btn.disabled = true;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/);
+            let successCount = 0;
+
+            // نبدأ من السطر الثاني (index 1) لتخطي العناوين
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                // دعم الفاصلة العادية والفاصلة المنقوطة
+                const cols = line.split(/[;,]/).map(c => c.replace(/["]/g, "").trim());
+
+                if (cols.length >= 5) {
+                    const empCode = cols[0]; // الكود
+                    const empData = {
+                        employeeId: cols[0],
+                        name: cols[1],
+                        phone: cols[2],
+                        role: cols[3].toLowerCase(),
+                        department: cols[4],
+                        activated: false
+                    };
+
+                    await firebase.firestore().collection("Employee_Database").doc(empCode).set(empData, { merge: true });
+                    successCount++;
+                }
+            }
+            alert(`تم بنجاح رفع وتحديث بيانات ${successCount} موظف.`);
+            fileInput.value = ""; // تصفير خانة الملف
+        } catch (err) {
+            console.error(err);
+            alert("حدث خطأ أثناء الرفع: " + err.message);
+        } finally {
+            btn.innerText = "ابدأ الرفع والدمج";
+            btn.disabled = false;
+        }
+    };
+    reader.readAsText(file, "UTF-8");
+}
+
+// 5. نظام الحذف الجماعي (Bulk Delete)
 function toggleSelectAll() {
-    const isChecked = document.getElementById('selectAll').checked;
-    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
+    const masterCb = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = masterCb.checked);
     updateBulkDeleteUI();
 }
 
 function updateBulkDeleteUI() {
     const selectedCount = document.querySelectorAll('.row-checkbox:checked').length;
-    const btn = document.getElementById('btn-delete-multi');
-    btn.style.display = selectedCount > 0 ? 'inline-block' : 'none';
+    const delBtn = document.getElementById('btn-delete-multi');
+    if (delBtn) {
+        delBtn.style.display = selectedCount > 0 ? 'inline-block' : 'none';
+        delBtn.innerText = `🗑️ حذف المحدد (${selectedCount})`;
+    }
 }
 
 async function deleteSelectedRequests() {
-    const selectedIds = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
-    if (!confirm(`حذف ${selectedIds.length} طلب نهائياً؟`)) return;
+    const selectedCbs = document.querySelectorAll('.row-checkbox:checked');
+    if (selectedCbs.length === 0) return;
 
-    const batch = firebase.firestore().batch();
-    selectedIds.forEach(id => batch.delete(firebase.firestore().collection("HR_Requests").doc(id)));
-    
-    await batch.commit();
-    document.getElementById('selectAll').checked = false;
-    updateBulkDeleteUI();
+    if (confirm(`هل أنت متأكد من حذف ${selectedCbs.length} طلب نهائياً؟`)) {
+        const batch = firebase.firestore().batch();
+        selectedCbs.forEach(cb => {
+            const ref = firebase.firestore().collection("HR_Requests").doc(cb.value);
+            batch.delete(ref);
+        });
+
+        try {
+            await batch.commit();
+            document.getElementById('selectAll').checked = false;
+            updateBulkDeleteUI();
+            alert("تم الحذف بنجاح");
+        } catch (e) { alert("خطأ أثناء الحذف: " + e.message); }
+    }
 }
 
-// 5. مودال التفاصيل (الكارت الشيك)
+// 6. كارت تفاصيل الطلب (Details Modal)
 function showRequestDetails(id) {
     const data = allRequests.find(r => r.id === id);
     if (!data) return;
@@ -135,47 +201,32 @@ function showRequestDetails(id) {
     document.getElementById('modal-emp-name').innerText = data.employeeName;
     document.getElementById('det-code').innerText = data.employeeCode;
     document.getElementById('det-dept').innerText = data.department;
-    document.getElementById('det-type').innerText = translateType(data.type);
-    document.getElementById('det-dates').innerText = (data.type === 'vacation') ? `${data.startDate} إلى ${data.endDate}` : data.reqDate;
-    document.getElementById('det-reason').innerText = data.reason || "لا يوجد سبب مكتوب";
-    document.getElementById('det-manager-note').innerText = data.managerComment || "لا يوجد رد من المدير حالياً";
+    document.getElementById('det-type').innerText = translateType(data.type) + (data.vacationType ? ` (${data.vacationType})` : "");
+    document.getElementById('det-dates').innerText = (data.type === 'vacation') ? `${data.startDate} إلى ${data.endDate}` : (data.reqDate || "--");
+    document.getElementById('det-reason').innerText = data.reason || "لا يوجد أسباب مكتوبة";
+    document.getElementById('det-manager-note').innerText = data.managerComment || (lang === 'ar' ? "لم يتم كتابة رد بعد" : "No manager reply yet");
 
-    const container = document.getElementById('det-attachment-container');
-    container.innerHTML = "";
+    const attachArea = document.getElementById('det-attachment-container');
+    attachArea.innerHTML = "";
     if (data.fileBase64) {
         if (data.fileBase64.includes("image")) {
-            container.innerHTML = `<img src="${data.fileBase64}" style="max-width:100%; border-radius:10px; margin-top:15px; border:1px solid #ddd;">`;
+            attachArea.innerHTML = `<img src="${data.fileBase64}" style="max-width:100%; border-radius:15px; margin-top:15px; border:1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">`;
         } else {
-            container.innerHTML = `<button onclick="viewFileAdmin('${data.id}')" class="btn-upload" style="margin-top:15px; background:var(--primary)">📄 فتح المرفق (PDF/ملف)</button>
+            attachArea.innerHTML = `<button onclick="viewFileAdmin('${data.id}')" class="btn-export" style="background:#2a5298; margin-top:15px; width:100%;">📄 فتح المرفق (PDF/ملف)</button>
                                    <textarea id="admin-data-${data.id}" style="display:none;">${data.fileBase64}</textarea>`;
         }
-    } else { container.innerHTML = "<p style='color:#999; margin-top:15px;'>لا يوجد مرفقات لهذا الطلب</p>"; }
+    } else {
+        attachArea.innerHTML = `<p style="color:#999; margin-top:15px; font-size:13px;">🚫 لا يوجد مرفقات لهذا الطلب</p>`;
+    }
 
     document.getElementById('detailsModal').style.display = "flex";
 }
 
-function closeDetailsModal() { document.getElementById('detailsModal').style.display = "none"; }
-
-// 6. دوال الرفع والفلترة واللغات (نفس الأصلية)
-async function uploadCSV() {
-    const file = document.getElementById('csvFile').files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const rows = e.target.result.split(/\r?\n/).slice(1);
-        for (let row of rows) {
-            const cols = row.split(/[;,]/).map(c => c.replace(/["]/g, "").trim());
-            if (cols.length >= 5) {
-                await firebase.firestore().collection("Employee_Database").doc(cols[0]).set({
-                    employeeId: cols[0], name: cols[1], phone: cols[2], role: cols[3].toLowerCase(), department: cols[4], activated: false
-                }, { merge: true });
-            }
-        }
-        alert("تم التحديث بنجاح");
-    };
-    reader.readAsText(file, "UTF-8");
+function closeDetailsModal() {
+    document.getElementById('detailsModal').style.display = "none";
 }
 
+// 7. محرك الفلترة والبحث
 function filterTable() {
     const dFrom = document.getElementById('filter-date-from').value;
     const dTo = document.getElementById('filter-date-to').value;
@@ -194,12 +245,19 @@ function filterTable() {
 
 function populateDeptFilter(depts) {
     const dropdown = document.getElementById('filter-dept-dropdown');
+    if (!dropdown) return;
+    const currentVal = dropdown.value;
     dropdown.innerHTML = `<option value="">الكل</option>`;
     depts.forEach(d => dropdown.innerHTML += `<option value="${d}">${d}</option>`);
+    dropdown.value = currentVal;
 }
 
 function resetFilters() {
-    document.querySelectorAll('.filter-item input, .filter-item select').forEach(i => i.value = "");
+    document.getElementById('filter-date-from').value = "";
+    document.getElementById('filter-date-to').value = "";
+    document.getElementById('filter-dept-dropdown').value = "";
+    document.getElementById('filter-status').value = "";
+    document.getElementById('filter-general').value = "";
     renderTable(allRequests);
     updateCharts(allRequests);
 }
@@ -211,7 +269,7 @@ function viewFileAdmin(id) {
 }
 
 function deleteRequest(id) {
-    if(confirm("حذف الطلب؟")) firebase.firestore().collection("HR_Requests").doc(id).delete();
+    if(confirm("هل أنت متأكد من الحذف؟")) firebase.firestore().collection("HR_Requests").doc(id).delete();
 }
 
 function translateType(t) {
@@ -231,23 +289,18 @@ function exportToExcel() {
     allRequests.forEach(r => csv += `${r.employeeCode},${r.employeeName},${r.department},${r.type},${r.startDate || r.reqDate},${r.status}\n`);
     const link = document.createElement('a');
     link.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
-    link.download = `HR_Report.csv`;
+    link.download = `HR_Report_Tamkeen.csv`;
     link.click();
 }
 
 function applyLanguage(lang) {
     const trans = {
-        ar: { title: "إدارة HR", code: "الكود", name: "الموظف", dept: "القسم", type: "النوع", dates: "تاريخ الإجازة (من - إلى)", status: "الحالة", action: "إجراء" },
-        en: { title: "HR Admin", code: "Code", name: "Employee", dept: "Dept", type: "Type", dates: "Leave Dates (From-To)", status: "Status", action: "Action" }
+        ar: { title: "إدارة HR - تمكين", code: "الكود", name: "الموظف", dept: "القسم", type: "النوع", dates: "تاريخ الإجازة (من - إلى)", status: "الحالة", action: "إجراء" },
+        en: { title: "HR Admin - Tamkeen", code: "Code", name: "Employee", dept: "Dept", type: "Type", dates: "Leave Dates (From-To)", status: "Status", action: "Action" }
     };
     const t = trans[lang] || trans.ar;
-    if(document.getElementById('th-code')) document.getElementById('th-code').innerText = t.code;
-    if(document.getElementById('th-name')) document.getElementById('th-name').innerText = t.name;
-    if(document.getElementById('th-dept')) document.getElementById('th-dept').innerText = t.dept;
-    if(document.getElementById('th-type')) document.getElementById('th-type').innerText = t.type;
-    if(document.getElementById('th-dates')) document.getElementById('th-dates').innerText = t.dates;
-    if(document.getElementById('th-status')) document.getElementById('th-status').innerText = t.status;
-    if(document.getElementById('th-action')) document.getElementById('th-action').innerText = t.action;
+    const set = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+    set('txt-title', t.title); set('th-code', t.code); set('th-name', t.name); set('th-dept', t.dept); set('th-type', t.type); set('th-dates', t.dates); set('th-status', t.status); set('th-action', t.action);
 }
 
 window.onload = () => { loadAllRequests(); };
