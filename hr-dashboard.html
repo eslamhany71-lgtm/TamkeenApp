@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">نظام تمكين | لوحة تحكم HR</title>
     
+    <!-- خطوط وتقنيات حديثة -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/hr-admin.css">
     
@@ -34,7 +35,7 @@
 
     <main class="hr-content">
         
-        <!-- قسم الإحصائيات -->
+        <!-- قسم الإحصائيات (Summary Cards) -->
         <div class="stats-grid">
             <div class="stat-card total">
                 <div class="stat-info">
@@ -123,10 +124,10 @@
                         <th id="th-code">الكود</th>
                         <th id="th-name">الموظف</th>
                         <th id="th-dept">القسم</th>
-                        <th id="th-type">النوع</th>
-                        <th id="th-dates">التاريخ (من - إلى)</th>
+                        <th id="th-type">نوع الطلب</th>
+                        <th id="th-dates">تاريخ الإجازة (من - إلى)</th>
                         <th id="th-status">الحالة</th>
-                        <th id="th-reviewer">تم الإجراء بواسطة</th> <!-- العمود المفقود -->
+                        <th id="th-reviewer">تم الإجراء بواسطة</th> 
                         <th id="th-action">إجراء</th>
                     </tr>
                 </thead>
@@ -139,15 +140,16 @@
     <div id="detailsModal" class="modal" style="display:none;">
         <div class="modal-content animate-top">
             <div class="modal-header-pro">
-                <h2 id="modal-emp-name">تفاصيل الطلب الكاملة</h2>
+                <h2 id="modal-emp-name-header">تفاصيل الطلب الكاملة</h2>
                 <span class="close-btn" onclick="closeDetailsModal()">&times;</span>
             </div>
             <div class="modal-body-pro">
                 <div class="details-grid">
+                    <div class="det-item"><strong>الموظف:</strong> <span id="det-name"></span></div>
                     <div class="det-item"><strong>كود الموظف:</strong> <span id="det-code"></span></div>
                     <div class="det-item"><strong>الإدارة / القسم:</strong> <span id="det-dept"></span></div>
                     <div class="det-item"><strong>نوع الطلب:</strong> <span id="det-type"></span></div>
-                    <div class="det-item"><strong>تاريخ الإجازة:</strong> <span id="det-dates"></span></div>
+                    <div class="det-item" style="grid-column: span 2;"><strong>تاريخ الإجازة/المدة:</strong> <span id="det-dates"></span></div>
                 </div>
                 <hr>
                 <div class="details-box">
@@ -155,7 +157,7 @@
                     <p id="det-reason"></p>
                 </div>
                 <div class="details-box manager-note">
-                    <strong>💬 ملاحظة المراجع (المدير):</strong>
+                    <strong>💬 ملاحظة المدير والمراجع:</strong>
                     <p id="det-manager-note"></p>
                     <div style="margin-top:10px; font-size:12px; border-top:1px solid #ddd; padding-top:5px;">
                         <strong>بواسطة:</strong> <span id="det-reviewer-name">--</span> 
