@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">نظام تمكين | لوحة تحكم HR</title>
     
+    <!-- خطوط وتقنيات حديثة -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/hr-admin.css">
     
@@ -34,53 +35,87 @@
 
     <main class="hr-content">
         
-        <!-- قسم الإحصائيات -->
+        <!-- قسم الإحصائيات (Summary Cards) -->
         <div class="stats-grid">
             <div class="stat-card total">
-                <div class="stat-info"><p id="txt-total">إجمالي كافة الطلبات</p><h3 id="total-count">0</h3></div>
+                <div class="stat-info">
+                    <p id="txt-total">إجمالي كافة الطلبات</p>
+                    <h3 id="total-count">0</h3>
+                </div>
                 <div class="stat-icon">📊</div>
             </div>
             <div class="stat-card approved">
-                <div class="stat-info"><p id="txt-approved">طلبات تمت الموافقة عليها</p><h3 id="approved-count">0</h3></div>
+                <div class="stat-info">
+                    <p id="txt-approved">طلبات تمت الموافقة عليها</p>
+                    <h3 id="approved-count">0</h3>
+                </div>
                 <div class="stat-icon">✅</div>
             </div>
             <div class="stat-card actions">
                 <button onclick="exportToExcel()" class="btn-export">📥 Excel</button>
-                <button onclick="deleteSelectedRequests()" id="btn-delete-multi" class="btn-bulk-delete" style="display:none;">🗑️ حذف المحدد</button>
+                <button onclick="deleteSelectedRequests()" id="btn-delete-multi" class="delete-btn" style="display:none; background: var(--danger); color:white; border:none; margin-right:10px; padding: 10px 20px;">🗑️ حذف المحدد</button>
             </div>
         </div>
 
         <!-- قسم الرسوم البيانية -->
         <div class="charts-panel">
-            <div class="chart-container"><h4 id="txt-chart-status">توزيع الحالات</h4><canvas id="statusChart"></canvas></div>
-            <div class="chart-container"><h4 id="txt-chart-dept">أكثر الأقسام طلباً</h4><canvas id="deptChart"></canvas></div>
+            <div class="chart-container card">
+                <h4 id="txt-chart-status">توزيع حالات الطلبات</h4>
+                <canvas id="statusChart"></canvas>
+            </div>
+            <div class="chart-container card">
+                <h4 id="txt-chart-dept">أكثر الأقسام طلباً</h4>
+                <canvas id="deptChart"></canvas>
+            </div>
         </div>
 
-        <!-- قسم الفلاتر ورفع CSV -->
-        <div class="control-panel">
-            <div class="upload-section">
-                <h4 id="lbl-upload">تحديث الموظفين (CSV)</h4>
-                <input type="file" id="csvFile" accept=".csv">
-                <button onclick="uploadCSV()" class="btn-upload">بدأ الرفع</button>
+        <!-- قسم رفع الموظفين -->
+        <div class="upload-panel">
+            <div class="panel-header">
+                <h4 id="lbl-upload">تحديث سجل الموظفين (ملف CSV)</h4>
             </div>
-            <div class="filter-panel">
-                <div class="filter-row">
-                    <input type="date" id="filter-date-from" onchange="filterTable()">
-                    <input type="date" id="filter-date-to" onchange="filterTable()">
-                    <select id="filter-dept-dropdown" onchange="filterTable()"><option value="">كل الأقسام</option></select>
+            <div class="upload-body">
+                <input type="file" id="csvFile" accept=".csv">
+                <button onclick="uploadCSV()" class="btn-upload" id="btn-upload-start">ابدأ الرفع والدمج</button>
+            </div>
+        </div>
+
+        <!-- نظام الفلترة المتقدم -->
+        <div class="filter-panel">
+            <div class="filter-row">
+                <div class="filter-item">
+                    <label id="lbl-filter-date">النطاق الزمني:</label>
+                    <div class="date-group">
+                        <input type="date" id="filter-date-from" onchange="filterTable()">
+                        <input type="date" id="filter-date-to" onchange="filterTable()">
+                    </div>
+                </div>
+                <div class="filter-item">
+                    <label id="lbl-filter-dept-select">القسم:</label>
+                    <select id="filter-dept-dropdown" onchange="filterTable()">
+                        <option value="">الكل</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label id="lbl-filter-status">الحالة:</label>
                     <select id="filter-status" onchange="filterTable()">
-                        <option value="">كل الحالات</option>
+                        <option value="">الكل</option>
                         <option value="Approved">مقبول</option>
                         <option value="Pending">معلق</option>
                         <option value="Rejected">مرفوض</option>
                     </select>
-                    <input type="text" id="filter-general" onkeyup="filterTable()" placeholder="بحث سريع...">
-                    <button class="btn-reset" onclick="resetFilters()">🔄</button>
+                </div>
+                <div class="filter-item search">
+                    <label id="lbl-search">بحث سريع:</label>
+                    <input type="text" id="filter-general" onkeyup="filterTable()" placeholder="اسم، كود، وظيفة...">
+                </div>
+                <div class="filter-item reset-wrapper">
+                    <button class="btn-reset" onclick="resetFilters()" title="إعادة ضبط الفلاتر">🔄</button>
                 </div>
             </div>
         </div>
 
-        <!-- جدول البيانات -->
+        <!-- جدول البيانات المطور -->
         <div class="table-wrapper">
             <table id="requestsTable">
                 <thead>
@@ -89,8 +124,8 @@
                         <th id="th-code">الكود</th>
                         <th id="th-name">الموظف</th>
                         <th id="th-dept">القسم</th>
-                        <th id="th-type">النوع</th>
-                        <th id="th-dates">التاريخ (من - إلى)</th>
+                        <th id="th-type">نوع الطلب</th>
+                        <th id="th-dates">تاريخ الإجازة (من - إلى)</th>
                         <th id="th-status">الحالة</th>
                         <th id="th-action">إجراء</th>
                     </tr>
@@ -100,29 +135,30 @@
         </div>
     </main>
 
-    <!-- مودال التفاصيل الشيك (Detailed Card) -->
-    <div id="detailsModal" class="modal">
+    <!-- مودال تفاصيل الطلب (الكارت الشيك) -->
+    <div id="detailsModal" class="modal" style="display:none;">
         <div class="modal-content animate-top">
             <div class="modal-header-pro">
-                <h2 id="det-empName">تفاصيل الطلب</h2>
-                <span class="close-modal" onclick="closeDetailsModal()">&times;</span>
+                <h2 id="modal-emp-name">تفاصيل الطلب الكاملة</h2>
+                <span class="close-btn" onclick="closeDetailsModal()">&times;</span>
             </div>
-            <div class="modal-body">
-                <div class="info-grid">
-                    <div class="info-box"><strong>كود الموظف:</strong> <span id="det-code"></span></div>
-                    <div class="info-box"><strong>القسم:</strong> <span id="det-dept"></span></div>
-                    <div class="info-box"><strong>نوع الطلب:</strong> <span id="det-type"></span></div>
-                    <div class="info-box"><strong>المدة:</strong> <span id="det-dates"></span></div>
+            <div class="modal-body-pro">
+                <div class="details-grid">
+                    <div class="det-item"><strong>كود الموظف:</strong> <span id="det-code"></span></div>
+                    <div class="det-item"><strong>الإدارة / القسم:</strong> <span id="det-dept"></span></div>
+                    <div class="det-item"><strong>نوع الطلب:</strong> <span id="det-type"></span></div>
+                    <div class="det-item"><strong>تاريخ الإجازة:</strong> <span id="det-dates"></span></div>
                 </div>
-                <div class="message-section">
-                    <strong>📝 سبب الموظف:</strong>
-                    <p id="det-reason" class="msg-text"></p>
+                <hr>
+                <div class="details-box">
+                    <strong>📝 سبب الموظف للتغيب:</strong>
+                    <p id="det-reason"></p>
                 </div>
-                <div class="message-section manager-reply">
-                    <strong>💬 رد المدير (المراجع):</strong>
-                    <p id="det-manager-note" class="msg-text"></p>
+                <div class="details-box manager-note">
+                    <strong>💬 ملاحظة المدير والمراجع:</strong>
+                    <p id="det-manager-note"></p>
                 </div>
-                <div id="det-attachment-area" class="attachment-box">
+                <div id="det-attachment-container" class="attachment-area">
                     <!-- المرفق يظهر هنا -->
                 </div>
             </div>
