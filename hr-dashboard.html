@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">نظام تمكين | لوحة تحكم HR</title>
     
-    <!-- خطوط وتقنيات حديثة -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/hr-admin.css">
     
+    <!-- مكتبة الرسوم البيانية -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
@@ -53,6 +55,18 @@
             </div>
         </div>
 
+        <!-- 🆕 قسم الرسوم البيانية (Charts Panel) -->
+        <div class="charts-panel">
+            <div class="chart-container card">
+                <h4 id="txt-chart-status">توزيع حالات الطلبات</h4>
+                <canvas id="statusChart"></canvas>
+            </div>
+            <div class="chart-container card">
+                <h4 id="txt-chart-dept">أكثر الأقسام طلباً</h4>
+                <canvas id="deptChart"></canvas>
+            </div>
+        </div>
+
         <!-- قسم رفع الموظفين -->
         <div class="upload-panel">
             <div class="panel-header">
@@ -64,7 +78,7 @@
             </div>
         </div>
 
-        <!-- نظام الفلترة المتقدم (الاحترافي) -->
+        <!-- نظام الفلترة المتقدم -->
         <div class="filter-panel">
             <div class="filter-row">
                 <div class="filter-item">
@@ -84,26 +98,22 @@
                     <label id="lbl-filter-status">الحالة:</label>
                     <select id="filter-status" onchange="filterTable()">
                         <option value="">الكل</option>
-                        <option value="Approved">مقبول (Approved)</option>
-                        <option value="Pending">معلق (Pending)</option>
-                        <option value="Rejected">مرفوض (Rejected)</option>
+                        <option value="Approved">مقبول</option>
+                        <option value="Pending">معلق</option>
+                        <option value="Rejected">مرفوض</option>
                     </select>
                 </div>
                 <div class="filter-item search">
                     <label id="lbl-search">بحث سريع:</label>
                     <input type="text" id="filter-general" onkeyup="filterTable()" placeholder="اسم، كود، وظيفة...">
                 </div>
-                
-                <!-- تم تعديل الزرار هنا ليكون منسقاً -->
                 <div class="filter-item reset-wrapper">
-                    <button class="btn-reset" onclick="resetFilters()" title="إعادة ضبط الفلاتر">
-                        🔄
-                    </button>
+                    <button class="btn-reset" onclick="resetFilters()" title="إعادة ضبط الفلاتر">🔄</button>
                 </div>
             </div>
         </div>
 
-        <!-- جدول البيانات المطور -->
+        <!-- جدول البيانات -->
         <div class="table-wrapper">
             <table id="requestsTable">
                 <thead>
@@ -119,9 +129,7 @@
                         <th id="th-action">إجراء</th>
                     </tr>
                 </thead>
-                <tbody id="hr-requests-table">
-                    <!-- البيانات يتم توليدها عبر JS -->
-                </tbody>
+                <tbody id="hr-requests-table"></tbody>
             </table>
         </div>
     </main>
