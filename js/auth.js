@@ -1,4 +1,4 @@
-// auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation)
+// auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission)
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -16,6 +16,8 @@ auth.onAuthStateChanged((user) => {
         if (isLoginPage) {
             window.location.href = "home.html";
         }
+        // طلب إذن التنبيهات من المتصفح بمجرد تسجيل الدخول
+        requestNotificationPermission();
     } else {
         // لو مش مسجل دخول وموجود في صفحة داخلية.. ارجعه للدخول
         if (!isLoginPage) {
@@ -24,7 +26,20 @@ auth.onAuthStateChanged((user) => {
     }
 });
 
-// 2. دالة تسجيل الخروج (التي تسببت في الخطأ عندك)
+// ميزة التنبيهات الخارجية: وظيفة طلب الإذن
+function requestNotificationPermission() {
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("تم تفعيل إذن التنبيهات بنجاح");
+                }
+            });
+        }
+    }
+}
+
+// 2. دالة تسجيل الخروج
 function logout() {
     auth.signOut().then(() => {
         console.log("Logged out successfully");
@@ -68,7 +83,7 @@ function loginById() {
     });
 }
 
-// 4. دالة التفعيل الكاملة (التي طلبت الحفاظ عليها)
+// 4. دالة التفعيل الكاملة
 async function activateAccount() {
     const code = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
