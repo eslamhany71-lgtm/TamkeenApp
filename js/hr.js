@@ -1,8 +1,18 @@
-// hr.js - نظام الخدمات الذاتية الموحد (النسخة الاحترافية الكاملة - 2026)
-// تم دمج ميزة "رد الإدارة" مع الحفاظ على نظام الكاش والترجمة الشامل
+// hr.js - نظام الخدمات الذاتية الموحد (النسخة الاحترافية الكاملة)
+// تم الحفاظ على كافة الحسابات والترجمات ونظام الكاش مع دمج نظام الإشعارات اللحظي ورد الإدارة
 
 let currentUserData = null;
 let totalAnnualUsed = 0;
+
+// --- [إضافة] دالة إرسال تنبيه نظام خارجي للموظف ---
+function sendSystemNotification(title, body) {
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, {
+            body: body,
+            icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png"
+        });
+    }
+}
 
 // 1. مراقبة الدخول + حل التهنيج (Cache System)
 firebase.auth().onAuthStateChanged((user) => {
@@ -47,7 +57,7 @@ function applyLockedFields(data) {
     }
 }
 
-// 2. تحميل "طلباتي" وحساب الرصيد (الـ 21 يوم) + عرض رد الإدارة
+// 2. تحميل "طلباتي" وحساب الرصيد (الـ 21 يوم) + [تعديل] عرض رد الإدارة والتنبيه
 function loadMyRequests(empCode) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     firebase.firestore().collection("HR_Requests")
@@ -60,6 +70,17 @@ function loadMyRequests(empCode) {
             let approved = 0, pending = 0;
             totalAnnualUsed = 0;
 
+            // [إضافة] مراقبة التغييرات لإرسال تنبيه للموظف فور تغيير حالة الطلب
+            snapshot.docChanges().forEach(change => {
+                if (change.type === "modified") {
+                    const updatedData = change.doc.data();
+                    sendSystemNotification(
+                        lang === 'ar' ? "تحديث بخصوص طلبك" : "Request Update",
+                        lang === 'ar' ? `تم تغيير حالة طلبك إلى: ${translateStatusLocal(updatedData.status, 'ar')}` : `Your request status is now: ${updatedData.status}`
+                    );
+                }
+            });
+
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 if (data.status === "Approved") {
@@ -70,14 +91,14 @@ function loadMyRequests(empCode) {
                     }
                 } else if (data.status === "Pending") { pending++; }
 
-                // تجهيز رد الإدارة (الميزة الجديدة)
+                // [إضافة] جلب رد الإدارة
                 const managerComment = data.managerComment ? data.managerComment : (lang === 'ar' ? "لا يوجد رد بعد" : "No reply yet");
 
                 tableBody.innerHTML += `<tr>
                     <td>${translateTypeLocal(data.type)} ${data.vacationType ? '('+data.vacationType+')' : ''}</td>
                     <td>${data.startDate || data.reqDate}</td>
                     <td><span class="badge ${data.status.toLowerCase()}">${translateStatusLocal(data.status, lang)}</span></td>
-                    <td style="font-size: 12px; color: #2a5298; font-style: italic;">${managerComment}</td> <!-- عمود الرد الجديد -->
+                    <td style="font-size: 11px; color: #2a5298; font-style: italic;">${managerComment}</td>
                 </tr>`;
             });
 
@@ -147,7 +168,7 @@ document.getElementById('hrRequestForm').addEventListener('submit', async (e) =>
             reason: document.getElementById('reqReason').value,
             fileBase64: fileData,
             status: "Pending",
-            managerComment: "", // حقل الرد الابتدائي
+            managerComment: "", // [إضافة] حقل الرد فارغ عند التقديم
             submittedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -225,7 +246,7 @@ function updatePageContent(lang) {
             dept: "الإدارة / القسم", hire: "تاريخ التعيين", reason: "السبب / التفاصيل", attachment: "إرفاق مستند (اختياري)",
             submit: "إرسال الطلب الآن", history: "سجل طلباتي وإحصائياتي", balance: "الرصيد المتبقي", pending: "قيد الانتظار", 
             approved: "مقبولة", type: "النوع", date: "التاريخ", status: "الحالة", vType: "نوع الإجازة", from: "من تاريخ", to: "إلى تاريخ", rDate: "تاريخ الإذن", time: "الوقت",
-            comment: "رد الإدارة" // ترجمة العمود الجديد
+            comment: "رد الإدارة"
         },
         en: {
             title: "Self Service - Tamkeen", back: "Back", header: "Employees Self Services",
@@ -235,7 +256,7 @@ function updatePageContent(lang) {
             dept: "Department", hire: "Hiring Date", reason: "Reason / Details", attachment: "Attach File (Optional)",
             submit: "Submit Request", history: "My Requests & Stats", balance: "Vacation Balance", pending: "Pending", 
             approved: "Approved", type: "Type", date: "Date", status: "Status", vType: "Vacation Type", from: "From Date", to: "To Date", rDate: "Request Date", time: "Time",
-            comment: "Manager Note" // ترجمة العمود الجديد
+            comment: "Manager Note"
         }
     };
     const t = translations[lang] || translations['ar'];
@@ -265,7 +286,7 @@ function updatePageContent(lang) {
     if(document.getElementById('th-type')) document.getElementById('th-type').innerText = t.type;
     if(document.getElementById('th-date')) document.getElementById('th-date').innerText = t.date;
     if(document.getElementById('th-status')) document.getElementById('th-status').innerText = t.status;
-    if(document.getElementById('th-comment')) document.getElementById('th-comment').innerText = t.comment; // ترجمة العمود الجديد
+    if(document.getElementById('th-comment')) document.getElementById('th-comment').innerText = t.comment;
 
     // حقول المودال المتغيرة
     if(document.getElementById('lbl-vac-type')) document.getElementById('lbl-vac-type').innerText = t.vType;
