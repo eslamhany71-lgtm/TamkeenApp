@@ -30,13 +30,26 @@
         </div>
     </main>
 
-   <!-- Modal عرض الملفات -->
-<div id="fileModal" class="modal" onclick="closeModal()" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center;">
-    <div class="modal-content" onclick="event.stopPropagation()" style="background:white; padding:20px; border-radius:15px; width:80%; max-width:800px; position:relative;">
-        <span class="close-modal" onclick="closeModal()" style="position:absolute; top:10px; right:20px; font-size:30px; cursor:pointer;">&times;</span>
-        <div id="modal-body-content" style="text-align:center;"></div>
+    <!-- مودال عرض المرفقات -->
+    <div id="fileModal" class="modal" onclick="closeModal()" style="display:none; position:fixed; z-index:9999; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); align-items:center; justify-content:center;">
+        <div class="modal-content" onclick="event.stopPropagation()" style="background:white; padding:20px; border-radius:15px; width:80%; max-width:800px; position:relative;">
+            <span class="close-modal" onclick="closeModal()" style="position:absolute; top:10px; right:20px; font-size:30px; cursor:pointer;">&times;</span>
+            <div id="modal-body-content" style="text-align:center;"></div>
+        </div>
     </div>
-</div>
+
+    <!-- 🆕 مودال اتخاذ إجراء (موافقة/رفض مع تعليق) -->
+    <div id="actionModal" class="modal" style="display:none; position:fixed; z-index:10000; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+        <div class="modal-content" style="background:white; padding:25px; border-radius:15px; width:90%; max-width:400px;">
+            <h3 id="action-modal-title">اتخاذ إجراء</h3>
+            <p id="action-modal-desc" style="font-size: 14px; color: #666;"></p>
+            <textarea id="manager-comment" placeholder="اكتب ملاحظاتك هنا (اختياري)..." style="width:100%; height:100px; padding:10px; border-radius:8px; border:1px solid #ddd; margin:15px 0; font-family:inherit;"></textarea>
+            <div style="display:flex; gap:10px;">
+                <button id="confirm-action-btn" class="approve-btn" style="flex:2;">تأكيد</button>
+                <button onclick="closeActionModal()" class="reject-btn" style="flex:1;">إلغاء</button>
+            </div>
+        </div>
+    </div>
 
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
