@@ -1,4 +1,4 @@
-// hr-admin.js - النسخة النهائية المصلحة 2026 (CSV FIX + Charts + Bulk Delete)
+// hr-admin.js - النسخة النهائية الشاملة 2026
 
 let allRequests = []; 
 let statusChart = null;
@@ -60,7 +60,7 @@ function updateCharts(dataArray) {
     });
 }
 
-// 3. رسم الجدول المطور (مع الاختيار والتواريخ)
+// 3. رسم الجدول المطور (مع الاختيار، التواريخ، والمراجع)
 function renderTable(dataArray) {
     const tableBody = document.getElementById('hr-requests-table');
     const totalCountEl = document.getElementById('total-count');
@@ -74,9 +74,17 @@ function renderTable(dataArray) {
     dataArray.forEach((data) => {
         if (data.status === "Approved") approved++;
 
+        // دمج التواريخ (من - إلى)
         let dateRange = (data.type === 'vacation') ? 
             `<span style="font-size:11px;">${data.startDate} ⬅ ${data.endDate}</span>` : 
             (data.reqDate || data.startDate || "--");
+
+        // عمود المراجع (المدير)
+        const reviewerHtml = data.reviewerName ? `
+            <div class="reviewer-info-mini">
+                <b>${data.reviewerName}</b>
+                <p>${data.reviewerDept || '--'}</p>
+            </div>` : `<span style="color:#ccc">--</span>`;
 
         const row = document.createElement('tr');
         row.style.cursor = "pointer";
@@ -88,7 +96,8 @@ function renderTable(dataArray) {
             <td onclick="showRequestDetails('${data.id}')">${translateType(data.type)}</td>
             <td onclick="showRequestDetails('${data.id}')">${dateRange}</td>
             <td onclick="showRequestDetails('${data.id}')"><span class="badge ${data.status.toLowerCase()}">${translateStatus(data.status)}</span></td>
-            <td onclick="event.stopPropagation()"><button class="delete-btn" onclick="deleteRequest('${data.id}')">🗑️</button></td>
+            <td onclick="showRequestDetails('${data.id}')">${reviewerHtml}</td>
+            <td onclick="event.stopPropagation()"><button class="delete-btn" onclick="deleteSingleRequest('${data.id}')">🗑️</button></td>
         `;
         tableBody.appendChild(row);
     });
@@ -98,101 +107,69 @@ function renderTable(dataArray) {
     applyLanguage(lang);
 }
 
-// 4. دالة رفع ملف الـ CSV (تم إصلاحها بالكامل)
+// 4. دالة رفع ملف الـ CSV المصلحة 100%
 async function uploadCSV() {
     const fileInput = document.getElementById('csvFile');
     const btn = document.getElementById('btn-upload-start');
     const file = fileInput.files[0];
     
-    if (!file) {
-        alert("يرجى اختيار ملف CSV أولاً");
-        return;
-    }
-
+    if (!file) { alert("يرجى اختيار ملف CSV أولاً"); return; }
+    
     btn.innerText = "جاري المعالجة...";
     btn.disabled = true;
 
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
-            const text = e.target.result;
-            const lines = text.split(/\r?\n/);
-            let successCount = 0;
-
-            // نبدأ من السطر الثاني (index 1) لتخطي العناوين
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-
-                // دعم الفاصلة العادية والفاصلة المنقوطة
+            const lines = e.target.result.split(/\r?\n/).slice(1);
+            let count = 0;
+            for (let line of lines) {
                 const cols = line.split(/[;,]/).map(c => c.replace(/["]/g, "").trim());
-
                 if (cols.length >= 5) {
-                    const empCode = cols[0]; // الكود
-                    const empData = {
-                        employeeId: cols[0],
-                        name: cols[1],
-                        phone: cols[2],
-                        role: cols[3].toLowerCase(),
-                        department: cols[4],
-                        activated: false
-                    };
-
-                    await firebase.firestore().collection("Employee_Database").doc(empCode).set(empData, { merge: true });
-                    successCount++;
+                    await firebase.firestore().collection("Employee_Database").doc(cols[0]).set({
+                        employeeId: cols[0], name: cols[1], phone: cols[2], role: cols[3].toLowerCase(), department: cols[4], activated: false
+                    }, { merge: true });
+                    count++;
                 }
             }
-            alert(`تم بنجاح رفع وتحديث بيانات ${successCount} موظف.`);
-            fileInput.value = ""; // تصفير خانة الملف
-        } catch (err) {
-            console.error(err);
-            alert("حدث خطأ أثناء الرفع: " + err.message);
-        } finally {
-            btn.innerText = "ابدأ الرفع والدمج";
-            btn.disabled = false;
-        }
+            alert(`تم رفع ${count} موظف بنجاح`);
+            fileInput.value = "";
+        } catch (err) { alert("خطأ: " + err.message); }
+        finally { btn.innerText = "ابدأ الرفع والدمج"; btn.disabled = false; }
     };
     reader.readAsText(file, "UTF-8");
 }
 
 // 5. نظام الحذف الجماعي (Bulk Delete)
 function toggleSelectAll() {
-    const masterCb = document.getElementById('selectAll');
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(cb => cb.checked = masterCb.checked);
+    const isChecked = document.getElementById('selectAll').checked;
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = isChecked);
     updateBulkDeleteUI();
 }
 
 function updateBulkDeleteUI() {
-    const selectedCount = document.querySelectorAll('.row-checkbox:checked').length;
-    const delBtn = document.getElementById('btn-delete-multi');
-    if (delBtn) {
-        delBtn.style.display = selectedCount > 0 ? 'inline-block' : 'none';
-        delBtn.innerText = `🗑️ حذف المحدد (${selectedCount})`;
-    }
+    const count = document.querySelectorAll('.row-checkbox:checked').length;
+    const btn = document.getElementById('btn-delete-multi');
+    btn.style.display = count > 0 ? 'inline-block' : 'none';
+    btn.innerText = `🗑️ حذف المحدد (${count})`;
 }
 
 async function deleteSelectedRequests() {
-    const selectedCbs = document.querySelectorAll('.row-checkbox:checked');
-    if (selectedCbs.length === 0) return;
+    const ids = Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+    if (!confirm(`حذف ${ids.length} طلب نهائياً؟`)) return;
 
-    if (confirm(`هل أنت متأكد من حذف ${selectedCbs.length} طلب نهائياً؟`)) {
-        const batch = firebase.firestore().batch();
-        selectedCbs.forEach(cb => {
-            const ref = firebase.firestore().collection("HR_Requests").doc(cb.value);
-            batch.delete(ref);
-        });
-
-        try {
-            await batch.commit();
-            document.getElementById('selectAll').checked = false;
-            updateBulkDeleteUI();
-            alert("تم الحذف بنجاح");
-        } catch (e) { alert("خطأ أثناء الحذف: " + e.message); }
-    }
+    const batch = firebase.firestore().batch();
+    ids.forEach(id => batch.delete(firebase.firestore().collection("HR_Requests").doc(id)));
+    
+    try {
+        await batch.commit();
+        document.getElementById('selectAll').checked = false;
+        updateBulkDeleteUI();
+        alert("تم الحذف بنجاح");
+    } catch (e) { alert("خطأ: " + e.message); }
 }
 
-// 6. كارت تفاصيل الطلب (Details Modal)
+// 6. مودال التفاصيل (الكارت الشيك)
 function showRequestDetails(id) {
     const data = allRequests.find(r => r.id === id);
     if (!data) return;
@@ -202,31 +179,29 @@ function showRequestDetails(id) {
     document.getElementById('det-code').innerText = data.employeeCode;
     document.getElementById('det-dept').innerText = data.department;
     document.getElementById('det-type').innerText = translateType(data.type) + (data.vacationType ? ` (${data.vacationType})` : "");
-    document.getElementById('det-dates').innerText = (data.type === 'vacation') ? `${data.startDate} إلى ${data.endDate}` : (data.reqDate || "--");
-    document.getElementById('det-reason').innerText = data.reason || "لا يوجد أسباب مكتوبة";
-    document.getElementById('det-manager-note').innerText = data.managerComment || (lang === 'ar' ? "لم يتم كتابة رد بعد" : "No manager reply yet");
+    document.getElementById('det-dates').innerText = (data.type === 'vacation') ? `${data.startDate} إلى ${data.endDate}` : data.reqDate;
+    document.getElementById('det-reason').innerText = data.reason || "لا يوجد";
+    document.getElementById('det-manager-note').innerText = data.managerComment || "لا يوجد تعليق";
+    document.getElementById('det-reviewer-name').innerText = data.reviewerName || "--";
+    document.getElementById('det-reviewer-dept').innerText = data.reviewerDept || "--";
 
-    const attachArea = document.getElementById('det-attachment-container');
-    attachArea.innerHTML = "";
+    const container = document.getElementById('det-attachment-container');
+    container.innerHTML = "";
     if (data.fileBase64) {
         if (data.fileBase64.includes("image")) {
-            attachArea.innerHTML = `<img src="${data.fileBase64}" style="max-width:100%; border-radius:15px; margin-top:15px; border:1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">`;
+            container.innerHTML = `<img src="${data.fileBase64}" style="max-width:100%; border-radius:15px; margin-top:10px;">`;
         } else {
-            attachArea.innerHTML = `<button onclick="viewFileAdmin('${data.id}')" class="btn-export" style="background:#2a5298; margin-top:15px; width:100%;">📄 فتح المرفق (PDF/ملف)</button>
+            container.innerHTML = `<button onclick="viewFileAdmin('${data.id}')" class="btn-export" style="margin-top:10px; background:#2a5298">فتح المرفق</button>
                                    <textarea id="admin-data-${data.id}" style="display:none;">${data.fileBase64}</textarea>`;
         }
-    } else {
-        attachArea.innerHTML = `<p style="color:#999; margin-top:15px; font-size:13px;">🚫 لا يوجد مرفقات لهذا الطلب</p>`;
-    }
+    } else { container.innerHTML = "<p style='color:#999; font-size:12px; margin-top:10px;'>لا يوجد مرفقات</p>"; }
 
     document.getElementById('detailsModal').style.display = "flex";
 }
 
-function closeDetailsModal() {
-    document.getElementById('detailsModal').style.display = "none";
-}
+function closeDetailsModal() { document.getElementById('detailsModal').style.display = "none"; }
 
-// 7. محرك الفلترة والبحث
+// 7. الفلترة والبحث والترجمة
 function filterTable() {
     const dFrom = document.getElementById('filter-date-from').value;
     const dTo = document.getElementById('filter-date-to').value;
@@ -245,7 +220,6 @@ function filterTable() {
 
 function populateDeptFilter(depts) {
     const dropdown = document.getElementById('filter-dept-dropdown');
-    if (!dropdown) return;
     const currentVal = dropdown.value;
     dropdown.innerHTML = `<option value="">الكل</option>`;
     depts.forEach(d => dropdown.innerHTML += `<option value="${d}">${d}</option>`);
@@ -253,11 +227,7 @@ function populateDeptFilter(depts) {
 }
 
 function resetFilters() {
-    document.getElementById('filter-date-from').value = "";
-    document.getElementById('filter-date-to').value = "";
-    document.getElementById('filter-dept-dropdown').value = "";
-    document.getElementById('filter-status').value = "";
-    document.getElementById('filter-general').value = "";
+    document.querySelectorAll('.filter-panel input, .filter-panel select').forEach(i => i.value = "");
     renderTable(allRequests);
     updateCharts(allRequests);
 }
@@ -268,39 +238,24 @@ function viewFileAdmin(id) {
     win.document.write(`<html><body style="margin:0"><iframe src="${data}" frameborder="0" style="width:100%; height:100vh;"></iframe></body></html>`);
 }
 
-function deleteRequest(id) {
-    if(confirm("هل أنت متأكد من الحذف؟")) firebase.firestore().collection("HR_Requests").doc(id).delete();
-}
-
-function translateType(t) {
-    const l = localStorage.getItem('preferredLang') || 'ar';
-    const map = { vacation: {ar:"إجازة", en:"Vacation"}, late: {ar:"تأخير", en:"Late"}, exit: {ar:"خروج", en:"Exit"} };
-    return map[t] ? map[t][l] : t;
-}
-
-function translateStatus(s) {
-    const l = localStorage.getItem('preferredLang') || 'ar';
-    const map = { Approved: {ar:"مقبول", en:"Approved"}, Rejected: {ar:"مرفوض", en:"Rejected"}, Pending: {ar:"معلق", en:"Pending"} };
-    return map[s] ? map[s][l] : s;
-}
+function deleteSingleRequest(id) { if(confirm("حذف الطلب؟")) firebase.firestore().collection("HR_Requests").doc(id).delete(); }
+function translateType(t) { return t === 'vacation' ? "إجازة" : t === 'late' ? "تأخير" : "خروج"; }
+function translateStatus(s) { return s === 'Approved' ? "مقبول" : s === 'Rejected' ? "مرفوض" : "معلق"; }
 
 function exportToExcel() {
-    let csv = "\uFEFFCode,Name,Dept,Type,Date,Status\n";
-    allRequests.forEach(r => csv += `${r.employeeCode},${r.employeeName},${r.department},${r.type},${r.startDate || r.reqDate},${r.status}\n`);
-    const link = document.createElement('a');
-    link.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
-    link.download = `HR_Report_Tamkeen.csv`;
-    link.click();
+    let csv = "\uFEFFCode,Name,Dept,Type,Date,Status,Reviewer\n";
+    allRequests.forEach(r => csv += `${r.employeeCode},${r.employeeName},${r.department},${r.type},${r.startDate || r.reqDate},${r.status},${r.reviewerName || '--'}\n`);
+    const link = document.createElement('a'); link.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv); link.download = `HR_Report_Tamkeen.csv`; link.click();
 }
 
 function applyLanguage(lang) {
     const trans = {
-        ar: { title: "إدارة HR - تمكين", code: "الكود", name: "الموظف", dept: "القسم", type: "النوع", dates: "تاريخ الإجازة (من - إلى)", status: "الحالة", action: "إجراء" },
-        en: { title: "HR Admin - Tamkeen", code: "Code", name: "Employee", dept: "Dept", type: "Type", dates: "Leave Dates (From-To)", status: "Status", action: "Action" }
+        ar: { title: "إدارة HR - تمكين", code: "الكود", name: "الموظف", dept: "القسم", type: "النوع", dates: "تاريخ الإجازة", status: "الحالة", reviewer: "تم الإجراء بواسطة", action: "إجراء" },
+        en: { title: "HR Admin - Tamkeen", code: "Code", name: "Employee", dept: "Dept", type: "Type", dates: "Leave Dates", status: "Status", reviewer: "Reviewed By", action: "Action" }
     };
-    const t = trans[lang] || trans.ar;
-    const set = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
-    set('txt-title', t.title); set('th-code', t.code); set('th-name', t.name); set('th-dept', t.dept); set('th-type', t.type); set('th-dates', t.dates); set('th-status', t.status); set('th-action', t.action);
+    const t = trans[lang === 'en' ? 'en' : 'ar'];
+    if(document.getElementById('txt-title')) document.getElementById('txt-title').innerText = t.title;
+    if(document.getElementById('th-reviewer')) document.getElementById('th-reviewer').innerText = t.reviewer;
 }
 
 window.onload = () => { loadAllRequests(); };
