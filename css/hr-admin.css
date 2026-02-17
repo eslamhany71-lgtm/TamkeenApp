@@ -399,3 +399,111 @@ tr:hover { background: #f9fbff; }
     .filter-row { grid-template-columns: 1fr; }
     .hr-header { padding: 15px 20px; }
 }
+/* --- تحسين شكل قسم رفع ملف الـ CSV المطور --- */
+
+.upload-panel {
+    background: #ffffff;
+    border: 2px dashed #d1d9e6; /* إطار منقط يعطي شكل منطقة رفع ملفات */
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 30px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.upload-panel:hover {
+    border-color: var(--primary); /* يتغير اللون عند تمرير الماوس */
+    background: #f8faff;
+    box-shadow: 0 10px 20px rgba(72, 52, 212, 0.05);
+}
+
+.panel-header h4 {
+    margin: 0 0 20px 0;
+    color: var(--primary);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* إضافة أيقونة قبل العنوان (اختياري عبر الـ CSS) */
+.panel-header h4::before {
+    content: '📁';
+    font-size: 22px;
+}
+
+.upload-body {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* تحسين شكل خانة اختيار الملف نفسه */
+#csvFile {
+    flex: 1;
+    padding: 12px;
+    background: #ffffff;
+    border: 1px solid #dfe6e9;
+    border-radius: 12px;
+    font-size: 14px;
+    color: var(--text-light);
+    cursor: pointer;
+}
+
+#csvFile::file-selector-button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    margin-left: 15px;
+    cursor: pointer;
+    transition: 0.3s;
+    font-weight: bold;
+}
+
+#csvFile::file-selector-button:hover {
+    background: var(--secondary);
+}
+
+/* تحسين شكل زر الرفع الرئيسي */
+#btn-upload-start {
+    background: linear-gradient(135deg, var(--success), #27ae60);
+    color: white;
+    border: none;
+    padding: 14px 30px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.2);
+}
+
+#btn-upload-start:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(46, 204, 113, 0.3);
+    filter: brightness(1.1);
+}
+
+#btn-upload-start:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* التجاوب مع الموبايل لقسم الرفع */
+@media (max-width: 600px) {
+    .upload-body {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    #btn-upload-start {
+        justify-content: center;
+    }
+}
