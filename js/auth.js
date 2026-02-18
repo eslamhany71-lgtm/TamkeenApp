@@ -1,35 +1,39 @@
-// auth.js - النسخة الشاملة (الإصلاح النهائي 2026)
-// يدعم الأكواد النصية بالمسافات (مثل: At 6651) والإيميلات الكاملة ذكياً
+// auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission)
+// تم تعديل الدخول والتفعيل ليدعم الأكواد النصية بالمسافات (مثل: At 6651) ليتطابق مع شيت الـ HR
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// 1. مراقب الحالة (التوجيه التلقائي + طلب إذن التنبيهات)
+// 1. مراقب الحالة (التحقق من تسجيل الدخول وتوجيه المستخدم)
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop() || "index.html";
     
+    // الصفحات التي لا تتطلب تسجيل دخول
     const isLoginPage = fileName === "index.html" || fileName === "activate.html" || fileName === "";
 
     if (user) {
+        // لو مسجل دخول وموجود في صفحة الدخول.. ابعته للهوم
         if (isLoginPage) {
             window.location.href = "home.html";
         }
+        // طلب إذن التنبيهات من المتصفح بمجرد تسجيل الدخول
         requestNotificationPermission();
     } else {
+        // لو مش مسجل دخول وموجود في صفحة داخلية.. ارجعه للدخول
         if (!isLoginPage) {
             window.location.href = "index.html";
         }
     }
 });
 
-// ميزة التنبيهات الخارجية: طلب الإذن
+// ميزة التنبيهات الخارجية: وظيفة طلب الإذن
 function requestNotificationPermission() {
     if ("Notification" in window) {
         if (Notification.permission !== "granted" && Notification.permission !== "denied") {
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
-                    console.log("تم تفعيل إذن التنبيهات");
+                    console.log("تم تفعيل إذن التنبيهات بنجاح");
                 }
             });
         }
@@ -40,6 +44,7 @@ function requestNotificationPermission() {
 function logout() {
     auth.signOut().then(() => {
         console.log("Logged out successfully");
+        sessionStorage.clear(); // مسح الكاش عند الخروج لضمان الأمان
         window.location.href = "index.html";
     }).catch((error) => {
         console.error("Logout Error:", error);
@@ -54,7 +59,8 @@ function loginById() {
 
     if (!codeInput || !passInput) return;
 
-    const rawInput = codeInput.value.trim(); // نأخذ النص كما هو بالمسافات (At 6651)
+    // نأخذ النص كما هو مكتوب (At 6651)
+    const rawInput = codeInput.value.trim(); 
     const pass = passInput.value.trim();
 
     if (!rawInput || !pass) { 
@@ -62,36 +68,44 @@ function loginById() {
         return; 
     }
 
-    // تجهيز الإيميل لـ Firebase Auth (إزالة المسافات ضروري تقنياً للدخول فقط)
-    // لو الموظف كتب "At 6651" الفايربيز هيشوفه "At6651@tamkeen.com"
-    const authEmail = rawInput.includes('@') ? rawInput.replace(/\s+/g, '') : rawInput.replace(/\s+/g, '') + "@tamkeen.com";
+    // --- المنطق الذكي الجديد ---
+    // إزالة المسافات ضروري فقط لخانة الـ Email في Firebase Auth لأنها ترفض المسافات
+    // لكن البحث في Firestore لاحقاً سيتم بالكود الأصلي
+    const cleanAuthEmail = rawInput.includes('@') 
+        ? rawInput.replace(/\s+/g, '').toLowerCase() 
+        : rawInput.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
     
     const btn = document.getElementById('btn-login');
+    
     if (btn) {
         btn.innerText = "...";
         btn.disabled = true;
     }
 
-    auth.signInWithEmailAndPassword(authEmail, pass)
+    auth.signInWithEmailAndPassword(cleanAuthEmail, pass)
     .catch((error) => {
         if (btn) {
             btn.innerText = "دخول";
             btn.disabled = false;
         }
+        // رسالة الخطأ بناءً على لغة الصفحة
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
+            } else if (error.code === 'auth/invalid-email') {
+                errorDiv.innerText = isRtl ? "صيغة غير صحيحة" : "Invalid format";
             } else {
-                errorDiv.innerText = isRtl ? "صيغة غير صحيحة أو خطأ في الدخول" : "Invalid format or login error";
+                errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
             }
         }
     });
 }
 
-// 4. دالة التفعيل الكاملة (تبحث بالكود الأصلي وتتعامل مع المسافات)
+// 4. دالة التفعيل الكاملة (للموظفين الجدد)
+// تم تعديلها لتبحث في Employee_Database بالكود الأصلي (At 6651) وتنشئ الحساب
 async function activateAccount() {
-    const codeRaw = document.getElementById('reg-code').value.trim(); // الكود كما هو (At 6651)
+    const codeRaw = document.getElementById('reg-code').value.trim(); // "At 6651" مثلاً
     const phone = document.getElementById('reg-phone').value.trim();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
@@ -100,13 +114,15 @@ async function activateAccount() {
         if(msg) msg.innerText = "برجاء إكمال البيانات"; return; 
     }
 
-    // تجهيز الإيميل للتسجيل في Auth (بدون مسافات لأن الفايربيز يمنعها)
-    const authEmail = codeRaw.includes('@') ? codeRaw.replace(/\s+/g, '').toLowerCase() : codeRaw.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
+    // تجهيز إيميل الـ Auth (بدون مسافات)
+    const authEmail = codeRaw.includes('@') 
+        ? codeRaw.replace(/\s+/g, '').toLowerCase() 
+        : codeRaw.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
 
     try {
-        if(msg) msg.innerText = "جاري التحقق من السجلات...";
+        if(msg) msg.innerText = "جاري فحص الكود: " + codeRaw;
 
-        // البحث في Firestore بالكود الأصلي كما هو مكتوب في الشيت (بالمسافات: At 6651)
+        // البحث في جدول الموظفين (المرفوع عبر CSV) باستخدام الكود الأصلي بالظبط
         const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
@@ -124,18 +140,18 @@ async function activateAccount() {
 
         if(msg) msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
-        // إنشاء الحساب في Auth بالإيميل التقني
+        // أ- إنشاء الحساب في نظام الـ Auth
         await auth.createUserWithEmailAndPassword(authEmail, pass);
         
-        // إنشاء ملف المستخدم في Users وحفظ الكود الأصلي (بالمسافات)
+        // ب- إنشاء بروفايل المستخدم في جدول Users وربطه بالكود الأصلي (At 6651)
         await db.collection("Users").doc(authEmail).set({
             role: (empData.role || "employee").toLowerCase().trim(),
             name: empData.name,
-            empCode: codeRaw, // نحفظه At 6651 كما هو
+            empCode: codeRaw, // نحفظ الكود الأصلي بالمسافات
             email: authEmail
         });
 
-        // تحديث حالة التفعيل في Employee_Database باستخدام الكود الأصلي (بالمسافات)
+        // ج- تحديث حالة التفعيل في جدول الموظفين الأصلي
         await db.collection("Employee_Database").doc(codeRaw).update({
             activated: true
         });
@@ -150,7 +166,11 @@ async function activateAccount() {
         console.error("خطأ التفعيل:", error);
         if(msg) {
             if (error.code === 'auth/invalid-email') {
-                msg.innerText = "خطأ في صيغة الإيميل التقنية";
+                msg.innerText = "صيغة الكود أو الإيميل غير صحيحة تقنياً";
+            } else if (error.code === 'auth/weak-password') {
+                msg.innerText = "كلمة المرور ضعيفة جداً";
+            } else if (error.code === 'auth/email-already-in-use') {
+                msg.innerText = "هذا الإيميل مسجل مسبقاً";
             } else {
                 msg.innerText = "خطأ: " + error.message;
             }
@@ -158,7 +178,7 @@ async function activateAccount() {
     }
 }
 
-// 5. نظام الترجمة الموحد (كامل بدون نقص حرف واحد)
+// 5. نظام الترجمة الموحد (يدعم كل الصفحات - كامل بدون نواقص)
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -176,11 +196,13 @@ function updatePageContent(lang) {
     const t = translations[lang] || translations['ar'];
     document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
 
+    // دالة مساعدة لتحديث النصوص بأمان
     const safeSetText = (id, text) => {
         const el = document.getElementById(id);
         if (el) el.innerText = text;
     };
 
+    // تطبيق الترجمات
     safeSetText('txt-title', t.title);
     safeSetText('txt-brand', t.brand);
     safeSetText('txt-welcome', t.welcome);
