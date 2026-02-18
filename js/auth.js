@@ -1,39 +1,35 @@
-// auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission)
-// تم تحديث منطق الدخول والتفعيل ليدعم (الكود فقط) أو (الإيميل الكامل) ذكياً وبدون أخطاء فورمات
+// auth.js - النسخة الشاملة (الإصلاح النهائي 2026)
+// يدعم الأكواد النصية بالمسافات (مثل: At 6651) والإيميلات الكاملة ذكياً
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// 1. مراقب الحالة (التحقق من تسجيل الدخول وتوجيه المستخدم)
+// 1. مراقب الحالة (التوجيه التلقائي + طلب إذن التنبيهات)
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop() || "index.html";
     
-    // الصفحات التي لا تتطلب تسجيل دخول
     const isLoginPage = fileName === "index.html" || fileName === "activate.html" || fileName === "";
 
     if (user) {
-        // لو مسجل دخول وموجود في صفحة الدخول.. ابعته للهوم
         if (isLoginPage) {
             window.location.href = "home.html";
         }
-        // طلب إذن التنبيهات من المتصفح بمجرد تسجيل الدخول
         requestNotificationPermission();
     } else {
-        // لو مش مسجل دخول وموجود في صفحة داخلية.. ارجعه للدخول
         if (!isLoginPage) {
             window.location.href = "index.html";
         }
     }
 });
 
-// ميزة التنبيهات الخارجية: وظيفة طلب الإذن
+// ميزة التنبيهات الخارجية: طلب الإذن
 function requestNotificationPermission() {
     if ("Notification" in window) {
         if (Notification.permission !== "granted" && Notification.permission !== "denied") {
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
-                    console.log("تم تفعيل إذن التنبيهات بنجاح");
+                    console.log("تم تفعيل إذن التنبيهات");
                 }
             });
         }
@@ -58,49 +54,44 @@ function loginById() {
 
     if (!codeInput || !passInput) return;
 
-    // تنظيف المدخلات من المسافات وتحويلها لحروف صغيرة (Lowercase) لمنع أخطاء الـ Auth
-    const inputVal = codeInput.value.trim().toLowerCase();
+    const rawInput = codeInput.value.trim(); // نأخذ النص كما هو بالمسافات (At 6651)
     const pass = passInput.value.trim();
 
-    if (!inputVal || !pass) { 
+    if (!rawInput || !pass) { 
         if (errorDiv) errorDiv.innerText = document.body.dir === 'rtl' ? "برجاء إكمال البيانات" : "Please complete data"; 
         return; 
     }
 
-    // --- المنطق الذكي الجديد ---
-    // إذا كان المدخل يحتوي على @ نعتبره إيميل كامل، وإذا لم يحتوي نعتبره كود ونضيف له الدومين
-    const email = inputVal.includes('@') ? inputVal : inputVal + "@tamkeen.com";
+    // تجهيز الإيميل لـ Firebase Auth (إزالة المسافات ضروري تقنياً للدخول فقط)
+    // لو الموظف كتب "At 6651" الفايربيز هيشوفه "At6651@tamkeen.com"
+    const authEmail = rawInput.includes('@') ? rawInput.replace(/\s+/g, '') : rawInput.replace(/\s+/g, '') + "@tamkeen.com";
     
     const btn = document.getElementById('btn-login');
-    
     if (btn) {
         btn.innerText = "...";
         btn.disabled = true;
     }
 
-    auth.signInWithEmailAndPassword(email, pass)
+    auth.signInWithEmailAndPassword(authEmail, pass)
     .catch((error) => {
         if (btn) {
             btn.innerText = "دخول";
             btn.disabled = false;
         }
-        // رسالة الخطأ بناءً على لغة الصفحة
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
-            } else if (error.code === 'auth/invalid-email') {
-                errorDiv.innerText = isRtl ? "صيغة البريد الإلكتروني غير صحيحة" : "Invalid email format";
             } else {
-                errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
+                errorDiv.innerText = isRtl ? "صيغة غير صحيحة أو خطأ في الدخول" : "Invalid format or login error";
             }
         }
     });
 }
 
-// 4. دالة التفعيل الكاملة (للموظفين الجدد)
+// 4. دالة التفعيل الكاملة (تبحث بالكود الأصلي وتتعامل مع المسافات)
 async function activateAccount() {
-    const codeRaw = document.getElementById('reg-code').value.trim().toLowerCase();
+    const codeRaw = document.getElementById('reg-code').value.trim(); // الكود كما هو (At 6651)
     const phone = document.getElementById('reg-phone').value.trim();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
@@ -109,18 +100,17 @@ async function activateAccount() {
         if(msg) msg.innerText = "برجاء إكمال البيانات"; return; 
     }
 
-    // استخراج الكود الصافي للبحث في Firestore (لو كتب إيميل كامل، ناخد اللي قبل الـ @)
-    const code = codeRaw.includes('@') ? codeRaw.split('@')[0] : codeRaw;
-    
-    // بناء الإيميل الصحيح للتسجيل في Firebase Auth
-    const email = codeRaw.includes('@') ? codeRaw : codeRaw + "@tamkeen.com";
+    // تجهيز الإيميل للتسجيل في Auth (بدون مسافات لأن الفايربيز يمنعها)
+    const authEmail = codeRaw.includes('@') ? codeRaw.replace(/\s+/g, '').toLowerCase() : codeRaw.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
 
     try {
-        // البحث عن الموظف في قاعدة البيانات باستخدام الكود
-        const empDoc = await db.collection("Employee_Database").doc(code).get();
+        if(msg) msg.innerText = "جاري التحقق من السجلات...";
+
+        // البحث في Firestore بالكود الأصلي كما هو مكتوب في الشيت (بالمسافات: At 6651)
+        const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
-            if(msg) msg.innerText = "الكود غير مسجل، راجع الـ HR"; return;
+            if(msg) msg.innerText = "الكود (" + codeRaw + ") غير مسجل، راجع الـ HR"; return;
         }
 
         const empData = empDoc.data();
@@ -134,19 +124,19 @@ async function activateAccount() {
 
         if(msg) msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
-        // إنشاء الحساب في Auth
-        await auth.createUserWithEmailAndPassword(email, pass);
+        // إنشاء الحساب في Auth بالإيميل التقني
+        await auth.createUserWithEmailAndPassword(authEmail, pass);
         
-        // إنشاء ملف المستخدم في Users
-        await db.collection("Users").doc(email).set({
+        // إنشاء ملف المستخدم في Users وحفظ الكود الأصلي (بالمسافات)
+        await db.collection("Users").doc(authEmail).set({
             role: (empData.role || "employee").toLowerCase().trim(),
             name: empData.name,
-            empCode: code,
-            email: email
+            empCode: codeRaw, // نحفظه At 6651 كما هو
+            email: authEmail
         });
 
-        // تحديث حالة التفعيل في Employee_Database
-        await db.collection("Employee_Database").doc(code).update({
+        // تحديث حالة التفعيل في Employee_Database باستخدام الكود الأصلي (بالمسافات)
+        await db.collection("Employee_Database").doc(codeRaw).update({
             activated: true
         });
 
@@ -160,9 +150,7 @@ async function activateAccount() {
         console.error("خطأ التفعيل:", error);
         if(msg) {
             if (error.code === 'auth/invalid-email') {
-                msg.innerText = "صيغة الكود أو الإيميل غير صحيحة";
-            } else if (error.code === 'auth/weak-password') {
-                msg.innerText = "كلمة المرور ضعيفة جداً";
+                msg.innerText = "خطأ في صيغة الإيميل التقنية";
             } else {
                 msg.innerText = "خطأ: " + error.message;
             }
@@ -170,7 +158,7 @@ async function activateAccount() {
     }
 }
 
-// 5. نظام الترجمة الموحد (يدعم كل الصفحات)
+// 5. نظام الترجمة الموحد (كامل بدون نقص حرف واحد)
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -188,13 +176,11 @@ function updatePageContent(lang) {
     const t = translations[lang] || translations['ar'];
     document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
 
-    // دالة مساعدة لتحديث النصوص بأمان
     const safeSetText = (id, text) => {
         const el = document.getElementById(id);
         if (el) el.innerText = text;
     };
 
-    // تطبيق الترجمات (ستعمل فقط إذا كان العنصر موجوداً في الصفحة الحالية)
     safeSetText('txt-title', t.title);
     safeSetText('txt-brand', t.brand);
     safeSetText('txt-welcome', t.welcome);
