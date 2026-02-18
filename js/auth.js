@@ -70,7 +70,7 @@ function loginById() {
 
     // --- المنطق الذكي الجديد ---
     // إزالة المسافات ضروري فقط لخانة الـ Email في Firebase Auth لأنها ترفض المسافات
-    // لكن البحث في Firestore لاحقاً سيتم بالكود الأصلي
+    // يتم تحويل الإيميل لـ lowercase لضمان التطابق مع الـ Rules
     const cleanAuthEmail = rawInput.includes('@') 
         ? rawInput.replace(/\s+/g, '').toLowerCase() 
         : rawInput.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
@@ -103,7 +103,6 @@ function loginById() {
 }
 
 // 4. دالة التفعيل الكاملة (للموظفين الجدد)
-// تم تعديلها لتبحث في Employee_Database بالكود الأصلي (At 6651) وتنشئ الحساب
 async function activateAccount() {
     const codeRaw = document.getElementById('reg-code').value.trim(); // "At 6651" مثلاً
     const phone = document.getElementById('reg-phone').value.trim();
@@ -114,7 +113,7 @@ async function activateAccount() {
         if(msg) msg.innerText = "برجاء إكمال البيانات"; return; 
     }
 
-    // تجهيز إيميل الـ Auth (بدون مسافات)
+    // تجهيز إيميل الـ Auth (بدون مسافات وبحروف صغيرة)
     const authEmail = codeRaw.includes('@') 
         ? codeRaw.replace(/\s+/g, '').toLowerCase() 
         : codeRaw.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
@@ -122,7 +121,7 @@ async function activateAccount() {
     try {
         if(msg) msg.innerText = "جاري فحص الكود: " + codeRaw;
 
-        // البحث في جدول الموظفين (المرفوع عبر CSV) باستخدام الكود الأصلي بالظبط
+        // البحث في جدول الموظفين باستخدام الكود الأصلي بالظبط (بالحروف الكبيرة والمسافات)
         const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
