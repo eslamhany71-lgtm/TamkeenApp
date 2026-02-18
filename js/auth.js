@@ -1,5 +1,5 @@
 // auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission)
-// تم تحديث منطق الدخول ليدعم (الكود فقط) أو (الإيميل الكامل) ذكياً
+// تم تحديث منطق الدخول والتفعيل ليدعم (الكود فقط) أو (الإيميل الكامل) ذكياً وبدون أخطاء فورمات
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -58,7 +58,8 @@ function loginById() {
 
     if (!codeInput || !passInput) return;
 
-    const inputVal = codeInput.value.trim();
+    // تنظيف المدخلات من المسافات وتحويلها لحروف صغيرة (Lowercase) لمنع أخطاء الـ Auth
+    const inputVal = codeInput.value.trim().toLowerCase();
     const pass = passInput.value.trim();
 
     if (!inputVal || !pass) { 
@@ -88,6 +89,8 @@ function loginById() {
             const isRtl = document.body.dir === 'rtl';
             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
+            } else if (error.code === 'auth/invalid-email') {
+                errorDiv.innerText = isRtl ? "صيغة البريد الإلكتروني غير صحيحة" : "Invalid email format";
             } else {
                 errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
             }
@@ -97,16 +100,23 @@ function loginById() {
 
 // 4. دالة التفعيل الكاملة (للموظفين الجدد)
 async function activateAccount() {
-    const code = document.getElementById('reg-code').value.trim();
+    const codeRaw = document.getElementById('reg-code').value.trim().toLowerCase();
     const phone = document.getElementById('reg-phone').value.trim();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
 
-    if(!code || !phone || !pass) { 
+    if(!codeRaw || !phone || !pass) { 
         if(msg) msg.innerText = "برجاء إكمال البيانات"; return; 
     }
 
+    // استخراج الكود الصافي للبحث في Firestore (لو كتب إيميل كامل، ناخد اللي قبل الـ @)
+    const code = codeRaw.includes('@') ? codeRaw.split('@')[0] : codeRaw;
+    
+    // بناء الإيميل الصحيح للتسجيل في Firebase Auth
+    const email = codeRaw.includes('@') ? codeRaw : codeRaw + "@tamkeen.com";
+
     try {
+        // البحث عن الموظف في قاعدة البيانات باستخدام الكود
         const empDoc = await db.collection("Employee_Database").doc(code).get();
 
         if (!empDoc.exists) {
@@ -122,20 +132,20 @@ async function activateAccount() {
             if(msg) msg.innerText = "هذا الحساب مفعل بالفعل"; return;
         }
 
-        const email = code + "@tamkeen.com";
-        const role = (empData.role || "employee").toLowerCase().trim();
-
         if(msg) msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
+        // إنشاء الحساب في Auth
         await auth.createUserWithEmailAndPassword(email, pass);
         
+        // إنشاء ملف المستخدم في Users
         await db.collection("Users").doc(email).set({
-            role: role,
+            role: (empData.role || "employee").toLowerCase().trim(),
             name: empData.name,
             empCode: code,
             email: email
         });
 
+        // تحديث حالة التفعيل في Employee_Database
         await db.collection("Employee_Database").doc(code).update({
             activated: true
         });
@@ -148,7 +158,15 @@ async function activateAccount() {
 
     } catch (error) {
         console.error("خطأ التفعيل:", error);
-        if(msg) msg.innerText = "خطأ: " + error.message;
+        if(msg) {
+            if (error.code === 'auth/invalid-email') {
+                msg.innerText = "صيغة الكود أو الإيميل غير صحيحة";
+            } else if (error.code === 'auth/weak-password') {
+                msg.innerText = "كلمة المرور ضعيفة جداً";
+            } else {
+                msg.innerText = "خطأ: " + error.message;
+            }
+        }
     }
 }
 
