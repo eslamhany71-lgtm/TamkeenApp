@@ -4,53 +4,58 @@ window.onload = () => {
     loadBranchesList();
 };
 
+// 1. دالة الرفع والمعالجة
 function uploadBranchesCSV() {
     const fileInput = document.getElementById('branchCsvFile');
     const file = fileInput.files[0];
-    if (!file) return alert("اختار الملف أولاً");
+    if (!file) {
+        alert("يرجى اختيار ملف CSV أولاً");
+        return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
             const text = e.target.result;
             const rows = text.split(/\r?\n/);
-            let count = 0;
+            let successCount = 0;
 
+            // نبدأ من 1 لتخطي سطر العنوان في الإكسيل
             for (let i = 1; i < rows.length; i++) {
                 const row = rows[i].trim();
-                if (!row) continue; // يتجاهل السطور الفاضية تماماً
+                if (!row) continue;
 
+                // تقسيم الصف بناءً على الفاصلة (,) أو الفاصلة المنقوطة (;)
                 const cols = row.split(/[;,]/).map(item => item.replace(/["]/g, "").trim());
 
-                // --- التعديل السحري هنا ---
-                // نتأكد إن أول عمود (الكود) مش فاضي قبل ما نكلم الفايربيز
-                if (cols.length >= 6 && cols[0]) { 
-                    firebase.firestore().collection("Branches").doc(cols[0]).set({
-                        id: cols[0],
-                        nameAr: cols[1],
-                        nameEn: cols[2],
-                        address: cols[3],
-                        phone: cols[4],
-                        mapUrl: cols[5]
-                    });
-                    count++;
+                // التحقق من وجود 4 أعمدة (الاسم، العنوان، التليفون، الموقع)
+                if (cols.length >= 4) {
+                    const branchName = cols[0];
+                    const address = cols[1];
+                    const phone = cols[2];
+                    const mapUrl = cols[3];
+
+                    // رفع للفايربيز (اسم الفرع هو الـ ID لضمان عدم التكرار)
+                    firebase.firestore().collection("Branches").doc(branchName).set({
+                        nameAr: branchName, // بنخزنه كاسم عربي وافتراضي
+                        nameEn: branchName, 
+                        address: address,
+                        phone: phone,
+                        mapUrl: mapUrl,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+
+                    successCount++;
                 }
             }
-            
-            if(count > 0) {
-                alert("تم رفع " + count + " فرع بنجاح بدون أخطاء.");
-                fileInput.value = "";
-            } else {
-                alert("لم يتم العثور على بيانات صالحة.");
-            }
+            alert(`تم بنجاح رفع/تحديث ${successCount} فرع!`);
+            fileInput.value = "";
         } catch (err) {
-            console.error(err);
-            alert("حدث خطأ غير متوقع: " + err.message);
+            alert("خطأ في قراءة الملف: " + err.message);
         }
     };
     reader.readAsText(file, "UTF-8");
 }
-
 // 2. دالة عرض الفروع لحظياً
 function loadBranchesList() {
     const tableBody = document.getElementById('branches-list-body');
