@@ -1,4 +1,5 @@
 // auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission)
+// تم تحديث منطق الدخول ليدعم (الكود فقط) أو (الإيميل الكامل) ذكياً
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -49,7 +50,7 @@ function logout() {
     });
 }
 
-// 3. دالة تسجيل الدخول (Login)
+// 3. دالة تسجيل الدخول الذكية (Login)
 function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -57,15 +58,18 @@ function loginById() {
 
     if (!codeInput || !passInput) return;
 
-    const code = codeInput.value.trim();
+    const inputVal = codeInput.value.trim();
     const pass = passInput.value.trim();
 
-    if (!code || !pass) { 
+    if (!inputVal || !pass) { 
         if (errorDiv) errorDiv.innerText = document.body.dir === 'rtl' ? "برجاء إكمال البيانات" : "Please complete data"; 
         return; 
     }
 
-    const email = code + "@tamkeen.com";
+    // --- المنطق الذكي الجديد ---
+    // إذا كان المدخل يحتوي على @ نعتبره إيميل كامل، وإذا لم يحتوي نعتبره كود ونضيف له الدومين
+    const email = inputVal.includes('@') ? inputVal : inputVal + "@tamkeen.com";
+    
     const btn = document.getElementById('btn-login');
     
     if (btn) {
@@ -79,11 +83,19 @@ function loginById() {
             btn.innerText = "دخول";
             btn.disabled = false;
         }
-        if (errorDiv) errorDiv.innerText = document.body.dir === 'rtl' ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
+        // رسالة الخطأ بناءً على لغة الصفحة
+        if (errorDiv) {
+            const isRtl = document.body.dir === 'rtl';
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
+            } else {
+                errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
+            }
+        }
     });
 }
 
-// 4. دالة التفعيل الكاملة
+// 4. دالة التفعيل الكاملة (للموظفين الجدد)
 async function activateAccount() {
     const code = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -144,12 +156,12 @@ async function activateAccount() {
 function updatePageContent(lang) {
     const translations = {
         ar: {
-            title: "دخول - نظام تمكين", brand: "تمكين للتمويل", welcome: "تسجيل الدخول", code: "كود الموظف", pass: "كلمة المرور", btn: "دخول", new: "موظف جديد؟", act: "تفعيل الحساب",
+            title: "دخول - نظام تمكين", brand: "تمكين للتمويل", welcome: "تسجيل الدخول", code: "كود الموظف أو الإيميل", pass: "كلمة المرور", btn: "دخول", new: "موظف جديد؟", act: "تفعيل الحساب",
             actTitle: "تفعيل الحساب (للموظفين الجدد)", lblPhone: "رقم الموبايل", lblNewPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن", back: "رجوع",
             m_title: "لوحة تحكم المدير - تمكين", m_header: "مراجعة طلبات الموظفين", m_pending_label: "إجمالي الطلبات المعلقة:", m_loading: "جاري تحميل الطلبات..."
         },
         en: {
-            title: "Login - Tamkeen", brand: "Tamkeen Finance", welcome: "User Login", code: "Employee ID", pass: "Password", btn: "Login", new: "New Employee?", act: "Activate Account",
+            title: "Login - Tamkeen", brand: "Tamkeen Finance", welcome: "User Login", code: "Employee ID or Email", pass: "Password", btn: "Login", new: "New Employee?", act: "Activate Account",
             actTitle: "Account Activation", lblPhone: "Mobile Number", lblNewPass: "New Password", btnAct: "Activate Now", back: "Back",
             m_title: "Manager Dashboard - Tamkeen", m_header: "Review Employee Requests", m_pending_label: "Total Pending Requests:", m_loading: "Loading requests..."
         }
