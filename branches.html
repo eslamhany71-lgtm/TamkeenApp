@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">فروع تمكين</title>
     <link rel="stylesheet" href="css/branches.css">
-    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -26,11 +25,10 @@
     </header>
 
     <main class="container">
-        <!-- قسم البحث والفلترة بتصميم عصري -->
         <div class="search-wrapper">
             <div class="search-box">
                 <span class="search-icon">🔍</span>
-                <input type="text" id="branchSearch" onkeyup="searchBranch()" placeholder="ابحث باسم الفرع أو المدينة...">
+                <input type="text" id="branchSearch" onkeyup="filterBranches()" placeholder="ابحث باسم الفرع أو المدينة...">
             </div>
             
             <div class="filter-box">
@@ -40,7 +38,6 @@
             </div>
         </div>
 
-        <!-- كارت نتيجة البحث المطور -->
         <div id="branchResult" class="result-container" style="display: none;">
             <div class="branch-card-pro">
                 <div class="card-sidebar"></div>
@@ -79,13 +76,11 @@
             </div>
         </div>
 
-        <!-- قسم استعراض كافة الفروع (Grid) -->
         <div class="section-title">
             <h4 id="txt-all-branches">جميع الفروع</h4>
             <div class="line"></div>
         </div>
         <div id="allBranchesList" class="branches-pro-grid">
-            <!-- سيتم ملؤها بواسطة JS -->
             <p id="loading-msg">جاري تحميل الفروع...</p>
         </div>
     </main>
