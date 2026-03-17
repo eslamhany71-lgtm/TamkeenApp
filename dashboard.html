@@ -99,6 +99,7 @@
             gap: 10px;
         }
         .action-btn:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateX(-5px); }
+        html[dir="ltr"] .action-btn:hover { transform: translateX(5px); text-align: left; }
         .action-btn span { font-size: 18px; }
 
     </style>
@@ -151,13 +152,13 @@
             <div class="panel">
                 <h3 class="panel-title" id="lbl-actions">إجراءات سريعة</h3>
                 <div class="quick-actions">
-                    <button class="action-btn" onclick="window.parent.loadPage('crm.html', document.getElementById('nav-crm').parentElement)">
+                    <button class="action-btn" onclick="window.parent.loadPage('crm.html', window.parent.document.getElementById('nav-crm').parentElement)">
                         <span>➕</span> <div id="btn-add-lead">إضافة عميل جديد (CRM)</div>
                     </button>
-                    <button class="action-btn" onclick="window.parent.loadPage('hr-solution.html', document.getElementById('nav-hr').parentElement)">
+                    <button class="action-btn" onclick="window.parent.loadPage('hr-solution.html', window.parent.document.getElementById('nav-hr').parentElement)">
                         <span>📝</span> <div id="btn-req-leave">تقديم طلب إجازة</div>
                     </button>
-                    <button class="action-btn" onclick="window.parent.loadPage('calculator.html', document.getElementById('nav-calc').parentElement)">
+                    <button class="action-btn" onclick="window.parent.loadPage('calculator.html', window.parent.document.getElementById('nav-calc').parentElement)">
                         <span>🧮</span> <div id="btn-calc-loan">حساب قرض جديد</div>
                     </button>
                 </div>
@@ -168,46 +169,30 @@
 
     <script src="js/firebase-config.js"></script>
     <script>
-        // 1. جلب الإحصائيات من فايربيز لحظياً
-        function loadDashboardStats() {
-            const db = firebase.firestore();
+        // 1. نظام الترجمة لصفحة الـ Dashboard
+        function updatePageContent(lang) {
+            const t = {
+                ar: {
+                    welcome: "نظرة عامة على النظام", subtitle: "ملخص أداء الشركة وإحصائيات الإدارات اللحظية",
+                    emp: "إجمالي الموظفين", hrPend: "طلبات HR معلقة", crmAct: "عملاء نشطين (CRM)", crmWon: "صفقات ناجحة",
+                    chart: "مؤشر المبيعات وحالات العملاء", actions: "إجراءات سريعة",
+                    btnAddLead: "إضافة عميل جديد (CRM)", btnReqLeave: "تقديم طلب إجازة", btnCalcLoan: "حساب قرض جديد"
+                },
+                en: {
+                    welcome: "System Overview", subtitle: "Company Performance & Real-time Department Stats",
+                    emp: "Total Employees", hrPend: "Pending HR Requests", crmAct: "Active CRM Leads", crmWon: "Won Deals",
+                    chart: "Sales Pipeline & Lead Status", actions: "Quick Actions",
+                    btnAddLead: "Add New Lead (CRM)", btnReqLeave: "Submit Leave Request", btnCalcLoan: "Calculate New Loan"
+                }
+            };
+            const c = t[lang] || t.ar;
+            const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
-            // جلب عدد الموظفين
-            db.collection("Employee_Database").onSnapshot(snap => {
-                document.getElementById('stat-employees').innerText = snap.size;
-            });
-
-            // جلب طلبات الـ HR المعلقة
-            db.collection("HR_Requests").where("status", "==", "Pending").onSnapshot(snap => {
-                document.getElementById('stat-hr-pending').innerText = snap.size;
-            });
-
-            // جلب إحصائيات الـ CRM
-            db.collection("CRM_Leads").onSnapshot(snap => {
-                let active = 0;
-                let won = 0;
-                let lost = 0;
-                let newLead = 0;
-                let contacted = 0;
-                let negotiation = 0;
-
-                snap.forEach(doc => {
-                    const status = doc.data().status;
-                    if (status === 'won') won++;
-                    else if (status === 'lost') lost++;
-                    else {
-                        active++;
-                        if(status === 'new') newLead++;
-                        if(status === 'contacted') contacted++;
-                        if(status === 'negotiation') negotiation++;
-                    }
-                });
-
-                document.getElementById('stat-crm-active').innerText = active;
-                document.getElementById('stat-crm-won').innerText = won;
-
-                updateChart(newLead, contacted, negotiation, won, lost);
-            });
+            setTxt('txt-welcome', c.welcome); setTxt('txt-subtitle', c.subtitle);
+            setTxt('lbl-employees', c.emp); setTxt('lbl-hr-pending', c.hrPend); 
+            setTxt('lbl-crm-active', c.crmAct); setTxt('lbl-crm-won', c.crmWon);
+            setTxt('lbl-chart', c.chart); setTxt('lbl-actions', c.actions);
+            setTxt('btn-add-lead', c.btnAddLead); setTxt('btn-req-leave', c.btnReqLeave); setTxt('btn-calc-loan', c.btnCalcLoan);
         }
 
         // 2. تحديث الرسم البياني
@@ -241,37 +226,62 @@
             });
         }
 
-        // 3. نظام الترجمة لصفحة الـ Dashboard
-        function updatePageContent(lang) {
-            const t = {
-                ar: {
-                    welcome: "نظرة عامة على النظام", subtitle: "ملخص أداء الشركة وإحصائيات الإدارات اللحظية",
-                    emp: "إجمالي الموظفين", hrPend: "طلبات HR معلقة", crmAct: "عملاء نشطين (CRM)", crmWon: "صفقات ناجحة",
-                    chart: "مؤشر المبيعات وحالات العملاء", actions: "إجراءات سريعة",
-                    btnAddLead: "إضافة عميل جديد (CRM)", btnReqLeave: "تقديم طلب إجازة", btnCalcLoan: "حساب قرض جديد"
-                },
-                en: {
-                    welcome: "System Overview", subtitle: "Company Performance & Real-time Department Stats",
-                    emp: "Total Employees", hrPend: "Pending HR Requests", crmAct: "Active CRM Leads", crmWon: "Won Deals",
-                    chart: "Sales Pipeline & Lead Status", actions: "Quick Actions",
-                    btnAddLead: "Add New Lead (CRM)", btnReqLeave: "Submit Leave Request", btnCalcLoan: "Calculate New Loan"
-                }
-            };
-            const c = t[lang] || t.ar;
-            const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+        // 3. جلب الإحصائيات من فايربيز لحظياً
+        function loadDashboardStats() {
+            const db = firebase.firestore();
 
-            setTxt('txt-welcome', c.welcome); setTxt('txt-subtitle', c.subtitle);
-            setTxt('lbl-employees', c.emp); setTxt('lbl-hr-pending', c.hrPend); 
-            setTxt('lbl-crm-active', c.crmAct); setTxt('lbl-crm-won', c.crmWon);
-            setTxt('lbl-chart', c.chart); setTxt('lbl-actions', c.actions);
-            setTxt('btn-add-lead', c.btnAddLead); setTxt('btn-req-leave', c.btnReqLeave); setTxt('btn-calc-loan', c.btnCalcLoan);
+            // جلب عدد الموظفين
+            db.collection("Employee_Database").onSnapshot(snap => {
+                document.getElementById('stat-employees').innerText = snap.size;
+            }, err => console.log("Employees read error:", err));
+
+            // جلب طلبات الـ HR المعلقة
+            db.collection("HR_Requests").where("status", "==", "Pending").onSnapshot(snap => {
+                document.getElementById('stat-hr-pending').innerText = snap.size;
+            }, err => console.log("HR read error:", err));
+
+            // جلب إحصائيات الـ CRM
+            db.collection("CRM_Leads").onSnapshot(snap => {
+                let active = 0;
+                let won = 0;
+                let lost = 0;
+                let newLead = 0;
+                let contacted = 0;
+                let negotiation = 0;
+
+                snap.forEach(doc => {
+                    const status = doc.data().status;
+                    if (status === 'won') won++;
+                    else if (status === 'lost') lost++;
+                    else {
+                        active++;
+                        if(status === 'new') newLead++;
+                        if(status === 'contacted') contacted++;
+                        if(status === 'negotiation') negotiation++;
+                    }
+                });
+
+                document.getElementById('stat-crm-active').innerText = active;
+                document.getElementById('stat-crm-won').innerText = won;
+
+                updateChart(newLead, contacted, negotiation, won, lost);
+            }, err => console.log("CRM read error:", err));
         }
 
+        // 4. التشغيل عند التحميل والتأكد من تسجيل الدخول أولاً
         window.onload = () => { 
             const lang = localStorage.getItem('preferredLang') || 'ar';
             document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
             updatePageContent(lang); 
-            loadDashboardStats();
+
+            // التأكد من تسجيل الدخول قبل محاولة جلب البيانات لتجنب خطأ Permission Denied
+            firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                    loadDashboardStats();
+                } else {
+                    console.log("Waiting for authentication...");
+                }
+            });
         };
     </script>
 </body>
