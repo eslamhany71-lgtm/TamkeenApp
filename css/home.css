@@ -273,3 +273,11 @@ body {
 @media (max-width: 992px) {
     .desktop-toggle { display: none; }
 }
+/* إعدادات شاشة العرض (Iframe) */
+.content-frame {
+    width: 100%;
+    height: calc(100vh - 70px); /* يطرح ارتفاع الشريط العلوي */
+    border: none;
+    display: block;
+    background-color: var(--bg-color);
+}
