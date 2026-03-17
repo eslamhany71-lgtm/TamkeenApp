@@ -1,123 +1,87 @@
-// calculator.js - حاسبة القروض الدقيقة مع نظام اللغات
+// calculator.js - Enterprise Edition
 
 function calculateLoan() {
-    const amount = parseFloat(document.getElementById('loanAmount').value);
-    const months = parseInt(document.getElementById('loanMonths').value);
-    const rate = parseFloat(document.getElementById('productType').value);
+    const amount = parseFloat(document.getElementById('loan-amount').value);
+    const interestRate = parseFloat(document.getElementById('loan-interest').value);
+    const months = parseInt(document.getElementById('loan-months').value);
+
     const lang = localStorage.getItem('preferredLang') || 'ar';
 
-    if (isNaN(amount) || isNaN(months) || amount <= 0 || months <= 0) {
-        alert(lang === 'ar' ? "برجاء إدخال المبلغ والمدة بشكل صحيح" : "Please enter valid amount and duration");
+    if (isNaN(amount) || isNaN(interestRate) || isNaN(months) || amount <= 0 || interestRate < 0 || months <= 0) {
+        alert(lang === 'ar' ? "يرجى إدخال بيانات صحيحة بجميع الحقول" : "Please enter valid data in all fields");
         return;
     }
 
-    // --- المعادلات الحسابية الخاصة بك ---
-    const adminFees = amount * 0.05; // الرسوم الإدارية
-    const totalInterest = amount * rate * (months / 12); // إجمالي الفائدة
-    const totalWithInterest = amount + totalInterest; // إجمالي المبلغ بعد الفائدة
-    const monthlyInstallment = totalWithInterest / months; // القسط الشهري
-    const feesPlusFirstInstallment = adminFees + monthlyInstallment; // الرسوم + أول قسط
-    const grandTotalWithFees = totalWithInterest + adminFees; // الإجمالي بالفائدة والرسوم
-    const finalAfterAll = amount - feesPlusFirstInstallment; // المستلم بعد الكل
-    const finalAfterAdminOnly = amount - adminFees; // المستلم بعد الرسوم فقط
+    // Calculation Logic
+    const totalInterest = amount * (interestRate / 100) * (months / 12);
+    const totalAmount = amount + totalInterest;
+    const monthlyPayment = totalAmount / months;
 
-    // --- عرض النتائج مع تنسيق الأرقام ---
-    const currency = lang === 'ar' ? " ج.م" : " EGP";
-    document.getElementById('results').style.display = 'block';
+    // Display formatting
+    const currency = lang === 'en' ? 'EGP' : 'ج.م';
+    
+    document.getElementById('res-monthly').innerText = monthlyPayment.toFixed(2) + ' ' + currency;
+    document.getElementById('res-total-interest').innerText = totalInterest.toFixed(2) + ' ' + currency;
+    document.getElementById('res-total').innerText = totalAmount.toFixed(2) + ' ' + currency;
 
-    setRes('resAdmin', adminFees, currency);
-    setRes('resMonthly', monthlyInstallment, currency);
-    setRes('resTotalWithInterest', totalWithInterest, currency);
-    setRes('resFeesFirst', feesPlusFirstInstallment, currency);
-    setRes('resGrandTotal', grandTotalWithFees, currency);
-    setRes('resPureInterest', totalInterest, currency);
-    setRes('resFinalNet', finalAfterAll, currency);
-    setRes('resFinalAdminOnly', finalAfterAdminOnly, currency);
-    document.getElementById('resInterestRate').innerText = (rate * 100).toFixed(2) + " %";
+    // Show result box
+    document.getElementById('result-box').style.display = 'block';
 }
 
-function setRes(id, value, symbol) {
-    document.getElementById(id).innerText = value.toLocaleString(undefined, {maximumFractionDigits: 2}) + symbol;
-}
-
-function resetCalculator() {
-    document.getElementById('loanAmount').value = '';
-    document.getElementById('loanMonths').value = '';
-    document.getElementById('results').style.display = 'none';
-}
-
-// نظام الترجمة الشامل لصفحة الحاسبة
+// Translation logic
 function updatePageContent(lang) {
-    const trans = {
+    const t = {
         ar: {
-            title: "حاسبة القروض - تمكين",
-            back: "رجوع",
-            header: "حاسبة القروض الذكية",
-            input: "بيانات التمويل",
-            amount: "مبلغ التمويل",
-            months: "المدة (بالشهور)",
-            product: "نوع المنتج",
-            calc: "احسب الآن",
-            reset: "إعادة",
-            resTitle: "نتائج الحسبة الدقيقة",
-            r1: "قيمة القسط الشهري",
-            r2: "الرسوم الإدارية (5%)",
-            r3: "إجمالي الفائدة فقط",
-            r4: "المبلغ بعد الفائدة",
-            r5: "الرسوم + أول قسط",
-            r6: "نسبة الفائدة السنوية",
-            r7: "الإجمالي (فائدة + رسوم)",
-            r8: "المستلم (بعد الرسوم والقسط)",
-            r9: "المستلم (بعد الرسوم فقط)"
+            title: "حاسبة القروض والتمويل",
+            sub: "قم بإدخال بيانات القرض لحساب القسط الشهري والفوائد",
+            amount: "مبلغ القرض",
+            interest: "نسبة الفائدة السنوية (%)",
+            months: "مدة السداد (بالأشهر)",
+            btnCalc: "احسب الآن",
+            resTitle: "نتيجة الحساب",
+            resMonthly: "القسط الشهري",
+            resTotalInterest: "إجمالي الفوائد",
+            resTotal: "الإجمالي الكلي (شامل الفوائد)"
         },
         en: {
-            title: "Loan Calculator - Tamkeen",
-            back: "Back",
-            header: "Smart Loan Calculator",
-            input: "Loan Details",
+            title: "Loan Calculator",
+            sub: "Enter loan details to calculate monthly installments and interest",
             amount: "Loan Amount",
-            months: "Duration (Months)",
-            product: "Product Type",
-            calc: "Calculate",
-            reset: "Reset",
-            resTitle: "Detailed Results",
-            r1: "Monthly Installment",
-            r2: "Admin Fees (5%)",
-            r3: "Pure Interest",
-            r4: "Total with Interest",
-            r5: "Fees + 1st Installment",
-            r6: "Annual Interest Rate",
-            r7: "Grand Total (Int+Fees)",
-            r8: "Net (After Fees & 1st Inst)",
-            r9: "Net (After Admin Fees Only)"
+            interest: "Annual Interest Rate (%)",
+            months: "Repayment Period (Months)",
+            btnCalc: "Calculate Now",
+            resTitle: "Calculation Result",
+            resMonthly: "Monthly Installment",
+            resTotalInterest: "Total Interest",
+            resTotal: "Grand Total (incl. Interest)"
         }
     };
 
-    const t = trans[lang];
-    document.title = t.title;
-    document.getElementById('txt-back').innerText = t.back;
-    document.getElementById('txt-header-title').innerText = t.header;
-    document.getElementById('txt-input-data').innerText = t.input;
-    document.getElementById('lbl-amount').innerText = t.amount;
-    document.getElementById('lbl-months').innerText = t.months;
-    document.getElementById('lbl-product').innerText = t.product;
-    document.getElementById('btn-calc').innerText = t.calc;
-    document.getElementById('btn-reset').innerText = t.reset;
-    document.getElementById('txt-results-title').innerText = t.resTitle;
+    const c = t[lang] || t.ar;
     
-    // ترجمة تسميات النتائج الـ 9
-    document.getElementById('txt-resMonthly').innerText = t.r1;
-    document.getElementById('txt-resAdmin').innerText = t.r2;
-    document.getElementById('txt-resPureInterest').innerText = t.r3;
-    document.getElementById('txt-resTotalWithInterest').innerText = t.r4;
-    document.getElementById('txt-resFeesFirst').innerText = t.r5;
-    document.getElementById('txt-resInterestRate').innerText = t.r6;
-    document.getElementById('txt-resGrandTotal').innerText = t.r7;
-    document.getElementById('txt-resFinalNet').innerText = t.r8;
-    document.getElementById('txt-resFinalAdminOnly').innerText = t.r9;
+    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+
+    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+
+    setTxt('txt-calc-title', c.title);
+    setTxt('txt-calc-sub', c.sub);
+    setTxt('lbl-amount', c.amount);
+    setTxt('lbl-interest', c.interest);
+    setTxt('lbl-months', c.months);
+    setTxt('btn-calc', c.btnCalc);
+    setTxt('txt-result-title', c.resTitle);
+    setTxt('lbl-res-monthly', c.resMonthly);
+    setTxt('lbl-res-total-interest', c.resTotalInterest);
+    setTxt('lbl-res-total', c.resTotal);
+    
+    // إعادة الحساب عشان علامة العملة (EGP / ج.م) تتحدث لو العميل مغير اللغة والنتيجة مفتوحة
+    if (document.getElementById('result-box').style.display === 'block') {
+        calculateLoan();
+    }
 }
 
+// Load on start
 window.onload = () => {
-    const savedLang = localStorage.getItem('preferredLang') || 'ar';
-    updatePageContent(savedLang);
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    updatePageContent(lang);
 };
