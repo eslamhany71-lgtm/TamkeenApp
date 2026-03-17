@@ -53,8 +53,14 @@ function updatePageContent(lang) {
     setTxt('txt-subtitle', t.subtitle);
     
     // القائمة الجانبية
-    setTxt('nav-home', t.navHome); setTxt('nav-calc', t.navCalc); setTxt('nav-hr', t.navHr); setTxt('nav-branches', t.navBranches);
-    setTxt('nav-mgr-dash', t.navMgr); setTxt('nav-hrd-dash', t.navHrd); setTxt('nav-adm-dash', t.navAdm);
+    setTxt('nav-home', t.navHome); 
+    setTxt('nav-calc', t.navCalc); 
+    setTxt('nav-hr', t.navHr); 
+    setTxt('nav-branches', t.navBranches);
+    setTxt('nav-mgr-dash', t.navMgr); 
+    setTxt('nav-hrd-dash', t.navHrd); 
+    setTxt('nav-adm-dash', t.navAdm);
+    setTxt('nav-crm', t.navCrm); // ترجمة رابط الـ CRM في القائمة الجانبية
     
     // الكروت الرئيسية
     setTxt('txt-calc', t.calc); setTxt('desc-calc', t.descCalc);
@@ -63,10 +69,11 @@ function updatePageContent(lang) {
     setTxt('txt-mgr-dash', t.mgr); setTxt('desc-mgr', t.descMgr);
     setTxt('txt-hr-dash', t.hrd); setTxt('desc-hrd', t.descHrd);
     setTxt('txt-admin-dash', t.adm); setTxt('desc-adm', t.descAdm);
+    setTxt('txt-crm', t.crm); setTxt('desc-crm', t.descCrm); // ترجمة كارت الـ CRM
     setTxt('btn-logout', t.logout);
 }
 
-// 2. مراقب حالة الدخول والصلاحيات والإصلاح الذاتي (بدون أي حذف للوجيك بتاعك)
+// 2. مراقب حالة الدخول والصلاحيات والإصلاح الذاتي
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -137,11 +144,9 @@ function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.toggle('active');
 }
-// دالة طي القائمة في شاشات الكمبيوتر
+
+// 5. دالة طي القائمة في شاشات الكمبيوتر
 function toggleSidebarDesktop() {
     document.getElementById('sidebar').classList.toggle('collapsed');
     document.querySelector('.main-content').classList.toggle('expanded');
 }
-if(document.getElementById('nav-crm')) document.getElementById('nav-crm').innerText = t.navCrm;
-if(document.getElementById('txt-crm')) document.getElementById('txt-crm').innerText = t.crm;
-if(document.getElementById('desc-crm')) document.getElementById('desc-crm').innerText = t.descCrm;
