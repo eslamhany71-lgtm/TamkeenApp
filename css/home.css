@@ -216,3 +216,60 @@ body {
     .user-email { display: none; }
     .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
 }
+/* --- إعدادات طي القائمة الجانبية (Desktop) --- */
+.sidebar {
+    transition: width 0.3s ease;
+    overflow-x: hidden;
+}
+
+/* حالة الطي */
+.sidebar.collapsed {
+    width: 80px;
+}
+
+.sidebar.collapsed #txt-brand {
+    display: none;
+}
+
+.sidebar.collapsed .sidebar-brand {
+    justify-content: center;
+    padding: 20px 0;
+}
+
+.sidebar.collapsed .nav-links li a span:not(.icon) {
+    display: none; /* إخفاء النصوص */
+}
+
+.sidebar.collapsed .nav-links li a {
+    justify-content: center;
+    padding: 15px 0;
+}
+
+.sidebar.collapsed .nav-links li a .icon {
+    font-size: 22px;
+    margin: 0;
+}
+
+/* تمدد المحتوى الرئيسي لما القائمة تصغر */
+.main-content {
+    transition: width 0.3s ease;
+}
+
+.main-content.expanded {
+    width: calc(100% - 80px);
+}
+
+/* زرار الطي في الشاشات الكبيرة */
+.desktop-toggle {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: var(--text-dark);
+    margin-left: 15px;
+    display: block;
+}
+
+@media (max-width: 992px) {
+    .desktop-toggle { display: none; }
+}
