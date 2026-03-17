@@ -3,91 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">إدارة المبيعات والعملاء (CRM) - تمكين ERP</title>
+    <title id="txt-title">إدارة المبيعات والعملاء (CRM)</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="css/home.css"> <link rel="stylesheet" href="css/crm.css">   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <link rel="stylesheet" href="css/crm.css">   
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    <div class="app-wrapper">
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-icon">⚡</span>
-                <span id="txt-brand">تمكين ERP</span>
+    <main class="page-container">
+        
+        <div class="page-header-pro">
+            <div>
+                <h2 id="txt-header">مسار المبيعات (Sales Pipeline)</h2>
+                <p id="txt-subtitle">إدارة العملاء وتتبع مراحل المبيعات والصفقات</p>
             </div>
-            <ul class="nav-links">
-                <li><a href="home.html"><span class="icon">🏠</span> <span id="nav-home">الرئيسية</span></a></li>
-                <li class="active"><a href="crm.html"><span class="icon">🤝</span> <span id="nav-crm">إدارة العملاء (CRM)</span></a></li>
-                <li><a href="calculator.html"><span class="icon">💰</span> <span id="nav-calc">حاسبة القروض</span></a></li>
-                <li><a href="hr-solution.html"><span class="icon">📝</span> <span id="nav-hr">الخدمات الذاتية</span></a></li>
-                <li><a href="branches.html"><span class="icon">📍</span> <span id="nav-branches">دليل الفروع</span></a></li>
-            </ul>
-        </aside>
-
-        <div class="main-content">
-            <header class="topbar">
-                <div class="topbar-right">
-                    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-                    <button class="desktop-toggle" onclick="toggleSidebarDesktop()">🗜️</button>
-                    <h2 id="txt-header">مسار المبيعات (Sales Pipeline)</h2>
-                </div>
-                <div class="topbar-left user-controls">
-                    <button onclick="openLeadModal()" class="btn-add-lead" id="btn-add-lead">➕ إضافة عميل جديد</button>
-                    <div class="lang-switch">
-                        <span onclick="setLanguage('ar')" class="lang-btn">عربي</span> | 
-                        <span onclick="setLanguage('en')" class="lang-btn">EN</span>
-                    </div>
-                </div>
-            </header>
-
-            <main class="crm-container">
-                <div class="crm-stats">
-                    <div class="stat-box"><span id="lbl-total-leads">إجمالي العملاء:</span> <strong id="val-total">0</strong></div>
-                    <div class="stat-box"><span id="lbl-won-leads">تم البيع (Won):</span> <strong id="val-won" style="color:#10b981;">0</strong></div>
-                    <div class="stat-box"><span id="lbl-lost-leads">مرفوض (Lost):</span> <strong id="val-lost" style="color:#ef4444;">0</strong></div>
-                </div>
-
-                <div class="kanban-board">
-                    <div class="kanban-column" id="col-new" ondrop="drop(event, 'new')" ondragover="allowDrop(event)">
-                        <div class="col-header border-blue">
-                            <h3 id="txt-col-new">عميل جديد (New)</h3>
-                            <span class="col-count" id="count-new">0</span>
-                        </div>
-                        <div class="col-body" id="body-new"></div>
-                    </div>
-
-                    <div class="kanban-column" id="col-contacted" ondrop="drop(event, 'contacted')" ondragover="allowDrop(event)">
-                        <div class="col-header border-orange">
-                            <h3 id="txt-col-contacted">جاري التواصل</h3>
-                            <span class="col-count" id="count-contacted">0</span>
-                        </div>
-                        <div class="col-body" id="body-contacted"></div>
-                    </div>
-
-                    <div class="kanban-column" id="col-negotiation" ondrop="drop(event, 'negotiation')" ondragover="allowDrop(event)">
-                        <div class="col-header border-purple">
-                            <h3 id="txt-col-negotiation">تفاوض / عرض سعر</h3>
-                            <span class="col-count" id="count-negotiation">0</span>
-                        </div>
-                        <div class="col-body" id="body-negotiation"></div>
-                    </div>
-
-                    <div class="kanban-column" id="col-won" ondrop="drop(event, 'won')" ondragover="allowDrop(event)">
-                        <div class="col-header border-green">
-                            <h3 id="txt-col-won">تم البيع (Won)</h3>
-                            <span class="col-count" id="count-won">0</span>
-                        </div>
-                        <div class="col-body" id="body-won"></div>
-                    </div>
-                </div>
-            </main>
+            <button onclick="openLeadModal()" class="btn-add-lead" id="btn-add-lead">➕ إضافة عميل جديد</button>
         </div>
-    </div>
+
+        <div class="crm-stats">
+            <div class="stat-box"><span id="lbl-total-leads">إجمالي العملاء:</span> <strong id="val-total">0</strong></div>
+            <div class="stat-box"><span id="lbl-won-leads">تم البيع (Won):</span> <strong id="val-won" style="color:#10b981;">0</strong></div>
+            <div class="stat-box"><span id="lbl-lost-leads">مرفوض (Lost):</span> <strong id="val-lost" style="color:#ef4444;">0</strong></div>
+        </div>
+
+        <div class="kanban-board">
+            <div class="kanban-column" id="col-new" ondrop="drop(event, 'new')" ondragover="allowDrop(event)">
+                <div class="col-header border-blue">
+                    <h3 id="txt-col-new">عميل جديد (New)</h3>
+                    <span class="col-count" id="count-new">0</span>
+                </div>
+                <div class="col-body" id="body-new"></div>
+            </div>
+
+            <div class="kanban-column" id="col-contacted" ondrop="drop(event, 'contacted')" ondragover="allowDrop(event)">
+                <div class="col-header border-orange">
+                    <h3 id="txt-col-contacted">جاري التواصل</h3>
+                    <span class="col-count" id="count-contacted">0</span>
+                </div>
+                <div class="col-body" id="body-contacted"></div>
+            </div>
+
+            <div class="kanban-column" id="col-negotiation" ondrop="drop(event, 'negotiation')" ondragover="allowDrop(event)">
+                <div class="col-header border-purple">
+                    <h3 id="txt-col-negotiation">تفاوض / عرض سعر</h3>
+                    <span class="col-count" id="count-negotiation">0</span>
+                </div>
+                <div class="col-body" id="body-negotiation"></div>
+            </div>
+
+            <div class="kanban-column" id="col-won" ondrop="drop(event, 'won')" ondragover="allowDrop(event)">
+                <div class="col-header border-green">
+                    <h3 id="txt-col-won">تم البيع (Won)</h3>
+                    <span class="col-count" id="count-won">0</span>
+                </div>
+                <div class="col-body" id="body-won"></div>
+            </div>
+        </div>
+    </main>
 
     <div id="leadModal" class="modal">
-        <div class="modal-content animate-top" style="max-width: 500px;">
+        <div class="modal-content animate-top">
             <div class="modal-header-pro">
                 <h2 id="modal-lead-title">إضافة عميل جديد</h2>
                 <span class="close-btn" onclick="closeLeadModal()">&times;</span>
@@ -126,7 +102,6 @@
     </div>
 
     <script src="js/firebase-config.js"></script>
-    <script src="js/lang-manager.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/crm.js"></script>
 </body>
