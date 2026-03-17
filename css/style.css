@@ -1,89 +1,207 @@
-/* إعدادات عامة */
+/* style.css - Premium Split-Screen Login */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+:root {
+    --primary: #1e3a8a; /* كحلي مؤسسي */
+    --secondary: #3b82f6;
+    --text-dark: #1e293b;
+    --text-muted: #64748b;
+    --bg-light: #f8fafc;
+}
+
 body {
     margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-    height: 100vh;
+    font-family: 'Tajawal', sans-serif;
+    direction: rtl;
+    background-color: var(--bg-light);
+}
+
+.split-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* --- جانب الفورم --- */
+.form-side {
+    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    direction: rtl;
-}
-
-/* بطاقة تسجيل الدخول */
-.login-card {
-    background: #ffffff;
+    background-color: white;
     padding: 40px;
-    border-radius: 15px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.form-container {
     width: 100%;
-    max-width: 400px;
-    text-align: center;
+    max-width: 420px;
 }
 
-.login-card h3 {
-    color: #333;
-    margin-bottom: 10px;
-}
-
-.login-card p {
-    color: #777;
-    font-size: 14px;
+.lang-switcher {
+    text-align: left;
     margin-bottom: 30px;
 }
 
-/* الحقول */
-.input-group {
-    text-align: right;
-    margin-bottom: 20px;
-}
-
-.input-group label {
-    display: block;
-    margin-bottom: 5px;
-    color: #555;
-    font-weight: bold;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-sizing: border-box; /* لضمان عدم خروج الحقل عن الإطار */
-    outline: none;
+.lang-switcher span {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 14px;
     transition: 0.3s;
 }
 
-.input-group input:focus {
-    border-color: #2a5298;
-    box-shadow: 0 0 5px rgba(42, 82, 152, 0.3);
+.lang-switcher span:hover { color: var(--primary); }
+
+.mobile-brand-icon {
+    display: none;
+    font-size: 40px;
+    color: var(--primary);
+    margin-bottom: 10px;
 }
 
-/* الزر */
-button {
+h3 { margin: 0; font-size: 28px; color: var(--text-dark); font-weight: 800; }
+.sub-text { margin: 8px 0 30px 0; color: var(--text-muted); font-size: 15px; }
+
+/* الحقول */
+.input-group { margin-bottom: 20px; }
+.input-group label { display: block; margin-bottom: 8px; font-weight: 700; color: var(--text-dark); font-size: 14px; }
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    right: 15px;
+    color: #94a3b8;
+    font-size: 18px;
+}
+
+.input-wrapper input {
     width: 100%;
-    padding: 12px;
-    background-color: #2a5298;
+    padding: 14px 45px 14px 15px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.3s;
+    background-color: #f8fafc;
+}
+
+.input-wrapper input:focus {
+    border-color: var(--secondary);
+    background-color: white;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+/* الأزرار */
+.btn-primary {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
     font-size: 16px;
-    font-weight: bold;
+    font-weight: 800;
+    font-family: inherit;
     cursor: pointer;
-    transition: 0.3s;
+    transition: transform 0.3s, box-shadow 0.3s;
+    margin-top: 10px;
 }
 
-button:hover {
-    background-color: #1e3c72;
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -10px rgba(30, 58, 138, 0.5);
 }
 
-/* رسالة الخطأ */
 .error-msg {
-    color: #e74c3c;
+    color: #ef4444;
+    text-align: center;
     margin-top: 15px;
+    font-weight: 700;
     font-size: 14px;
     min-height: 20px;
 }
 
+.register-link {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 15px;
+    color: var(--text-muted);
+}
+
+.register-link a {
+    color: var(--secondary);
+    text-decoration: none;
+    font-weight: 800;
+    margin-right: 5px;
+}
+
+.register-link a:hover { text-decoration: underline; }
+
+/* --- جانب البراندنج (الشركات) --- */
+.brand-side {
+    flex: 1.2;
+    background: linear-gradient(135deg, #0f172a, var(--primary));
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* إضافة أشكال هندسية جمالية في الخلفية */
+.brand-side::before {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%);
+    top: -100px;
+    right: -100px;
+    border-radius: 50%;
+}
+
+.brand-content {
+    max-width: 480px;
+    position: relative;
+    z-index: 1;
+}
+
+.brand-logo {
+    width: 80px;
+    height: 80px;
+    background: white;
+    color: var(--primary);
+    border-radius: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px;
+    margin-bottom: 30px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.brand-content h1 { font-size: 48px; margin: 0 0 20px 0; font-weight: 800; line-height: 1.2; }
+.brand-content p { font-size: 18px; line-height: 1.7; opacity: 0.9; margin-bottom: 40px; }
+
+.features { display: flex; gap: 20px; flex-wrap: wrap; }
+.features span {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 700;
+    backdrop-filter: blur(5px);
+}
+
+/* الموبايل */
+@media (max-width: 900px) {
+    .brand-side { display: none; } /* إخفاء الجانب الأيسر في الموبايل */
+    .mobile-brand-icon { display: block; }
+}
