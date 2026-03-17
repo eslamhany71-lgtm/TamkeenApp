@@ -1,54 +1,78 @@
-// 1. نظام الترجمة لصفحة الهوم
+// home.js - Enterprise Logic (Roles + Translations + Sidebar)
+
+// 1. نظام الترجمة الشامل لصفحة الهوم والـ Sidebar
 function updatePageContent(lang) {
     const translations = {
         ar: {
+            brand: "تمكين ERP",
+            header: "لوحة التحكم المركزية",
             welcome: "أهلاً بك في نظام تمكين الموحد",
-            calc: "حاسبة القروض",
-            branches: "الفروع",
-            hr: "شؤون الموظفين",
-            mgr: "لوحة تحكم المدير",
-            hrd: "لوحة تحكم الـ HR",
-            adm: "إدارة الفروع (Admin)",
+            subtitle: "مرحباً بك في نظام إدارة الموارد المتكامل",
+            navHome: "الرئيسية", navCalc: "حاسبة القروض", navHr: "الخدمات الذاتية", navBranches: "دليل الفروع",
+            navMgr: "لوحة المدير", navHrd: "لوحة الـ HR", navAdm: "إدارة النظام",
+            calc: "حاسبة القروض", descCalc: "حساب الأقساط والفوائد",
+            hr: "شؤون الموظفين", descHr: "الإجازات والأذونات",
+            branches: "الفروع", descBranches: "دليل الفروع والخرائط",
+            mgr: "لوحة تحكم المدير", descMgr: "مراجعة طلبات القسم",
+            hrd: "لوحة تحكم الـ HR", descHrd: "إدارة الطلبات والتقارير",
+            adm: "إدارة الفروع (Admin)", descAdm: "إضافة وتعديل النظام",
             logout: "تسجيل خروج"
         },
         en: {
+            brand: "Tamkeen ERP",
+            header: "Central Dashboard",
             welcome: "Welcome to Tamkeen Unified System",
-            calc: "Loan Calculator",
-            branches: "Branches",
-            hr: "HR Solution",
-            mgr: "Manager Panel",
-            hrd: "HR Dashboard",
-            adm: "Manage Branches",
+            subtitle: "Welcome to the Integrated Resource Management System",
+            navHome: "Home", navCalc: "Loan Calc", navHr: "Self Service", navBranches: "Branches",
+            navMgr: "Manager Panel", navHrd: "HR Panel", navAdm: "System Admin",
+            calc: "Loan Calculator", descCalc: "Calculate Installments",
+            hr: "HR Solution", descHr: "Leaves & Permissions",
+            branches: "Branches", descBranches: "Directory & Maps",
+            mgr: "Manager Panel", descMgr: "Review Dept Requests",
+            hrd: "HR Dashboard", descHrd: "Manage Requests & Reports",
+            adm: "Manage Branches", descAdm: "Add/Edit System Data",
             logout: "Logout"
         }
     };
 
     const t = translations[lang];
     
-    if(document.getElementById('txt-welcome')) document.getElementById('txt-welcome').innerText = t.welcome;
-    if(document.getElementById('txt-calc')) document.getElementById('txt-calc').innerText = t.calc;
-    if(document.getElementById('txt-hr')) document.getElementById('txt-hr').innerText = t.hr;
-    if(document.getElementById('txt-branches')) document.getElementById('txt-branches').innerText = t.branches;
-    if(document.getElementById('txt-mgr-dash')) document.getElementById('txt-mgr-dash').innerText = t.mgr;
-    if(document.getElementById('txt-hr-dash')) document.getElementById('txt-hr-dash').innerText = t.hrd;
-    if(document.getElementById('txt-admin-dash')) document.getElementById('txt-admin-dash').innerText = t.adm;
-    if(document.getElementById('btn-logout')) document.getElementById('btn-logout').innerText = t.logout;
+    // دوال مساعدة لتجنب الأخطاء
+    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+
+    // تطبيق الترجمة
+    setTxt('txt-brand', t.brand);
+    setTxt('txt-header', t.header);
+    if(document.getElementById('txt-welcome').innerText !== "جاري التحميل...") setTxt('txt-welcome', t.welcome);
+    setTxt('txt-subtitle', t.subtitle);
+    
+    // القائمة الجانبية
+    setTxt('nav-home', t.navHome); setTxt('nav-calc', t.navCalc); setTxt('nav-hr', t.navHr); setTxt('nav-branches', t.navBranches);
+    setTxt('nav-mgr-dash', t.navMgr); setTxt('nav-hrd-dash', t.navHrd); setTxt('nav-adm-dash', t.navAdm);
+    
+    // الكروت الرئيسية
+    setTxt('txt-calc', t.calc); setTxt('desc-calc', t.descCalc);
+    setTxt('txt-hr', t.hr); setTxt('desc-hr', t.descHr);
+    setTxt('txt-branches', t.branches); setTxt('desc-branches', t.descBranches);
+    setTxt('txt-mgr-dash', t.mgr); setTxt('desc-mgr', t.descMgr);
+    setTxt('txt-hr-dash', t.hrd); setTxt('desc-hrd', t.descHrd);
+    setTxt('txt-admin-dash', t.adm); setTxt('desc-adm', t.descAdm);
+    setTxt('btn-logout', t.logout);
 }
 
-// 2. مراقب حالة الدخول والصلاحيات
+// 2. مراقب حالة الدخول والصلاحيات والإصلاح الذاتي (بدون أي حذف للوجيك بتاعك)
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
         const userEmail = user.email;
         const empCode = userEmail.split('@')[0];
 
-        // محاولة قراءة البيانات من جدول Users
         firebase.firestore().collection("Users").doc(userEmail).get().then((doc) => {
             if (doc.exists) {
-                // الموظف موجود.. افتح الصلاحيات
                 applyRoles(doc.data().role);
+                const lang = localStorage.getItem('preferredLang') || 'ar';
+                document.getElementById('txt-welcome').innerText = (lang === 'ar') ? "أهلاً بك في نظام تمكين الموحد" : "Welcome to Tamkeen Unified System";
             } else {
-                // --- نظام الإصلاح الذاتي ---
                 console.log("ملف الصلاحيات ناقص.. جاري محاولة الإصلاح...");
                 return firebase.firestore().collection("Employee_Database").doc(empCode).get();
             }
@@ -58,7 +82,6 @@ firebase.auth().onAuthStateChanged((user) => {
                 const empData = empDoc.data();
                 const assignedRole = (empData.role || "employee").toLowerCase();
                 
-                // إنشاء الملف الناقص في Users
                 return firebase.firestore().collection("Users").doc(userEmail).set({
                     role: assignedRole,
                     name: empData.name,
@@ -67,6 +90,8 @@ firebase.auth().onAuthStateChanged((user) => {
                 }).then(() => {
                     console.log("تم إصلاح الحساب بنجاح!");
                     applyRoles(assignedRole);
+                    const lang = localStorage.getItem('preferredLang') || 'ar';
+                    document.getElementById('txt-welcome').innerText = (lang === 'ar') ? "أهلاً بك في نظام تمكين الموحد" : "Welcome to Tamkeen Unified System";
                 });
             }
         })
@@ -78,22 +103,31 @@ firebase.auth().onAuthStateChanged((user) => {
     }
 });
 
-// 3. دالة إظهار الكروت حسب الرتبة (معدلة لتشمل الأدمن)
+// 3. دالة إظهار الكروت والقائمة الجانبية حسب الرتبة
 function applyRoles(role) {
     const r = role.toLowerCase();
     
-    // كارت المدير: يظهر للمدير والـ HR والأدمن
+    // المدير، الـ HR، والأدمن
     if (r === 'manager' || r === 'hr' || r === 'admin') {
-        if(document.getElementById('manager-card')) document.getElementById('manager-card').style.display = 'block';
+        if(document.getElementById('manager-card')) document.getElementById('manager-card').style.display = 'flex';
+        if(document.getElementById('nav-manager')) document.getElementById('nav-manager').style.display = 'block';
     }
     
-    // كارت الـ HR: يظهر للـ HR والأدمن
+    // الـ HR والأدمن
     if (r === 'hr' || r === 'admin') {
-        if(document.getElementById('hr-admin-card')) document.getElementById('hr-admin-card').style.display = 'block';
+        if(document.getElementById('hr-admin-card')) document.getElementById('hr-admin-card').style.display = 'flex';
+        if(document.getElementById('nav-hr-admin')) document.getElementById('nav-hr-admin').style.display = 'block';
     }
 
-    // كارت الأدمن (إدارة الفروع): يظهر للأدمن فقط
+    // الأدمن فقط
     if (r === 'admin') {
-        if(document.getElementById('admin-branch-card')) document.getElementById('admin-branch-card').style.display = 'block';
+        if(document.getElementById('admin-branch-card')) document.getElementById('admin-branch-card').style.display = 'flex';
+        if(document.getElementById('nav-admin')) document.getElementById('nav-admin').style.display = 'block';
     }
+}
+
+// 4. دالة لفتح وقفل الـ Sidebar في الموبايل
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('active');
 }
