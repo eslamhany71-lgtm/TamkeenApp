@@ -131,3 +131,8 @@ function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     sidebar.classList.toggle('active');
 }
+// دالة طي القائمة في شاشات الكمبيوتر
+function toggleSidebarDesktop() {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+    document.querySelector('.main-content').classList.toggle('expanded');
+}
