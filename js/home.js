@@ -16,7 +16,10 @@ function updatePageContent(lang) {
             mgr: "لوحة تحكم المدير", descMgr: "مراجعة طلبات القسم",
             hrd: "لوحة تحكم الـ HR", descHrd: "إدارة الطلبات والتقارير",
             adm: "إدارة الفروع (Admin)", descAdm: "إضافة وتعديل النظام",
-            logout: "تسجيل خروج"
+            logout: "تسجيل خروج",
+            navCrm: "إدارة العملاء",
+            crm: "إدارة العملاء (CRM)",
+            descCrm: "مسار المبيعات والصفقات",
         },
         en: {
             brand: "Tamkeen ERP",
@@ -31,7 +34,10 @@ function updatePageContent(lang) {
             mgr: "Manager Panel", descMgr: "Review Dept Requests",
             hrd: "HR Dashboard", descHrd: "Manage Requests & Reports",
             adm: "Manage Branches", descAdm: "Add/Edit System Data",
-            logout: "Logout"
+            logout: "Logout",
+            navCrm: "CRM",
+            crm: "Sales CRM",
+            descCrm: "Sales Pipeline & Leads",
         }
     };
 
