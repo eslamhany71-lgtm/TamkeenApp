@@ -1,73 +1,218 @@
-body {
-    margin: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #f0f2f5;
-    direction: rtl;
+/* home.css - Enterprise CRM Style */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+:root {
+    --bg-color: #f4f7fb;
+    --sidebar-bg: #0b1727; /* كحلي غامق جداً زي Oracle */
+    --sidebar-hover: #172b4d;
+    --sidebar-text: #8c98a4;
+    --primary: #2563eb; /* أزرق زاهي للبيزنس */
+    --text-dark: #1e293b;
+    --text-muted: #64748b;
+    --white: #ffffff;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --border: #e2e8f0;
 }
 
-header {
-    background-color: #1e3c72;
-    color: white;
-    padding: 15px 30px;
+body {
+    margin: 0;
+    font-family: 'Tajawal', sans-serif;
+    background-color: var(--bg-color);
+    direction: rtl;
+    color: var(--text-dark);
+}
+
+.app-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+    width: 260px;
+    background-color: var(--sidebar-bg);
+    color: var(--white);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.sidebar-brand {
+    padding: 20px 25px;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.brand-icon { color: var(--primary); font-size: 26px; }
+
+.nav-links {
+    list-style: none;
+    padding: 20px 0;
+    margin: 0;
+}
+
+.nav-links li a {
+    display: flex;
+    align-items: center;
+    padding: 15px 25px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    transition: 0.3s;
+    gap: 15px;
+}
+
+.nav-links li a:hover, .nav-links li.active a {
+    color: var(--white);
+    background-color: var(--sidebar-hover);
+    border-right: 4px solid var(--primary);
+}
+
+/* --- Main Content & Topbar --- */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: calc(100% - 260px);
+}
+
+.topbar {
+    background: var(--white);
+    height: 70px;
+    padding: 0 30px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow);
+    z-index: 10;
 }
+
+.topbar-right, .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+.topbar h2 { margin: 0; font-size: 18px; color: var(--text-dark); }
+
+.lang-btn { cursor: pointer; font-weight: 700; color: var(--text-muted); padding: 5px; transition: 0.3s; }
+.lang-btn:hover { color: var(--primary); }
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-color);
+    padding: 8px 15px;
+    border-radius: 30px;
+    border: 1px solid var(--border);
+}
+
+.user-email { font-size: 14px; font-weight: 700; color: var(--text-dark); }
 
 .logout-btn {
-    background-color: #e74c3c;
+    background-color: #ef4444;
     color: white;
     border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
+    padding: 8px 20px;
+    border-radius: 8px;
     cursor: pointer;
-    margin-right: 15px;
+    font-weight: bold;
+    font-family: inherit;
+    transition: 0.3s;
+}
+.logout-btn:hover { background-color: #dc2626; }
+
+/* --- Dashboard Content --- */
+.dashboard-container { padding: 30px; }
+
+.welcome-banner {
+    background: linear-gradient(135deg, var(--primary), #1e40af);
+    color: white;
+    padding: 30px 40px;
+    border-radius: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
 }
 
-.container {
-    max-width: 1000px;
-    margin: 50px auto;
-    padding: 0 20px;
-    text-align: center;
-}
-
-.welcome-section h1 {
-    color: #1e3c72;
-}
+.welcome-banner h1 { margin: 0 0 10px 0; font-size: 28px; }
+.welcome-banner p { margin: 0; opacity: 0.9; font-size: 15px; }
+.banner-icon { font-size: 60px; opacity: 0.8; }
 
 .cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 25px;
-    margin-top: 40px;
 }
 
 .card {
-    background: white;
-    padding: 30px;
+    background: var(--white);
+    padding: 25px;
     border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
     cursor: pointer;
-    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.3s ease;
 }
 
 .card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary);
 }
 
-.card .icon {
-    font-size: 50px;
-    margin-bottom: 15px;
+.card-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
 }
 
-.card h3 {
-    margin: 10px 0;
-    color: #333;
-}
+.card-icon.blue { background: #eff6ff; color: #3b82f6; }
+.card-icon.green { background: #f0fdf4; color: #22c55e; }
+.card-icon.purple { background: #faf5ff; color: #a855f7; }
+.card-icon.orange { background: #fff7ed; color: #f97316; }
+.card-icon.red { background: #fef2f2; color: #ef4444; }
+.card-icon.dark { background: #f8fafc; color: #334155; }
 
-.card p {
-    color: #666;
-    font-size: 14px;
+.card-info h3 { margin: 0 0 5px 0; color: var(--text-dark); font-size: 18px; }
+.card-info p { margin: 0; color: var(--text-muted); font-size: 13px; }
+
+/* Responsive */
+@media (max-width: 992px) {
+    .sidebar { position: fixed; left: -260px; height: 100vh; }
+    .sidebar.active { left: 0; }
+    body[dir="rtl"] .sidebar { right: -260px; left: auto; }
+    body[dir="rtl"] .sidebar.active { right: 0; }
+    .main-content { width: 100%; }
+    .menu-toggle { display: block; }
+}
+@media (max-width: 600px) {
+    .user-email { display: none; }
+    .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
 }
