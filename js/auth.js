@@ -177,47 +177,94 @@ async function activateAccount() {
     }
 }
 
-// 5. نظام الترجمة الموحد (يدعم كل الصفحات - كامل بدون نواقص)
+// نظام الترجمة الشامل (لشاشة الدخول وشاشة التفعيل) - توضع داخل auth.js
 function updatePageContent(lang) {
     const translations = {
         ar: {
-            title: "دخول - نظام تمكين", brand: "تمكين للتمويل", welcome: "تسجيل الدخول", code: "كود الموظف أو الإيميل", pass: "كلمة المرور", btn: "دخول", new: "موظف جديد؟", act: "تفعيل الحساب",
-            actTitle: "تفعيل الحساب (للموظفين الجدد)", lblPhone: "رقم الموبايل", lblNewPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن", back: "رجوع",
-            m_title: "لوحة تحكم المدير - تمكين", m_header: "مراجعة طلبات الموظفين", m_pending_label: "إجمالي الطلبات المعلقة:", m_loading: "جاري تحميل الطلبات..."
+            title: "تسجيل الدخول - نظام تمكين", 
+            welcome: "أهلاً بعودتك", 
+            subLogin: "قم بتسجيل الدخول لمتابعة عملك",
+            code: "كود الموظف أو الإيميل", 
+            pass: "كلمة المرور", 
+            btn: "تسجيل الدخول", 
+            newEmp: "موظف جديد؟", 
+            actLink: "تفعيل حسابك من هنا",
+            brandTitle: "تمكين للتمويل",
+            brandDesc: "نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.",
+            feat1: "✔️ أمان عالي", feat2: "✔️ سرعة في الأداء", feat3: "✔️ تقارير ذكية",
+            // نصوص صفحة التفعيل
+            actPageTitle: "تفعيل الحساب - نظام تمكين",
+            actWelcome: "تفعيل حساب جديد",
+            actSub: "يرجى إدخال البيانات المسجلة لدى إدارة الموارد البشرية",
+            actCode: "كود الموظف",
+            actPhone: "رقم الموبايل",
+            actPass: "اختر كلمة مرور جديدة",
+            btnAct: "تفعيل الحساب الآن",
+            backLoginStr: "لديك حساب بالفعل؟",
+            backLoginLink: "العودة للدخول",
+            brandActTitle: "أهلاً بك في فريقنا",
+            brandActDesc: "يسعدنا انضمامك لفريق تمكين. قم بتفعيل حسابك للوصول إلى لوحة التحكم الخاصة بك ومتابعة مهامك بكل سهولة."
         },
         en: {
-            title: "Login - Tamkeen", brand: "Tamkeen Finance", welcome: "User Login", code: "Employee ID or Email", pass: "Password", btn: "Login", new: "New Employee?", act: "Activate Account",
-            actTitle: "Account Activation", lblPhone: "Mobile Number", lblNewPass: "New Password", btnAct: "Activate Now", back: "Back",
-            m_title: "Manager Dashboard - Tamkeen", m_header: "Review Employee Requests", m_pending_label: "Total Pending Requests:", m_loading: "Loading requests..."
+            title: "Login - Tamkeen System", 
+            welcome: "Welcome Back", 
+            subLogin: "Sign in to continue your work",
+            code: "Employee ID or Email", 
+            pass: "Password", 
+            btn: "Login", 
+            newEmp: "New employee?", 
+            actLink: "Activate your account here",
+            brandTitle: "Tamkeen Finance",
+            brandDesc: "Comprehensive management system for HR, Sales, and Branches. Designed to increase work efficiency and facilitate communication.",
+            feat1: "✔️ High Security", feat2: "✔️ Fast Performance", feat3: "✔️ Smart Reports",
+            // Activation Page Texts
+            actPageTitle: "Activate Account - Tamkeen",
+            actWelcome: "Activate New Account",
+            actSub: "Please enter the data registered with the HR department",
+            actCode: "Employee Code",
+            actPhone: "Mobile Number",
+            actPass: "Choose a new password",
+            btnAct: "Activate Account Now",
+            backLoginStr: "Already have an account?",
+            backLoginLink: "Back to Login",
+            brandActTitle: "Welcome to Our Team",
+            brandActDesc: "We are glad you joined Tamkeen. Activate your account to access your dashboard and track your tasks easily."
         }
     };
 
     const t = translations[lang] || translations['ar'];
     document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
 
-    // دالة مساعدة لتحديث النصوص بأمان
     const safeSetText = (id, text) => {
         const el = document.getElementById(id);
         if (el) el.innerText = text;
     };
 
-    // تطبيق الترجمات
-    safeSetText('txt-title', t.title);
-    safeSetText('txt-brand', t.brand);
+    // ترجمة صفحة الدخول
+    if (document.title.includes('دخول') || document.title.includes('Login')) document.title = t.title;
     safeSetText('txt-welcome', t.welcome);
+    safeSetText('sub-login', t.subLogin);
     safeSetText('lbl-code', t.code);
     safeSetText('lbl-pass', t.pass);
     safeSetText('btn-login', t.btn);
-    safeSetText('btn-back', t.back);
-    safeSetText('txt-new', t.new);
-    safeSetText('link-activate', t.act);
-    safeSetText('txt-act-title', t.actTitle);
-    safeSetText('lbl-phone', t.lblPhone);
-    safeSetText('lbl-new-pass', t.lblNewPass);
+    safeSetText('txt-new', t.newEmp);
+    safeSetText('link-activate', t.actLink);
+    safeSetText('txt-brand', t.brandTitle);
+    safeSetText('brand-desc', t.brandDesc);
+    safeSetText('feat-1', t.feat1);
+    safeSetText('feat-2', t.feat2);
+    safeSetText('feat-3', t.feat3);
+
+    // ترجمة صفحة التفعيل
+    if (document.title.includes('تفعيل') || document.title.includes('Activate')) document.title = t.actPageTitle;
+    safeSetText('txt-act-welcome', t.actWelcome);
+    safeSetText('txt-act-sub', t.actSub);
+    safeSetText('lbl-act-code', t.actCode);
+    safeSetText('lbl-act-phone', t.actPhone);
+    safeSetText('lbl-act-pass', t.actPass);
     safeSetText('btn-activate', t.btnAct);
-    safeSetText('link-back', t.back);
-    safeSetText('manager-page-title', t.m_title);
-    safeSetText('txt-header-main', t.m_header);
-    safeSetText('txt-pending-label', t.m_pending_label);
-    safeSetText('loading-msg', t.m_loading);
+    safeSetText('txt-back-str', t.backLoginStr);
+    safeSetText('link-back-login', t.backLoginLink);
+    safeSetText('brand-act-title', t.brandActTitle);
+    safeSetText('brand-act-desc', t.brandActDesc);
 }
