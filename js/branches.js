@@ -158,10 +158,7 @@ function updatePageContent(lang) {
 
     document.title = t.title;
     if(document.getElementById('txt-header')) document.getElementById('txt-header').innerText = t.header;
-    if(document.getElementById('btn-back')) {
-        // الحفاظ على الأيقونة عند الترجمة
-        document.getElementById('btn-back').innerHTML = `<span class="icon">⬅</span> ${t.back}`;
-    }
+    if(document.getElementById('txt-back')) document.getElementById('txt-back').innerText = t.back;
     if(document.getElementById('branchSearch')) document.getElementById('branchSearch').placeholder = t.search;
     if(document.getElementById('opt-default')) document.getElementById('opt-default').innerText = t.default;
     if(document.getElementById('txt-active')) document.getElementById('txt-active').innerText = t.active;
