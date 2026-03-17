@@ -3,40 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">دخول - نظام تمكين</title>
+    <title id="txt-title">تسجيل الدخول - نظام تمكين</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    <div class="login-card">
-        <!-- أزرار اللغة -->
-        <div class="lang-switcher" style="text-align: left; margin-bottom: 20px;">
-            <span onclick="setLanguage('ar')" style="cursor:pointer; color:#2a5298; font-weight:bold;">عربي</span> | 
-            <span onclick="setLanguage('en')" style="cursor:pointer; color:#2a5298; font-weight:bold;">EN</span>
+    <div class="split-layout">
+        <div class="form-side">
+            <div class="form-container">
+                <div class="lang-switcher">
+                    <span onclick="setLanguage('ar')">عربي</span> | 
+                    <span onclick="setLanguage('en')">EN</span>
+                </div>
+
+                <div class="mobile-brand-icon">⚡</div>
+                <h3 id="txt-welcome">أهلاً بعودتك</h3>
+                <p class="sub-text">قم بتسجيل الدخول لمتابعة عملك</p>
+                
+                <div class="input-group">
+                    <label id="lbl-code">كود الموظف أو البريد الإلكتروني</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="empCode" placeholder="أدخل الكود الخاص بك" required>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label id="lbl-pass">كلمة المرور</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" placeholder="********" required>
+                    </div>
+                </div>
+
+                <button id="btn-login" class="btn-primary" onclick="loginById()">تسجيل الدخول</button>
+                
+                <div id="errorMessage" class="error-msg"></div>
+
+                <div class="register-link">
+                    <span id="txt-new">موظف جديد؟</span> 
+                    <a href="activate.html" id="link-activate">تفعيل حسابك من هنا</a>
+                </div>
+            </div>
         </div>
 
-        <h2 id="txt-brand">تمكين للتمويل</h2>
-        <h3 id="txt-welcome">تسجيل الدخول</h3>
-        
-        <div class="input-group">
-            <label id="lbl-code">كود الموظف أو البريد الإلكتروني</label>
-            <!-- تم التعديل هنا من number إلى text للسماح بالنصوص والأرقام -->
-            <input type="text" id="empCode" placeholder="1001" required>
+        <div class="brand-side">
+            <div class="brand-content">
+                <div class="brand-logo">⚡</div>
+                <h1 id="txt-brand">تمكين للتمويل</h1>
+                <p>نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.</p>
+                <div class="features">
+                    <span>✔️ أمان عالي</span>
+                    <span>✔️ سرعة في الأداء</span>
+                    <span>✔️ تقارير ذكية</span>
+                </div>
+            </div>
         </div>
-
-        <div class="input-group">
-            <label id="lbl-pass">كلمة المرور</label>
-            <input type="password" id="password" placeholder="********" required>
-        </div>
-
-        <button id="btn-login" onclick="loginById()">دخول</button>
-        
-        <div id="errorMessage" class="error-msg"></div>
-
-        <hr>
-        <p style="font-size: 13px;"><span id="txt-new">موظف جديد؟</span> <a href="activate.html" id="link-activate">تفعيل الحساب</a></p>
     </div>
 
     <script src="js/firebase-config.js"></script>
