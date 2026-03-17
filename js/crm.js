@@ -1,4 +1,4 @@
-// crm.js - Enterprise CRM Logic (Kanban Drag & Drop + Firebase)
+// crm.js - Enterprise CRM Logic (Iframe Ready)
 
 let currentUserEmail = "";
 
@@ -8,16 +8,16 @@ firebase.auth().onAuthStateChanged((user) => {
         currentUserEmail = user.email;
         loadLeads();
     } else {
-        window.location.href = "index.html";
+        // لو مش مسجل دخول، بيرجع للصفحة الرئيسية لعمل تسجيل خروج كامل
+        window.parent.location.href = "index.html";
     }
 });
 
-// 2. جلب العملاء من Firestore لحظياً (Real-time)
+// 2. جلب العملاء من Firestore لحظياً
 function loadLeads() {
     firebase.firestore().collection("CRM_Leads")
-        .where("assignedTo", "==", currentUserEmail) // الموظف يشوف عملائه بس
+        .where("assignedTo", "==", currentUserEmail)
         .onSnapshot((snapshot) => {
-            // تفريغ الأعمدة
             document.getElementById('body-new').innerHTML = "";
             document.getElementById('body-contacted').innerHTML = "";
             document.getElementById('body-negotiation').innerHTML = "";
@@ -29,13 +29,11 @@ function loadLeads() {
                 const lead = { id: doc.id, ...doc.data() };
                 if (counts[lead.status] !== undefined) counts[lead.status]++;
                 
-                // رسم الكارت لو مش مرفوض (المرفوض مش بيظهر في الـ Kanban بيظهر في الإحصائيات بس)
                 if (lead.status !== 'lost') {
                     createLeadCard(lead);
                 }
             });
 
-            // تحديث العدادات
             document.getElementById('count-new').innerText = counts.new;
             document.getElementById('count-contacted').innerText = counts.contacted;
             document.getElementById('count-negotiation').innerText = counts.negotiation;
@@ -60,7 +58,6 @@ function createLeadCard(lead) {
     card.draggable = true;
     card.id = `lead-${lead.id}`;
     
-    // إيفنت السحب
     card.addEventListener('dragstart', dragStart);
 
     card.innerHTML = `
@@ -74,7 +71,7 @@ function createLeadCard(lead) {
     colBody.appendChild(card);
 }
 
-// 4. لوجيك السحب والإفلات (Drag & Drop)
+// 4. السحب والإفلات (Drag & Drop)
 function dragStart(e) {
     e.dataTransfer.setData('text/plain', e.target.id);
     setTimeout(() => { e.target.style.opacity = '0.5'; }, 0);
@@ -87,9 +84,6 @@ function allowDrop(e) {
 
 function drop(e, newStatus) {
     e.preventDefault();
-    const colBody = document.getElementById(`body-${newStatus}`);
-    
-    // إزالة تأثير الـ hover من كل الأعمدة
     document.querySelectorAll('.col-body').forEach(el => el.classList.remove('drag-over'));
 
     const leadIdRaw = e.dataTransfer.getData('text/plain');
@@ -100,7 +94,6 @@ function drop(e, newStatus) {
     
     if (card) {
         card.style.opacity = '1';
-        // تحديث الحالة في قاعدة البيانات فوراً
         firebase.firestore().collection("CRM_Leads").doc(leadId).update({
             status: newStatus,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -108,7 +101,7 @@ function drop(e, newStatus) {
     }
 }
 
-// 5. إدارة المودال (إضافة وتعديل)
+// 5. المودال والحفظ
 function openLeadModal() {
     document.getElementById('leadForm').reset();
     document.getElementById('leadId').value = "";
@@ -138,11 +131,9 @@ async function saveLead(e) {
 
     try {
         if (leadId) {
-            // تعديل عميل موجود
             await firebase.firestore().collection("CRM_Leads").doc(leadId).update(leadData);
         } else {
-            // عميل جديد
-            leadData.status = 'new'; // الحالة الافتراضية
+            leadData.status = 'new';
             leadData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await firebase.firestore().collection("CRM_Leads").add(leadData);
         }
@@ -154,7 +145,6 @@ async function saveLead(e) {
     }
 }
 
-// تعديل بيانات العميل
 async function editLead(id) {
     const doc = await firebase.firestore().collection("CRM_Leads").doc(id).get();
     if (doc.exists) {
@@ -171,20 +161,18 @@ async function editLead(id) {
     }
 }
 
-// 6. نظام الترجمة (لصفحة الـ CRM)
+// 6. نظام الترجمة المحدث للصفحة الداخلية
 function updatePageContent(lang) {
     const t = {
         ar: {
-            title: "إدارة المبيعات (CRM)", navHome: "الرئيسية", navCrm: "إدارة العملاء (CRM)",
-            header: "مسار المبيعات (Sales Pipeline)", btnAdd: "➕ إضافة عميل جديد",
+            header: "مسار المبيعات (Sales Pipeline)", sub: "إدارة العملاء وتتبع مراحل المبيعات والصفقات", btnAdd: "➕ إضافة عميل جديد",
             total: "إجمالي العملاء:", wonLbl: "تم البيع (Won):", lostLbl: "مرفوض (Lost):",
             colNew: "عميل جديد (New)", colCont: "جاري التواصل", colNeg: "تفاوض / عرض سعر", colWon: "تم البيع (Won)",
             lblName: "اسم العميل / الشركة", lblPhone: "رقم الهاتف", lblValue: "قيمة الصفقة المتوقعة", lblPriority: "الأولوية", lblNote: "ملاحظات",
             optHigh: "🔥 عالية (ساخن)", optMed: "⚡ متوسطة", optLow: "❄️ منخفضة (بارد)", btnSave: "حفظ بيانات العميل"
         },
         en: {
-            title: "Sales Management (CRM)", navHome: "Home", navCrm: "CRM",
-            header: "Sales Pipeline", btnAdd: "➕ Add New Lead",
+            header: "Sales Pipeline", sub: "Manage clients and track sales deals", btnAdd: "➕ Add New Lead",
             total: "Total Leads:", wonLbl: "Won:", lostLbl: "Lost:",
             colNew: "New Lead", colCont: "Contacted", colNeg: "Negotiation", colWon: "Closed Won",
             lblName: "Client / Company Name", lblPhone: "Phone Number", lblValue: "Expected Deal Value", lblPriority: "Priority", lblNote: "Notes",
@@ -193,12 +181,11 @@ function updatePageContent(lang) {
     };
 
     const c = t[lang] || t.ar;
-    document.title = c.title;
+    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    
     const set = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
-    set('txt-brand', lang === 'ar' ? 'تمكين ERP' : 'Tamkeen ERP');
-    set('nav-home', c.navHome); set('nav-crm', c.navCrm);
-    set('txt-header', c.header); set('btn-add-lead', c.btnAdd);
+    set('txt-header', c.header); set('txt-subtitle', c.sub); set('btn-add-lead', c.btnAdd);
     set('lbl-total-leads', c.total); set('lbl-won-leads', c.wonLbl); set('lbl-lost-leads', c.lostLbl);
     set('txt-col-new', c.colNew); set('txt-col-contacted', c.colCont); set('txt-col-negotiation', c.colNeg); set('txt-col-won', c.colWon);
     
@@ -207,11 +194,7 @@ function updatePageContent(lang) {
     set('opt-high', c.optHigh); set('opt-medium', c.optMed); set('opt-low', c.optLow); set('btn-save-lead', c.btnSave);
 }
 
-// دالة طي القائمة الجانبية (للتوافق مع الكود الجديد)
-function toggleSidebarDesktop() {
-    document.getElementById('sidebar').classList.toggle('collapsed');
-    document.querySelector('.main-content').classList.toggle('expanded');
-}
-function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('active');
-}
+window.onload = () => {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    updatePageContent(lang);
+};
