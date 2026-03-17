@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">الرئيسية - تمكين</title>
+    <title id="txt-title">الرئيسية - تمكين ERP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/home.css">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -11,53 +12,102 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    <header>
-        <div class="user-controls">
-            <button onclick="logout()" class="logout-btn" id="btn-logout">تسجيل خروج</button>
-            <div class="lang-switch">
-                <span onclick="setLanguage('ar')" style="cursor:pointer; font-weight:bold; padding:5px;">عربي</span> | 
-                <span onclick="setLanguage('en')" style="cursor:pointer; font-weight:bold; padding:5px;">EN</span>
+    <div class="app-wrapper">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">⚡</span>
+                <span id="txt-brand">تمكين ERP</span>
             </div>
+            <ul class="nav-links">
+                <li class="active"><a href="home.html"><span class="icon">🏠</span> <span id="nav-home">الرئيسية</span></a></li>
+                <li><a href="calculator.html"><span class="icon">💰</span> <span id="nav-calc">حاسبة القروض</span></a></li>
+                <li><a href="hr-solution.html"><span class="icon">📝</span> <span id="nav-hr">الخدمات الذاتية</span></a></li>
+                <li><a href="branches.html"><span class="icon">📍</span> <span id="nav-branches">دليل الفروع</span></a></li>
+                
+                <li id="nav-manager" style="display: none;"><a href="manager-dashboard.html"><span class="icon">📊</span> <span id="nav-mgr-dash">لوحة المدير</span></a></li>
+                <li id="nav-hr-admin" style="display: none;"><a href="hr-dashboard.html"><span class="icon">🏢</span> <span id="nav-hrd-dash">لوحة الـ HR</span></a></li>
+                <li id="nav-admin" style="display: none;"><a href="admin-branches.html"><span class="icon">⚙️</span> <span id="nav-adm-dash">إدارة النظام</span></a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <header class="topbar">
+                <div class="topbar-right">
+                    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                    <h2 id="txt-header">لوحة التحكم المركزية</h2>
+                </div>
+                <div class="topbar-left user-controls">
+                    <div class="lang-switch">
+                        <span onclick="setLanguage('ar')" class="lang-btn">عربي</span> | 
+                        <span onclick="setLanguage('en')" class="lang-btn">EN</span>
+                    </div>
+                    <div class="user-profile">
+                        <span class="user-avatar">👤</span>
+                        <span id="userEmail" class="user-email">...</span>
+                    </div>
+                    <button onclick="logout()" class="logout-btn" id="btn-logout">تسجيل خروج</button>
+                </div>
+            </header>
+
+            <main class="dashboard-container">
+                <div class="welcome-banner">
+                    <div>
+                        <h1 id="txt-welcome">جاري التحميل...</h1>
+                        <p id="txt-subtitle">مرحباً بك في نظام إدارة الموارد المتكامل</p>
+                    </div>
+                    <div class="banner-icon">🚀</div>
+                </div>
+
+                <div class="cards-grid">
+                    <div class="card" onclick="location.href='calculator.html'">
+                        <div class="card-icon blue">💰</div>
+                        <div class="card-info">
+                            <h3 id="txt-calc">حاسبة القروض</h3>
+                            <p id="desc-calc">حساب الأقساط والفوائد</p>
+                        </div>
+                    </div>
+                    <div class="card" onclick="location.href='hr-solution.html'">
+                        <div class="card-icon green">📝</div>
+                        <div class="card-info">
+                            <h3 id="txt-hr">شؤون الموظفين</h3>
+                            <p id="desc-hr">الإجازات والأذونات</p>
+                        </div>
+                    </div>
+                    <div class="card" onclick="location.href='branches.html'">
+                        <div class="card-icon purple">📍</div>
+                        <div class="card-info">
+                            <h3 id="txt-branches">الفروع</h3>
+                            <p id="desc-branches">دليل الفروع والخرائط</p>
+                        </div>
+                    </div>
+
+                    <div id="manager-card" class="card admin-card" style="display: none;" onclick="location.href='manager-dashboard.html'">
+                        <div class="card-icon orange">📊</div>
+                        <div class="card-info">
+                            <h3 id="txt-mgr-dash">لوحة تحكم المدير</h3>
+                            <p id="desc-mgr">مراجعة طلبات القسم</p>
+                        </div>
+                    </div>
+
+                    <div id="hr-admin-card" class="card admin-card" style="display: none;" onclick="location.href='hr-dashboard.html'">
+                        <div class="card-icon red">🏢</div>
+                        <div class="card-info">
+                            <h3 id="txt-hr-dash">لوحة تحكم الـ HR</h3>
+                            <p id="desc-hrd">إدارة الطلبات والتقارير</p>
+                        </div>
+                    </div>
+
+                    <div id="admin-branch-card" class="card admin-card" style="display: none;" onclick="location.href='admin-branches.html'">
+                        <div class="card-icon dark">⚙️</div>
+                        <div class="card-info">
+                            <h3 id="txt-admin-dash">إدارة الفروع (Admin)</h3>
+                            <p id="desc-adm">إضافة وتعديل النظام</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
-        <h2 id="txt-header">لوحة التحكم</h2>
-    </header>
-
-    <main class="container">
-        <div class="welcome-section">
-            <h1 id="txt-welcome">جاري التحميل...</h1>
-            <p id="userEmail" style="color: #2a5298; font-weight: bold;"></p>
-        </div>
-
-        <div class="cards-grid">
-            <div class="card" onclick="location.href='calculator.html'">
-                <div class="icon">💰</div>
-                <h3 id="txt-calc">حاسبة القروض</h3>
-            </div>
-            <div class="card" onclick="location.href='hr-solution.html'">
-                <div class="icon">📝</div>
-                <h3 id="txt-hr">شؤون الموظفين</h3>
-            </div>
-            <div class="card" onclick="location.href='branches.html'">
-                <div class="icon">📍</div>
-                <h3 id="txt-branches">الفروع</h3>
-            </div>
-
-            <div id="manager-card" class="card" style="display: none; border: 2px solid #27ae60;" onclick="location.href='manager-dashboard.html'">
-                <div class="icon">📊</div>
-                <h3 id="txt-mgr-dash">لوحة تحكم المدير</h3>
-            </div>
-
-            <div id="hr-admin-card" class="card" style="display: none; border: 2px solid #e67e22;" onclick="location.href='hr-dashboard.html'">
-                <div class="icon">🏢</div>
-                <h3 id="txt-hr-dash">لوحة تحكم الـ HR</h3>
-            </div>
-
-            <div id="admin-branch-card" class="card" style="display: none; border: 2px solid #9b59b6;" onclick="location.href='admin-branches.html'">
-                <div class="icon">⚙️</div>
-                <h3 id="txt-admin-dash">إدارة الفروع (Admin)</h3>
-            </div>
-        </div>
-    </main>
+    </div>
 
     <script src="js/firebase-config.js"></script>
     <script src="js/lang-manager.js"></script>
