@@ -1,151 +1,76 @@
-// home.js - Enterprise Logic (Roles + Translations + Sidebar)
+// home.js - Master Shell Logic (SPA Routing, Roles, Translations)
 
-// 1. نظام الترجمة الشامل لصفحة الهوم والـ Sidebar
-function updatePageContent(lang) {
-    const translations = {
-        ar: {
-            brand: "تمكين ERP",
-            header: "لوحة التحكم المركزية",
-            welcome: "أهلاً بك في نظام تمكين الموحد",
-            subtitle: "مرحباً بك في نظام إدارة الموارد المتكامل",
-            navHome: "الرئيسية", navCalc: "حاسبة القروض", navHr: "الخدمات الذاتية", navBranches: "دليل الفروع",
-            navMgr: "لوحة المدير", navHrd: "لوحة الـ HR", navAdm: "إدارة النظام",
-            calc: "حاسبة القروض", descCalc: "حساب الأقساط والفوائد",
-            hr: "شؤون الموظفين", descHr: "الإجازات والأذونات",
-            branches: "الفروع", descBranches: "دليل الفروع والخرائط",
-            mgr: "لوحة تحكم المدير", descMgr: "مراجعة طلبات القسم",
-            hrd: "لوحة تحكم الـ HR", descHrd: "إدارة الطلبات والتقارير",
-            adm: "إدارة الفروع (Admin)", descAdm: "إضافة وتعديل النظام",
-            logout: "تسجيل خروج",
-            navCrm: "إدارة العملاء",
-            crm: "إدارة العملاء (CRM)",
-            descCrm: "مسار المبيعات والصفقات",
-        },
-        en: {
-            brand: "Tamkeen ERP",
-            header: "Central Dashboard",
-            welcome: "Welcome to Tamkeen Unified System",
-            subtitle: "Welcome to the Integrated Resource Management System",
-            navHome: "Home", navCalc: "Loan Calc", navHr: "Self Service", navBranches: "Branches",
-            navMgr: "Manager Panel", navHrd: "HR Panel", navAdm: "System Admin",
-            calc: "Loan Calculator", descCalc: "Calculate Installments",
-            hr: "HR Solution", descHr: "Leaves & Permissions",
-            branches: "Branches", descBranches: "Directory & Maps",
-            mgr: "Manager Panel", descMgr: "Review Dept Requests",
-            hrd: "HR Dashboard", descHrd: "Manage Requests & Reports",
-            adm: "Manage Branches", descAdm: "Add/Edit System Data",
-            logout: "Logout",
-            navCrm: "CRM",
-            crm: "Sales CRM",
-            descCrm: "Sales Pipeline & Leads",
-        }
-    };
+// 1. دالة التنقل بين الصفحات في الـ Iframe
+function loadPage(pageUrl, clickedLi) {
+    // تغيير الرابط داخل الـ Iframe
+    document.getElementById('content-frame').src = pageUrl;
+    
+    // إزالة كلاس active من كل الروابط وإضافته للرابط المضغوط
+    const allLinks = document.querySelectorAll('#nav-links li');
+    allLinks.forEach(li => li.classList.remove('active'));
+    clickedLi.classList.add('active');
 
-    const t = translations[lang];
-    
-    // دوال مساعدة لتجنب الأخطاء
-    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
-
-    // تطبيق الترجمة
-    setTxt('txt-brand', t.brand);
-    setTxt('txt-header', t.header);
-    if(document.getElementById('txt-welcome').innerText !== "جاري التحميل...") setTxt('txt-welcome', t.welcome);
-    setTxt('txt-subtitle', t.subtitle);
-    
-    // القائمة الجانبية
-    setTxt('nav-home', t.navHome); 
-    setTxt('nav-calc', t.navCalc); 
-    setTxt('nav-hr', t.navHr); 
-    setTxt('nav-branches', t.navBranches);
-    setTxt('nav-mgr-dash', t.navMgr); 
-    setTxt('nav-hrd-dash', t.navHrd); 
-    setTxt('nav-adm-dash', t.navAdm);
-    setTxt('nav-crm', t.navCrm); // ترجمة رابط الـ CRM في القائمة الجانبية
-    
-    // الكروت الرئيسية
-    setTxt('txt-calc', t.calc); setTxt('desc-calc', t.descCalc);
-    setTxt('txt-hr', t.hr); setTxt('desc-hr', t.descHr);
-    setTxt('txt-branches', t.branches); setTxt('desc-branches', t.descBranches);
-    setTxt('txt-mgr-dash', t.mgr); setTxt('desc-mgr', t.descMgr);
-    setTxt('txt-hr-dash', t.hrd); setTxt('desc-hrd', t.descHrd);
-    setTxt('txt-admin-dash', t.adm); setTxt('desc-adm', t.descAdm);
-    setTxt('txt-crm', t.crm); setTxt('desc-crm', t.descCrm); // ترجمة كارت الـ CRM
-    setTxt('btn-logout', t.logout);
+    // قفل القائمة في الموبايل بعد الاختيار
+    if (window.innerWidth <= 992) {
+        document.getElementById('sidebar').classList.remove('active');
+    }
 }
 
-// 2. مراقب حالة الدخول والصلاحيات والإصلاح الذاتي
+// 2. دالة تغيير لغة النظام بالكامل (الخارج والداخل)
+function switchAppLanguage(lang) {
+    setLanguage(lang); // الدالة الأساسية لتغيير الـ LocalStorage
+    updatePageContent(lang); // تحديث القائمة الجانبية
+    // تحديث الصفحة المعروضة داخل الـ Iframe
+    const frame = document.getElementById('content-frame');
+    if(frame.contentWindow) {
+        frame.contentWindow.location.reload();
+    }
+}
+
+// 3. الترجمة الخاصة بالهيكل الخارجي فقط
+function updatePageContent(lang) {
+    const t = {
+        ar: {
+            brand: "تمكين ERP", header: "لوحة التحكم المركزية",
+            navHome: "الرئيسية", navCrm: "إدارة العملاء (CRM)", navCalc: "حاسبة القروض", navHr: "الخدمات الذاتية", navBranches: "دليل الفروع",
+            navMgr: "لوحة المدير", navHrd: "لوحة الـ HR", navAdm: "إدارة النظام", logout: "تسجيل خروج"
+        },
+        en: {
+            brand: "Tamkeen ERP", header: "Central Dashboard",
+            navHome: "Home", navCrm: "CRM", navCalc: "Loan Calc", navHr: "Self Service", navBranches: "Branches",
+            navMgr: "Manager Panel", navHrd: "HR Panel", navAdm: "System Admin", logout: "Logout"
+        }
+    };
+    const c = t[lang] || t.ar;
+    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+
+    setTxt('txt-brand', c.brand); setTxt('txt-header', c.header);
+    setTxt('nav-home', c.navHome); setTxt('nav-crm', c.navCrm); setTxt('nav-calc', c.navCalc); setTxt('nav-hr', c.navHr); setTxt('nav-branches', c.navBranches);
+    setTxt('nav-mgr-dash', c.navMgr); setTxt('nav-hrd-dash', c.navHrd); setTxt('nav-adm-dash', c.navAdm); setTxt('btn-logout', c.logout);
+}
+
+// 4. مراقب الصلاحيات (يتحكم في إظهار روابط القائمة الجانبية)
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
-        const userEmail = user.email;
-        const empCode = userEmail.split('@')[0];
+        const empCode = user.email.split('@')[0];
 
-        firebase.firestore().collection("Users").doc(userEmail).get().then((doc) => {
-            if (doc.exists) {
-                applyRoles(doc.data().role);
-                const lang = localStorage.getItem('preferredLang') || 'ar';
-                document.getElementById('txt-welcome').innerText = (lang === 'ar') ? "أهلاً بك في نظام تمكين الموحد" : "Welcome to Tamkeen Unified System";
-            } else {
-                console.log("ملف الصلاحيات ناقص.. جاري محاولة الإصلاح...");
-                return firebase.firestore().collection("Employee_Database").doc(empCode).get();
-            }
-        })
-        .then((empDoc) => {
-            if (empDoc && empDoc.exists) {
-                const empData = empDoc.data();
-                const assignedRole = (empData.role || "employee").toLowerCase();
-                
-                return firebase.firestore().collection("Users").doc(userEmail).set({
-                    role: assignedRole,
-                    name: empData.name,
-                    empCode: empCode,
-                    email: userEmail
-                }).then(() => {
-                    console.log("تم إصلاح الحساب بنجاح!");
-                    applyRoles(assignedRole);
-                    const lang = localStorage.getItem('preferredLang') || 'ar';
-                    document.getElementById('txt-welcome').innerText = (lang === 'ar') ? "أهلاً بك في نظام تمكين الموحد" : "Welcome to Tamkeen Unified System";
-                });
-            }
-        })
-        .catch((error) => {
-            console.error("خطأ في الصلاحيات:", error);
+        firebase.firestore().collection("Users").doc(user.email).get().then((doc) => {
+            if (doc.exists) applyRoles(doc.data().role);
         });
     } else {
         window.location.href = "index.html";
     }
 });
 
-// 3. دالة إظهار الكروت والقائمة الجانبية حسب الرتبة
 function applyRoles(role) {
     const r = role.toLowerCase();
-    
-    // المدير، الـ HR، والأدمن
-    if (r === 'manager' || r === 'hr' || r === 'admin') {
-        if(document.getElementById('manager-card')) document.getElementById('manager-card').style.display = 'flex';
-        if(document.getElementById('nav-manager')) document.getElementById('nav-manager').style.display = 'block';
-    }
-    
-    // الـ HR والأدمن
-    if (r === 'hr' || r === 'admin') {
-        if(document.getElementById('hr-admin-card')) document.getElementById('hr-admin-card').style.display = 'flex';
-        if(document.getElementById('nav-hr-admin')) document.getElementById('nav-hr-admin').style.display = 'block';
-    }
-
-    // الأدمن فقط
-    if (r === 'admin') {
-        if(document.getElementById('admin-branch-card')) document.getElementById('admin-branch-card').style.display = 'flex';
-        if(document.getElementById('nav-admin')) document.getElementById('nav-admin').style.display = 'block';
-    }
+    if (r === 'manager' || r === 'hr' || r === 'admin') document.getElementById('nav-manager').style.display = 'block';
+    if (r === 'hr' || r === 'admin') document.getElementById('nav-hr-admin').style.display = 'block';
+    if (r === 'admin') document.getElementById('nav-admin').style.display = 'block';
 }
 
-// 4. دالة لفتح وقفل الـ Sidebar في الموبايل
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('active');
-}
-
-// 5. دالة طي القائمة في شاشات الكمبيوتر
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
 function toggleSidebarDesktop() {
     document.getElementById('sidebar').classList.toggle('collapsed');
     document.querySelector('.main-content').classList.toggle('expanded');
