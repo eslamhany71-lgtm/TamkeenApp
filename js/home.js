@@ -142,3 +142,6 @@ function toggleSidebarDesktop() {
     document.getElementById('sidebar').classList.toggle('collapsed');
     document.querySelector('.main-content').classList.toggle('expanded');
 }
+if(document.getElementById('nav-crm')) document.getElementById('nav-crm').innerText = t.navCrm;
+if(document.getElementById('txt-crm')) document.getElementById('txt-crm').innerText = t.crm;
+if(document.getElementById('desc-crm')) document.getElementById('desc-crm').innerText = t.descCrm;
