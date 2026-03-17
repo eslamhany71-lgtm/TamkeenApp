@@ -4,135 +4,275 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/home.css"> <style>
-        /* إخفاء الهوامش لأنها جوه iframe */
-        body { background-color: transparent; padding: 0; margin: 0; }
-        .dashboard-container { padding: 30px; }
-    </style>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        /* ستايل الـ Dashboard المتقدم (Enterprise Look) */
+        body { 
+            background-color: transparent; 
+            padding: 0; 
+            margin: 0; 
+            font-family: 'Tajawal', sans-serif;
+            color: #1e293b;
+        }
+        .dashboard-wrapper { padding: 30px; }
+        
+        /* الترحيب */
+        .header-section { margin-bottom: 30px; }
+        .header-section h1 { margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; }
+        .header-section p { margin: 5px 0 0 0; color: #64748b; font-size: 15px; }
+
+        /* كروت الإحصائيات (KPIs) */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            background: #fff;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-right: 4px solid transparent;
+            transition: 0.3s;
+        }
+        .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .kpi-card.blue { border-right-color: #3b82f6; }
+        .kpi-card.green { border-right-color: #10b981; }
+        .kpi-card.orange { border-right-color: #f59e0b; }
+        .kpi-card.purple { border-right-color: #8b5cf6; }
+
+        .kpi-info h4 { margin: 0 0 5px 0; font-size: 14px; color: #64748b; font-weight: 700; }
+        .kpi-info h2 { margin: 0; font-size: 28px; color: #0f172a; font-weight: 800; }
+        .kpi-icon {
+            width: 50px; height: 50px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; font-size: 24px;
+        }
+        .kpi-icon.blue { background: #eff6ff; color: #3b82f6; }
+        .kpi-icon.green { background: #f0fdf4; color: #10b981; }
+        .kpi-icon.orange { background: #fff7ed; color: #f59e0b; }
+        .kpi-icon.purple { background: #faf5ff; color: #8b5cf6; }
+
+        /* قسم الرسوم البيانية والإجراءات السريعة */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+        .panel {
+            background: #fff;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        .panel-title { margin: 0 0 20px 0; font-size: 18px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+
+        /* الإجراءات السريعة */
+        .quick-actions { display: flex; flex-direction: column; gap: 12px; }
+        .action-btn {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: right;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            color: #334155;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .action-btn:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateX(-5px); }
+        .action-btn span { font-size: 18px; }
+
+    </style>
 </head>
 <body>
-    <main class="dashboard-container">
-        <div class="welcome-banner">
-            <div>
-                <h1 id="txt-welcome">جاري التحميل...</h1>
-                <p id="txt-subtitle">مرحباً بك في نظام إدارة الموارد المتكامل</p>
-            </div>
-            <div class="banner-icon">🚀</div>
+    <div class="dashboard-wrapper">
+        
+        <div class="header-section">
+            <h1 id="txt-welcome">نظرة عامة على النظام</h1>
+            <p id="txt-subtitle">ملخص أداء الشركة وإحصائيات الإدارات اللحظية</p>
         </div>
 
-        <div class="cards-grid">
-            <div class="card" onclick="location.href='crm.html'">
-                <div class="card-icon blue" style="background: #e0e7ff; color: #4338ca;">🤝</div>
-                <div class="card-info">
-                    <h3 id="txt-crm">إدارة العملاء (CRM)</h3>
-                    <p id="desc-crm">مسار المبيعات والصفقات</p>
+        <div class="kpi-grid">
+            <div class="kpi-card blue">
+                <div class="kpi-info">
+                    <h4 id="lbl-employees">إجمالي الموظفين</h4>
+                    <h2 id="stat-employees">--</h2>
                 </div>
+                <div class="kpi-icon blue">👥</div>
             </div>
-            <div class="card" onclick="location.href='calculator.html'">
-                <div class="card-icon blue">💰</div>
-                <div class="card-info">
-                    <h3 id="txt-calc">حاسبة القروض</h3>
-                    <p id="desc-calc">حساب الأقساط والفوائد</p>
+            <div class="kpi-card orange">
+                <div class="kpi-info">
+                    <h4 id="lbl-hr-pending">طلبات HR معلقة</h4>
+                    <h2 id="stat-hr-pending">--</h2>
                 </div>
+                <div class="kpi-icon orange">⏳</div>
             </div>
-            <div class="card" onclick="location.href='hr-solution.html'">
-                <div class="card-icon green">📝</div>
-                <div class="card-info">
-                    <h3 id="txt-hr">شؤون الموظفين</h3>
-                    <p id="desc-hr">الإجازات والأذونات</p>
+            <div class="kpi-card purple">
+                <div class="kpi-info">
+                    <h4 id="lbl-crm-active">عملاء نشطين (CRM)</h4>
+                    <h2 id="stat-crm-active">--</h2>
                 </div>
+                <div class="kpi-icon purple">🎯</div>
             </div>
-            <div class="card" onclick="location.href='branches.html'">
-                <div class="card-icon purple">📍</div>
-                <div class="card-info">
-                    <h3 id="txt-branches">الفروع</h3>
-                    <p id="desc-branches">دليل الفروع والخرائط</p>
+            <div class="kpi-card green">
+                <div class="kpi-info">
+                    <h4 id="lbl-crm-won">صفقات ناجحة</h4>
+                    <h2 id="stat-crm-won">--</h2>
                 </div>
+                <div class="kpi-icon green">💰</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="panel">
+                <h3 class="panel-title" id="lbl-chart">مؤشر المبيعات وحالات العملاء</h3>
+                <canvas id="dashboardChart" style="max-height: 300px;"></canvas>
             </div>
 
-            <div id="manager-card" class="card admin-card" style="display: none;" onclick="location.href='manager-dashboard.html'">
-                <div class="card-icon orange">📊</div>
-                <div class="card-info">
-                    <h3 id="txt-mgr-dash">لوحة تحكم المدير</h3>
-                    <p id="desc-mgr">مراجعة طلبات القسم</p>
-                </div>
-            </div>
-
-            <div id="hr-admin-card" class="card admin-card" style="display: none;" onclick="location.href='hr-dashboard.html'">
-                <div class="card-icon red">🏢</div>
-                <div class="card-info">
-                    <h3 id="txt-hr-dash">لوحة تحكم الـ HR</h3>
-                    <p id="desc-hrd">إدارة الطلبات والتقارير</p>
-                </div>
-            </div>
-
-            <div id="admin-branch-card" class="card admin-card" style="display: none;" onclick="location.href='admin-branches.html'">
-                <div class="card-icon dark">⚙️</div>
-                <div class="card-info">
-                    <h3 id="txt-admin-dash">إدارة الفروع (Admin)</h3>
-                    <p id="desc-adm">إضافة وتعديل النظام</p>
+            <div class="panel">
+                <h3 class="panel-title" id="lbl-actions">إجراءات سريعة</h3>
+                <div class="quick-actions">
+                    <button class="action-btn" onclick="window.parent.loadPage('crm.html', document.getElementById('nav-crm').parentElement)">
+                        <span>➕</span> <div id="btn-add-lead">إضافة عميل جديد (CRM)</div>
+                    </button>
+                    <button class="action-btn" onclick="window.parent.loadPage('hr-solution.html', document.getElementById('nav-hr').parentElement)">
+                        <span>📝</span> <div id="btn-req-leave">تقديم طلب إجازة</div>
+                    </button>
+                    <button class="action-btn" onclick="window.parent.loadPage('calculator.html', document.getElementById('nav-calc').parentElement)">
+                        <span>🧮</span> <div id="btn-calc-loan">حساب قرض جديد</div>
+                    </button>
                 </div>
             </div>
         </div>
-    </main>
 
-    <script src="js/lang-manager.js"></script>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
     <script>
-        // دالة الترجمة الخاصة بشاشة الكروت
+        // 1. جلب الإحصائيات من فايربيز لحظياً
+        function loadDashboardStats() {
+            const db = firebase.firestore();
+
+            // جلب عدد الموظفين
+            db.collection("Employee_Database").onSnapshot(snap => {
+                document.getElementById('stat-employees').innerText = snap.size;
+            });
+
+            // جلب طلبات الـ HR المعلقة
+            db.collection("HR_Requests").where("status", "==", "Pending").onSnapshot(snap => {
+                document.getElementById('stat-hr-pending').innerText = snap.size;
+            });
+
+            // جلب إحصائيات الـ CRM
+            db.collection("CRM_Leads").onSnapshot(snap => {
+                let active = 0;
+                let won = 0;
+                let lost = 0;
+                let newLead = 0;
+                let contacted = 0;
+                let negotiation = 0;
+
+                snap.forEach(doc => {
+                    const status = doc.data().status;
+                    if (status === 'won') won++;
+                    else if (status === 'lost') lost++;
+                    else {
+                        active++;
+                        if(status === 'new') newLead++;
+                        if(status === 'contacted') contacted++;
+                        if(status === 'negotiation') negotiation++;
+                    }
+                });
+
+                document.getElementById('stat-crm-active').innerText = active;
+                document.getElementById('stat-crm-won').innerText = won;
+
+                updateChart(newLead, contacted, negotiation, won, lost);
+            });
+        }
+
+        // 2. تحديث الرسم البياني
+        let dashChart = null;
+        function updateChart(newLead, contacted, negotiation, won, lost) {
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            const lang = localStorage.getItem('preferredLang') || 'ar';
+            
+            const labels = lang === 'ar' ? 
+                ['جديد', 'تواصل', 'تفاوض', 'تم البيع', 'مرفوض'] : 
+                ['New', 'Contacted', 'Negotiation', 'Won', 'Lost'];
+
+            if (dashChart) dashChart.destroy();
+
+            dashChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: lang === 'ar' ? 'عدد العملاء' : 'Leads Count',
+                        data: [newLead, contacted, negotiation, won, lost],
+                        backgroundColor: ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ef4444'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        // 3. نظام الترجمة لصفحة الـ Dashboard
         function updatePageContent(lang) {
             const t = {
                 ar: {
-                    welcome: "أهلاً بك في نظام تمكين الموحد", subtitle: "مرحباً بك في نظام إدارة الموارد المتكامل",
-                    crm: "إدارة العملاء (CRM)", descCrm: "مسار المبيعات والصفقات",
-                    calc: "حاسبة القروض", descCalc: "حساب الأقساط والفوائد",
-                    hr: "شؤون الموظفين", descHr: "الإجازات والأذونات",
-                    branches: "الفروع", descBranches: "دليل الفروع والخرائط",
-                    mgr: "لوحة تحكم المدير", descMgr: "مراجعة طلبات القسم",
-                    hrd: "لوحة تحكم الـ HR", descHrd: "إدارة الطلبات والتقارير",
-                    adm: "إدارة الفروع (Admin)", descAdm: "إضافة وتعديل النظام"
+                    welcome: "نظرة عامة على النظام", subtitle: "ملخص أداء الشركة وإحصائيات الإدارات اللحظية",
+                    emp: "إجمالي الموظفين", hrPend: "طلبات HR معلقة", crmAct: "عملاء نشطين (CRM)", crmWon: "صفقات ناجحة",
+                    chart: "مؤشر المبيعات وحالات العملاء", actions: "إجراءات سريعة",
+                    btnAddLead: "إضافة عميل جديد (CRM)", btnReqLeave: "تقديم طلب إجازة", btnCalcLoan: "حساب قرض جديد"
                 },
                 en: {
-                    welcome: "Welcome to Tamkeen Unified System", subtitle: "Integrated Resource Management System",
-                    crm: "Sales CRM", descCrm: "Sales Pipeline & Leads",
-                    calc: "Loan Calculator", descCalc: "Calculate Installments",
-                    hr: "HR Solution", descHr: "Leaves & Permissions",
-                    branches: "Branches", descBranches: "Directory & Maps",
-                    mgr: "Manager Panel", descMgr: "Review Dept Requests",
-                    hrd: "HR Dashboard", descHrd: "Manage Requests & Reports",
-                    adm: "Manage Branches", descAdm: "Add/Edit System Data"
+                    welcome: "System Overview", subtitle: "Company Performance & Real-time Department Stats",
+                    emp: "Total Employees", hrPend: "Pending HR Requests", crmAct: "Active CRM Leads", crmWon: "Won Deals",
+                    chart: "Sales Pipeline & Lead Status", actions: "Quick Actions",
+                    btnAddLead: "Add New Lead (CRM)", btnReqLeave: "Submit Leave Request", btnCalcLoan: "Calculate New Loan"
                 }
             };
             const c = t[lang] || t.ar;
             const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
             setTxt('txt-welcome', c.welcome); setTxt('txt-subtitle', c.subtitle);
-            setTxt('txt-crm', c.crm); setTxt('desc-crm', c.descCrm);
-            setTxt('txt-calc', c.calc); setTxt('desc-calc', c.descCalc);
-            setTxt('txt-hr', c.hr); setTxt('desc-hr', c.descHr);
-            setTxt('txt-branches', c.branches); setTxt('desc-branches', c.descBranches);
-            setTxt('txt-mgr-dash', c.mgr); setTxt('desc-mgr', c.descMgr);
-            setTxt('txt-hr-dash', c.hrd); setTxt('desc-hrd', c.descHrd);
-            setTxt('txt-admin-dash', c.adm); setTxt('desc-adm', c.descAdm);
+            setTxt('lbl-employees', c.emp); setTxt('lbl-hr-pending', c.hrPend); 
+            setTxt('lbl-crm-active', c.crmAct); setTxt('lbl-crm-won', c.crmWon);
+            setTxt('lbl-chart', c.chart); setTxt('lbl-actions', c.actions);
+            setTxt('btn-add-lead', c.btnAddLead); setTxt('btn-req-leave', c.btnReqLeave); setTxt('btn-calc-loan', c.btnCalcLoan);
         }
 
-        // إظهار كروت الإدارة بناءً على الصلاحيات
-        firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-                firebase.firestore().collection("Users").doc(user.email).get().then((doc) => {
-                    if (doc.exists) {
-                        const r = doc.data().role.toLowerCase();
-                        if (r === 'manager' || r === 'hr' || r === 'admin') document.getElementById('manager-card').style.display = 'flex';
-                        if (r === 'hr' || r === 'admin') document.getElementById('hr-admin-card').style.display = 'flex';
-                        if (r === 'admin') document.getElementById('admin-branch-card').style.display = 'flex';
-                    }
-                });
-            }
-        });
-        
-        window.onload = () => { updatePageContent(localStorage.getItem('preferredLang') || 'ar'); };
+        window.onload = () => { 
+            const lang = localStorage.getItem('preferredLang') || 'ar';
+            document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+            updatePageContent(lang); 
+            loadDashboardStats();
+        };
     </script>
 </body>
 </html>
