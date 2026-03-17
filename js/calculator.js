@@ -1,87 +1,129 @@
-// calculator.js - Enterprise Edition
+// calculator.js - حاسبة القروض الدقيقة مع نظام اللغات
 
 function calculateLoan() {
-    const amount = parseFloat(document.getElementById('loan-amount').value);
-    const interestRate = parseFloat(document.getElementById('loan-interest').value);
-    const months = parseInt(document.getElementById('loan-months').value);
-
+    const amount = parseFloat(document.getElementById('loanAmount').value);
+    const months = parseInt(document.getElementById('loanMonths').value);
+    const rate = parseFloat(document.getElementById('productType').value);
     const lang = localStorage.getItem('preferredLang') || 'ar';
 
-    if (isNaN(amount) || isNaN(interestRate) || isNaN(months) || amount <= 0 || interestRate < 0 || months <= 0) {
-        alert(lang === 'ar' ? "يرجى إدخال بيانات صحيحة بجميع الحقول" : "Please enter valid data in all fields");
+    if (isNaN(amount) || isNaN(months) || amount <= 0 || months <= 0) {
+        alert(lang === 'ar' ? "برجاء إدخال المبلغ والمدة بشكل صحيح" : "Please enter valid amount and duration");
         return;
     }
 
-    // Calculation Logic
-    const totalInterest = amount * (interestRate / 100) * (months / 12);
-    const totalAmount = amount + totalInterest;
-    const monthlyPayment = totalAmount / months;
+    // --- المعادلات الحسابية الخاصة بك ---
+    const adminFees = amount * 0.05; 
+    const totalInterest = amount * rate * (months / 12); 
+    const totalWithInterest = amount + totalInterest; 
+    const monthlyInstallment = totalWithInterest / months; 
+    const feesPlusFirstInstallment = adminFees + monthlyInstallment; 
+    const grandTotalWithFees = totalWithInterest + adminFees; 
+    const finalAfterAll = amount - feesPlusFirstInstallment; 
+    const finalAfterAdminOnly = amount - adminFees; 
 
-    // Display formatting
-    const currency = lang === 'en' ? 'EGP' : 'ج.م';
-    
-    document.getElementById('res-monthly').innerText = monthlyPayment.toFixed(2) + ' ' + currency;
-    document.getElementById('res-total-interest').innerText = totalInterest.toFixed(2) + ' ' + currency;
-    document.getElementById('res-total').innerText = totalAmount.toFixed(2) + ' ' + currency;
+    const currency = lang === 'ar' ? " ج.م" : " EGP";
+    document.getElementById('results').style.display = 'block';
 
-    // Show result box
-    document.getElementById('result-box').style.display = 'block';
+    setRes('resAdmin', adminFees, currency);
+    setRes('resMonthly', monthlyInstallment, currency);
+    setRes('resTotalWithInterest', totalWithInterest, currency);
+    setRes('resFeesFirst', feesPlusFirstInstallment, currency);
+    setRes('resGrandTotal', grandTotalWithFees, currency);
+    setRes('resPureInterest', totalInterest, currency);
+    setRes('resFinalNet', finalAfterAll, currency);
+    setRes('resFinalAdminOnly', finalAfterAdminOnly, currency);
+    document.getElementById('resInterestRate').innerText = (rate * 100).toFixed(2) + " %";
 }
 
-// Translation logic
+function setRes(id, value, symbol) {
+    document.getElementById(id).innerText = value.toLocaleString(undefined, {maximumFractionDigits: 2}) + symbol;
+}
+
+function resetCalculator() {
+    document.getElementById('loanAmount').value = '';
+    document.getElementById('loanMonths').value = '';
+    document.getElementById('results').style.display = 'none';
+}
+
 function updatePageContent(lang) {
-    const t = {
+    const trans = {
         ar: {
-            title: "حاسبة القروض والتمويل",
-            sub: "قم بإدخال بيانات القرض لحساب القسط الشهري والفوائد",
-            amount: "مبلغ القرض",
-            interest: "نسبة الفائدة السنوية (%)",
-            months: "مدة السداد (بالأشهر)",
-            btnCalc: "احسب الآن",
-            resTitle: "نتيجة الحساب",
-            resMonthly: "القسط الشهري",
-            resTotalInterest: "إجمالي الفوائد",
-            resTotal: "الإجمالي الكلي (شامل الفوائد)"
+            title: "حاسبة القروض - تمكين",
+            header: "حاسبة القروض الذكية",
+            sub: "اختر نوع المنتج وأدخل البيانات للحصول على الحسبة الدقيقة",
+            input: "بيانات التمويل",
+            amount: "مبلغ التمويل",
+            months: "المدة (بالشهور)",
+            product: "نوع المنتج",
+            calc: "احسب الآن",
+            reset: "إعادة",
+            resTitle: "نتائج الحسبة الدقيقة",
+            r1: "قيمة القسط الشهري",
+            r2: "الرسوم الإدارية (5%)",
+            r3: "إجمالي الفائدة فقط",
+            r4: "المبلغ بعد الفائدة",
+            r5: "الرسوم + أول قسط",
+            r6: "نسبة الفائدة السنوية",
+            r7: "الإجمالي (فائدة + رسوم)",
+            r8: "المستلم (بعد الرسوم والقسط)",
+            r9: "المستلم (بعد الرسوم فقط)"
         },
         en: {
-            title: "Loan Calculator",
-            sub: "Enter loan details to calculate monthly installments and interest",
+            title: "Loan Calculator - Tamkeen",
+            header: "Smart Loan Calculator",
+            sub: "Select product type and enter details to get precise calculation",
+            input: "Loan Details",
             amount: "Loan Amount",
-            interest: "Annual Interest Rate (%)",
-            months: "Repayment Period (Months)",
-            btnCalc: "Calculate Now",
-            resTitle: "Calculation Result",
-            resMonthly: "Monthly Installment",
-            resTotalInterest: "Total Interest",
-            resTotal: "Grand Total (incl. Interest)"
+            months: "Duration (Months)",
+            product: "Product Type",
+            calc: "Calculate",
+            reset: "Reset",
+            resTitle: "Detailed Results",
+            r1: "Monthly Installment",
+            r2: "Admin Fees (5%)",
+            r3: "Pure Interest",
+            r4: "Total with Interest",
+            r5: "Fees + 1st Installment",
+            r6: "Annual Interest Rate",
+            r7: "Grand Total (Int+Fees)",
+            r8: "Net (After Fees & 1st Inst)",
+            r9: "Net (After Admin Fees Only)"
         }
     };
 
-    const c = t[lang] || t.ar;
+    const t = trans[lang] || trans.ar;
+    document.title = t.title;
     
-    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    // دالة مساعدة لتحديث النصوص بدون أخطاء لو العنصر مش موجود
+    const setTxt = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = txt;
+    };
 
-    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
-
-    setTxt('txt-calc-title', c.title);
-    setTxt('txt-calc-sub', c.sub);
-    setTxt('lbl-amount', c.amount);
-    setTxt('lbl-interest', c.interest);
-    setTxt('lbl-months', c.months);
-    setTxt('btn-calc', c.btnCalc);
-    setTxt('txt-result-title', c.resTitle);
-    setTxt('lbl-res-monthly', c.resMonthly);
-    setTxt('lbl-res-total-interest', c.resTotalInterest);
-    setTxt('lbl-res-total', c.resTotal);
+    // لاحظ إني شيلت سطر ترجمة زرار الرجوع لأنه مبقاش موجود
+    setTxt('txt-header-title', t.header);
+    setTxt('txt-subtitle', t.sub);
+    setTxt('txt-input-data', t.input);
+    setTxt('lbl-amount', t.amount);
+    setTxt('lbl-months', t.months);
+    setTxt('lbl-product', t.product);
+    setTxt('btn-calc', t.calc);
+    setTxt('btn-reset', t.reset);
+    setTxt('txt-results-title', t.resTitle);
     
-    // إعادة الحساب عشان علامة العملة (EGP / ج.م) تتحدث لو العميل مغير اللغة والنتيجة مفتوحة
-    if (document.getElementById('result-box').style.display === 'block') {
-        calculateLoan();
-    }
+    setTxt('txt-resMonthly', t.r1);
+    setTxt('txt-resAdmin', t.r2);
+    setTxt('txt-resPureInterest', t.r3);
+    setTxt('txt-resTotalWithInterest', t.r4);
+    setTxt('txt-resFeesFirst', t.r5);
+    setTxt('txt-resInterestRate', t.r6);
+    setTxt('txt-resGrandTotal', t.r7);
+    setTxt('txt-resFinalNet', t.r8);
+    setTxt('txt-resFinalAdminOnly', t.r9);
 }
 
-// Load on start
 window.onload = () => {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    updatePageContent(lang);
+    const savedLang = localStorage.getItem('preferredLang') || 'ar';
+    document.body.dir = savedLang === 'en' ? 'ltr' : 'rtl';
+    updatePageContent(savedLang);
 };
