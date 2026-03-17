@@ -4,33 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">الخدمات الذاتية - تمكين</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/hr-solution.css">
     
-    <!-- مكتبات Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
-    <header class="main-header">
-        <div class="header-content container">
-            <button onclick="location.href='home.html'" class="btn-icon-back">
-                <span class="icon">⬅</span> <span id="txt-back">رجوع</span>
-            </button>
+    <main class="page-container">
+        <div class="page-intro">
             <h2 id="txt-header-main">الخدمات الذاتية للموظفين</h2>
-            <div class="lang-switch">
-                <span onclick="setLanguage('ar')" class="lang-btn">عربي</span> | 
-                <span onclick="setLanguage('en')" class="lang-btn">EN</span>
-            </div>
+            <p id="txt-subtitle">اختر الخدمة المطلوبة لتقديم الطلب أو متابعة طلباتك السابقة</p>
         </div>
-    </header>
 
-    <main class="container">
         <div class="hr-grid">
-            <!-- كروت الخدمات -->
             <div class="hr-card" onclick="openForm('vacation')">
-                <div class="card-icon">📅</div>
+                <div class="card-icon blue">📅</div>
                 <div class="card-info">
                     <h3 id="txt-vacation">طلب إجازة</h3>
                     <p id="sub-vacation">سنوية، مرضية، عارضة...</p>
@@ -38,7 +29,7 @@
             </div>
 
             <div class="hr-card" onclick="openForm('late')">
-                <div class="card-icon">⏰</div>
+                <div class="card-icon orange">⏰</div>
                 <div class="card-info">
                     <h3 id="txt-late">إذن تأخير</h3>
                     <p id="sub-late">إذن حضور متأخر للعمل</p>
@@ -46,7 +37,7 @@
             </div>
 
             <div class="hr-card" onclick="openForm('exit')">
-                <div class="card-icon">🚪</div>
+                <div class="card-icon purple">🚪</div>
                 <div class="card-info">
                     <h3 id="txt-exit">تصريح خروج</h3>
                     <p id="sub-exit">خروج مؤقت أثناء العمل</p>
@@ -54,7 +45,7 @@
             </div>
 
             <div class="hr-card special-card" onclick="openMyRequests()">
-                <div class="card-icon">📊</div>
+                <div class="card-icon green">📊</div>
                 <div class="card-info">
                     <h3 id="txt-my-orders">سجل طلباتي</h3>
                     <p id="sub-my-orders">متابعة الحالات والإحصائيات</p>
@@ -62,7 +53,6 @@
             </div>
         </div>
 
-        <!-- مودال تقديم طلب جديد -->
         <div id="formModal" class="modal">
             <div class="modal-content animate-top">
                 <div class="modal-header">
@@ -100,9 +90,8 @@
                         <input type="date" id="hireDate" required>
                     </div>
 
-                    <hr>
+                    <hr style="border: 0; height: 1px; background: #e2e8f0; margin: 25px 0;">
 
-                    <!-- حقول متغيرة بناء على النوع -->
                     <div id="vacation-fields" style="display:none;">
                         <div class="input-box">
                             <span class="field-label" id="lbl-vac-type">نوع الإجازة</span>
@@ -141,7 +130,6 @@
             </div>
         </div>
 
-        <!-- مودال سجل طلباتي (المطور) -->
         <div id="requestsModal" class="modal">
             <div class="modal-content animate-bottom" style="max-width: 900px;">
                 <div class="modal-header">
@@ -154,11 +142,11 @@
                         <span class="stat-label" id="txt-stat-balance">الرصيد المتبقي</span>
                     </div>
                     <div class="mini-stat">
-                        <span class="stat-val" id="my-pending-count" style="color:orange">0</span>
+                        <span class="stat-val" id="my-pending-count" style="color:#f59e0b">0</span>
                         <span class="stat-label" id="txt-stat-pending">قيد الانتظار</span>
                     </div>
                     <div class="mini-stat">
-                        <span class="stat-val" id="my-approved-count" style="color:green">0</span>
+                        <span class="stat-val" id="my-approved-count" style="color:#10b981">0</span>
                         <span class="stat-label" id="txt-stat-approved">مقبولة</span>
                     </div>
                 </div>
@@ -169,7 +157,7 @@
                                 <th id="th-type">النوع</th>
                                 <th id="th-date">التاريخ</th>
                                 <th id="th-status">الحالة</th>
-                                <th id="th-comment">رد الإدارة</th> <!-- 🆕 العمود الجديد -->
+                                <th id="th-comment">رد الإدارة</th>
                             </tr>
                         </thead>
                         <tbody id="my-requests-table"></tbody>
@@ -180,8 +168,6 @@
     </main>
 
     <script src="js/firebase-config.js"></script>
-    <script src="js/lang-manager.js"></script>
-    <script src="js/auth.js"></script>
     <script src="js/hr.js"></script>
 </body>
 </html>
