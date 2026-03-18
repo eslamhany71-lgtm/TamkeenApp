@@ -45,8 +45,8 @@ function logout() {
     });
 }
 
-// 3. دالة تسجيل الدخول
-function loginById() {
+// 3. دالة تسجيل الدخول (محدثة للبحث عن الإيميل الحقيقي باستخدام الكود)
+async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
     const errorDiv = document.getElementById('errorMessage');
@@ -61,54 +61,59 @@ function loginById() {
         return; 
     }
 
-    const cleanAuthEmail = rawInput.includes('@') 
-        ? rawInput.replace(/\s+/g, '').toLowerCase() 
-        : rawInput.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
-    
     const btn = document.getElementById('btn-login');
-    
-    if (btn) {
-        btn.innerText = "...";
-        btn.disabled = true;
-    }
+    if (btn) { btn.innerText = "..."; btn.disabled = true; }
 
-    auth.signInWithEmailAndPassword(cleanAuthEmail, pass)
-    .catch((error) => {
+    try {
+        let loginEmail = rawInput.toLowerCase();
+
+        // لو المستخدم مدخلش إيميل (يعني دخل كود الموظف زي At 6651)
+        if (!rawInput.includes('@')) {
+            // نروح ندور على الإيميل الحقيقي بتاعه المربوط بالكود ده في قاعدة البيانات
+            const userQuery = await db.collection("Users").where("empCode", "==", rawInput).get();
+            
+            if (userQuery.empty) {
+                throw { code: 'custom/user-not-found' }; // لو الكود مش موجود نطلع خطأ
+            }
+            // استخراج الإيميل الحقيقي
+            loginEmail = userQuery.docs[0].data().email;
+        }
+
+        // تسجيل الدخول بالإيميل الحقيقي اللي جبناه (أو اللي هو كتبه)
+        await auth.signInWithEmailAndPassword(loginEmail, pass);
+
+    } catch (error) {
         if (btn) {
             btn.innerText = document.body.dir === 'rtl' ? "تسجيل الدخول" : "Login";
             btn.disabled = false;
         }
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+            if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
-            } else if (error.code === 'auth/invalid-email') {
-                errorDiv.innerText = isRtl ? "صيغة غير صحيحة" : "Invalid format";
             } else {
                 errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
             }
         }
-    });
+    }
 }
 
-// 4. دالة التفعيل الكاملة
+// 4. دالة التفعيل الكاملة (محدثة لاستخدام الإيميل الحقيقي)
 async function activateAccount() {
     const codeRaw = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
+    const realEmail = document.getElementById('reg-email').value.trim().toLowerCase(); // 👈 الإيميل الحقيقي
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
 
-    if(!codeRaw || !phone || !pass) { 
-        if(msg) msg.innerText = "برجاء إكمال البيانات"; return; 
+    if(!codeRaw || !phone || !realEmail || !pass) { 
+        if(msg) msg.innerText = "برجاء إكمال كافة البيانات"; return; 
     }
 
-    const authEmail = codeRaw.includes('@') 
-        ? codeRaw.replace(/\s+/g, '').toLowerCase() 
-        : codeRaw.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
-
     try {
-        if(msg) msg.innerText = "جاري فحص الكود: " + codeRaw;
+        if(msg) msg.innerText = "جاري فحص البيانات...";
 
+        // التأكد من كود الموظف
         const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
@@ -126,37 +131,29 @@ async function activateAccount() {
 
         if(msg) msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
-        await auth.createUserWithEmailAndPassword(authEmail, pass);
+        // أ- إنشاء الحساب بالإيميل الحقيقي بدل الإيميل الوهمي
+        await auth.createUserWithEmailAndPassword(realEmail, pass);
         
-        await db.collection("Users").doc(authEmail).set({
+        // ب- حفظ بيانات المستخدم متضمنة الإيميل الحقيقي للرجوع إليها وقت الدخول
+        await db.collection("Users").doc(realEmail).set({
             role: (empData.role || "employee").toLowerCase().trim(),
             name: empData.name,
             empCode: codeRaw, 
-            email: authEmail
+            email: realEmail // 👈 حفظنا الإيميل هنا
         });
 
-        await db.collection("Employee_Database").doc(codeRaw).update({
-            activated: true
-        });
+        // ج- تحديث حالة التفعيل
+        await db.collection("Employee_Database").doc(codeRaw).update({ activated: true });
 
         if(msg) msg.innerText = "تم التفعيل بنجاح! جاري تحويلك...";
         
-        setTimeout(() => {
-            window.location.href = "index.html";
-        }, 1500);
+        setTimeout(() => { window.location.href = "index.html"; }, 1500);
 
     } catch (error) {
-        console.error("خطأ التفعيل:", error);
         if(msg) {
-            if (error.code === 'auth/invalid-email') {
-                msg.innerText = "صيغة الكود أو الإيميل غير صحيحة تقنياً";
-            } else if (error.code === 'auth/weak-password') {
-                msg.innerText = "كلمة المرور ضعيفة جداً";
-            } else if (error.code === 'auth/email-already-in-use') {
-                msg.innerText = "هذا الإيميل مسجل مسبقاً";
-            } else {
-                msg.innerText = "خطأ: " + error.message;
-            }
+            if (error.code === 'auth/email-already-in-use') msg.innerText = "هذا البريد الإلكتروني مستخدم بالفعل";
+            else if (error.code === 'auth/invalid-email') msg.innerText = "صيغة البريد الإلكتروني غير صحيحة";
+            else msg.innerText = "خطأ: " + error.message;
         }
     }
 }
@@ -232,7 +229,8 @@ function updatePageContent(lang) {
             backLoginStr: "لديك حساب بالفعل؟",
             backLoginLink: "العودة للدخول",
             brandActTitle: "أهلاً بك في فريقنا",
-            brandActDesc: "يسعدنا انضمامك لفريق تمكين. قم بتفعيل حسابك للوصول إلى لوحة التحكم الخاصة بك ومتابعة مهامك بكل سهولة."
+            brandActDesc: "يسعدنا انضمامك لفريق تمكين. قم بتفعيل حسابك للوصول إلى لوحة التحكم الخاصة بك ومتابعة مهامك بكل سهولة.",
+            actEmail: "البريد الإلكتروني الشخصي",
         },
         en: {
             title: "Login - Tamkeen System", 
@@ -263,7 +261,8 @@ function updatePageContent(lang) {
             backLoginStr: "Already have an account?",
             backLoginLink: "Back to Login",
             brandActTitle: "Welcome to Our Team",
-            brandActDesc: "We are glad you joined Tamkeen. Activate your account to access your dashboard and track your tasks easily."
+            brandActDesc: "We are glad you joined Tamkeen. Activate your account to access your dashboard and track your tasks easily.",
+            actEmail: "Personal Email Address",
         }
     };
 
