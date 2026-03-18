@@ -1,7 +1,8 @@
-// crm.js - Enterprise CRM Logic (Phase 1 + Excel Import)
+// crm.js - Enterprise CRM Logic (Phase 1 + Excel + Feedback + View Details)
 
 let currentUserEmail = "";
 
+// 1. التحقق من الدخول وجلب العملاء
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         currentUserEmail = user.email;
@@ -11,10 +12,12 @@ firebase.auth().onAuthStateChanged((user) => {
     }
 });
 
+// 2. جلب العملاء من Firestore لحظياً
 function loadLeads() {
     firebase.firestore().collection("CRM_Leads")
         .where("assignedTo", "==", currentUserEmail)
         .onSnapshot((snapshot) => {
+            // تفريغ الأعمدة قبل إعادة الرسم
             document.getElementById('body-new').innerHTML = "";
             document.getElementById('body-contacted').innerHTML = "";
             document.getElementById('body-negotiation').innerHTML = "";
@@ -29,6 +32,7 @@ function loadLeads() {
                 createLeadCard(lead);
             });
 
+            // تحديث العدادات العلوية
             document.getElementById('count-new').innerText = counts.new;
             document.getElementById('count-contacted').innerText = counts.contacted;
             document.getElementById('count-negotiation').innerText = counts.negotiation;
@@ -43,11 +47,13 @@ function loadLeads() {
         });
 }
 
+// 3. إنشاء كارت العميل
 function createLeadCard(lead) {
     const colBody = document.getElementById(`body-${lead.status}`);
     if (!colBody) return;
 
-    const currency = localStorage.getItem('preferredLang') === 'en' ? 'EGP' : 'ج.م';
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const currency = lang === 'en' ? 'EGP' : 'ج.م';
     const valueTxt = lead.value ? `${parseFloat(lead.value).toLocaleString()} ${currency}` : '---';
 
     const card = document.createElement('div');
@@ -55,30 +61,83 @@ function createLeadCard(lead) {
     card.draggable = true;
     card.id = `lead-${lead.id}`;
     
+    // سحب وإفلات
     card.addEventListener('dragstart', dragStart);
+    
+    // جعل الكارت قابلاً للضغط لفتح التفاصيل
+    card.onclick = () => viewLead(lead.id);
 
+    // تجهيز عناصر HTML
     let feedbackHtml = lead.feedback ? `<div class="lead-feedback-box">💬 ${lead.feedback}</div>` : '';
+    let phone2Html = lead.phone2 ? `<p class="lead-info">📞 ${lead.phone2} <span style="font-size:11px; color:#94a3b8;">(${lang==='ar'?'إضافي':'Extra'})</span></p>` : '';
 
     card.innerHTML = `
         <div class="lead-header">
             <h4 class="lead-name">${lead.name}</h4>
-            <input type="checkbox" class="lead-checkbox" value="${lead.id}" onchange="toggleBulkActions()">
+            <input type="checkbox" class="lead-checkbox" value="${lead.id}" onclick="event.stopPropagation()" onchange="toggleBulkActions()">
         </div>
         <p class="lead-info">📞 ${lead.phone}</p>
+        ${phone2Html}
         ${feedbackHtml}
         <div class="lead-footer">
             <span class="lead-value">💰 ${valueTxt}</span>
             <div class="action-buttons">
-                <button class="btn-action" title="تعليق / فيدباك" onclick="openFeedbackModal('${lead.id}', \`${lead.feedback || ''}\`)">💬</button>
-                <button class="btn-action" title="تعديل بيانات" onclick="editLead('${lead.id}')">✏️</button>
-                <button class="btn-action text-red" title="حذف العميل" onclick="deleteLead('${lead.id}')">🗑️</button>
+                <button class="btn-action" title="تعليق / فيدباك" onclick="event.stopPropagation(); openFeedbackModal('${lead.id}', \`${lead.feedback || ''}\`)">💬</button>
+                <button class="btn-action" title="تعديل بيانات" onclick="event.stopPropagation(); editLead('${lead.id}')">✏️</button>
+                <button class="btn-action text-red" title="حذف العميل" onclick="event.stopPropagation(); deleteLead('${lead.id}')">🗑️</button>
             </div>
         </div>
     `;
     colBody.appendChild(card);
 }
 
-// --- التحديد والحذف ---
+// 4. عرض تفاصيل العميل في مودال منفصل
+async function viewLead(id) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const doc = await firebase.firestore().collection("CRM_Leads").doc(id).get();
+    
+    if (doc.exists) {
+        const lead = doc.data();
+        const currency = lang === 'en' ? 'EGP' : 'ج.م';
+        
+        let priorityTxt = lang === 'ar' ? '❄️ منخفضة' : '❄️ Low';
+        if(lead.priority === 'high') priorityTxt = lang === 'ar' ? '🔥 عالية' : '🔥 High';
+        else if(lead.priority === 'medium') priorityTxt = lang === 'ar' ? '⚡ متوسطة' : '⚡ Medium';
+
+        let dateTxt = '---';
+        if(lead.createdAt) {
+            const dateObj = lead.createdAt.toDate();
+            dateTxt = dateObj.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+        }
+
+        let detailsHtml = `
+            <div style="margin-bottom: 10px;"><strong>👤 ${lang==='ar'?'اسم العميل':'Client Name'}:</strong> ${lead.name}</div>
+            <div style="margin-bottom: 10px;"><strong>📞 ${lang==='ar'?'رقم الهاتف':'Phone'}:</strong> ${lead.phone}</div>
+            ${lead.phone2 ? `<div style="margin-bottom: 10px;"><strong>📞 ${lang==='ar'?'هاتف إضافي':'Extra Phone'}:</strong> ${lead.phone2}</div>` : ''}
+            <div style="margin-bottom: 10px;"><strong>💰 ${lang==='ar'?'قيمة الصفقة':'Deal Value'}:</strong> ${lead.value ? lead.value.toLocaleString() + ' ' + currency : '---'}</div>
+            <div style="margin-bottom: 10px;"><strong>📌 ${lang==='ar'?'الأولوية':'Priority'}:</strong> ${priorityTxt}</div>
+            <div style="margin-bottom: 10px;"><strong>📅 ${lang==='ar'?'تاريخ الإضافة':'Added On'}:</strong> ${dateTxt}</div>
+            <hr style="border:0; height:1px; background:#e2e8f0; margin:15px 0;">
+            <div style="margin-bottom: 10px;"><strong>📝 ${lang==='ar'?'ملاحظات أولية':'Initial Notes'}:</strong><br> ${lead.note ? lead.note.replace(/\n/g, '<br>') : (lang==='ar'?'لا توجد ملاحظات':'No notes')}</div>
+            <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 15px;">
+                <strong>💬 ${lang==='ar'?'آخر تعليق':'Last Feedback'}:</strong><br> ${lead.feedback ? lead.feedback.replace(/\n/g, '<br>') : (lang==='ar'?'لم يتم إضافة تعليقات':'No feedback added')}
+            </div>
+        `;
+        
+        document.getElementById('modal-view-title').innerText = lang === 'ar' ? 'تفاصيل العميل' : 'Lead Details';
+        const detailsContainer = document.getElementById('view-lead-details');
+        if(detailsContainer) {
+            detailsContainer.innerHTML = detailsHtml;
+            document.getElementById('viewModal').style.display = "flex";
+        }
+    }
+}
+function closeViewModal() {
+    const el = document.getElementById('viewModal');
+    if(el) el.style.display = "none";
+}
+
+// 5. التحديد المجمع والحذف
 function toggleBulkActions() {
     const checkboxes = document.querySelectorAll('.lead-checkbox:checked');
     const bulkDiv = document.getElementById('bulk-actions');
@@ -114,7 +173,7 @@ async function deleteLead(id) {
     }
 }
 
-// --- رفع ملف الإكسيل (Excel Import) ---
+// 6. رفع الإكسيل
 async function uploadExcel(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -128,18 +187,14 @@ async function uploadExcel(e) {
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
-        // تحويل الشيت لـ مصفوفة (Array of arrays)
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        // مسح أول صف (عناوين الأعمدة)
-        rows.shift();
+        rows.shift(); // إزالة صف العناوين
 
         if (rows.length === 0) {
             alert(lang === 'ar' ? "الشيت فارغ أو لا يحتوي على بيانات!" : "Sheet is empty!");
             return;
         }
 
-        // فايربيز Batch Write بتسمح بـ 500 عملية كحد أقصى في المرة الواحدة
         if (rows.length > 500) {
             alert(lang === 'ar' ? "الحد الأقصى للرفع هو 500 عميل في المرة الواحدة." : "Max upload is 500 leads at once.");
             return;
@@ -151,11 +206,10 @@ async function uploadExcel(e) {
         let addedCount = 0;
 
         rows.forEach(row => {
-            if (!row[0]) return; // لو مفيش اسم، يتجاهل الصف ده
+            if (!row[0]) return;
             
             const leadRef = firebase.firestore().collection("CRM_Leads").doc();
             
-            // تحديد الأولوية من الكلمة
             let priorityVal = 'medium';
             if (row[3]) {
                 const p = String(row[3]).toLowerCase();
@@ -166,6 +220,7 @@ async function uploadExcel(e) {
             batch.set(leadRef, {
                 name: String(row[0] || "بدون اسم"),
                 phone: String(row[1] || ""),
+                phone2: "", // رقم إضافي فارغ لعملاء الإكسيل
                 value: Number(row[2]) || 0,
                 priority: priorityVal,
                 note: String(row[4] || ""),
@@ -184,13 +239,13 @@ async function uploadExcel(e) {
             alert("Error: " + error.message);
         }
         
-        e.target.value = ""; // تفريغ خانة الملف عشان لو حب يرفع نفس الملف تاني
+        e.target.value = ""; 
     };
 
     reader.readAsArrayBuffer(file);
 }
 
-// --- الفيدباك (التعليقات) ---
+// 7. الفيدباك
 function openFeedbackModal(id, currentFeedback) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.getElementById('feedbackLeadId').value = id;
@@ -211,7 +266,7 @@ async function saveFeedback(e) {
     } catch (error) { alert("Error: " + error.message); } finally { btn.disabled = false; }
 }
 
-// --- السحب والإفلات ---
+// 8. السحب والإفلات
 function dragStart(e) {
     if(e.target.className.includes("lead-checkbox") || e.target.className.includes("btn-action")) { e.preventDefault(); return; }
     e.dataTransfer.setData('text/plain', e.target.id);
@@ -231,7 +286,7 @@ function drop(e, newStatus) {
     }
 }
 
-// --- المودال والحفظ (إضافة / تعديل) ---
+// 9. الإضافة الفردية والتعديل (مع الرقم الثاني)
 function openLeadModal() { document.getElementById('leadForm').reset(); document.getElementById('leadId').value = ""; document.getElementById('modal-lead-title').innerText = localStorage.getItem('preferredLang') === 'en' ? "Add New Lead" : "إضافة عميل جديد"; document.getElementById('leadModal').style.display = "flex"; }
 function closeLeadModal() { document.getElementById('leadModal').style.display = "none"; }
 async function saveLead(e) {
@@ -239,7 +294,24 @@ async function saveLead(e) {
     const btn = document.getElementById('btn-save-lead');
     btn.disabled = true;
     const leadId = document.getElementById('leadId').value;
-    const leadData = { name: document.getElementById('leadName').value, phone: document.getElementById('leadPhone').value, phone2: document.getElementById('leadPhone2').value, value: document.getElementById('leadValue').value || 0, priority: document.getElementById('leadPriority').value, note: document.getElementById('leadNote').value, assignedTo: currentUserEmail, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+    
+    // استخراج القيمة للرقم الثاني
+    let phone2Val = "";
+    if(document.getElementById('leadPhone2')) {
+        phone2Val = document.getElementById('leadPhone2').value;
+    }
+
+    const leadData = { 
+        name: document.getElementById('leadName').value, 
+        phone: document.getElementById('leadPhone').value, 
+        phone2: phone2Val,
+        value: document.getElementById('leadValue').value || 0, 
+        priority: document.getElementById('leadPriority').value, 
+        note: document.getElementById('leadNote').value, 
+        assignedTo: currentUserEmail, 
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+    };
+
     try {
         if (leadId) { await firebase.firestore().collection("CRM_Leads").doc(leadId).update(leadData); } 
         else { leadData.status = 'new'; leadData.createdAt = firebase.firestore.FieldValue.serverTimestamp(); await firebase.firestore().collection("CRM_Leads").add(leadData); }
@@ -251,18 +323,40 @@ async function editLead(id) {
     const doc = await firebase.firestore().collection("CRM_Leads").doc(id).get();
     if (doc.exists) {
         const lead = doc.data();
-        document.getElementById('leadId').value = id; document.getElementById('leadName').value = lead.name; document.getElementById('leadPhone').value = lead.phone;document.getElementById('leadPhone2').value = lead.phone2 || ""; document.getElementById('leadValue').value = lead.value; document.getElementById('leadPriority').value = lead.priority; document.getElementById('leadNote').value = lead.note || "";
-        document.getElementById('modal-lead-title').innerText = localStorage.getItem('preferredLang') === 'en' ? "Edit Lead" : "تعديل بيانات العميل"; document.getElementById('leadModal').style.display = "flex";
+        document.getElementById('leadId').value = id; 
+        document.getElementById('leadName').value = lead.name; 
+        document.getElementById('leadPhone').value = lead.phone; 
+        
+        if(document.getElementById('leadPhone2')) {
+            document.getElementById('leadPhone2').value = lead.phone2 || ""; 
+        }
+
+        document.getElementById('leadValue').value = lead.value; 
+        document.getElementById('leadPriority').value = lead.priority; 
+        document.getElementById('leadNote').value = lead.note || "";
+        
+        document.getElementById('modal-lead-title').innerText = localStorage.getItem('preferredLang') === 'en' ? "Edit Lead" : "تعديل بيانات العميل"; 
+        document.getElementById('leadModal').style.display = "flex";
     }
 }
 
+// إغلاق المودالات عند الضغط في أي مكان بالشاشة
+window.onclick = (e) => {
+    if (e.target.className === 'modal') {
+        closeLeadModal();
+        closeFeedbackModal();
+        closeViewModal();
+    }
+};
+
+// 10. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
             header: "مسار المبيعات (Sales Pipeline)", sub: "إدارة العملاء وتتبع مراحل المبيعات والصفقات", btnAdd: "➕ إضافة عميل جديد",
             total: "إجمالي العملاء:", wonLbl: "تم البيع (Won):", lostLbl: "مرفوض (Lost):",
             colNew: "عميل جديد (New)", colCont: "جاري التواصل", colNeg: "تفاوض / عرض سعر", colWon: "تم البيع (Won)", colLost: "مرفوض (Lost)",
-            lblName: "اسم العميل / الشركة", lblPhone: "رقم الهاتف", lblValue: "قيمة الصفقة المتوقعة", lblPriority: "الأولوية", lblNote: "ملاحظات أولية",
+            lblName: "اسم العميل / الشركة", lblPhone: "رقم الهاتف الأساسي", lblValue: "قيمة الصفقة المتوقعة", lblPriority: "الأولوية", lblNote: "ملاحظات أولية",
             optHigh: "🔥 عالية (ساخن)", optMed: "⚡ متوسطة", optLow: "❄️ منخفضة (بارد)", btnSave: "حفظ بيانات العميل",
             lblFeedback: "التعليق / الفيدباك", btnSaveFeedback: "حفظ التعليق", btnBulkDelete: "🗑️ حذف المحدد", btnImportExcel: "📊 رفع شيت إكسيل"
         },
@@ -270,7 +364,7 @@ function updatePageContent(lang) {
             header: "Sales Pipeline", sub: "Manage clients and track sales deals", btnAdd: "➕ Add New Lead",
             total: "Total Leads:", wonLbl: "Won:", lostLbl: "Lost:",
             colNew: "New Lead", colCont: "Contacted", colNeg: "Negotiation", colWon: "Closed Won", colLost: "Lost",
-            lblName: "Client / Company Name", lblPhone: "Phone Number", lblValue: "Expected Deal Value", lblPriority: "Priority", lblNote: "Initial Notes",
+            lblName: "Client / Company Name", lblPhone: "Main Phone Number", lblValue: "Expected Deal Value", lblPriority: "Priority", lblNote: "Initial Notes",
             optHigh: "🔥 High (Hot)", optMed: "⚡ Medium", optLow: "❄️ Low (Cold)", btnSave: "Save Lead Details",
             lblFeedback: "Feedback / Comment", btnSaveFeedback: "Save Feedback", btnBulkDelete: "🗑️ Delete Selected", btnImportExcel: "📊 Upload Excel"
         }
@@ -284,6 +378,10 @@ function updatePageContent(lang) {
     set('lbl-lead-name', c.lblName); set('lbl-lead-phone', c.lblPhone); set('lbl-lead-value', c.lblValue); set('lbl-lead-priority', c.lblPriority); set('lbl-lead-note', c.lblNote);
     set('opt-high', c.optHigh); set('opt-medium', c.optMed); set('opt-low', c.optLow); set('btn-save-lead', c.btnSave);
     set('lbl-feedback', c.lblFeedback); set('btn-save-feedback', c.btnSaveFeedback); set('btn-bulk-delete', c.btnBulkDelete);
+
+    // تحديث تسمية الرقم الثاني لو موجود
+    const lblPhone2 = document.getElementById('lbl-lead-phone2');
+    if(lblPhone2) lblPhone2.innerText = lang === 'ar' ? "رقم هاتف إضافي (اختياري)" : "Extra Phone (Optional)";
 }
 
 window.onload = () => { updatePageContent(localStorage.getItem('preferredLang') || 'ar'); };
