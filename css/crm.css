@@ -12,12 +12,17 @@
 body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background-color: transparent; color: var(--text-dark); direction: rtl; }
 .page-container { padding: 30px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
 
-.page-header-pro { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+.page-header-pro { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;}
 .page-header-pro h2 { margin: 0; color: #0f172a; font-size: 24px; font-weight: 800; }
 .page-header-pro p { margin: 5px 0 0 0; color: var(--text-muted); font-size: 14px; }
 
+/* أزرار الإجراءات في الترويسة */
+.header-actions { display: flex; gap: 10px; align-items: center; }
 .btn-add-lead { background: linear-gradient(135deg, var(--primary), #1d4ed8); color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 800; font-size: 15px; cursor: pointer; transition: 0.3s; font-family: inherit; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); }
 .btn-add-lead:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3); }
+
+.btn-import-excel { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 800; font-size: 15px; cursor: pointer; transition: 0.3s; font-family: inherit; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); }
+.btn-import-excel:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3); background: #059669; }
 
 .crm-stats { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
 .stat-box { background: white; padding: 12px 20px; border-radius: 10px; box-shadow: var(--shadow); font-size: 14px; font-weight: 700; color: var(--text-muted); border: 1px solid var(--border); flex: 1; min-width: 150px; }
@@ -45,7 +50,6 @@ body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background-col
 .col-count { background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
 .col-body { padding: 15px; flex: 1; overflow-y: auto; min-height: 150px; }
 
-/* تصميم كارت العميل الجديد المدمج */
 .lead-card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.04); margin-bottom: 12px; cursor: grab; border-left: 4px solid transparent; transition: 0.2s; position: relative; }
 .lead-card:active { cursor: grabbing; transform: scale(1.02); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
 .lead-card.priority-high { border-left-color: #ef4444; }
@@ -57,9 +61,7 @@ body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background-col
 .lead-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
 
 .lead-info { margin: 0 0 8px 0; font-size: 12px; color: var(--text-muted); }
-
 .lead-feedback-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; font-size: 11px; padding: 6px 8px; border-radius: 6px; margin-bottom: 8px; font-weight: 500; }
-
 .lead-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 8px; }
 .lead-value { font-weight: 800; color: #10b981; font-size: 13px; }
 
