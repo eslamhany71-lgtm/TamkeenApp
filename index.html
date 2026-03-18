@@ -21,7 +21,7 @@
 
                 <div class="mobile-brand-icon">⚡</div>
                 <h3 id="txt-welcome">أهلاً بعودتك</h3>
-                <p class="sub-text">قم بتسجيل الدخول لمتابعة عملك</p>
+                <p class="sub-text" id="sub-login">قم بتسجيل الدخول لمتابعة عملك</p>
                 
                 <div class="input-group">
                     <label id="lbl-code">كود الموظف أو البريد الإلكتروني</label>
@@ -41,6 +41,10 @@
 
                 <button id="btn-login" class="btn-primary" onclick="loginById()">تسجيل الدخول</button>
                 
+                <div class="forgot-password-container" style="text-align: center; margin-top: 15px;">
+                    <a href="#" onclick="openResetModal()" id="link-forgot" style="color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 700;">نسيت كلمة المرور؟</a>
+                </div>
+
                 <div id="errorMessage" class="error-msg"></div>
 
                 <div class="register-link">
@@ -54,13 +58,26 @@
             <div class="brand-content">
                 <div class="brand-logo">⚡</div>
                 <h1 id="txt-brand">تمكين للتمويل</h1>
-                <p>نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.</p>
+                <p id="brand-desc">نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.</p>
                 <div class="features">
-                    <span>✔️ أمان عالي</span>
-                    <span>✔️ سرعة في الأداء</span>
-                    <span>✔️ تقارير ذكية</span>
+                    <span id="feat-1">✔️ أمان عالي</span>
+                    <span id="feat-2">✔️ سرعة في الأداء</span>
+                    <span id="feat-3">✔️ تقارير ذكية</span>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="resetModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.7); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div class="modal-content" style="background: white; border-radius: 16px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; animation: animatetop 0.3s;">
+            <span onclick="closeResetModal()" style="position: absolute; left: 20px; top: 15px; font-size: 24px; color: #64748b; cursor: pointer;">&times;</span>
+            <h2 id="txt-reset-title" style="margin-top: 0; color: #1e293b; font-size: 20px; font-weight: 800;">استعادة كلمة المرور</h2>
+            <p id="txt-reset-sub" style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.5;">أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.</p>
+            
+            <form onsubmit="sendResetLink(event)">
+                <input type="email" id="resetEmailInput" placeholder="أدخل البريد الإلكتروني" required style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; margin-bottom: 15px; box-sizing: border-box; outline: none; font-family: inherit;">
+                <button type="submit" id="btn-send-reset" style="width: 100%; background: #2563eb; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; font-family: inherit;">إرسال رابط الاستعادة</button>
+            </form>
         </div>
     </div>
 
