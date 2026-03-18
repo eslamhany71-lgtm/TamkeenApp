@@ -239,7 +239,7 @@ async function saveLead(e) {
     const btn = document.getElementById('btn-save-lead');
     btn.disabled = true;
     const leadId = document.getElementById('leadId').value;
-    const leadData = { name: document.getElementById('leadName').value, phone: document.getElementById('leadPhone').value, value: document.getElementById('leadValue').value || 0, priority: document.getElementById('leadPriority').value, note: document.getElementById('leadNote').value, assignedTo: currentUserEmail, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+    const leadData = { name: document.getElementById('leadName').value, phone: document.getElementById('leadPhone').value, phone2: document.getElementById('leadPhone2').value, value: document.getElementById('leadValue').value || 0, priority: document.getElementById('leadPriority').value, note: document.getElementById('leadNote').value, assignedTo: currentUserEmail, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
     try {
         if (leadId) { await firebase.firestore().collection("CRM_Leads").doc(leadId).update(leadData); } 
         else { leadData.status = 'new'; leadData.createdAt = firebase.firestore.FieldValue.serverTimestamp(); await firebase.firestore().collection("CRM_Leads").add(leadData); }
