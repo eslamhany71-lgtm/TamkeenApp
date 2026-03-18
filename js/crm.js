@@ -251,7 +251,7 @@ async function editLead(id) {
     const doc = await firebase.firestore().collection("CRM_Leads").doc(id).get();
     if (doc.exists) {
         const lead = doc.data();
-        document.getElementById('leadId').value = id; document.getElementById('leadName').value = lead.name; document.getElementById('leadPhone').value = lead.phone; document.getElementById('leadValue').value = lead.value; document.getElementById('leadPriority').value = lead.priority; document.getElementById('leadNote').value = lead.note || "";
+        document.getElementById('leadId').value = id; document.getElementById('leadName').value = lead.name; document.getElementById('leadPhone').value = lead.phone;document.getElementById('leadPhone2').value = lead.phone2 || ""; document.getElementById('leadValue').value = lead.value; document.getElementById('leadPriority').value = lead.priority; document.getElementById('leadNote').value = lead.note || "";
         document.getElementById('modal-lead-title').innerText = localStorage.getItem('preferredLang') === 'en' ? "Edit Lead" : "تعديل بيانات العميل"; document.getElementById('leadModal').style.display = "flex";
     }
 }
