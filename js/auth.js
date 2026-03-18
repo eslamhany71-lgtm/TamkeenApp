@@ -1,14 +1,19 @@
-// auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission + Forgot Password)
+// auth.js - النسخة النهائية المعالجة (Fix: Activation Interruption & Role Fetching)
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// 1. مراقب الحالة (التحقق من تسجيل الدخول وتوجيه المستخدم)
+// 1. مراقب الحالة
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop() || "index.html";
     
-    const isLoginPage = fileName === "index.html" || fileName === "activate.html" || fileName === "";
+    // 🔴 [الحل السحري هنا]: لو إحنا في صفحة التفعيل، أوقف المراقب تماماً عشان ميقطعش بناء الجداول
+    if (fileName === "activate.html") {
+        return; 
+    }
+
+    const isLoginPage = fileName === "index.html" || fileName === "";
 
     if (user) {
         if (isLoginPage) {
@@ -26,26 +31,20 @@ function requestNotificationPermission() {
     if ("Notification" in window) {
         if (Notification.permission !== "granted" && Notification.permission !== "denied") {
             Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    console.log("تم تفعيل إذن التنبيهات بنجاح");
-                }
+                if (permission === "granted") console.log("تم تفعيل إذن التنبيهات");
             });
         }
     }
 }
 
-// 2. دالة تسجيل الخروج
 function logout() {
     auth.signOut().then(() => {
-        console.log("Logged out successfully");
         sessionStorage.clear();
         window.location.href = "index.html";
-    }).catch((error) => {
-        console.error("Logout Error:", error);
     });
 }
 
-// 3. دالة تسجيل الدخول (محدثة لتقرأ الإيميل من جدول الموظفين المسموح بقراءته)
+// 2. دالة تسجيل الدخول (تقرأ الصلاحية والإيميل من قاعدة الموظفين الأصلية)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -53,7 +52,6 @@ async function loginById() {
 
     if (!codeInput || !passInput) return;
 
-    // أخذ الكود بنفس المسافات وحالة الأحرف (مثل: At 6651)
     const rawInput = codeInput.value.trim(); 
     const pass = passInput.value.trim();
 
@@ -68,19 +66,22 @@ async function loginById() {
     try {
         let loginEmail = rawInput.toLowerCase();
 
-        // لو المستخدم كتب الكود (بدون @)
+        // الاعتماد الكلي على Employee_Database لجلب الإيميل والصلاحية
         if (!rawInput.includes('@')) {
-            // نروح نقرأ من Employee_Database مباشرة (لأن البواب بيسمح بقراءتها للكل)
             const empDoc = await db.collection("Employee_Database").doc(rawInput).get();
             
             if (!empDoc.exists || !empDoc.data().email) {
                 throw { code: 'custom/user-not-found' }; 
             }
-            // استخراج الإيميل الحقيقي اللي حفظناه وقت التفعيل
-            loginEmail = empDoc.data().email;
+            
+            const empData = empDoc.data();
+            loginEmail = empData.email;
+            
+            // 🔴 [طلبك تنفذ]: حفظ الصلاحية الأصلية من جدول الموظفين
+            sessionStorage.setItem('userRole', empData.role);
+            sessionStorage.setItem('empCode', rawInput);
         }
 
-        // تسجيل الدخول بالإيميل الحقيقي
         await auth.signInWithEmailAndPassword(loginEmail, pass);
 
     } catch (error) {
@@ -99,11 +100,11 @@ async function loginById() {
     }
 }
 
-// 4. دالة التفعيل الكاملة (محدثة لاستخدام الإيميل الحقيقي)
+// 3. دالة التفعيل (الآن ستعمل للنهاية بدون مقاطعة)
 async function activateAccount() {
     const codeRaw = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
-    const realEmail = document.getElementById('reg-email').value.trim().toLowerCase(); // 👈 الإيميل الحقيقي
+    const realEmail = document.getElementById('reg-email').value.trim().toLowerCase();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
 
@@ -114,11 +115,10 @@ async function activateAccount() {
     try {
         if(msg) msg.innerText = "جاري فحص البيانات...";
 
-        // التأكد من كود الموظف
         const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
-            if(msg) msg.innerText = "الكود (" + codeRaw + ") غير مسجل، راجع الـ HR"; return;
+            if(msg) msg.innerText = "الكود غير مسجل، راجع الـ HR"; return;
         }
 
         const empData = empDoc.data();
@@ -132,23 +132,22 @@ async function activateAccount() {
 
         if(msg) msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
-        // أ- إنشاء الحساب بالإيميل الحقيقي بدل الإيميل الوهمي
+        // 1. إنشاء الحساب في الفايربيز
         await auth.createUserWithEmailAndPassword(realEmail, pass);
         
-        // ب- حفظ بيانات المستخدم متضمنة الإيميل الحقيقي للرجوع إليها وقت الدخول
+        // 2. بناء جدول الـ Users (الآن سيكتمل بنجاح)
         await db.collection("Users").doc(realEmail).set({
             role: (empData.role || "employee").toLowerCase().trim(),
             name: empData.name,
             empCode: codeRaw, 
-            email: realEmail // 👈 حفظنا الإيميل هنا
+            email: realEmail
         });
 
-        // ج- تحديث حالة التفعيل وحفظ الإيميل الحقيقي في قاعدة الموظفين
+        // 3. تحديث جدول الموظفين الأساسي
         await db.collection("Employee_Database").doc(codeRaw).update({ 
             activated: true,
-            email: realEmail // 👈 السطر ده هو اللي هيحل الأزمة كلها
+            email: realEmail 
         });
-        
 
         if(msg) msg.innerText = "تم التفعيل بنجاح! جاري تحويلك...";
         
@@ -163,16 +162,14 @@ async function activateAccount() {
     }
 }
 
-// 5. استعادة كلمة المرور (جديد)
+// 4. استعادة كلمة المرور
 function openResetModal() {
     document.getElementById('resetEmailInput').value = "";
     document.getElementById('resetModal').style.display = "flex";
 }
-
 function closeResetModal() {
     document.getElementById('resetModal').style.display = "none";
 }
-
 async function sendResetLink(e) {
     e.preventDefault();
     const email = document.getElementById('resetEmailInput').value;
@@ -188,13 +185,9 @@ async function sendResetLink(e) {
         alert(lang === 'ar' ? "تم إرسال رابط استعادة كلمة المرور بنجاح! يرجى مراجعة صندوق الوارد الخاص بك (أو مجلد Spam)." : "Password reset link sent successfully! Please check your inbox (or Spam folder).");
         closeResetModal();
     } catch (error) {
-        if (error.code === 'auth/user-not-found') {
-            alert(lang === 'ar' ? "هذا البريد الإلكتروني غير مسجل في النظام." : "This email is not registered.");
-        } else if (error.code === 'auth/invalid-email') {
-            alert(lang === 'ar' ? "صيغة البريد الإلكتروني غير صحيحة." : "Invalid email format.");
-        } else {
-            alert((lang === 'ar' ? "حدث خطأ: " : "Error: ") + error.message);
-        }
+        if (error.code === 'auth/user-not-found') alert(lang === 'ar' ? "هذا البريد الإلكتروني غير مسجل في النظام." : "This email is not registered.");
+        else if (error.code === 'auth/invalid-email') alert(lang === 'ar' ? "صيغة البريد الإلكتروني غير صحيحة." : "Invalid email format.");
+        else alert((lang === 'ar' ? "حدث خطأ: " : "Error: ") + error.message);
     } finally {
         btn.disabled = false;
         btn.innerText = lang === 'ar' ? "إرسال رابط الاستعادة" : "Send Reset Link";
@@ -202,117 +195,48 @@ async function sendResetLink(e) {
     }
 }
 
-// 6. نظام الترجمة الشامل 
+// 5. نظام الترجمة
 function updatePageContent(lang) {
     const translations = {
         ar: {
-            title: "تسجيل الدخول - نظام تمكين", 
-            welcome: "أهلاً بعودتك", 
-            subLogin: "قم بتسجيل الدخول لمتابعة عملك",
-            code: "كود الموظف أو الإيميل", 
-            pass: "كلمة المرور", 
-            btn: "تسجيل الدخول", 
-            newEmp: "موظف جديد؟", 
-            actLink: "تفعيل حسابك من هنا",
-            brandTitle: "تمكين للتمويل",
-            brandDesc: "نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.",
+            title: "تسجيل الدخول - نظام تمكين", welcome: "أهلاً بعودتك", subLogin: "قم بتسجيل الدخول لمتابعة عملك",
+            code: "كود الموظف أو الإيميل", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "موظف جديد؟", actLink: "تفعيل حسابك من هنا",
+            brandTitle: "تمكين للتمويل", brandDesc: "نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.",
             feat1: "✔️ أمان عالي", feat2: "✔️ سرعة في الأداء", feat3: "✔️ تقارير ذكية",
-            forgotPass: "نسيت كلمة المرور؟",
-            resetTitle: "استعادة كلمة المرور",
-            resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
-            btnReset: "إرسال رابط الاستعادة",
-            emailPlaceholder: "أدخل البريد الإلكتروني",
-            
-            // نصوص صفحة التفعيل
-            actPageTitle: "تفعيل الحساب - نظام تمكين",
-            actWelcome: "تفعيل حساب جديد",
-            actSub: "يرجى إدخال البيانات المسجلة لدى إدارة الموارد البشرية",
-            actCode: "كود الموظف",
-            actPhone: "رقم الموبايل",
-            actPass: "اختر كلمة مرور جديدة",
-            btnAct: "تفعيل الحساب الآن",
-            backLoginStr: "لديك حساب بالفعل؟",
-            backLoginLink: "العودة للدخول",
-            brandActTitle: "أهلاً بك في فريقنا",
-            brandActDesc: "يسعدنا انضمامك لفريق تمكين. قم بتفعيل حسابك للوصول إلى لوحة التحكم الخاصة بك ومتابعة مهامك بكل سهولة.",
-            actEmail: "البريد الإلكتروني الشخصي",
+            forgotPass: "نسيت كلمة المرور؟", resetTitle: "استعادة كلمة المرور", resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
+            btnReset: "إرسال رابط الاستعادة", emailPlaceholder: "أدخل البريد الإلكتروني",
+            actPageTitle: "تفعيل الحساب - نظام تمكين", actWelcome: "تفعيل حساب جديد", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة الموارد البشرية",
+            actCode: "كود الموظف", actPhone: "رقم الموبايل", actPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن",
+            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في فريقنا",
+            brandActDesc: "يسعدنا انضمامك لفريق تمكين. قم بتفعيل حسابك للوصول إلى لوحة التحكم الخاصة بك ومتابعة مهامك بكل سهولة.", actEmail: "البريد الإلكتروني الشخصي"
         },
         en: {
-            title: "Login - Tamkeen System", 
-            welcome: "Welcome Back", 
-            subLogin: "Sign in to continue your work",
-            code: "Employee ID or Email", 
-            pass: "Password", 
-            btn: "Login", 
-            newEmp: "New employee?", 
-            actLink: "Activate your account here",
-            brandTitle: "Tamkeen Finance",
-            brandDesc: "Comprehensive management system for HR, Sales, and Branches. Designed to increase work efficiency and facilitate communication.",
+            title: "Login - Tamkeen System", welcome: "Welcome Back", subLogin: "Sign in to continue your work",
+            code: "Employee ID or Email", pass: "Password", btn: "Login", newEmp: "New employee?", actLink: "Activate your account here",
+            brandTitle: "Tamkeen Finance", brandDesc: "Comprehensive management system for HR, Sales, and Branches. Designed to increase work efficiency and facilitate communication.",
             feat1: "✔️ High Security", feat2: "✔️ Fast Performance", feat3: "✔️ Smart Reports",
-            forgotPass: "Forgot Password?",
-            resetTitle: "Reset Password",
-            resetSub: "Enter your registered email, and we will send you a link to set a new password.",
-            btnReset: "Send Reset Link",
-            emailPlaceholder: "Enter email address",
-            
-            // Activation Page Texts
-            actPageTitle: "Activate Account - Tamkeen",
-            actWelcome: "Activate New Account",
-            actSub: "Please enter the data registered with the HR department",
-            actCode: "Employee Code",
-            actPhone: "Mobile Number",
-            actPass: "Choose a new password",
-            btnAct: "Activate Account Now",
-            backLoginStr: "Already have an account?",
-            backLoginLink: "Back to Login",
-            brandActTitle: "Welcome to Our Team",
-            brandActDesc: "We are glad you joined Tamkeen. Activate your account to access your dashboard and track your tasks easily.",
-            actEmail: "Personal Email Address",
+            forgotPass: "Forgot Password?", resetTitle: "Reset Password", resetSub: "Enter your registered email, and we will send you a link to set a new password.",
+            btnReset: "Send Reset Link", emailPlaceholder: "Enter email address",
+            actPageTitle: "Activate Account - Tamkeen", actWelcome: "Activate New Account", actSub: "Please enter the data registered with the HR department",
+            actCode: "Employee Code", actPhone: "Mobile Number", actPass: "Choose a new password", btnAct: "Activate Account Now",
+            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to Our Team",
+            brandActDesc: "We are glad you joined Tamkeen. Activate your account to access your dashboard and track your tasks easily.", actEmail: "Personal Email Address"
         }
     };
-
     const t = translations[lang] || translations['ar'];
     document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
+    const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
 
-    const safeSetText = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = text;
-    };
-
-    // ترجمة صفحة الدخول
     if (document.title.includes('دخول') || document.title.includes('Login')) document.title = t.title;
-    safeSetText('txt-welcome', t.welcome);
-    safeSetText('sub-login', t.subLogin);
-    safeSetText('lbl-code', t.code);
-    safeSetText('lbl-pass', t.pass);
-    safeSetText('btn-login', t.btn);
-    safeSetText('txt-new', t.newEmp);
-    safeSetText('link-activate', t.actLink);
-    safeSetText('txt-brand', t.brandTitle);
-    safeSetText('brand-desc', t.brandDesc);
-    safeSetText('feat-1', t.feat1);
-    safeSetText('feat-2', t.feat2);
-    safeSetText('feat-3', t.feat3);
-    
-    // ترجمة نصوص نسيت كلمة المرور
-    safeSetText('link-forgot', t.forgotPass);
-    safeSetText('txt-reset-title', t.resetTitle);
-    safeSetText('txt-reset-sub', t.resetSub);
-    safeSetText('btn-send-reset', t.btnReset);
-    const resetInput = document.getElementById('resetEmailInput');
-    if(resetInput) resetInput.placeholder = t.emailPlaceholder;
-
-    // ترجمة صفحة التفعيل
+    safeSetText('txt-welcome', t.welcome); safeSetText('sub-login', t.subLogin); safeSetText('lbl-code', t.code);
+    safeSetText('lbl-pass', t.pass); safeSetText('btn-login', t.btn); safeSetText('txt-new', t.newEmp);
+    safeSetText('link-activate', t.actLink); safeSetText('txt-brand', t.brandTitle); safeSetText('brand-desc', t.brandDesc);
+    safeSetText('feat-1', t.feat1); safeSetText('feat-2', t.feat2); safeSetText('feat-3', t.feat3);
+    safeSetText('link-forgot', t.forgotPass); safeSetText('txt-reset-title', t.resetTitle); safeSetText('txt-reset-sub', t.resetSub);
+    safeSetText('btn-send-reset', t.btnReset); const resetInput = document.getElementById('resetEmailInput'); if(resetInput) resetInput.placeholder = t.emailPlaceholder;
     if (document.title.includes('تفعيل') || document.title.includes('Activate')) document.title = t.actPageTitle;
-    safeSetText('txt-act-welcome', t.actWelcome);
-    safeSetText('txt-act-sub', t.actSub);
-    safeSetText('lbl-act-code', t.actCode);
-    safeSetText('lbl-act-phone', t.actPhone);
-    safeSetText('lbl-act-pass', t.actPass);
-    safeSetText('btn-activate', t.btnAct);
-    safeSetText('txt-back-str', t.backLoginStr);
-    safeSetText('link-back-login', t.backLoginLink);
-    safeSetText('brand-act-title', t.brandActTitle);
-    safeSetText('brand-act-desc', t.brandActDesc);
-    safeSetText('lbl-act-email', t.actEmail);
+    safeSetText('txt-act-welcome', t.actWelcome); safeSetText('txt-act-sub', t.actSub); safeSetText('lbl-act-code', t.actCode);
+    safeSetText('lbl-act-phone', t.actPhone); safeSetText('lbl-act-pass', t.actPass); safeSetText('btn-activate', t.btnAct);
+    safeSetText('txt-back-str', t.backLoginStr); safeSetText('link-back-login', t.backLoginLink); safeSetText('brand-act-title', t.brandActTitle);
+    safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
 }
