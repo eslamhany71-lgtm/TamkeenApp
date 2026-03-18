@@ -45,7 +45,7 @@ function logout() {
     });
 }
 
-// 3. دالة تسجيل الدخول (محدثة للبحث عن الإيميل الحقيقي باستخدام الكود)
+// 3. دالة تسجيل الدخول (محدثة لتقرأ الإيميل من جدول الموظفين المسموح بقراءته)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -53,6 +53,7 @@ async function loginById() {
 
     if (!codeInput || !passInput) return;
 
+    // أخذ الكود بنفس المسافات وحالة الأحرف (مثل: At 6651)
     const rawInput = codeInput.value.trim(); 
     const pass = passInput.value.trim();
 
@@ -67,19 +68,19 @@ async function loginById() {
     try {
         let loginEmail = rawInput.toLowerCase();
 
-        // لو المستخدم مدخلش إيميل (يعني دخل كود الموظف زي At 6651)
+        // لو المستخدم كتب الكود (بدون @)
         if (!rawInput.includes('@')) {
-            // نروح ندور على الإيميل الحقيقي بتاعه المربوط بالكود ده في قاعدة البيانات
-            const userQuery = await db.collection("Users").where("empCode", "==", rawInput).get();
+            // نروح نقرأ من Employee_Database مباشرة (لأن البواب بيسمح بقراءتها للكل)
+            const empDoc = await db.collection("Employee_Database").doc(rawInput).get();
             
-            if (userQuery.empty) {
-                throw { code: 'custom/user-not-found' }; // لو الكود مش موجود نطلع خطأ
+            if (!empDoc.exists || !empDoc.data().email) {
+                throw { code: 'custom/user-not-found' }; 
             }
-            // استخراج الإيميل الحقيقي
-            loginEmail = userQuery.docs[0].data().email;
+            // استخراج الإيميل الحقيقي اللي حفظناه وقت التفعيل
+            loginEmail = empDoc.data().email;
         }
 
-        // تسجيل الدخول بالإيميل الحقيقي اللي جبناه (أو اللي هو كتبه)
+        // تسجيل الدخول بالإيميل الحقيقي
         await auth.signInWithEmailAndPassword(loginEmail, pass);
 
     } catch (error) {
@@ -142,8 +143,12 @@ async function activateAccount() {
             email: realEmail // 👈 حفظنا الإيميل هنا
         });
 
-        // ج- تحديث حالة التفعيل
-        await db.collection("Employee_Database").doc(codeRaw).update({ activated: true });
+        // ج- تحديث حالة التفعيل وحفظ الإيميل الحقيقي في قاعدة الموظفين
+        await db.collection("Employee_Database").doc(codeRaw).update({ 
+            activated: true,
+            email: realEmail // 👈 السطر ده هو اللي هيحل الأزمة كلها
+        });
+        
 
         if(msg) msg.innerText = "تم التفعيل بنجاح! جاري تحويلك...";
         
