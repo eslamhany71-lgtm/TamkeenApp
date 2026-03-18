@@ -1,5 +1,4 @@
-// auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission)
-// تم تعديل الدخول والتفعيل ليدعم الأكواد النصية بالمسافات (مثل: At 6651) ليتطابق مع شيت الـ HR
+// auth.js - النسخة الشاملة (Login + Activation + Multi-Page Translation + Notifications Permission + Forgot Password)
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -9,25 +8,20 @@ auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop() || "index.html";
     
-    // الصفحات التي لا تتطلب تسجيل دخول
     const isLoginPage = fileName === "index.html" || fileName === "activate.html" || fileName === "";
 
     if (user) {
-        // لو مسجل دخول وموجود في صفحة الدخول.. ابعته للهوم
         if (isLoginPage) {
             window.location.href = "home.html";
         }
-        // طلب إذن التنبيهات من المتصفح بمجرد تسجيل الدخول
         requestNotificationPermission();
     } else {
-        // لو مش مسجل دخول وموجود في صفحة داخلية.. ارجعه للدخول
         if (!isLoginPage) {
             window.location.href = "index.html";
         }
     }
 });
 
-// ميزة التنبيهات الخارجية: وظيفة طلب الإذن
 function requestNotificationPermission() {
     if ("Notification" in window) {
         if (Notification.permission !== "granted" && Notification.permission !== "denied") {
@@ -44,14 +38,14 @@ function requestNotificationPermission() {
 function logout() {
     auth.signOut().then(() => {
         console.log("Logged out successfully");
-        sessionStorage.clear(); // مسح الكاش عند الخروج لضمان الأمان
+        sessionStorage.clear();
         window.location.href = "index.html";
     }).catch((error) => {
         console.error("Logout Error:", error);
     });
 }
 
-// 3. دالة تسجيل الدخول الذكية (Login)
+// 3. دالة تسجيل الدخول
 function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -59,7 +53,6 @@ function loginById() {
 
     if (!codeInput || !passInput) return;
 
-    // نأخذ النص كما هو مكتوب (At 6651)
     const rawInput = codeInput.value.trim(); 
     const pass = passInput.value.trim();
 
@@ -68,9 +61,6 @@ function loginById() {
         return; 
     }
 
-    // --- المنطق الذكي الجديد ---
-    // إزالة المسافات ضروري فقط لخانة الـ Email في Firebase Auth لأنها ترفض المسافات
-    // يتم تحويل الإيميل لـ lowercase لضمان التطابق مع الـ Rules
     const cleanAuthEmail = rawInput.includes('@') 
         ? rawInput.replace(/\s+/g, '').toLowerCase() 
         : rawInput.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
@@ -85,10 +75,9 @@ function loginById() {
     auth.signInWithEmailAndPassword(cleanAuthEmail, pass)
     .catch((error) => {
         if (btn) {
-            btn.innerText = "دخول";
+            btn.innerText = document.body.dir === 'rtl' ? "تسجيل الدخول" : "Login";
             btn.disabled = false;
         }
-        // رسالة الخطأ بناءً على لغة الصفحة
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
             if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
@@ -102,9 +91,9 @@ function loginById() {
     });
 }
 
-// 4. دالة التفعيل الكاملة (للموظفين الجدد)
+// 4. دالة التفعيل الكاملة
 async function activateAccount() {
-    const codeRaw = document.getElementById('reg-code').value.trim(); // "At 6651" مثلاً
+    const codeRaw = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
@@ -113,7 +102,6 @@ async function activateAccount() {
         if(msg) msg.innerText = "برجاء إكمال البيانات"; return; 
     }
 
-    // تجهيز إيميل الـ Auth (بدون مسافات وبحروف صغيرة)
     const authEmail = codeRaw.includes('@') 
         ? codeRaw.replace(/\s+/g, '').toLowerCase() 
         : codeRaw.replace(/\s+/g, '').toLowerCase() + "@tamkeen.com";
@@ -121,7 +109,6 @@ async function activateAccount() {
     try {
         if(msg) msg.innerText = "جاري فحص الكود: " + codeRaw;
 
-        // البحث في جدول الموظفين باستخدام الكود الأصلي بالظبط (بالحروف الكبيرة والمسافات)
         const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
@@ -139,18 +126,15 @@ async function activateAccount() {
 
         if(msg) msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
 
-        // أ- إنشاء الحساب في نظام الـ Auth
         await auth.createUserWithEmailAndPassword(authEmail, pass);
         
-        // ب- إنشاء بروفايل المستخدم في جدول Users وربطه بالكود الأصلي (At 6651)
         await db.collection("Users").doc(authEmail).set({
             role: (empData.role || "employee").toLowerCase().trim(),
             name: empData.name,
-            empCode: codeRaw, // نحفظ الكود الأصلي بالمسافات
+            empCode: codeRaw, 
             email: authEmail
         });
 
-        // ج- تحديث حالة التفعيل في جدول الموظفين الأصلي
         await db.collection("Employee_Database").doc(codeRaw).update({
             activated: true
         });
@@ -177,7 +161,46 @@ async function activateAccount() {
     }
 }
 
-// نظام الترجمة الشامل (لشاشة الدخول وشاشة التفعيل) - توضع داخل auth.js
+// 5. استعادة كلمة المرور (جديد)
+function openResetModal() {
+    document.getElementById('resetEmailInput').value = "";
+    document.getElementById('resetModal').style.display = "flex";
+}
+
+function closeResetModal() {
+    document.getElementById('resetModal').style.display = "none";
+}
+
+async function sendResetLink(e) {
+    e.preventDefault();
+    const email = document.getElementById('resetEmailInput').value;
+    const btn = document.getElementById('btn-send-reset');
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    
+    btn.disabled = true;
+    btn.innerText = lang === 'ar' ? "جاري الإرسال..." : "Sending...";
+    btn.style.opacity = "0.7";
+
+    try {
+        await auth.sendPasswordResetEmail(email);
+        alert(lang === 'ar' ? "تم إرسال رابط استعادة كلمة المرور بنجاح! يرجى مراجعة صندوق الوارد الخاص بك (أو مجلد Spam)." : "Password reset link sent successfully! Please check your inbox (or Spam folder).");
+        closeResetModal();
+    } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+            alert(lang === 'ar' ? "هذا البريد الإلكتروني غير مسجل في النظام." : "This email is not registered.");
+        } else if (error.code === 'auth/invalid-email') {
+            alert(lang === 'ar' ? "صيغة البريد الإلكتروني غير صحيحة." : "Invalid email format.");
+        } else {
+            alert((lang === 'ar' ? "حدث خطأ: " : "Error: ") + error.message);
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerText = lang === 'ar' ? "إرسال رابط الاستعادة" : "Send Reset Link";
+        btn.style.opacity = "1";
+    }
+}
+
+// 6. نظام الترجمة الشامل 
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -192,6 +215,12 @@ function updatePageContent(lang) {
             brandTitle: "تمكين للتمويل",
             brandDesc: "نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.",
             feat1: "✔️ أمان عالي", feat2: "✔️ سرعة في الأداء", feat3: "✔️ تقارير ذكية",
+            forgotPass: "نسيت كلمة المرور؟",
+            resetTitle: "استعادة كلمة المرور",
+            resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
+            btnReset: "إرسال رابط الاستعادة",
+            emailPlaceholder: "أدخل البريد الإلكتروني",
+            
             // نصوص صفحة التفعيل
             actPageTitle: "تفعيل الحساب - نظام تمكين",
             actWelcome: "تفعيل حساب جديد",
@@ -217,6 +246,12 @@ function updatePageContent(lang) {
             brandTitle: "Tamkeen Finance",
             brandDesc: "Comprehensive management system for HR, Sales, and Branches. Designed to increase work efficiency and facilitate communication.",
             feat1: "✔️ High Security", feat2: "✔️ Fast Performance", feat3: "✔️ Smart Reports",
+            forgotPass: "Forgot Password?",
+            resetTitle: "Reset Password",
+            resetSub: "Enter your registered email, and we will send you a link to set a new password.",
+            btnReset: "Send Reset Link",
+            emailPlaceholder: "Enter email address",
+            
             // Activation Page Texts
             actPageTitle: "Activate Account - Tamkeen",
             actWelcome: "Activate New Account",
@@ -254,6 +289,14 @@ function updatePageContent(lang) {
     safeSetText('feat-1', t.feat1);
     safeSetText('feat-2', t.feat2);
     safeSetText('feat-3', t.feat3);
+    
+    // ترجمة نصوص نسيت كلمة المرور
+    safeSetText('link-forgot', t.forgotPass);
+    safeSetText('txt-reset-title', t.resetTitle);
+    safeSetText('txt-reset-sub', t.resetSub);
+    safeSetText('btn-send-reset', t.btnReset);
+    const resetInput = document.getElementById('resetEmailInput');
+    if(resetInput) resetInput.placeholder = t.emailPlaceholder;
 
     // ترجمة صفحة التفعيل
     if (document.title.includes('تفعيل') || document.title.includes('Activate')) document.title = t.actPageTitle;
