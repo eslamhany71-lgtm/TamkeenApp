@@ -309,4 +309,5 @@ function updatePageContent(lang) {
     safeSetText('link-back-login', t.backLoginLink);
     safeSetText('brand-act-title', t.brandActTitle);
     safeSetText('brand-act-desc', t.brandActDesc);
+    safeSetText('lbl-act-email', t.actEmail);
 }
