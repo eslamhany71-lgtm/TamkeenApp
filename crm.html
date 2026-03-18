@@ -27,6 +27,11 @@
             <div class="stat-box"><span id="lbl-lost-leads">مرفوض (Lost):</span> <strong id="val-lost" style="color:#ef4444;">0</strong></div>
         </div>
 
+        <div id="bulk-actions" class="bulk-actions" style="display: none;">
+            <span id="txt-selected-count">تم تحديد: <strong id="selected-count">0</strong></span>
+            <button onclick="deleteSelectedLeads()" class="btn-danger" id="btn-bulk-delete">🗑️ حذف المحدد</button>
+        </div>
+
         <div class="kanban-board">
             <div class="kanban-column" id="col-new" ondrop="drop(event, 'new')" ondragover="allowDrop(event)">
                 <div class="col-header border-blue">
@@ -58,6 +63,14 @@
                     <span class="col-count" id="count-won">0</span>
                 </div>
                 <div class="col-body" id="body-won"></div>
+            </div>
+
+            <div class="kanban-column" id="col-lost" ondrop="drop(event, 'lost')" ondragover="allowDrop(event)">
+                <div class="col-header border-red">
+                    <h3 id="txt-col-lost">مرفوض (Lost)</h3>
+                    <span class="col-count" id="count-lost">0</span>
+                </div>
+                <div class="col-body" id="body-lost"></div>
             </div>
         </div>
     </main>
@@ -92,10 +105,29 @@
                         </select>
                     </div>
                     <div class="input-group">
-                        <label id="lbl-lead-note">ملاحظات</label>
+                        <label id="lbl-lead-note">ملاحظات أولية</label>
                         <textarea id="leadNote" rows="2" class="form-control"></textarea>
                     </div>
                     <button type="submit" class="btn-submit-lead" id="btn-save-lead">حفظ بيانات العميل</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content animate-top" style="max-width: 400px;">
+            <div class="modal-header-pro">
+                <h2 id="modal-feedback-title">تحديث حالة العميل</h2>
+                <span class="close-btn" onclick="closeFeedbackModal()">&times;</span>
+            </div>
+            <div class="modal-body-pro" style="padding: 20px;">
+                <form id="feedbackForm" onsubmit="saveFeedback(event)">
+                    <input type="hidden" id="feedbackLeadId">
+                    <div class="input-group">
+                        <label id="lbl-feedback">التعليق / الفيدباك</label>
+                        <textarea id="leadFeedback" rows="4" class="form-control" placeholder="ماذا حدث مع العميل؟" required></textarea>
+                    </div>
+                    <button type="submit" class="btn-submit-lead" style="background: #3b82f6;" id="btn-save-feedback">حفظ التعليق</button>
                 </form>
             </div>
         </div>
