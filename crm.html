@@ -94,12 +94,17 @@
                     <div class="input-group">
                         <label id="lbl-lead-name">اسم العميل / الشركة</label>
                         <input type="text" id="leadName" required class="form-control">
-                    </div>
+                                        </div>
                     <div class="input-group">
-                        <label id="lbl-lead-phone">رقم الهاتف</label>
-                        <input type="text" id="leadPhone" required class="form-control">
+                        <label id="lbl-lead-phone">رقم الهاتف الأساسي</label>
+                        <input type="text" id="leadPhone" required class="form-control" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                     </div>
+                    
                     <div class="input-group">
+                        <label id="lbl-lead-phone2">رقم هاتف إضافي (اختياري)</label>
+                        <input type="text" id="leadPhone2" class="form-control" maxlength="11" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                    </div>
+                                        <div class="input-group">
                         <label id="lbl-lead-value">قيمة الصفقة المتوقعة</label>
                         <input type="number" id="leadValue" class="form-control" placeholder="مثال: 50000">
                     </div>
