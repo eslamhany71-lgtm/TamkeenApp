@@ -1,19 +1,16 @@
-// crm.js - Enterprise CRM Logic (Iframe Ready)
+// crm.js - Enterprise CRM Logic (Phase 1: Actions, Feedback & Bulk Selection)
 
 let currentUserEmail = "";
 
-// 1. التحقق من الدخول وجلب العملاء
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         currentUserEmail = user.email;
         loadLeads();
     } else {
-        // لو مش مسجل دخول، بيرجع للصفحة الرئيسية لعمل تسجيل خروج كامل
         window.parent.location.href = "index.html";
     }
 });
 
-// 2. جلب العملاء من Firestore لحظياً
 function loadLeads() {
     firebase.firestore().collection("CRM_Leads")
         .where("assignedTo", "==", currentUserEmail)
@@ -22,6 +19,7 @@ function loadLeads() {
             document.getElementById('body-contacted').innerHTML = "";
             document.getElementById('body-negotiation').innerHTML = "";
             document.getElementById('body-won').innerHTML = "";
+            document.getElementById('body-lost').innerHTML = ""; // تفريغ عمود المرفوض
 
             let counts = { new: 0, contacted: 0, negotiation: 0, won: 0, lost: 0 };
 
@@ -29,23 +27,25 @@ function loadLeads() {
                 const lead = { id: doc.id, ...doc.data() };
                 if (counts[lead.status] !== undefined) counts[lead.status]++;
                 
-                if (lead.status !== 'lost') {
-                    createLeadCard(lead);
-                }
+                // تم التعديل: دلوقتي كل العملاء بيترسموا بما فيهم المرفوضين
+                createLeadCard(lead);
             });
 
             document.getElementById('count-new').innerText = counts.new;
             document.getElementById('count-contacted').innerText = counts.contacted;
             document.getElementById('count-negotiation').innerText = counts.negotiation;
             document.getElementById('count-won').innerText = counts.won;
+            document.getElementById('count-lost').innerText = counts.lost;
             
             document.getElementById('val-total').innerText = snapshot.size;
             document.getElementById('val-won').innerText = counts.won;
-            document.getElementById('val-lost').innerText = counts.lost || 0;
+            document.getElementById('val-lost').innerText = counts.lost;
+
+            // تحديث شريط الحذف لو فيه حاجة اتغيرت
+            toggleBulkActions();
         });
 }
 
-// 3. إنشاء كارت العميل
 function createLeadCard(lead) {
     const colBody = document.getElementById(`body-${lead.status}`);
     if (!colBody) return;
@@ -60,19 +60,106 @@ function createLeadCard(lead) {
     
     card.addEventListener('dragstart', dragStart);
 
+    // إضافة الـ Checkbox، التعليق، وأزرار الأكشن
+    let feedbackHtml = lead.feedback ? `<div class="lead-feedback-box">💬 ${lead.feedback}</div>` : '';
+
     card.innerHTML = `
-        <h4 class="lead-name">${lead.name}</h4>
+        <div class="lead-header">
+            <h4 class="lead-name">${lead.name}</h4>
+            <input type="checkbox" class="lead-checkbox" value="${lead.id}" onchange="toggleBulkActions()">
+        </div>
         <p class="lead-info">📞 ${lead.phone}</p>
+        ${feedbackHtml}
         <div class="lead-footer">
             <span class="lead-value">💰 ${valueTxt}</span>
-            <button class="btn-edit-lead" onclick="editLead('${lead.id}')">✏️</button>
+            <div class="action-buttons">
+                <button class="btn-action" title="تعليق / فيدباك" onclick="openFeedbackModal('${lead.id}', \`${lead.feedback || ''}\`)">💬</button>
+                <button class="btn-action" title="تعديل بيانات" onclick="editLead('${lead.id}')">✏️</button>
+                <button class="btn-action text-red" title="حذف العميل" onclick="deleteLead('${lead.id}')">🗑️</button>
+            </div>
         </div>
     `;
     colBody.appendChild(card);
 }
 
-// 4. السحب والإفلات (Drag & Drop)
+// --- لوجيك التحديد والحذف المجمع ---
+function toggleBulkActions() {
+    const checkboxes = document.querySelectorAll('.lead-checkbox:checked');
+    const bulkDiv = document.getElementById('bulk-actions');
+    const countSpan = document.getElementById('selected-count');
+    
+    if (checkboxes.length > 0) {
+        countSpan.innerText = checkboxes.length;
+        bulkDiv.style.display = 'flex';
+    } else {
+        bulkDiv.style.display = 'none';
+    }
+}
+
+async function deleteSelectedLeads() {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const checkboxes = document.querySelectorAll('.lead-checkbox:checked');
+    
+    if (confirm(lang === 'ar' ? `هل أنت متأكد من حذف ${checkboxes.length} عميل نهائياً؟` : `Are you sure you want to delete ${checkboxes.length} leads?`)) {
+        const batch = firebase.firestore().batch();
+        checkboxes.forEach(box => {
+            const ref = firebase.firestore().collection("CRM_Leads").doc(box.value);
+            batch.delete(ref);
+        });
+        
+        await batch.commit();
+        toggleBulkActions(); // إخفاء الشريط بعد الحذف
+    }
+}
+
+// حذف عميل واحد
+async function deleteLead(id) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    if (confirm(lang === 'ar' ? "هل أنت متأكد من حذف هذا العميل؟" : "Delete this lead?")) {
+        await firebase.firestore().collection("CRM_Leads").doc(id).delete();
+    }
+}
+
+// --- لوجيك الفيدباك (التعليقات) ---
+function openFeedbackModal(id, currentFeedback) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    document.getElementById('feedbackLeadId').value = id;
+    document.getElementById('leadFeedback').value = currentFeedback || "";
+    
+    document.getElementById('modal-feedback-title').innerText = lang === 'ar' ? "تحديث حالة العميل" : "Update Lead Status";
+    document.getElementById('feedbackModal').style.display = "flex";
+}
+
+function closeFeedbackModal() {
+    document.getElementById('feedbackModal').style.display = "none";
+}
+
+async function saveFeedback(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-feedback');
+    btn.disabled = true;
+
+    const leadId = document.getElementById('feedbackLeadId').value;
+    const feedbackText = document.getElementById('leadFeedback').value;
+
+    try {
+        await firebase.firestore().collection("CRM_Leads").doc(leadId).update({
+            feedback: feedbackText,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        closeFeedbackModal();
+    } catch (error) {
+        alert("Error: " + error.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// --- السحب والإفلات ---
 function dragStart(e) {
+    if(e.target.className.includes("lead-checkbox") || e.target.className.includes("btn-action")) {
+        e.preventDefault(); return; // منع السحب لو بيضغط على زرار أو شيك بوكس
+    }
     e.dataTransfer.setData('text/plain', e.target.id);
     setTimeout(() => { e.target.style.opacity = '0.5'; }, 0);
 }
@@ -101,7 +188,7 @@ function drop(e, newStatus) {
     }
 }
 
-// 5. المودال والحفظ
+// --- المودال والحفظ (إضافة / تعديل) ---
 function openLeadModal() {
     document.getElementById('leadForm').reset();
     document.getElementById('leadId').value = "";
@@ -161,22 +248,24 @@ async function editLead(id) {
     }
 }
 
-// 6. نظام الترجمة المحدث للصفحة الداخلية
+// نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
             header: "مسار المبيعات (Sales Pipeline)", sub: "إدارة العملاء وتتبع مراحل المبيعات والصفقات", btnAdd: "➕ إضافة عميل جديد",
             total: "إجمالي العملاء:", wonLbl: "تم البيع (Won):", lostLbl: "مرفوض (Lost):",
-            colNew: "عميل جديد (New)", colCont: "جاري التواصل", colNeg: "تفاوض / عرض سعر", colWon: "تم البيع (Won)",
-            lblName: "اسم العميل / الشركة", lblPhone: "رقم الهاتف", lblValue: "قيمة الصفقة المتوقعة", lblPriority: "الأولوية", lblNote: "ملاحظات",
-            optHigh: "🔥 عالية (ساخن)", optMed: "⚡ متوسطة", optLow: "❄️ منخفضة (بارد)", btnSave: "حفظ بيانات العميل"
+            colNew: "عميل جديد (New)", colCont: "جاري التواصل", colNeg: "تفاوض / عرض سعر", colWon: "تم البيع (Won)", colLost: "مرفوض (Lost)",
+            lblName: "اسم العميل / الشركة", lblPhone: "رقم الهاتف", lblValue: "قيمة الصفقة المتوقعة", lblPriority: "الأولوية", lblNote: "ملاحظات أولية",
+            optHigh: "🔥 عالية (ساخن)", optMed: "⚡ متوسطة", optLow: "❄️ منخفضة (بارد)", btnSave: "حفظ بيانات العميل",
+            lblFeedback: "التعليق / الفيدباك", btnSaveFeedback: "حفظ التعليق", btnBulkDelete: "🗑️ حذف المحدد"
         },
         en: {
             header: "Sales Pipeline", sub: "Manage clients and track sales deals", btnAdd: "➕ Add New Lead",
             total: "Total Leads:", wonLbl: "Won:", lostLbl: "Lost:",
-            colNew: "New Lead", colCont: "Contacted", colNeg: "Negotiation", colWon: "Closed Won",
-            lblName: "Client / Company Name", lblPhone: "Phone Number", lblValue: "Expected Deal Value", lblPriority: "Priority", lblNote: "Notes",
-            optHigh: "🔥 High (Hot)", optMed: "⚡ Medium", optLow: "❄️ Low (Cold)", btnSave: "Save Lead Details"
+            colNew: "New Lead", colCont: "Contacted", colNeg: "Negotiation", colWon: "Closed Won", colLost: "Lost",
+            lblName: "Client / Company Name", lblPhone: "Phone Number", lblValue: "Expected Deal Value", lblPriority: "Priority", lblNote: "Initial Notes",
+            optHigh: "🔥 High (Hot)", optMed: "⚡ Medium", optLow: "❄️ Low (Cold)", btnSave: "Save Lead Details",
+            lblFeedback: "Feedback / Comment", btnSaveFeedback: "Save Feedback", btnBulkDelete: "🗑️ Delete Selected"
         }
     };
 
@@ -187,11 +276,13 @@ function updatePageContent(lang) {
 
     set('txt-header', c.header); set('txt-subtitle', c.sub); set('btn-add-lead', c.btnAdd);
     set('lbl-total-leads', c.total); set('lbl-won-leads', c.wonLbl); set('lbl-lost-leads', c.lostLbl);
-    set('txt-col-new', c.colNew); set('txt-col-contacted', c.colCont); set('txt-col-negotiation', c.colNeg); set('txt-col-won', c.colWon);
+    set('txt-col-new', c.colNew); set('txt-col-contacted', c.colCont); set('txt-col-negotiation', c.colNeg); set('txt-col-won', c.colWon); set('txt-col-lost', c.colLost);
     
     set('lbl-lead-name', c.lblName); set('lbl-lead-phone', c.lblPhone); set('lbl-lead-value', c.lblValue); 
     set('lbl-lead-priority', c.lblPriority); set('lbl-lead-note', c.lblNote);
     set('opt-high', c.optHigh); set('opt-medium', c.optMed); set('opt-low', c.optLow); set('btn-save-lead', c.btnSave);
+    
+    set('lbl-feedback', c.lblFeedback); set('btn-save-feedback', c.btnSaveFeedback); set('btn-bulk-delete', c.btnBulkDelete);
 }
 
 window.onload = () => {
