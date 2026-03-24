@@ -1,0 +1,46 @@
+body { background-color: transparent; padding: 0; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; }
+.dashboard-wrapper { padding: 30px; }
+.header-section { margin-bottom: 30px; }
+.header-section h1 { margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; }
+.header-section p { margin: 5px 0 0 0; color: #64748b; font-size: 15px; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
+.kpi-card { background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; border-right: 4px solid transparent; transition: 0.3s; }
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+.kpi-card.blue { border-right-color: #0284C7; }
+.kpi-card.green { border-right-color: #10b981; }
+.kpi-card.orange { border-right-color: #f59e0b; cursor: pointer; } 
+.kpi-card.orange:hover { background: #fff7ed; }
+.kpi-card.purple { border-right-color: #8b5cf6; }
+
+.kpi-info h4 { margin: 0 0 5px 0; font-size: 14px; color: #64748b; font-weight: 700; }
+.kpi-info h2 { margin: 0; font-size: 28px; color: #0f172a; font-weight: 800; }
+.kpi-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.kpi-icon.blue { background: #E0F2FE; color: #0284C7; }
+.kpi-icon.orange { background: #fff7ed; color: #f59e0b; }
+.kpi-icon.green { background: #f0fdf4; color: #10b981; }
+.kpi-icon.purple { background: #faf5ff; color: #8b5cf6; }
+
+.main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+.panel { background: #fff; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
+.panel-title { margin: 0 0 20px 0; font-size: 18px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+
+.quick-actions { display: flex; flex-direction: column; gap: 12px; }
+.action-btn { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; text-align: right; font-family: inherit; font-size: 14px; font-weight: 700; color: #334155; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+.action-btn:hover { background: #F0F9FF; border-color: #BAE6FD; transform: translateX(-5px); color: #0284C7; }
+html[dir="ltr"] .action-btn:hover { transform: translateX(5px); text-align: left; }
+.action-btn span { font-size: 18px; }
+
+/* ستايل المودالز */
+.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.modal-content { background: white; border-radius: 16px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; max-height: 80vh; overflow-y: auto;}
+.close-modal { position: absolute; left: 20px; top: 20px; font-size: 24px; color: #64748b; cursor: pointer; }
+html[dir="ltr"] .close-modal { right: 20px; left: auto; }
+
+/* ستايل قائمة الانتظار */
+.waiting-list-ul { list-style: none; padding: 0; margin: 0; }
+.waiting-list-li { padding: 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; }
+.waiting-list-li:hover { background: #f0fdf4; }
+.waiting-time { background: #f59e0b; color: white; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
