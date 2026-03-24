@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">الرئيسية - تمكين ERP</title>
+    <title id="txt-title">الرئيسية - NivaDent</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/home.css">
     
@@ -14,20 +14,46 @@
 <body>
     <div class="app-wrapper">
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-brand">
-                <span class="brand-icon">⚡</span>
-                <span id="txt-brand">تمكين ERP</span>
+            <div class="sidebar-brand" id="clinic-brand-area" style="padding: 20px 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px;">
+                <div id="clinic-logo-container" style="margin-bottom: 10px; display: flex; justify-content: center;">
+                    <svg width="45" height="45" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="100" height="100" rx="20" fill="#E0F2FE"/>
+                        <path d="M30 40C30 28.9543 38.9543 20 50 20C61.0457 20 70 28.9543 70 40V60C70 65.5228 65.5228 70 60 70C54.4772 70 50 65.5228 50 60C50 65.5228 45.5228 70 40 70C34.4772 70 30 65.5228 30 60V40Z" fill="#0284C7"/>
+                        <path d="M50 20C38.9543 20 30 28.9543 30 40V60C30 65.5228 34.4772 70 40 70C45.5228 70 50 65.5228 50 60V20Z" fill="#0EA5E9"/>
+                        <circle cx="50" cy="50" r="8" fill="#FFFFFF"/>
+                    </svg>
+                </div>
+                <span id="txt-clinic-name" style="font-size: 18px; font-weight: 800; color: #fff; display: block;">NivaDent System</span>
             </div>
+
             <ul class="nav-links" id="nav-links">
-                <li class="active" onclick="loadPage('dashboard.html', this)"><a href="javascript:void(0)"><span class="icon">🏠</span> <span id="nav-home">الرئيسية</span></a></li>
-                <li onclick="loadPage('crm.html', this)"><a href="javascript:void(0)"><span class="icon">🤝</span> <span id="nav-crm">إدارة العملاء (CRM)</span></a></li>
-                <li onclick="loadPage('calculator.html', this)"><a href="javascript:void(0)"><span class="icon">💰</span> <span id="nav-calc">حاسبة القروض</span></a></li>
-                <li onclick="loadPage('hr-solution.html', this)"><a href="javascript:void(0)"><span class="icon">📝</span> <span id="nav-hr">الخدمات الذاتية</span></a></li>
-                <li onclick="loadPage('branches.html', this)"><a href="javascript:void(0)"><span class="icon">📍</span> <span id="nav-branches">دليل الفروع</span></a></li>
+                <li class="active" onclick="loadPage('dashboard.html', this)">
+                    <a href="javascript:void(0)"><span class="icon">📊</span> <span id="nav-dash">الداشبورد</span></a>
+                </li>
                 
-                <li id="nav-manager" style="display: none;" onclick="loadPage('manager-dashboard.html', this)"><a href="javascript:void(0)"><span class="icon">📊</span> <span id="nav-mgr-dash">لوحة المدير</span></a></li>
-                <li id="nav-hr-admin" style="display: none;" onclick="loadPage('hr-dashboard.html', this)"><a href="javascript:void(0)"><span class="icon">🏢</span> <span id="nav-hrd-dash">لوحة الـ HR</span></a></li>
-                <li id="nav-admin" style="display: none;" onclick="loadPage('admin-branches.html', this)"><a href="javascript:void(0)"><span class="icon">⚙️</span> <span id="nav-adm-dash">إدارة النظام</span></a></li>
+                <li onclick="loadPage('patients.html', this)">
+                    <a href="javascript:void(0)"><span class="icon">🩻</span> <span id="nav-patients">المرضى والأشعة</span></a>
+                </li>
+                
+                <li onclick="loadPage('calendar.html', this)">
+                    <a href="javascript:void(0)"><span class="icon">📅</span> <span id="nav-calendar">المواعيد والتقويم</span></a>
+                </li>
+                
+                <li onclick="loadPage('sessions.html', this)">
+                    <a href="javascript:void(0)"><span class="icon">💊</span> <span id="nav-sessions">الجلسات والروشتات</span></a>
+                </li>
+                
+                <li onclick="loadPage('finances.html', this)">
+                    <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والمصروفات</span></a>
+                </li>
+                
+                <li id="nav-settings-li" onclick="loadPage('settings.html', this)" style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                    <a href="javascript:void(0)"><span class="icon">⚙️</span> <span id="nav-settings">إعدادات العيادة</span></a>
+                </li>
+                
+                <li id="nav-super-admin" style="display: none;" onclick="loadPage('super-admin.html', this)">
+                    <a href="javascript:void(0)"><span class="icon">👑</span> <span id="nav-super">إدارة النظام المركزية</span></a>
+                </li>
             </ul>
         </aside>
 
@@ -36,7 +62,7 @@
                 <div class="topbar-right">
                     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
                     <button class="desktop-toggle" onclick="toggleSidebarDesktop()">🗜️</button>
-                    <h2 id="txt-header">لوحة التحكم المركزية</h2>
+                    <h2 id="txt-header">لوحة التحكم</h2>
                 </div>
                 <div class="topbar-left user-controls">
                     <div class="lang-switch">
@@ -44,10 +70,10 @@
                         <span onclick="switchAppLanguage('en')" class="lang-btn">EN</span>
                     </div>
                     <div class="user-profile">
-                        <span class="user-avatar">👤</span>
-                        <span id="userEmail" class="user-email">...</span>
+                        <span class="user-avatar" style="background: #E0F2FE; color: #0284C7; border-radius: 50%; padding: 5px 8px;">👨‍⚕️</span>
+                        <span id="userEmail" class="user-email" style="font-weight: bold; color: #0F172A;">...</span>
                     </div>
-                    <button onclick="logout()" class="logout-btn" id="btn-logout">خروج</button>
+                    <button onclick="logout()" class="logout-btn" id="btn-logout" style="background: #EF4444;">خروج</button>
                 </div>
             </header>
 
