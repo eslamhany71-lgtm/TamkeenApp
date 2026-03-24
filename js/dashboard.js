@@ -1,16 +1,16 @@
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId'); 
 
-// متغيرات لتخزين الداتا في الذاكرة لسرعة الفتح
 let todayPendingApps = []; 
 let upcomingPendingApps = [];
 let allPatientsData = [];
 let completedSessionsData = [];
 let todayRevenueData = [];
 
-let currentSelectedPatientId = null; // لتمريره لزرار فتح الملف
+let currentSelectedPatientId = null; 
+let currentSelectedAppId = null; // لتخزين الموعد المفتوح حالياً
 
-// 1. القاموس الإنجليزي/العربي الشامل
+// 1. القاموس الإنجليزي/العربي الشامل (مظبوط لغوياً 100%)
 function updatePageContent(lang) {
     const t = { 
         ar: { 
@@ -21,7 +21,8 @@ function updatePageContent(lang) {
             mWaitTitle: "⏳ قائمة الانتظار", tToday: "مواعيد اليوم", tUpc: "الأيام القادمة",
             mAppDetTitle: "تفاصيل الحجز", lName: "اسم المريض:", lDate: "التاريخ:", lTime: "الساعة:", lType: "نوع الكشف:", lNotes: "ملاحظات:",
             mPatTitle: "🦷 جميع المرضى", mPatDetTitle: "تفاصيل المريض", lpPhone: "الموبايل:", lpAge: "السن:", lpHist: "أمراض مزمنة:", btnProf: "فتح الملف الطبي الكامل",
-            mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الجلسات المكتملة", empty: "لا يوجد بيانات حالياً."
+            mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الجلسات المكتملة", empty: "لا يوجد بيانات حالياً.",
+            btnComp: "✅ مكتمل", btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟"
         }, 
         en: { 
             welcome: "Clinic Overview", sub: "Daily performance and real-time statistics",
@@ -31,7 +32,8 @@ function updatePageContent(lang) {
             mWaitTitle: "⏳ Waiting List", tToday: "Today's Apps", tUpc: "Upcoming",
             mAppDetTitle: "Booking Details", lName: "Patient Name:", lDate: "Date:", lTime: "Time:", lType: "Type:", lNotes: "Notes:",
             mPatTitle: "🦷 All Patients", mPatDetTitle: "Patient Details", lpPhone: "Phone:", lpAge: "Age:", lpHist: "Medical History:", btnProf: "Open Full Profile",
-            mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently."
+            mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently.",
+            btnComp: "✅ Complete", btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?"
         } 
     };
     const c = t[lang] || t.ar;
@@ -49,7 +51,12 @@ function updatePageContent(lang) {
     setTxt('mod-pat-title', c.mPatTitle); setTxt('mod-pat-det-title', c.mPatDetTitle); setClassTxt('lbl-p-name', c.lName); setClassTxt('lbl-p-phone', c.lpPhone); setClassTxt('lbl-p-age', c.lpAge); setClassTxt('lbl-p-history', c.lpHist); setTxt('btn-go-profile', c.btnProf);
     
     setTxt('mod-rev-title', c.mRevTitle); setTxt('mod-sess-title', c.mSessTitle);
-    window.emptyTxt = c.empty; // حفظها للاستخدام في القوائم
+    
+    // زراير الأكشن
+    setTxt('btn-complete-app', c.btnComp); setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
+    
+    window.emptyTxt = c.empty; 
+    window.confDelTxt = c.confDel;
 }
 
 // 2. تحديث الرسم البياني
@@ -66,43 +73,33 @@ function updateChart(pending, completed, cancelled) {
     });
 }
 
-// 3. سحب كل الداتا وتخزينها في الذاكرة (Local Caching)
+// 3. سحب كل الداتا
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // جلب المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         allPatientsData = [];
         snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
         document.getElementById('stat-patients').innerText = allPatientsData.length;
     });
 
-    // جلب الإيرادات
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
-        todayRevenueData = [];
-        let todayRevTotal = 0; 
+        todayRevenueData = []; let todayRevTotal = 0; 
         snap.forEach(doc => { 
             const data = doc.data();
-            if (data.date === todayStr && data.amount) {
-                todayRevTotal += Number(data.amount); 
-                todayRevenueData.push({ id: doc.id, ...data });
-            }
+            if (data.date === todayStr && data.amount) { todayRevTotal += Number(data.amount); todayRevenueData.push({ id: doc.id, ...data }); }
         });
         document.getElementById('stat-revenue').innerText = todayRevTotal;
     });
 
-    // جلب المواعيد (الانتظار والجلسات المكتملة)
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         let pending = 0, completed = 0, cancelled = 0;
         todayPendingApps = []; upcomingPendingApps = []; completedSessionsData = [];
 
         snap.forEach(doc => {
             const data = doc.data();
-            if (data.status === 'completed') {
-                completed++;
-                completedSessionsData.push({ id: doc.id, ...data });
-            }
+            if (data.status === 'completed') { completed++; completedSessionsData.push({ id: doc.id, ...data }); }
             if (data.status === 'cancelled') cancelled++;
             if (data.status === 'pending') {
                 pending++;
@@ -114,14 +111,18 @@ function loadDashboardStats() {
         document.getElementById('stat-appointments').innerText = todayPendingApps.length;
         document.getElementById('stat-sessions').innerText = completed;
         updateChart(pending, completed, cancelled);
+        
+        // لو المودال بتاع قائمة الانتظار مفتوح، اعمل تحديث للبيانات لحظياً
+        if(document.getElementById('waitingListModal').style.display === 'flex'){
+            renderWaitList('todayWaitContainer', todayPendingApps);
+            renderWaitList('upcomingWaitContainer', upcomingPendingApps);
+        }
     });
 }
 
-// --- دوال المودالز السحرية والتفاعلية ---
-
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// 1. قائمة الانتظار (اليوم والأيام القادمة)
+// 4. قائمة الانتظار والمواعيد
 function openWaitingListModal() {
     renderWaitList('todayWaitContainer', todayPendingApps);
     renderWaitList('upcomingWaitContainer', upcomingPendingApps);
@@ -133,7 +134,6 @@ function switchWaitTab(tabType) {
     document.getElementById('tab-upcoming-wait').classList.remove('active');
     document.getElementById('wait-content-today').classList.remove('active');
     document.getElementById('wait-content-upcoming').classList.remove('active');
-
     if(tabType === 'today') {
         document.getElementById('tab-today-wait').classList.add('active');
         document.getElementById('wait-content-today').classList.add('active');
@@ -150,35 +150,54 @@ function renderWaitList(containerId, dataArray) {
         container.innerHTML = `<li style="text-align:center; padding: 20px; color: #64748b;">${window.emptyTxt}</li>`;
         return;
     }
-    // ترتيب بالأقدم وقتاً
     dataArray.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-    
     dataArray.forEach(app => {
         const li = document.createElement('li');
         li.className = 'data-list-li';
         li.onclick = () => openAppDetails(app);
-        
         let timeTag = containerId === 'todayWaitContainer' ? app.time : `${app.date} | ${app.time}`;
-        li.innerHTML = `
-            <span style="font-weight: bold; font-size: 16px;">👤 ${app.patientName}</span>
-            <span class="data-badge orange">⏰ ${timeTag}</span>
-        `;
+        li.innerHTML = `<span style="font-weight: bold; font-size: 16px;">👤 ${app.patientName}</span><span class="data-badge orange">⏰ ${timeTag}</span>`;
         container.appendChild(li);
     });
 }
 
-// فتح تفاصيل أي موعد/جلسة
 function openAppDetails(app) {
+    currentSelectedAppId = app.id; // حفظ الـ ID عشان نعدل عليه
     document.getElementById('det_name').innerText = app.patientName;
     document.getElementById('det_date').innerText = app.date;
     document.getElementById('det_time').innerText = app.time;
     document.getElementById('det_type').innerText = app.type;
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.getElementById('det_notes').innerText = app.notes || (lang === 'ar' ? 'لا يوجد' : 'None');
+    
+    // إخفاء الأكشنز لو الموعد مش في الانتظار (اختياري، بس منطقي عشان منعدلش في المكتمل)
+    const actionsDiv = document.getElementById('app-actions-container');
+    if(app.status !== 'pending') actionsDiv.style.display = 'none';
+    else actionsDiv.style.display = 'flex';
+
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
 
-// 2. قائمة المرضى
+// 🔴 الأكشنز الخاصة بالموعد (مكتمل - إلغاء - حذف)
+async function updateAppStatus(newStatus) {
+    if(!currentSelectedAppId) return;
+    try {
+        await db.collection("Appointments").doc(currentSelectedAppId).update({ status: newStatus });
+        closeModal('appDetailsModal');
+    } catch(e) { console.error("Error updating status:", e); }
+}
+
+async function deleteAppointment() {
+    if(!currentSelectedAppId) return;
+    if(confirm(window.confDelTxt)) {
+        try {
+            await db.collection("Appointments").doc(currentSelectedAppId).delete();
+            closeModal('appDetailsModal');
+        } catch(e) { console.error("Error deleting:", e); }
+    }
+}
+
+// 5. قائمة المرضى والتفاصيل
 function openPatientsModal() {
     const container = document.getElementById('patientsContainer');
     container.innerHTML = '';
@@ -189,10 +208,7 @@ function openPatientsModal() {
             const li = document.createElement('li');
             li.className = 'data-list-li';
             li.onclick = () => openPatientDetails(p);
-            li.innerHTML = `
-                <span style="font-weight: bold; font-size: 16px;">🦷 ${p.name}</span>
-                <span class="data-badge" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;">📞 ${p.phone}</span>
-            `;
+            li.innerHTML = `<span style="font-weight: bold; font-size: 16px;">🦷 ${p.name}</span><span class="data-badge" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1;">📞 ${p.phone}</span>`;
             container.appendChild(li);
         });
     }
@@ -203,9 +219,9 @@ function openPatientDetails(p) {
     currentSelectedPatientId = p.id;
     document.getElementById('pdet_name').innerText = p.name;
     document.getElementById('pdet_phone').innerText = p.phone;
-    document.getElementById('pdet_age').innerText = p.age + ' سنة';
-    
     const lang = localStorage.getItem('preferredLang') || 'ar';
+    document.getElementById('pdet_age').innerText = p.age + (lang === 'ar' ? ' سنة' : ' Years');
+    
     let historyStr = (p.medicalHistory && p.medicalHistory.length > 0) ? p.medicalHistory.join(' ، ') : (lang === 'ar' ? 'سليم' : 'Healthy');
     document.getElementById('pdet_history').innerText = historyStr;
     if(historyStr === 'سليم' || historyStr === 'Healthy') document.getElementById('pdet_history').style.color = '#10b981';
@@ -216,12 +232,11 @@ function openPatientDetails(p) {
 
 function goToPatientProfile() {
     if(currentSelectedPatientId) {
-        // نفتح الشاشة الكاملة من الـ iframe الأب
         window.parent.loadPage(`patient-profile.html?id=${currentSelectedPatientId}`, window.parent.document.getElementById('nav-patients').parentElement);
     }
 }
 
-// 3. قائمة الإيرادات
+// 6. الإيرادات والجلسات
 function openRevenueModal() {
     const container = document.getElementById('revenueContainer');
     container.innerHTML = '';
@@ -232,17 +247,13 @@ function openRevenueModal() {
             const li = document.createElement('li');
             li.className = 'data-list-li';
             const lang = localStorage.getItem('preferredLang') || 'ar';
-            li.innerHTML = `
-                <span style="font-weight: bold; font-size: 15px;">📝 ${rev.notes || (lang==='ar'?'دفعة نقدية':'Cash Payment')}</span>
-                <span class="data-badge green">💰 ${rev.amount}</span>
-            `;
+            li.innerHTML = `<span style="font-weight: bold; font-size: 15px;">📝 ${rev.notes || (lang==='ar'?'دفعة نقدية':'Cash Payment')}</span><span class="data-badge green">💰 ${rev.amount}</span>`;
             container.appendChild(li);
         });
     }
     document.getElementById('revenueModal').style.display = 'flex';
 }
 
-// 4. قائمة الجلسات المكتملة
 function openSessionsModal() {
     const container = document.getElementById('sessionsContainer');
     container.innerHTML = '';
@@ -252,18 +263,14 @@ function openSessionsModal() {
         completedSessionsData.forEach(sess => {
             const li = document.createElement('li');
             li.className = 'data-list-li';
-            li.onclick = () => openAppDetails(sess); // نعرض تفاصيلها زي أي موعد
-            li.innerHTML = `
-                <span style="font-weight: bold; font-size: 16px;">✅ ${sess.patientName}</span>
-                <span class="data-badge" style="background: #10b981;">⏰ ${sess.date}</span>
-            `;
+            li.onclick = () => openAppDetails(sess); 
+            li.innerHTML = `<span style="font-weight: bold; font-size: 16px;">✅ ${sess.patientName}</span><span class="data-badge" style="background: #10b981;">⏰ ${sess.date}</span>`;
             container.appendChild(li);
         });
     }
     document.getElementById('sessionsModal').style.display = 'flex';
 }
 
-// التشغيل الأساسي
 window.onload = () => { 
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
