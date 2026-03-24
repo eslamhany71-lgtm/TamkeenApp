@@ -7,106 +7,14 @@
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <link rel="stylesheet" href="css/dashboard.css">
+    
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    
-    <style>
-        /* ستايل الـ Dashboard الطبي الأنيق */
-        body { 
-            background-color: transparent; 
-            padding: 0; 
-            margin: 0; 
-            font-family: 'Tajawal', sans-serif;
-            color: #1e293b;
-        }
-        .dashboard-wrapper { padding: 30px; }
-        
-        /* الترحيب */
-        .header-section { margin-bottom: 30px; }
-        .header-section h1 { margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; }
-        .header-section p { margin: 5px 0 0 0; color: #64748b; font-size: 15px; }
-
-        /* كروت الإحصائيات (KPIs) */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .kpi-card {
-            background: #fff;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-right: 4px solid transparent;
-            transition: 0.3s;
-        }
-        .kpi-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        .kpi-card.blue { border-right-color: #0284C7; } /* NivaDent Blue */
-        .kpi-card.green { border-right-color: #10b981; }
-        .kpi-card.orange { border-right-color: #f59e0b; }
-        .kpi-card.purple { border-right-color: #8b5cf6; }
-
-        .kpi-info h4 { margin: 0 0 5px 0; font-size: 14px; color: #64748b; font-weight: 700; }
-        .kpi-info h2 { margin: 0; font-size: 28px; color: #0f172a; font-weight: 800; }
-        .kpi-icon {
-            width: 50px; height: 50px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center; font-size: 24px;
-        }
-        .kpi-icon.blue { background: #E0F2FE; color: #0284C7; }
-        .kpi-icon.orange { background: #fff7ed; color: #f59e0b; }
-        .kpi-icon.green { background: #f0fdf4; color: #10b981; }
-        .kpi-icon.purple { background: #faf5ff; color: #8b5cf6; }
-
-        /* قسم الرسوم البيانية والإجراءات السريعة */
-        .main-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-        }
-        @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
-
-        .panel {
-            background: #fff;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
-        }
-        .panel-title { margin: 0 0 20px 0; font-size: 18px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
-
-        /* الإجراءات السريعة */
-        .quick-actions { display: flex; flex-direction: column; gap: 12px; }
-        .action-btn {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: right;
-            font-family: inherit;
-            font-size: 14px;
-            font-weight: 700;
-            color: #334155;
-            cursor: pointer;
-            transition: 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .action-btn:hover { background: #F0F9FF; border-color: #BAE6FD; transform: translateX(-5px); color: #0284C7; }
-        html[dir="ltr"] .action-btn:hover { transform: translateX(5px); text-align: left; }
-        .action-btn span { font-size: 18px; }
-
-    </style>
 </head>
 <body>
     <div class="dashboard-wrapper">
-        
         <div class="header-section">
             <h1 id="txt-welcome">نظرة عامة على العيادة</h1>
             <p id="txt-subtitle">ملخص الأداء اليومي وإحصائيات المرضى اللحظية</p>
@@ -114,31 +22,22 @@
 
         <div class="kpi-grid">
             <div class="kpi-card blue">
-                <div class="kpi-info">
-                    <h4 id="lbl-patients">إجمالي المرضى</h4>
-                    <h2 id="stat-patients">0</h2>
-                </div>
+                <div class="kpi-info"><h4 id="lbl-patients">إجمالي المرضى</h4><h2 id="stat-patients">0</h2></div>
                 <div class="kpi-icon blue">🦷</div>
             </div>
-            <div class="kpi-card orange">
+            <div class="kpi-card orange" onclick="openWaitingListModal()" title="اضغط لعرض قائمة الانتظار">
                 <div class="kpi-info">
-                    <h4 id="lbl-appointments">مواعيد اليوم</h4>
+                    <h4 id="lbl-appointments">في الانتظار (اليوم)</h4>
                     <h2 id="stat-appointments">0</h2>
                 </div>
-                <div class="kpi-icon orange">📅</div>
+                <div class="kpi-icon orange">⏳</div>
             </div>
             <div class="kpi-card green">
-                <div class="kpi-info">
-                    <h4 id="lbl-revenue">إيرادات اليوم</h4>
-                    <h2 id="stat-revenue">0</h2>
-                </div>
+                <div class="kpi-info"><h4 id="lbl-revenue">إيرادات اليوم</h4><h2 id="stat-revenue">0</h2></div>
                 <div class="kpi-icon green">💵</div>
             </div>
             <div class="kpi-card purple">
-                <div class="kpi-info">
-                    <h4 id="lbl-sessions">جلسات مكتملة</h4>
-                    <h2 id="stat-sessions">0</h2>
-                </div>
+                <div class="kpi-info"><h4 id="lbl-sessions">جلسات مكتملة</h4><h2 id="stat-sessions">0</h2></div>
                 <div class="kpi-icon purple">✅</div>
             </div>
         </div>
@@ -148,155 +47,47 @@
                 <h3 class="panel-title" id="lbl-chart">حالات المواعيد والجلسات</h3>
                 <canvas id="dashboardChart" style="max-height: 300px;"></canvas>
             </div>
-
             <div class="panel">
                 <h3 class="panel-title" id="lbl-actions">إجراءات سريعة</h3>
                 <div class="quick-actions">
+                    <button class="action-btn" onclick="openWaitingListModal()">
+                        <span>⏳</span> <div id="btn-wait-list">عرض قائمة الانتظار (اليوم)</div>
+                    </button>
                     <button class="action-btn" onclick="window.parent.loadPage('patients.html', window.parent.document.getElementById('nav-patients').parentElement)">
                         <span>➕</span> <div id="btn-add-patient">إضافة مريض جديد</div>
                     </button>
                     <button class="action-btn" onclick="window.parent.loadPage('calendar.html', window.parent.document.getElementById('nav-calendar').parentElement)">
                         <span>🗓️</span> <div id="btn-book-app">حجز موعد جديد</div>
                     </button>
-                    <button class="action-btn" onclick="window.parent.loadPage('finances.html', window.parent.document.getElementById('nav-finances').parentElement)">
-                        <span>🧾</span> <div id="btn-add-expense">تسجيل مصروف جديد</div>
-                    </button>
                 </div>
             </div>
         </div>
+    </div>
 
+    <div id="waitingListModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('waitingListModal')">&times;</span>
+            <h2 style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">⏳ قائمة الانتظار لليوم</h2>
+            <ul class="waiting-list-ul" id="waitingListContainer">
+                <li style="text-align:center; padding: 20px; color: #64748b;">جاري التحميل...</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="appDetailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('appDetailsModal')">&times;</span>
+            <h2 style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">تفاصيل الحجز</h2>
+            <div class="details-box" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>👤 اسم المريض:</strong> <span id="det_name" style="color: #0284C7; font-weight: bold;"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>⏰ الساعة:</strong> <span id="det_time"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🩺 نوع الكشف:</strong> <span id="det_type"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📝 ملاحظات:</strong> <span id="det_notes"></span></p>
+            </div>
+        </div>
     </div>
 
     <script src="js/firebase-config.js"></script>
-    <script>
-        // 1. نظام الترجمة لصفحة الـ Dashboard الطبية
-        function updatePageContent(lang) {
-            const t = {
-                ar: {
-                    welcome: "نظرة عامة على العيادة", subtitle: "ملخص الأداء اليومي وإحصائيات المرضى اللحظية",
-                    pat: "إجمالي المرضى", app: "مواعيد اليوم", rev: "إيرادات اليوم", sess: "جلسات مكتملة",
-                    chart: "حالات المواعيد والجلسات", actions: "إجراءات سريعة",
-                    btnAddPat: "إضافة مريض جديد", btnBookApp: "حجز موعد جديد", btnAddExp: "تسجيل مصروف جديد"
-                },
-                en: {
-                    welcome: "Clinic Overview", subtitle: "Daily performance & real-time patient stats",
-                    pat: "Total Patients", app: "Today's Appointments", rev: "Today's Revenue", sess: "Completed Sessions",
-                    chart: "Appointments & Sessions Status", actions: "Quick Actions",
-                    btnAddPat: "Add New Patient", btnBookApp: "Book Appointment", btnAddExp: "Log New Expense"
-                }
-            };
-            const c = t[lang] || t.ar;
-            const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
-
-            setTxt('txt-welcome', c.welcome); setTxt('txt-subtitle', c.subtitle);
-            setTxt('lbl-patients', c.pat); setTxt('lbl-appointments', c.app); 
-            setTxt('lbl-revenue', c.rev); setTxt('lbl-sessions', c.sess);
-            setTxt('lbl-chart', c.chart); setTxt('lbl-actions', c.actions);
-            setTxt('btn-add-patient', c.btnAddPat); setTxt('btn-book-app', c.btnBookApp); setTxt('btn-add-expense', c.btnAddExp);
-        }
-
-        // 2. تحديث الرسم البياني (حالات المواعيد)
-        let dashChart = null;
-        function updateChart(pending, completed, cancelled) {
-            const ctx = document.getElementById('dashboardChart').getContext('2d');
-            const lang = localStorage.getItem('preferredLang') || 'ar';
-            
-            const labels = lang === 'ar' ? 
-                ['في الانتظار', 'مكتملة', 'ملغاة'] : 
-                ['Pending', 'Completed', 'Cancelled'];
-
-            if (dashChart) dashChart.destroy();
-
-            dashChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: lang === 'ar' ? 'عدد المواعيد' : 'Appointments Count',
-                        data: [pending, completed, cancelled],
-                        backgroundColor: ['#f59e0b', '#10b981', '#ef4444'], // برتقالي، أخضر، أحمر
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-                }
-            });
-        }
-
-        // 3. جلب الإحصائيات من فايربيز (معزولة بـ clinicId)
-        function loadDashboardStats() {
-            const db = firebase.firestore();
-            // الختم السحري اللي بيمنع اختلاط الداتا
-            const clinicId = sessionStorage.getItem('clinicId'); 
-
-            if (!clinicId) {
-                console.warn("لم يتم العثور على معرف العيادة!");
-                return;
-            }
-
-            // أ. جلب إجمالي المرضى للعيادة دي بس
-            db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
-                document.getElementById('stat-patients').innerText = snap.size;
-            }, err => console.log("Patients error:", err));
-
-            // ب. جلب المواعيد وحساب حالاتها (مؤقتاً هنجيب كل المواعيد ونفلترها للرسم البياني)
-            db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
-                let pending = 0, completed = 0, cancelled = 0, todayApps = 0;
-                
-                // الحصول على تاريخ اليوم بصيغة (YYYY-MM-DD)
-                const todayStr = new Date().toISOString().split('T')[0];
-
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    if (data.status === 'pending') pending++;
-                    if (data.status === 'completed') completed++;
-                    if (data.status === 'cancelled') cancelled++;
-                    
-                    // حساب مواعيد اليوم فقط
-                    if (data.date === todayStr) todayApps++;
-                });
-
-                document.getElementById('stat-appointments').innerText = todayApps;
-                document.getElementById('stat-sessions').innerText = completed;
-                
-                updateChart(pending, completed, cancelled);
-            }, err => console.log("Appointments error:", err));
-
-            // ج. جلب إيرادات اليوم
-            db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
-                let todayRev = 0;
-                const todayStr = new Date().toISOString().split('T')[0];
-
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    if (data.date === todayStr && data.amount) {
-                        todayRev += Number(data.amount);
-                    }
-                });
-
-                document.getElementById('stat-revenue').innerText = todayRev;
-            }, err => console.log("Finances error:", err));
-        }
-
-        // 4. التشغيل عند التحميل
-        window.onload = () => { 
-            const lang = localStorage.getItem('preferredLang') || 'ar';
-            document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
-            updatePageContent(lang); 
-
-            // رسم بياني مبدئي أصفار لحد ما الداتا تحمل
-            updateChart(0, 0, 0);
-
-            // التأكد من تسجيل الدخول قبل محاولة جلب البيانات
-            firebase.auth().onAuthStateChanged((user) => {
-                if (user) {
-                    loadDashboardStats();
-                }
-            });
-        };
-    </script>
+    <script src="js/dashboard.js"></script>
 </body>
 </html>
