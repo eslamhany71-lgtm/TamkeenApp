@@ -1,4 +1,4 @@
-// auth.js - النسخة النهائية المعالجة (Fix: Activation Interruption & Role Fetching)
+// auth.js - نسخة NivaDent السحابية (Multi-Tenant & Dental SaaS)
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -8,7 +8,7 @@ auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop() || "index.html";
     
-    // 🔴 [الحل السحري هنا]: لو إحنا في صفحة التفعيل، أوقف المراقب تماماً عشان ميقطعش بناء الجداول
+    // إيقاف المراقب في صفحة التفعيل لمنع المقاطعة
     if (fileName === "activate.html") {
         return; 
     }
@@ -44,7 +44,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (تقرأ الصلاحية والإيميل من قاعدة الموظفين الأصلية)
+// 2. دالة تسجيل الدخول (تقرأ الصلاحية ومعرف العيادة من قاعدة الموظفين الأصلية)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -66,7 +66,7 @@ async function loginById() {
     try {
         let loginEmail = rawInput.toLowerCase();
 
-        // الاعتماد الكلي على Employee_Database لجلب الإيميل والصلاحية
+        // الاعتماد الكلي على Employee_Database لجلب الإيميل والصلاحية ومعرف العيادة
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("Employee_Database").doc(rawInput).get();
             
@@ -77,9 +77,10 @@ async function loginById() {
             const empData = empDoc.data();
             loginEmail = empData.email;
             
-            // 🔴 [طلبك تنفذ]: حفظ الصلاحية الأصلية من جدول الموظفين
+            // 🔴 [الختم السحري]: حفظ الصلاحية ومعرف العيادة لضمان الخصوصية
             sessionStorage.setItem('userRole', empData.role);
             sessionStorage.setItem('empCode', rawInput);
+            sessionStorage.setItem('clinicId', empData.clinicId || 'default'); // حفظ معرف العيادة
         }
 
         await auth.signInWithEmailAndPassword(loginEmail, pass);
@@ -100,7 +101,7 @@ async function loginById() {
     }
 }
 
-// 3. دالة التفعيل (الآن ستعمل للنهاية بدون مقاطعة)
+// 3. دالة التفعيل (تزرع معرف العيادة في جدول المستخدمين الجديد)
 async function activateAccount() {
     const codeRaw = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -118,7 +119,7 @@ async function activateAccount() {
         const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
-            if(msg) msg.innerText = "الكود غير مسجل، راجع الـ HR"; return;
+            if(msg) msg.innerText = "الكود غير مسجل، راجع إدارة النظام"; return;
         }
 
         const empData = empDoc.data();
@@ -135,12 +136,13 @@ async function activateAccount() {
         // 1. إنشاء الحساب في الفايربيز
         await auth.createUserWithEmailAndPassword(realEmail, pass);
         
-        // 2. بناء جدول الـ Users (الآن سيكتمل بنجاح)
+        // 2. بناء جدول الـ Users (مع إضافة ختم العيادة)
         await db.collection("Users").doc(realEmail).set({
-            role: (empData.role || "employee").toLowerCase().trim(),
+            role: (empData.role || "doctor").toLowerCase().trim(),
             name: empData.name,
             empCode: codeRaw, 
-            email: realEmail
+            email: realEmail,
+            clinicId: empData.clinicId || 'default' // 🔴 إضافة الختم هنا كمان
         });
 
         // 3. تحديث جدول الموظفين الأساسي
@@ -195,32 +197,32 @@ async function sendResetLink(e) {
     }
 }
 
-// 5. نظام الترجمة
+// 5. نظام الترجمة (محدث بالكامل ليتوافق مع NivaDent)
 function updatePageContent(lang) {
     const translations = {
         ar: {
-            title: "تسجيل الدخول - نظام تمكين", welcome: "أهلاً بعودتك", subLogin: "قم بتسجيل الدخول لمتابعة عملك",
-            code: "كود الموظف أو الإيميل", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "موظف جديد؟", actLink: "تفعيل حسابك من هنا",
-            brandTitle: "تمكين للتمويل", brandDesc: "نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.",
-            feat1: "✔️ أمان عالي", feat2: "✔️ سرعة في الأداء", feat3: "✔️ تقارير ذكية",
+            title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
+            code: "كود الدخول أو البريد الإلكتروني", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "حساب جديد؟", actLink: "تفعيل حساب العيادة من هنا",
+            brandTitle: "NivaDent", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
+            feat1: "✔️ ملف طبي ذكي وأشعة", feat2: "✔️ إدارة الجلسات والمواعيد", feat3: "✔️ روشتات وحسابات دقيقة",
             forgotPass: "نسيت كلمة المرور؟", resetTitle: "استعادة كلمة المرور", resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
             btnReset: "إرسال رابط الاستعادة", emailPlaceholder: "أدخل البريد الإلكتروني",
-            actPageTitle: "تفعيل الحساب - نظام تمكين", actWelcome: "تفعيل حساب جديد", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة الموارد البشرية",
-            actCode: "كود الموظف", actPhone: "رقم الموبايل", actPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن",
-            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في فريقنا",
-            brandActDesc: "يسعدنا انضمامك لفريق تمكين. قم بتفعيل حسابك للوصول إلى لوحة التحكم الخاصة بك ومتابعة مهامك بكل سهولة.", actEmail: "البريد الإلكتروني الشخصي"
+            actPageTitle: "تفعيل الحساب - NivaDent", actWelcome: "تفعيل حساب العيادة", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
+            actCode: "كود الدخول", actPhone: "رقم الموبايل", actPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن",
+            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في NivaDent",
+            brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة"
         },
         en: {
-            title: "Login - Tamkeen System", welcome: "Welcome Back", subLogin: "Sign in to continue your work",
-            code: "Employee ID or Email", pass: "Password", btn: "Login", newEmp: "New employee?", actLink: "Activate your account here",
-            brandTitle: "Tamkeen Finance", brandDesc: "Comprehensive management system for HR, Sales, and Branches. Designed to increase work efficiency and facilitate communication.",
-            feat1: "✔️ High Security", feat2: "✔️ Fast Performance", feat3: "✔️ Smart Reports",
+            title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
+            code: "Access Code or Email", pass: "Password", btn: "Login", newEmp: "New Account?", actLink: "Activate clinic account here",
+            brandTitle: "NivaDent", brandDesc: "The smartest cloud system for dental practice management. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
+            feat1: "✔️ Smart Medical Records & X-Rays", feat2: "✔️ Appointments & Sessions Management", feat3: "✔️ E-Prescriptions & Accurate Billing",
             forgotPass: "Forgot Password?", resetTitle: "Reset Password", resetSub: "Enter your registered email, and we will send you a link to set a new password.",
             btnReset: "Send Reset Link", emailPlaceholder: "Enter email address",
-            actPageTitle: "Activate Account - Tamkeen", actWelcome: "Activate New Account", actSub: "Please enter the data registered with the HR department",
-            actCode: "Employee Code", actPhone: "Mobile Number", actPass: "Choose a new password", btnAct: "Activate Account Now",
-            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to Our Team",
-            brandActDesc: "We are glad you joined Tamkeen. Activate your account to access your dashboard and track your tasks easily.", actEmail: "Personal Email Address"
+            actPageTitle: "Activate Account - NivaDent", actWelcome: "Activate Clinic Account", actSub: "Please enter the data registered with the system administration",
+            actCode: "Access Code", actPhone: "Mobile Number", actPass: "Choose a new password", btnAct: "Activate Account Now",
+            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to NivaDent",
+            brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address"
         }
     };
     const t = translations[lang] || translations['ar'];
