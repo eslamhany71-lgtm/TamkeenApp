@@ -159,10 +159,18 @@ function filterPatients() {
     }
 }
 
-// التشغيل عند التحميل
+// التشغيل عند التحميل (بعد التأكد من تسجيل الدخول)
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
-    loadPatients();
+    
+    // 🔴 السر هنا: مش هنجيب الداتا إلا لما الفايربيز يبصم بالعشرة إنك مسجل دخول
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            loadPatients(); // دلوقتي بس نقدر نطلب الداتا بأمان
+        } else {
+            console.log("جاري التحقق من تسجيل الدخول...");
+        }
+    });
 };
