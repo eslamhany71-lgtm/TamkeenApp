@@ -281,3 +281,6 @@ body {
     display: block;
     background-color: var(--bg-color);
 }
+/* إخفاء اسم العيادة عند طي القائمة الجانبية */
+.sidebar.collapsed #txt-clinic-name { display: none !important; }
+.sidebar.collapsed #clinic-brand-area { padding: 15px 5px !important; border-bottom: none !important; margin-bottom: 5px !important; }
