@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">تسجيل الدخول - نظام تمكين</title>
+    <title id="txt-title">تسجيل الدخول - نظام NivaDent</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -19,12 +19,20 @@
                     <span onclick="setLanguage('en')">EN</span>
                 </div>
 
-                <div class="mobile-brand-icon">⚡</div>
-                <h3 id="txt-welcome">أهلاً بعودتك</h3>
-                <p class="sub-text" id="sub-login">قم بتسجيل الدخول لمتابعة عملك</p>
+                <div class="mobile-brand-icon" style="background: transparent; box-shadow: none;">
+                    <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="100" height="100" rx="20" fill="#E0F2FE"/>
+                        <path d="M30 40C30 28.9543 38.9543 20 50 20C61.0457 20 70 28.9543 70 40V60C70 65.5228 65.5228 70 60 70C54.4772 70 50 65.5228 50 60C50 65.5228 45.5228 70 40 70C34.4772 70 30 65.5228 30 60V40Z" fill="#0284C7"/>
+                        <path d="M50 20C38.9543 20 30 28.9543 30 40V60C30 65.5228 34.4772 70 40 70C45.5228 70 50 65.5228 50 60V20Z" fill="#0EA5E9"/>
+                        <circle cx="50" cy="50" r="8" fill="#FFFFFF"/>
+                    </svg>
+                </div>
+
+                <h3 id="txt-welcome">أهلاً بك في NivaDent</h3>
+                <p class="sub-text" id="sub-login">قم بتسجيل الدخول لإدارة عيادتك</p>
                 
                 <div class="input-group">
-                    <label id="lbl-code">كود الموظف أو البريد الإلكتروني</label>
+                    <label id="lbl-code">كود الدخول أو البريد الإلكتروني</label>
                     <div class="input-wrapper">
                         <span class="input-icon">👤</span>
                         <input type="text" id="empCode" placeholder="أدخل الكود الخاص بك" required>
@@ -42,27 +50,38 @@
                 <button id="btn-login" class="btn-primary" onclick="loginById()">تسجيل الدخول</button>
                 
                 <div class="forgot-password-container" style="text-align: center; margin-top: 15px;">
-                    <a href="#" onclick="openResetModal()" id="link-forgot" style="color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 700;">نسيت كلمة المرور؟</a>
+                    <a href="#" onclick="openResetModal()" id="link-forgot" style="color: #0284C7; text-decoration: none; font-size: 14px; font-weight: 700;">نسيت كلمة المرور؟</a>
                 </div>
 
                 <div id="errorMessage" class="error-msg"></div>
 
                 <div class="register-link">
-                    <span id="txt-new">موظف جديد؟</span> 
-                    <a href="activate.html" id="link-activate">تفعيل حسابك من هنا</a>
+                    <span id="txt-new">حساب جديد؟</span> 
+                    <a href="activate.html" id="link-activate">تفعيل حساب العيادة من هنا</a>
                 </div>
             </div>
         </div>
 
-        <div class="brand-side">
+        <div class="brand-side" style="background: linear-gradient(135deg, #0F172A, #0284C7);">
             <div class="brand-content">
-                <div class="brand-logo">⚡</div>
-                <h1 id="txt-brand">تمكين للتمويل</h1>
-                <p id="brand-desc">نظام الإدارة الشامل للموارد البشرية والمبيعات والفروع. صُمم لرفع كفاءة العمل وتسهيل التواصل بين جميع الأقسام.</p>
+                <div class="brand-logo" style="background: transparent; box-shadow: none; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                        <svg width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="100" height="100" rx="20" fill="#E0F2FE"/>
+                            <path d="M30 40C30 28.9543 38.9543 20 50 20C61.0457 20 70 28.9543 70 40V60C70 65.5228 65.5228 70 60 70C54.4772 70 50 65.5228 50 60C50 65.5228 45.5228 70 40 70C34.4772 70 30 65.5228 30 60V40Z" fill="#0284C7"/>
+                            <path d="M50 20C38.9543 20 30 28.9543 30 40V60C30 65.5228 34.4772 70 40 70C45.5228 70 50 65.5228 50 60V20Z" fill="#0EA5E9"/>
+                            <circle cx="50" cy="50" r="8" fill="#FFFFFF"/>
+                        </svg>
+                        <span style="font-size: 36px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; font-family: 'Tajawal', sans-serif;">
+                            Niva<span style="color: #38BDF8;">Dent</span>
+                        </span>
+                    </div>
+                </div>
+                <h1 id="txt-brand" style="display: none;">NivaDent</h1> <p id="brand-desc">النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.</p>
                 <div class="features">
-                    <span id="feat-1">✔️ أمان عالي</span>
-                    <span id="feat-2">✔️ سرعة في الأداء</span>
-                    <span id="feat-3">✔️ تقارير ذكية</span>
+                    <span id="feat-1">✔️ ملف طبي ذكي وأشعة</span>
+                    <span id="feat-2">✔️ إدارة الجلسات والمواعيد</span>
+                    <span id="feat-3">✔️ روشتات وحسابات دقيقة</span>
                 </div>
             </div>
         </div>
@@ -76,7 +95,7 @@
             
             <form onsubmit="sendResetLink(event)">
                 <input type="email" id="resetEmailInput" placeholder="أدخل البريد الإلكتروني" required style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; margin-bottom: 15px; box-sizing: border-box; outline: none; font-family: inherit;">
-                <button type="submit" id="btn-send-reset" style="width: 100%; background: #2563eb; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; font-family: inherit;">إرسال رابط الاستعادة</button>
+                <button type="submit" id="btn-send-reset" style="width: 100%; background: #0284C7; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; font-family: inherit;">إرسال رابط الاستعادة</button>
             </form>
         </div>
     </div>
