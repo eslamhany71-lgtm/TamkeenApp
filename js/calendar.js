@@ -1,8 +1,9 @@
+// js/calendar.js
+
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
-let calendar; // المتغير اللي هيشيل النتيجة
+let calendar; 
 
-// 1. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -25,7 +26,6 @@ function updatePageContent(lang) {
     setTxt('opt-new', c.optNew); setTxt('opt-follow', c.optFollow); setTxt('opt-session', c.optSess); setTxt('btn-save', c.btnSave);
 }
 
-// 2. دوال النافذة المنبثقة
 function openAppointmentModal() {
     document.getElementById('addAppointmentForm').reset();
     document.getElementById('appointmentModal').style.display = 'flex';
@@ -34,13 +34,16 @@ function closeAppointmentModal() {
     document.getElementById('appointmentModal').style.display = 'none';
 }
 
-// 3. بناء النتيجة (FullCalendar)
+function closeAppDetailsModal() {
+    document.getElementById('appDetailsModal').style.display = 'none';
+}
+
 function initCalendar() {
     const calendarEl = document.getElementById('calendar');
     const lang = localStorage.getItem('preferredLang') || 'ar';
     
     calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek', // عرض الأسبوع بالساعات
+        initialView: 'timeGridWeek', 
         locale: lang === 'ar' ? 'ar' : 'en',
         direction: lang === 'ar' ? 'rtl' : 'ltr',
         headerToolbar: {
@@ -48,17 +51,37 @@ function initCalendar() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
-        slotMinTime: '09:00:00', // بداية الشغل 9 الصبح
-        slotMaxTime: '22:00:00', // نهاية الشغل 10 بالليل
+        slotMinTime: '09:00:00', 
+        slotMaxTime: '22:00:00',
         allDaySlot: false,
-        events: [] // هنجيبها من الفايربيز
+        events: [],
+        
+        // السر هنا: لما تدوس على الموعد يفتح المودال بالتفاصيل
+        eventClick: function(info) {
+            const props = info.event.extendedProps;
+            document.getElementById('det_name').innerText = props.patientName;
+            
+            // تظبيط شكل التاريخ والوقت
+            const dateObj = new Date(info.event.start);
+            document.getElementById('det_date').innerText = dateObj.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+            document.getElementById('det_time').innerText = dateObj.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            
+            document.getElementById('det_type').innerText = props.type;
+            document.getElementById('det_notes').innerText = props.notes || (lang === 'ar' ? 'لا يوجد ملاحظات' : 'No notes');
+            
+            let statusTxt = 'في الانتظار';
+            if(props.status === 'completed') statusTxt = 'مكتمل';
+            if(props.status === 'cancelled') statusTxt = 'ملغي';
+            document.getElementById('det_status').innerText = statusTxt;
+
+            document.getElementById('appDetailsModal').style.display = 'flex';
+        }
     });
     
     calendar.render();
-    loadAppointments(); // تحميل المواعيد بعد رسم النتيجة
+    loadAppointments(); 
 }
 
-// 4. حفظ الموعد في الفايربيز
 async function saveAppointment(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -70,10 +93,9 @@ async function saveAppointment(e) {
     const timeVal = document.getElementById('app_time').value;
     const typeVal = document.getElementById('app_type').value;
 
-    // تحديد لون الموعد بناءً على نوعه
-    let eventColor = '#0284C7'; // أزرق للكشف
-    if (typeVal.includes('استشارة')) eventColor = '#f59e0b'; // برتقالي
-    if (typeVal.includes('جلسة')) eventColor = '#10b981'; // أخضر
+    let eventColor = '#0284C7'; 
+    if (typeVal.includes('استشارة')) eventColor = '#f59e0b'; 
+    if (typeVal.includes('جلسة')) eventColor = '#10b981'; 
 
     const appData = {
         clinicId: currentClinicId,
@@ -83,7 +105,7 @@ async function saveAppointment(e) {
         type: typeVal,
         notes: document.getElementById('app_notes').value.trim(),
         color: eventColor,
-        status: 'pending', // حالة الموعد (في الانتظار)
+        status: 'pending', 
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -100,21 +122,15 @@ async function saveAppointment(e) {
     }
 }
 
-// 5. جلب المواعيد وعرضها في النتيجة
 function loadAppointments() {
     if (!currentClinicId || !calendar) return;
 
     db.collection("Appointments")
       .where("clinicId", "==", currentClinicId)
       .onSnapshot(snap => {
-        
-        // مسح المواعيد القديمة من النتيجة قبل وضع الجديدة (عشان التكرار)
         calendar.removeAllEvents();
-
         snap.forEach(doc => {
             const data = doc.data();
-            
-            // دمج التاريخ والوقت عشان النتيجة تفهمه
             const startDateTime = `${data.date}T${data.time}:00`;
 
             calendar.addEvent({
@@ -122,19 +138,24 @@ function loadAppointments() {
                 title: `${data.patientName} (${data.type})`,
                 start: startDateTime,
                 backgroundColor: data.color || '#0284C7',
-                borderColor: data.color || '#0284C7'
+                borderColor: data.color || '#0284C7',
+                // بنخزن الداتا الإضافية هنا عشان المودال يقرأها
+                extendedProps: {
+                    patientName: data.patientName,
+                    type: data.type,
+                    notes: data.notes,
+                    status: data.status
+                }
             });
         });
     });
 }
 
-// 6. التشغيل عند التحميل
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
     
-    // التأكد من تسجيل الدخول قبل رسم النتيجة وجلب الداتا
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
             initCalendar();
