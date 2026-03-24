@@ -33,47 +33,53 @@
     </div>
 
     <div id="appointmentModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeAppointmentModal()">&times;</span>
-            <h2 id="modal-title" style="margin-top: 0; margin-bottom: 20px;">حجز موعد جديد</h2>
+    <div class="modal-content">
+        <span class="close-modal" onclick="closeAppModal()">&times;</span>
+        <h2 id="modal-title">حجز موعد جديد</h2>
+        
+        <form id="appForm" onsubmit="saveAppointment(event)">
+            <div class="form-group">
+                <label>اسم المريض</label>
+                <input type="text" id="app_patient_name" required list="patientsList">
+                <datalist id="patientsList"></datalist> 
+            </div>
             
-            <form id="addAppointmentForm" onsubmit="saveAppointment(event)">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
-                    <label id="lbl-app-name">اسم المريض</label>
-                    <input type="text" id="app_name" placeholder="ابحث أو اكتب اسم المريض" required>
+                    <label>التاريخ</label>
+                    <input type="date" id="app_date" required>
                 </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label id="lbl-app-date">تاريخ الموعد</label>
-                        <input type="date" id="app_date" required>
-                    </div>
-                    <div class="form-group">
-                        <label id="lbl-app-time">الساعة</label>
-                        <input type="time" id="app_time" required>
-                    </div>
-                </div>
-
                 <div class="form-group">
-                    <label id="lbl-app-type">نوع الكشف / الجلسة</label>
-                    <select id="app_type">
-                        <option value="كشف جديد" id="opt-new">كشف جديد</option>
-                        <option value="استشارة" id="opt-follow">استشارة / متابعة</option>
-                        <option value="جلسة علاج" id="opt-session">جلسة علاجية</option>
-                    </select>
+                    <label>الوقت</label>
+                    <input type="time" id="app_time" required>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label id="lbl-app-notes">ملاحظات (اختياري)</label>
-                    <input type="text" id="app_notes" placeholder="مثال: يرجى تجهيز أشعة البانوراما">
-                </div>
+            <div class="form-group">
+                <label>نوع الإجراء</label>
+                <select id="app_type">
+                    <option value="كشف جديد">كشف جديد</option>
+                    <option value="استشارة">استشارة</option>
+                    <option value="حشو">حشو</option>
+                    <option value="تنظيف جير">تنظيف جير</option>
+                    <option value="تقويم">تقويم</option>
+                    <option value="خلع">خلع</option>
+                </select>
+            </div>
 
-                <button type="submit" id="btn-save" class="btn-add" style="width: 100%; justify-content: center; margin-top: 20px; padding: 12px; font-size: 16px;">
-                    تأكيد الحجز
-                </button>
-            </form>
-        </div>
+            <div class="form-group">
+                <label>ملاحظات</label>
+                <textarea id="app_notes" rows="2" style="width:100%; border-radius:8px; border:1px solid #cbd5e1; padding:8px; font-family:inherit;"></textarea>
+            </div>
+
+            <div id="edit-actions" style="display:none; gap:10px; margin-bottom:10px;">
+                <button type="button" class="btn-danger" onclick="deleteAppointment()" style="flex:1; padding:10px;">🗑️ حذف الموعد</button>
+            </div>
+
+            <button type="submit" id="btn-save-app" class="btn-primary" style="width:100%; padding:12px;">حفظ الموعد</button>
+        </form>
     </div>
+</div>
 
     <div id="appDetailsModal" class="modal" style="display: none;">
         <div class="modal-content">
