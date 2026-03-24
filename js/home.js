@@ -1,75 +1,138 @@
-// home.js - Master Shell Logic (SPA Routing, Roles, Translations)
+// home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
+
+const db = firebase.firestore();
+const auth = firebase.auth();
 
 // 1. دالة التنقل بين الصفحات في الـ Iframe
 function loadPage(pageUrl, clickedLi) {
-    // تغيير الرابط داخل الـ Iframe
     document.getElementById('content-frame').src = pageUrl;
     
-    // إزالة كلاس active من كل الروابط وإضافته للرابط المضغوط
     const allLinks = document.querySelectorAll('#nav-links li');
     allLinks.forEach(li => li.classList.remove('active'));
     clickedLi.classList.add('active');
 
-    // قفل القائمة في الموبايل بعد الاختيار
     if (window.innerWidth <= 992) {
         document.getElementById('sidebar').classList.remove('active');
     }
 }
 
-// 2. دالة تغيير لغة النظام بالكامل (الخارج والداخل)
+// 2. دالة تغيير لغة النظام
 function switchAppLanguage(lang) {
-    setLanguage(lang); // الدالة الأساسية لتغيير الـ LocalStorage
-    updatePageContent(lang); // تحديث القائمة الجانبية
-    // تحديث الصفحة المعروضة داخل الـ Iframe
+    setLanguage(lang); 
+    updatePageContent(lang); 
     const frame = document.getElementById('content-frame');
     if(frame.contentWindow) {
         frame.contentWindow.location.reload();
     }
 }
 
-// 3. الترجمة الخاصة بالهيكل الخارجي فقط
+// 3. الترجمة الخاصة بالهيكل الخارجي (NivaDent Menu)
 function updatePageContent(lang) {
     const t = {
         ar: {
-            brand: "تمكين ERP", header: "لوحة التحكم المركزية",
-            navHome: "الرئيسية", navCrm: "إدارة العملاء (CRM)", navCalc: "حاسبة القروض", navHr: "الخدمات الذاتية", navBranches: "دليل الفروع",
-            navMgr: "لوحة المدير", navHrd: "لوحة الـ HR", navAdm: "إدارة النظام", logout: "تسجيل خروج"
+            header: "لوحة التحكم",
+            navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
+            navSessions: "الجلسات والروشتات", navFinances: "الحسابات والمصروفات",
+            navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج"
         },
         en: {
-            brand: "Tamkeen ERP", header: "Central Dashboard",
-            navHome: "Home", navCrm: "CRM", navCalc: "Loan Calc", navHr: "Self Service", navBranches: "Branches",
-            navMgr: "Manager Panel", navHrd: "HR Panel", navAdm: "System Admin", logout: "Logout"
+            header: "Dashboard",
+            navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
+            navSessions: "Sessions & Prescriptions", navFinances: "Finances",
+            navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout"
         }
     };
     const c = t[lang] || t.ar;
     const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
-    setTxt('txt-brand', c.brand); setTxt('txt-header', c.header);
-    setTxt('nav-home', c.navHome); setTxt('nav-crm', c.navCrm); setTxt('nav-calc', c.navCalc); setTxt('nav-hr', c.navHr); setTxt('nav-branches', c.navBranches);
-    setTxt('nav-mgr-dash', c.navMgr); setTxt('nav-hrd-dash', c.navHrd); setTxt('nav-adm-dash', c.navAdm); setTxt('btn-logout', c.logout);
+    setTxt('txt-header', c.header);
+    setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
+    setTxt('nav-sessions', c.navSessions); setTxt('nav-finances', c.navFinances);
+    setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
 }
 
-// 4. مراقب الصلاحيات (يتحكم في إظهار روابط القائمة الجانبية)
-firebase.auth().onAuthStateChanged((user) => {
+// 4. مراقب الصلاحيات وجلب بيانات العيادة (The Magic Router)
+auth.onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
-        const empCode = user.email.split('@')[0];
 
-        firebase.firestore().collection("Users").doc(user.email).get().then((doc) => {
-            if (doc.exists) applyRoles(doc.data().role);
-        });
+        try {
+            // جلب بيانات المستخدم من الفايربيز
+            const userDoc = await db.collection("Users").doc(user.email).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                const role = userData.role || 'reception';
+                const clinicId = userData.clinicId || sessionStorage.getItem('clinicId') || 'default';
+
+                // حفظ معرف العيادة لضمان استخدامه في الشاشات الداخلية
+                sessionStorage.setItem('clinicId', clinicId);
+
+                // تطبيق الصلاحيات
+                applyRoles(role);
+
+                // تحميل اللوجو واسم العيادة الديناميكي
+                loadClinicBranding(clinicId);
+            }
+        } catch (error) {
+            console.error("خطأ في جلب بيانات المستخدم:", error);
+        }
     } else {
         window.location.href = "index.html";
     }
 });
 
-function applyRoles(role) {
-    const r = role.toLowerCase();
-    if (r === 'manager' || r === 'hr' || r === 'admin') document.getElementById('nav-manager').style.display = 'block';
-    if (r === 'hr' || r === 'admin') document.getElementById('nav-hr-admin').style.display = 'block';
-    if (r === 'admin') document.getElementById('nav-admin').style.display = 'block';
+// 5. دالة جلب لوجو واسم العيادة
+async function loadClinicBranding(clinicId) {
+    if (clinicId === 'default' || !clinicId) return; // الاحتفاظ بلوجو NivaDent الافتراضي
+
+    try {
+        const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
+        if (clinicDoc.exists) {
+            const clinicData = clinicDoc.data();
+            
+            // تغيير اسم العيادة
+            if (clinicData.clinicName) {
+                const nameElement = document.getElementById('txt-clinic-name');
+                if (nameElement) nameElement.innerText = clinicData.clinicName;
+            }
+            
+            // تغيير اللوجو
+            if (clinicData.logoUrl) {
+                const logoContainer = document.getElementById('clinic-logo-container');
+                if (logoContainer) {
+                    logoContainer.innerHTML = `<img src="${clinicData.logoUrl}" alt="Clinic Logo" style="max-width: 45px; max-height: 45px; border-radius: 8px; object-fit: contain;">`;
+                }
+            }
+        }
+    } catch (error) {
+        console.error("خطأ في جلب بيانات العيادة:", error);
+    }
 }
 
+// 6. توزيع الصلاحيات
+function applyRoles(role) {
+    const r = role.toLowerCase();
+    
+    // إخفاء القوائم الحساسة كإجراء افتراضي
+    const settingsLi = document.getElementById('nav-settings-li');
+    const superAdminLi = document.getElementById('nav-super-admin');
+    
+    if (settingsLi) settingsLi.style.display = 'none';
+    if (superAdminLi) superAdminLi.style.display = 'none';
+
+    // الدكتور (أو أدمن العيادة) يشوف الإعدادات
+    if (r === 'doctor' || r === 'admin') {
+        if (settingsLi) settingsLi.style.display = 'block';
+    }
+    
+    // مالك النظام (إسلام الشريف) يشوف كل حاجة
+    if (r === 'superadmin') {
+        if (settingsLi) settingsLi.style.display = 'block';
+        if (superAdminLi) superAdminLi.style.display = 'block';
+    }
+}
+
+// 7. التحكم في القائمة الجانبية (UI)
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
 function toggleSidebarDesktop() {
     document.getElementById('sidebar').classList.toggle('collapsed');
