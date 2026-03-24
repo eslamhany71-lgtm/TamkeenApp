@@ -6,7 +6,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
-    
     <link rel="stylesheet" href="css/calendar.css">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -73,6 +72,22 @@
                     تأكيد الحجز
                 </button>
             </form>
+        </div>
+    </div>
+
+    <div id="appDetailsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeAppDetailsModal()">&times;</span>
+            <h2 style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">تفاصيل الحجز</h2>
+            
+            <div class="details-box" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>👤 اسم المريض:</strong> <span id="det_name" style="color: #0284C7; font-weight: bold;"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📅 التاريخ:</strong> <span id="det_date"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>⏰ الساعة:</strong> <span id="det_time"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🩺 نوع الكشف:</strong> <span id="det_type"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📝 ملاحظات:</strong> <span id="det_notes"></span></p>
+                <p style="margin: 0; font-size: 16px;"><strong>📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
+            </div>
         </div>
     </div>
 
