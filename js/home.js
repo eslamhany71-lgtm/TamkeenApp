@@ -1,7 +1,5 @@
 // home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
 
-const db = firebase.firestore();
-const auth = firebase.auth();
 
 // 1. دالة التنقل بين الصفحات في الـ Iframe
 function loadPage(pageUrl, clickedLi) {
