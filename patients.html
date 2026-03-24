@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="css/patients.css">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -26,19 +25,27 @@
         </div>
     </div>
 
+    <div id="bulk-actions" class="bulk-actions" style="display: none;">
+        <span id="txt-selected-count" style="font-weight: bold; color: #0f172a;">تم تحديد 0 مريض</span>
+        <button class="btn-danger" onclick="deleteSelectedPatients()" id="btn-bulk-delete">🗑️ حذف المحدد</button>
+    </div>
+
     <div class="table-container">
         <table id="patientsTable">
             <thead>
                 <tr>
+                    <th style="width: 40px; text-align: center;">
+                        <input type="checkbox" id="selectAll" class="custom-checkbox" onclick="toggleSelectAll(this)">
+                    </th>
                     <th id="th-name">اسم المريض</th>
                     <th id="th-phone">رقم الموبايل</th>
                     <th id="th-age">السن</th>
                     <th id="th-history">تنبيهات طبية</th>
-                    <th id="th-action">إجراءات</th>
+                    <th id="th-action" style="text-align: center;">إجراءات</th>
                 </tr>
             </thead>
             <tbody id="patientsBody">
-                <tr><td colspan="5" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+                <tr><td colspan="6" style="text-align: center;">جاري تحميل البيانات...</td></tr>
             </tbody>
         </table>
     </div>
@@ -83,7 +90,7 @@
 
                 <div class="form-group">
                     <label id="lbl-p-notes">ملاحظات إضافية</label>
-                    <input type="text" id="p_notes" placeholder="أي ملاحظات أخرى عن حالة المريض...">
+                    <input type="text" id="p_notes" placeholder="أي ملاحظات أخرى...">
                 </div>
 
                 <button type="submit" id="btn-save" class="btn-add" style="width: 100%; justify-content: center; margin-top: 20px; padding: 12px; font-size: 16px;">
