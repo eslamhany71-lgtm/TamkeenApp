@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/patient-profile.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="profile-container">
+        <button class="btn-back" onclick="window.location.href='patients.html'">
+            <span>🔙</span> <span id="txt-back">العودة لقائمة المرضى</span>
+        </button>
+
+        <div class="patient-header-card">
+            <div class="patient-info">
+                <div class="patient-avatar">👤</div>
+                <div>
+                    <h1 id="prof-name">جاري التحميل...</h1>
+                    <div class="patient-meta">
+                        <span id="prof-phone">📞 ---</span>
+                        <span id="prof-age">🎂 --- سنة</span>
+                        <span id="prof-gender">🚻 ---</span>
+                    </div>
+                </div>
+            </div>
+            <div class="patient-alerts" id="prof-alerts">
+                </div>
+        </div>
+
+        <div class="tabs-container">
+            <div class="tab active" onclick="switchTab('sessions', this)" id="tab-sessions">🦷 الجلسات السابقة</div>
+            <div class="tab" onclick="switchTab('xrays', this)" id="tab-xrays">📸 الأشعة والصور</div>
+            <div class="tab" onclick="switchTab('prescriptions', this)" id="tab-prescriptions">💊 الروشتات</div>
+        </div>
+
+        <div class="tab-content active" id="content-sessions">
+            <div class="action-bar">
+                <h3 id="txt-sess-title">سجل الجلسات</h3>
+                <button class="btn-primary" id="btn-add-sess">➕ إضافة جلسة جديدة</button>
+            </div>
+            <div class="empty-state" id="txt-no-sess">لا توجد جلسات مسجلة حتى الآن.</div>
+        </div>
+
+        <div class="tab-content" id="content-xrays">
+            <div class="action-bar">
+                <h3 id="txt-xray-title">معرض الأشعة والصور</h3>
+                <button class="btn-primary" id="btn-add-xray">📸 رفع صورة/أشعة</button>
+            </div>
+            <div class="empty-state" id="txt-no-xray">لا توجد صور أو أشعة مرفوعة.</div>
+        </div>
+
+        <div class="tab-content" id="content-prescriptions">
+            <div class="action-bar">
+                <h3 id="txt-presc-title">الروشتات المصدرة</h3>
+                <button class="btn-primary" id="btn-add-presc">💊 كتابة روشتة جديدة</button>
+            </div>
+            <div class="empty-state" id="txt-no-presc">لم يتم إصدار أي روشتات لهذا المريض.</div>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/patient-profile.js"></script>
+</body>
+</html>
