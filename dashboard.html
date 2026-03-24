@@ -61,27 +61,20 @@
     <div id="waitingListModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('waitingListModal')">&times;</span>
-            <h2 id="mod-wait-title" style="margin-top: 0; margin-bottom: 15px; color: #0f172a;">⏳ قائمة الانتظار</h2>
-            
+            <h2 id="mod-wait-title" class="modal-title">⏳ قائمة الانتظار</h2>
             <div class="modal-tabs">
                 <div class="modal-tab active" id="tab-today-wait" onclick="switchWaitTab('today')">مواعيد اليوم</div>
                 <div class="modal-tab" id="tab-upcoming-wait" onclick="switchWaitTab('upcoming')">الأيام القادمة</div>
             </div>
-
-            <div id="wait-content-today" class="wait-tab-content active">
-                <ul class="data-list-ul" id="todayWaitContainer"></ul>
-            </div>
-            
-            <div id="wait-content-upcoming" class="wait-tab-content">
-                <ul class="data-list-ul" id="upcomingWaitContainer"></ul>
-            </div>
+            <div id="wait-content-today" class="wait-tab-content active"><ul class="data-list-ul" id="todayWaitContainer"></ul></div>
+            <div id="wait-content-upcoming" class="wait-tab-content"><ul class="data-list-ul" id="upcomingWaitContainer"></ul></div>
         </div>
     </div>
 
     <div id="appDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('appDetailsModal')">&times;</span>
-            <h2 id="mod-app-det-title" style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">تفاصيل الحجز</h2>
+            <h2 id="mod-app-det-title" class="modal-title">تفاصيل الحجز</h2>
             <div class="details-box">
                 <p><strong>👤 <span class="lbl-det-name">اسم المريض:</span></strong> <span id="det_name" style="color: #0284C7; font-weight: bold;"></span></p>
                 <p><strong>📅 <span class="lbl-det-date">التاريخ:</span></strong> <span id="det_date"></span></p>
@@ -89,13 +82,18 @@
                 <p><strong>🩺 <span class="lbl-det-type">نوع الكشف:</span></strong> <span id="det_type"></span></p>
                 <p><strong>📝 <span class="lbl-det-notes">ملاحظات:</span></strong> <span id="det_notes"></span></p>
             </div>
+            <div class="app-actions" id="app-actions-container">
+                <button class="btn-app-action btn-success" onclick="updateAppStatus('completed')" id="btn-complete-app">✅ مكتمل</button>
+                <button class="btn-app-action btn-warning" onclick="updateAppStatus('cancelled')" id="btn-cancel-app">❌ إلغاء</button>
+                <button class="btn-app-action btn-danger" onclick="deleteAppointment()" id="btn-delete-app">🗑️ حذف</button>
+            </div>
         </div>
     </div>
 
     <div id="patientsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('patientsModal')">&times;</span>
-            <h2 id="mod-pat-title" style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">🦷 جميع المرضى</h2>
+            <h2 id="mod-pat-title" class="modal-title">🦷 جميع المرضى</h2>
             <ul class="data-list-ul" id="patientsContainer"></ul>
         </div>
     </div>
@@ -103,12 +101,12 @@
     <div id="patientDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('patientDetailsModal')">&times;</span>
-            <h2 id="mod-pat-det-title" style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">تفاصيل المريض</h2>
+            <h2 id="mod-pat-det-title" class="modal-title">تفاصيل المريض</h2>
             <div class="details-box">
                 <p><strong>👤 <span class="lbl-p-name">الاسم:</span></strong> <span id="pdet_name" style="color: #0284C7; font-weight: bold;"></span></p>
-                <p><strong>📱 <span class="lbl-p-phone">الموبايل:</span></strong> <span id="pdet_phone" dir="ltr"></span></p>
+                <p><strong>📱 <span class="lbl-p-phone">الموبايل:</span></strong> <span id="pdet_phone" dir="ltr" style="display:inline-block;"></span></p>
                 <p><strong>🎂 <span class="lbl-p-age">السن:</span></strong> <span id="pdet_age"></span></p>
-                <p><strong>⚠️ <span class="lbl-p-history">أمراض مزمنة:</span></strong> <span id="pdet_history" style="color:#ef4444; font-weight:bold;"></span></p>
+                <p><strong>⚠️ <span class="lbl-p-history">أمراض مزمنة:</span></strong> <span id="pdet_history" style="font-weight:bold;"></span></p>
                 <div style="margin-top: 15px; text-align: center;">
                     <button class="btn-primary" onclick="goToPatientProfile()" id="btn-go-profile">فتح الملف الطبي الكامل</button>
                 </div>
@@ -119,7 +117,7 @@
     <div id="revenueModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('revenueModal')">&times;</span>
-            <h2 id="mod-rev-title" style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">💵 إيرادات اليوم تفصيلياً</h2>
+            <h2 id="mod-rev-title" class="modal-title">💵 إيرادات اليوم تفصيلياً</h2>
             <ul class="data-list-ul" id="revenueContainer"></ul>
         </div>
     </div>
@@ -127,7 +125,7 @@
     <div id="sessionsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('sessionsModal')">&times;</span>
-            <h2 id="mod-sess-title" style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">✅ الجلسات المكتملة</h2>
+            <h2 id="mod-sess-title" class="modal-title">✅ الجلسات المكتملة</h2>
             <ul class="data-list-ul" id="sessionsContainer"></ul>
         </div>
     </div>
