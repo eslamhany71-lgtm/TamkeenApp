@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/patients.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h1 id="txt-title">إدارة المرضى</h1>
+            <p id="txt-subtitle">قائمة المرضى المسجلين بالعيادة والتاريخ الطبي</p>
+        </div>
+        <div class="header-actions">
+            <input type="text" id="searchInput" class="search-box" placeholder="بحث بالاسم أو رقم الموبايل..." onkeyup="filterPatients()">
+            <button class="btn-add" onclick="openPatientModal()">
+                <span>➕</span> <span id="btn-add-txt">إضافة مريض</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="patientsTable">
+            <thead>
+                <tr>
+                    <th id="th-name">اسم المريض</th>
+                    <th id="th-phone">رقم الموبايل</th>
+                    <th id="th-age">السن</th>
+                    <th id="th-history">تنبيهات طبية</th>
+                    <th id="th-action">إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="patientsBody">
+                <tr><td colspan="5" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="patientModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closePatientModal()">&times;</span>
+            <h2 id="modal-title" style="margin-top: 0; margin-bottom: 20px;">تسجيل مريض جديد</h2>
+            
+            <form id="addPatientForm" onsubmit="savePatient(event)">
+                <div class="form-group">
+                    <label id="lbl-p-name">اسم المريض بالكامل</label>
+                    <input type="text" id="p_name" required>
+                </div>
+                <div class="form-group">
+                    <label id="lbl-p-phone">رقم الموبايل</label>
+                    <input type="tel" id="p_phone" required>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label id="lbl-p-age">السن</label>
+                        <input type="number" id="p_age" required>
+                    </div>
+                    <div class="form-group">
+                        <label id="lbl-p-gender">النوع</label>
+                        <select id="p_gender">
+                            <option value="ذكر" id="opt-male">ذكر</option>
+                            <option value="أنثى" id="opt-female">أنثى</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 15px;">
+                    <label id="lbl-p-history" style="color: #ef4444;">التاريخ الطبي والأمراض المزمنة (إن وجد)</label>
+                    <div class="medical-history">
+                        <label class="checkbox-label"><input type="checkbox" id="med_diabetes" value="سكر"> <span id="chk-diab">مرض السكر</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="med_bp" value="ضغط"> <span id="chk-bp">ضغط الدم</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="med_bleeding" value="سيولة"> <span id="chk-bleed">سيولة بالدم</span></label>
+                        <label class="checkbox-label"><input type="checkbox" id="med_allergy" value="حساسية بنج"> <span id="chk-allg">حساسية بنج</span></label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label id="lbl-p-notes">ملاحظات إضافية</label>
+                    <input type="text" id="p_notes" placeholder="أي ملاحظات أخرى عن حالة المريض...">
+                </div>
+
+                <button type="submit" id="btn-save" class="btn-add" style="width: 100%; justify-content: center; margin-top: 20px; padding: 12px; font-size: 16px;">
+                    حفظ بيانات المريض
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/patients.js"></script>
+</body>
+</html>
