@@ -82,10 +82,18 @@ async function loadPatientData() {
     }
 }
 
-// التشغيل عند التحميل
+// التشغيل عند التحميل (بعد التأكد من الباسبور)
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
-    loadPatientData();
+    
+    // الانتظار حتى يتأكد الفايربيز من تسجيل الدخول
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            loadPatientData(); // دلوقتي بس نطلب الملف الطبي
+        } else {
+            console.log("جاري التحقق من الصلاحيات...");
+        }
+    });
 };
