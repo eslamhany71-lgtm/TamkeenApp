@@ -1,5 +1,4 @@
-// home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
-
+// js/home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
 
 // 1. دالة التنقل بين الصفحات في الـ Iframe
 function loadPage(pageUrl, clickedLi) {
@@ -9,8 +8,11 @@ function loadPage(pageUrl, clickedLi) {
     allLinks.forEach(li => li.classList.remove('active'));
     clickedLi.classList.add('active');
 
+    // قفل القائمة في الموبايل بعد اختيار صفحة
     if (window.innerWidth <= 992) {
         document.getElementById('sidebar').classList.remove('active');
+        const overlay = document.getElementById('mobile-overlay');
+        if(overlay) overlay.classList.remove('active');
     }
 }
 
@@ -50,7 +52,7 @@ function updatePageContent(lang) {
 }
 
 // 4. مراقب الصلاحيات وجلب بيانات العيادة (The Magic Router)
-auth.onAuthStateChanged(async (user) => {
+firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
 
@@ -123,15 +125,32 @@ function applyRoles(role) {
         if (settingsLi) settingsLi.style.display = 'block';
     }
     
-    // مالك النظام (إسلام الشريف) يشوف كل حاجة
+    // مالك النظام يشوف كل حاجة
     if (r === 'superadmin') {
         if (settingsLi) settingsLi.style.display = 'block';
         if (superAdminLi) superAdminLi.style.display = 'block';
     }
 }
 
-// 7. التحكم في القائمة الجانبية (UI)
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+// ================= الجزء الجديد لحل مشاكل الموبايل =================
+
+// 7. إضافة طبقة خلفية عائمة (Overlay) لتقفيل الموبايل بشياكة عند فتح القائمة
+document.addEventListener('DOMContentLoaded', () => {
+    let overlay = document.createElement('div');
+    overlay.id = 'mobile-overlay';
+    overlay.className = 'mobile-overlay';
+    // 🔴 لما اليوزر يدوس في أي مكان فاضي، القائمة تقفل
+    overlay.onclick = toggleSidebar; 
+    document.body.appendChild(overlay);
+});
+
+// 8. التحكم في القائمة الجانبية (UI)
+function toggleSidebar() { 
+    document.getElementById('sidebar').classList.toggle('active'); 
+    // إظهار/إخفاء الطبقة المظللة
+    document.getElementById('mobile-overlay').classList.toggle('active');
+}
+
 function toggleSidebarDesktop() {
     document.getElementById('sidebar').classList.toggle('collapsed');
     document.querySelector('.main-content').classList.toggle('expanded');
