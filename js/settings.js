@@ -1,19 +1,21 @@
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId');
 
-// 1. نظام الترجمة
+// 1. نظام الترجمة (مسطرة عربي وإنجليزي)
 function updatePageContent(lang) {
     const t = {
         ar: {
             title: "إعدادات العيادة", sub: "تخصيص بيانات العيادة والشعار (اللوجو)", cardTitle: "البيانات الأساسية",
             lLogo: "شعار العيادة (اللوجو)", lHint: "يفضل أن تكون الصورة مربعة (1:1) بخلفية شفافة",
             lName: "اسم العيادة / المركز الطبي", pName: "أدخل اسم العيادة الذي سيظهر في النظام والروشتات",
+            lLang: "لغة النظام (System Language)",
             btnSave: "حفظ التعديلات", msgSuccess: "تم حفظ التعديلات بنجاح!", msgError: "حدث خطأ أثناء الحفظ"
         },
         en: {
             title: "Clinic Settings", sub: "Customize clinic data and logo", cardTitle: "Basic Information",
             lLogo: "Clinic Logo", lHint: "Square image (1:1) with transparent background is recommended",
             lName: "Clinic / Center Name", pName: "Enter the clinic name to appear in the system and prescriptions",
+            lLang: "System Language",
             btnSave: "Save Changes", msgSuccess: "Changes saved successfully!", msgError: "Error saving changes"
         }
     };
@@ -22,9 +24,17 @@ function updatePageContent(lang) {
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('txt-card-title', c.cardTitle);
     setTxt('lbl-logo', c.lLogo); setTxt('lbl-logo-hint', c.lHint); setTxt('lbl-name', c.lName);
-    document.getElementById('clinic_name').placeholder = c.pName;
+    setTxt('lbl-lang', c.lLang);
+    
+    const nameInput = document.getElementById('clinic_name');
+    if(nameInput) nameInput.placeholder = c.pName;
+    
     setTxt('btn-save', c.btnSave);
     
+    // تظبيط قيمة قائمة اللغة حسب اللغة الحالية
+    const langSelect = document.getElementById('app_language');
+    if(langSelect) langSelect.value = lang;
+
     window.settingsLang = c;
 }
 
@@ -49,7 +59,7 @@ async function loadClinicSettings() {
     }
 }
 
-// 3. تحويل الصورة المرفوعة إلى Base64 لعرضها وحفظها
+// 3. تحويل الصورة لـ Base64
 function encodeLogo(element) {
     const file = element.files[0];
     const reader = new FileReader();
@@ -62,7 +72,21 @@ function encodeLogo(element) {
     }
 }
 
-// 4. حفظ التعديلات في الفايربيز وتحديث القائمة الجانبية فوراً
+// 4. دالة تغيير اللغة فوراً من الإعدادات
+function changeSystemLanguage(newLang) {
+    localStorage.setItem('preferredLang', newLang);
+    
+    // استدعاء دالة تغيير اللغة من الهيكل الخارجي (home.html) عشان يترجم القائمة الجانبية كمان
+    if (window.parent && typeof window.parent.switchAppLanguage === 'function') {
+        window.parent.switchAppLanguage(newLang);
+    } else {
+        // لو مفيش هيكل خارجي، ترجم الصفحة دي بس
+        document.body.dir = newLang === 'en' ? 'ltr' : 'rtl';
+        updatePageContent(newLang);
+    }
+}
+
+// 5. حفظ التعديلات
 async function saveSettings(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -85,7 +109,7 @@ async function saveSettings(e) {
 
         alert(window.settingsLang.msgSuccess);
 
-        // 🔴 التريكة السحرية: تحديث اللوجو والاسم في الهيكل الخارجي (home.html) فوراً بدون ريفريش
+        // تحديث اللوجو والاسم في الهيكل الخارجي
         if (window.parent && typeof window.parent.loadClinicBranding === 'function') {
             window.parent.loadClinicBranding(clinicId);
         }
