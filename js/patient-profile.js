@@ -54,6 +54,7 @@ async function loadPatientData() {
             document.getElementById('print-patient-name').innerText = p.name; // للروشتة
             document.getElementById('prof-phone').innerText = `📞 ${p.phone}`;
             document.getElementById('prof-age').innerText = `🎂 ${p.age} سنة`;
+            document.getElementById('prof-gender').innerText = `🚻 ${p.gender || 'غير محدد'}`;
             
             const alerts = document.getElementById('prof-alerts');
             alerts.innerHTML = '';
