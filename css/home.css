@@ -1,286 +1,104 @@
-/* home.css - Enterprise CRM Style */
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+/* css/home.css - Master Shell Styles */
 
-:root {
-    --bg-color: #f4f7fb;
-    --sidebar-bg: #0b1727; /* كحلي غامق جداً زي Oracle */
-    --sidebar-hover: #172b4d;
-    --sidebar-text: #8c98a4;
-    --primary: #2563eb; /* أزرق زاهي للبيزنس */
-    --text-dark: #1e293b;
-    --text-muted: #64748b;
-    --white: #ffffff;
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-    --border: #e2e8f0;
-}
+body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f1f5f9; overflow: hidden; }
 
-body {
-    margin: 0;
-    font-family: 'Tajawal', sans-serif;
-    background-color: var(--bg-color);
-    direction: rtl;
-    color: var(--text-dark);
-}
+.app-wrapper { display: flex; height: 100vh; overflow: hidden; }
 
-.app-wrapper {
-    display: flex;
-    min-height: 100vh;
-}
-
-/* --- Sidebar --- */
+/* ================= القائمة الجانبية (Sidebar) ================= */
 .sidebar {
-    width: 260px;
-    background-color: var(--sidebar-bg);
-    color: var(--white);
-    display: flex;
-    flex-direction: column;
-    transition: all 0.3s ease;
-    z-index: 1000;
+    width: 260px; background: #0f172a; color: #fff; display: flex; flex-direction: column;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; z-index: 1000;
 }
+/* حالة الطي في الشاشات الكبيرة */
+.sidebar.collapsed { width: 80px; }
 
+/* اللوجو والبراند */
 .sidebar-brand {
-    padding: 20px 25px;
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--white);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.brand-icon { color: var(--primary); font-size: 26px; }
-
-.nav-links {
-    list-style: none;
-    padding: 20px 0;
-    margin: 0;
-}
-
-.nav-links li a {
-    display: flex;
-    align-items: center;
-    padding: 15px 25px;
-    color: var(--sidebar-text);
-    text-decoration: none;
-    font-size: 15px;
-    font-weight: 500;
+    padding: 20px 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
     transition: 0.3s;
-    gap: 15px;
 }
+.sidebar-brand img { max-width: 45px; transition: 0.3s; }
+.sidebar-brand span { font-size: 18px; font-weight: 800; margin-top: 10px; transition: 0.3s; white-space: nowrap; }
 
-.nav-links li a:hover, .nav-links li.active a {
-    color: var(--white);
-    background-color: var(--sidebar-hover);
-    border-right: 4px solid var(--primary);
-}
+/* اختفاء النص وتصغير اللوجو عند الطي */
+.sidebar.collapsed .sidebar-brand span { display: none; }
+.sidebar.collapsed .sidebar-brand { padding: 15px 5px; }
+.sidebar.collapsed .sidebar-brand img { max-width: 35px; }
 
-/* --- Main Content & Topbar --- */
-.main-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    width: calc(100% - 260px);
+/* روابط القائمة */
+.nav-links { list-style: none; padding: 0; margin: 20px 0; overflow-y: auto; flex: 1; }
+.nav-links li { margin-bottom: 5px; }
+.nav-links a {
+    display: flex; align-items: center; padding: 15px 20px; color: #94a3b8; text-decoration: none;
+    font-weight: 600; transition: 0.3s; border-right: 4px solid transparent; gap: 15px; white-space: nowrap;
 }
+html[dir="ltr"] .nav-links a { border-right: none; border-left: 4px solid transparent; }
+
+.nav-links a:hover, .nav-links li.active a { background: #1e293b; color: #fff; border-right-color: #38BDF8; }
+html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-right-color: transparent; }
+
+.nav-links .icon { font-size: 20px; min-width: 25px; text-align: center; }
+
+/* اختفاء نصوص القائمة عند الطي */
+.sidebar.collapsed .nav-links span:not(.icon) { display: none; }
+.sidebar.collapsed .nav-links a { justify-content: center; padding: 15px 0; }
+
+/* ================= المحتوى الرئيسي والهيدر ================= */
+.main-content { flex: 1; display: flex; flex-direction: column; transition: 0.3s; width: 100%; overflow: hidden; }
 
 .topbar {
-    background: var(--white);
-    height: 70px;
-    padding: 0 30px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: var(--shadow);
-    z-index: 10;
+    background: #fff; height: 70px; display: flex; justify-content: space-between; align-items: center;
+    padding: 0 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); z-index: 100;
 }
 
-.topbar-right, .topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
+.topbar-right, .topbar-left { display: flex; align-items: center; gap: 15px; }
+.topbar h2 { margin: 0; font-size: 18px; color: #1e293b; font-weight: 800; }
+
+/* زراير الإخفاء والإظهار */
+.menu-toggle, .desktop-toggle {
+    background: transparent; border: none; font-size: 24px; cursor: pointer; color: #475569; padding: 5px; border-radius: 8px; transition: 0.2s;
 }
+.menu-toggle:hover, .desktop-toggle:hover { background: #f1f5f9; color: #0284C7; }
 
-.menu-toggle {
-    display: none;
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: var(--text-dark);
-    cursor: pointer;
-}
+/* إخفاء زر الموبايل في الكمبيوتر */
+.menu-toggle { display: none; }
 
-.topbar h2 { margin: 0; font-size: 18px; color: var(--text-dark); }
+.user-profile { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #e2e8f0;}
+html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 
-.lang-btn { cursor: pointer; font-weight: 700; color: var(--text-muted); padding: 5px; transition: 0.3s; }
-.lang-btn:hover { color: var(--primary); }
+.lang-btn { cursor: pointer; font-weight: 700; color: #64748b; font-size: 14px; transition: 0.2s; }
+.lang-btn:hover { color: #0284C7; }
+.logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.logout-btn:hover { background: #dc2626; }
 
-.user-profile {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--bg-color);
-    padding: 8px 15px;
-    border-radius: 30px;
-    border: 1px solid var(--border);
-}
+/* الـ Iframe اللي بيشيل الشاشات */
+.content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; }
 
-.user-email { font-size: 14px; font-weight: 700; color: var(--text-dark); }
-
-.logout-btn {
-    background-color: #ef4444;
-    color: white;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-    font-family: inherit;
-    transition: 0.3s;
-}
-.logout-btn:hover { background-color: #dc2626; }
-
-/* --- Dashboard Content --- */
-.dashboard-container { padding: 30px; }
-
-.welcome-banner {
-    background: linear-gradient(135deg, var(--primary), #1e40af);
-    color: white;
-    padding: 30px 40px;
-    border-radius: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 30px;
-    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
-}
-
-.welcome-banner h1 { margin: 0 0 10px 0; font-size: 28px; }
-.welcome-banner p { margin: 0; opacity: 0.9; font-size: 15px; }
-.banner-icon { font-size: 60px; opacity: 0.8; }
-
-.cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 25px;
-}
-
-.card {
-    background: var(--white);
-    padding: 25px;
-    border-radius: 15px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--border);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    transition: all 0.3s ease;
-}
-
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-    border-color: var(--primary);
-}
-
-.card-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-}
-
-.card-icon.blue { background: #eff6ff; color: #3b82f6; }
-.card-icon.green { background: #f0fdf4; color: #22c55e; }
-.card-icon.purple { background: #faf5ff; color: #a855f7; }
-.card-icon.orange { background: #fff7ed; color: #f97316; }
-.card-icon.red { background: #fef2f2; color: #ef4444; }
-.card-icon.dark { background: #f8fafc; color: #334155; }
-
-.card-info h3 { margin: 0 0 5px 0; color: var(--text-dark); font-size: 18px; }
-.card-info p { margin: 0; color: var(--text-muted); font-size: 13px; }
-
-/* Responsive */
+/* ================= تظبيط الموبايل (Mobile Responsive) ================= */
 @media (max-width: 992px) {
-    .sidebar { position: fixed; left: -260px; height: 100vh; }
-    .sidebar.active { left: 0; }
-    body[dir="rtl"] .sidebar { right: -260px; left: auto; }
-    body[dir="rtl"] .sidebar.active { right: 0; }
-    .main-content { width: 100%; }
+    /* إظهار زر الموبايل وإخفاء زر الكمبيوتر */
     .menu-toggle { display: block; }
-}
-@media (max-width: 600px) {
-    .user-email { display: none; }
-    .welcome-banner { flex-direction: column; text-align: center; gap: 15px; }
-}
-/* --- إعدادات طي القائمة الجانبية (Desktop) --- */
-.sidebar {
-    transition: width 0.3s ease;
-    overflow-x: hidden;
-}
-
-/* حالة الطي */
-.sidebar.collapsed {
-    width: 80px;
-}
-
-.sidebar.collapsed #txt-brand {
-    display: none;
-}
-
-.sidebar.collapsed .sidebar-brand {
-    justify-content: center;
-    padding: 20px 0;
-}
-
-.sidebar.collapsed .nav-links li a span:not(.icon) {
-    display: none; /* إخفاء النصوص */
-}
-
-.sidebar.collapsed .nav-links li a {
-    justify-content: center;
-    padding: 15px 0;
-}
-
-.sidebar.collapsed .nav-links li a .icon {
-    font-size: 22px;
-    margin: 0;
-}
-
-/* تمدد المحتوى الرئيسي لما القائمة تصغر */
-.main-content {
-    transition: width 0.3s ease;
-}
-
-.main-content.expanded {
-    width: calc(100% - 80px);
-}
-
-/* زرار الطي في الشاشات الكبيرة */
-.desktop-toggle {
-    background: none;
-    border: none;
-    font-size: 22px;
-    cursor: pointer;
-    color: var(--text-dark);
-    margin-left: 15px;
-    display: block;
-}
-
-@media (max-width: 992px) {
     .desktop-toggle { display: none; }
+
+    /* القائمة الجانبية في الموبايل (عائمة ومخفية) */
+    .sidebar {
+        position: fixed; top: 0; bottom: 0; right: 0; /* للغة العربية */
+        transform: translateX(100%);
+        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+    }
+    html[dir="ltr"] .sidebar {
+        right: auto; left: 0;
+        transform: translateX(-100%);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    /* إظهار القائمة لما تاخد كلاس active */
+    .sidebar.active { transform: translateX(0); }
+    html[dir="ltr"] .sidebar.active { transform: translateX(0); }
+
+    /* تظبيط الهيدر في الموبايل */
+    .topbar { padding: 0 15px; }
+    .topbar h2 { display: none; } /* إخفاء الكلمة عشان الزحمة */
+    .user-email { display: none; } /* إخفاء الإيميل في الموبايل */
 }
-/* إعدادات شاشة العرض (Iframe) */
-.content-frame {
-    width: 100%;
-    height: calc(100vh - 70px); /* يطرح ارتفاع الشريط العلوي */
-    border: none;
-    display: block;
-    background-color: var(--bg-color);
-}
-/* إخفاء اسم العيادة عند طي القائمة الجانبية */
-.sidebar.collapsed #txt-clinic-name { display: none !important; }
-.sidebar.collapsed #clinic-brand-area { padding: 15px 5px !important; border-bottom: none !important; margin-bottom: 5px !important; }
