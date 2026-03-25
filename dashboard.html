@@ -129,6 +129,18 @@
             <ul class="data-list-ul" id="sessionsContainer"></ul>
         </div>
     </div>
+    <div id="revDetailsModal" class="modal" style="z-index: 1005;">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('revDetailsModal')">&times;</span>
+            <h2 id="mod-rev-det-title" class="modal-title" style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">تفاصيل الإيراد</h2>
+            <div class="details-box" style="background: #f0fdf4; border-color: #bbf7d0;">
+                <p><strong>💰 <span class="lbl-rev-amount">المبلغ:</span></strong> <span id="rdet_amount" style="color: #059669; font-weight: bold; font-size: 20px;"></span></p>
+                <p><strong>📅 <span class="lbl-rev-date">التاريخ:</span></strong> <span id="rdet_date"></span></p>
+                <p><strong>📂 <span class="lbl-rev-cat">البند:</span></strong> <span id="rdet_cat" style="font-weight: bold;"></span></p>
+                <p><strong>📝 <span class="lbl-rev-notes">البيان:</span></strong> <span id="rdet_notes"></span></p>
+            </div>
+        </div>
+    </div>
 
     <script src="js/firebase-config.js"></script>
     <script src="js/dashboard.js"></script>
