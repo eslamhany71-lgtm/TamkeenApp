@@ -272,3 +272,9 @@ window.onload = () => {
         if (user) loadPatients();
     });
 };
+// إغلاق المودال عند الضغط في أي مكان فارغ بالشاشة
+window.addEventListener('click', function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+});
