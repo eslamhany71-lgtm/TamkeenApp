@@ -78,9 +78,24 @@ h3 { margin: 0; font-size: 28px; color: var(--text-dark); font-weight: 800; }
     font-size: 18px;
 }
 
+/* تنسيق زرار العين الجديد */
+.toggle-password {
+    position: absolute;
+    left: 15px;
+    cursor: pointer;
+    color: #94a3b8;
+    font-size: 18px;
+    user-select: none;
+    transition: 0.2s;
+}
+.toggle-password:hover {
+    color: var(--primary);
+}
+
+/* تعديل البادينج عشان يستوعب الأيقونتين يمين وشمال */
 .input-wrapper input {
     width: 100%;
-    padding: 14px 45px 14px 15px;
+    padding: 14px 45px 14px 45px; 
     border: 2px solid #e2e8f0;
     border-radius: 12px;
     font-size: 15px;
@@ -95,6 +110,10 @@ h3 { margin: 0; font-size: 28px; color: var(--text-dark); font-weight: 800; }
     background-color: white;
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
+
+/* تظبيط الأيقونات في حالة اللغة الإنجليزية LTR */
+html[dir="ltr"] .input-icon { right: auto; left: 15px; }
+html[dir="ltr"] .toggle-password { left: auto; right: 15px; }
 
 /* الأزرار */
 .btn-primary {
@@ -202,6 +221,6 @@ h3 { margin: 0; font-size: 28px; color: var(--text-dark); font-weight: 800; }
 
 /* الموبايل */
 @media (max-width: 900px) {
-    .brand-side { display: none; } /* إخفاء الجانب الأيسر في الموبايل */
+    .brand-side { display: none; } 
     .mobile-brand-icon { display: block; }
 }
