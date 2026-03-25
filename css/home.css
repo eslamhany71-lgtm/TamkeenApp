@@ -2,17 +2,15 @@
 
 body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f1f5f9; overflow: hidden; }
 
-.app-wrapper { display: flex; height: 100vh; overflow: hidden; }
+.app-wrapper { display: flex; height: 100vh; overflow: hidden; position: relative; }
 
 /* ================= القائمة الجانبية (Sidebar) ================= */
 .sidebar {
     width: 260px; background: #0f172a; color: #fff; display: flex; flex-direction: column;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; z-index: 1000;
+    transition: all 0.3s ease; position: relative; z-index: 1000;
 }
-/* حالة الطي في الشاشات الكبيرة */
 .sidebar.collapsed { width: 80px; }
 
-/* اللوجو والبراند */
 .sidebar-brand {
     padding: 20px 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -21,13 +19,11 @@ body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f
 .sidebar-brand img { max-width: 45px; transition: 0.3s; display: block; }
 .sidebar-brand span { font-size: 18px; font-weight: 800; margin-top: 10px; transition: 0.3s; white-space: nowrap; }
 
-/* 🔴 السحر هنا: اختفاء النص وتوسيط اللوجو عند الطي */
 .sidebar.collapsed .sidebar-brand span { display: none !important; }
 .sidebar.collapsed .sidebar-brand { padding: 15px 0; }
 .sidebar.collapsed .sidebar-brand img { max-width: 40px; }
 .sidebar.collapsed #txt-clinic-name { display: none !important; }
 
-/* روابط القائمة */
 .nav-links { list-style: none; padding: 0; margin: 20px 0; overflow-y: auto; flex: 1; }
 .nav-links li { margin-bottom: 5px; }
 .nav-links a {
@@ -38,17 +34,14 @@ html[dir="ltr"] .nav-links a { border-right: none; border-left: 4px solid transp
 
 .nav-links a:hover, .nav-links li.active a { background: #1e293b; color: #fff; border-right-color: #38BDF8; }
 html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-right-color: transparent; }
-
 .nav-links .icon { font-size: 20px; min-width: 25px; text-align: center; }
 
-/* اختفاء نصوص القائمة عند الطي */
 .sidebar.collapsed .nav-links span:not(.icon) { display: none; }
 .sidebar.collapsed .nav-links a { justify-content: center; padding: 15px 0; }
 
 /* ================= المحتوى الرئيسي والهيدر ================= */
 .main-content { flex: 1; display: flex; flex-direction: column; transition: 0.3s; width: 100%; overflow: hidden; }
 
-/* 🔴 السحر هنا: الهيدر فوق القائمة الجانبية دايماً */
 .topbar {
     background: #fff; height: 70px; display: flex; justify-content: space-between; align-items: center;
     padding: 0 25px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 1005; position: relative;
@@ -57,12 +50,10 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 .topbar-right, .topbar-left { display: flex; align-items: center; gap: 15px; }
 .topbar h2 { margin: 0; font-size: 18px; color: #1e293b; font-weight: 800; }
 
-/* زراير الإخفاء والإظهار */
 .menu-toggle, .desktop-toggle {
     background: transparent; border: none; font-size: 24px; cursor: pointer; color: #475569; padding: 5px; border-radius: 8px; transition: 0.2s;
 }
 .menu-toggle:hover, .desktop-toggle:hover { background: #f1f5f9; color: #0284C7; }
-
 .menu-toggle { display: none; }
 
 .user-profile { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #e2e8f0;}
@@ -75,25 +66,27 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 
 .content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; }
 
+/* طبقة تظليل تظهر لما القائمة تفتح في الموبايل */
+.mobile-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1001; backdrop-filter: blur(2px);
+}
+
 /* ================= تظبيط الموبايل (Mobile Responsive) ================= */
 @media (max-width: 992px) {
     .menu-toggle { display: block; }
     .desktop-toggle { display: none; }
 
-    /* 🔴 القائمة تفتح تحت الهيدر عشان الزرار يفضل باين */
+    /* القائمة الجانبية بتفتح تحت الهيدر */
     .sidebar {
-        position: fixed; top: 70px; bottom: 0; right: 0; 
-        transform: translateX(100%);
-        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        position: fixed; top: 70px; bottom: 0; right: -260px; /* مخفية بالكامل */
+        box-shadow: -5px 0 15px rgba(0,0,0,0.1); z-index: 1002;
     }
-    html[dir="ltr"] .sidebar {
-        right: auto; left: 0;
-        transform: translateX(-100%);
-        box-shadow: 5px 0 15px rgba(0,0,0,0.1);
-    }
+    html[dir="ltr"] .sidebar { right: auto; left: -260px; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
     
-    .sidebar.active { transform: translateX(0); }
-    html[dir="ltr"] .sidebar.active { transform: translateX(0); }
+    .sidebar.active { right: 0; }
+    html[dir="ltr"] .sidebar.active { left: 0; }
+    
+    .mobile-overlay.active { display: block; top: 70px; }
 
     .topbar { padding: 0 15px; }
     .topbar h2 { display: none; } 
