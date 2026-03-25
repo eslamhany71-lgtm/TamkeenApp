@@ -1,5 +1,3 @@
-// js/calendar.js
-
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
 let calendar; 
@@ -9,46 +7,61 @@ function updatePageContent(lang) {
     const t = {
         ar: {
             title: "أجندة المواعيد", sub: "إدارة حجوزات العيادة وتنظيم وقت الطبيب", btnAdd: "حجز موعد جديد",
-            mTitle: "حجز موعد جديد", mEditTitle: "تعديل الموعد", lName: "اسم المريض", lDate: "تاريخ الموعد", lTime: "الساعة", lType: "نوع الكشف / الجلسة",
-            optNew: "كشف جديد", optFollow: "استشارة / متابعة", optSess: "جلسة علاجية", lNotes: "ملاحظات (اختياري)", btnSave: "تأكيد الحجز", btnUpdate: "تحديث الموعد", confDel: "هل أنت متأكد من الحذف؟"
+            mTitle: "حجز موعد جديد", mTitleEdit: "تعديل موعد", lName: "اسم المريض", lDate: "تاريخ الموعد", lTime: "الساعة", lType: "نوع الكشف / الجلسة",
+            optNew: "كشف جديد", optFollow: "استشارة / متابعة", optSess: "جلسة علاجية", lNotes: "ملاحظات (اختياري)", btnSave: "تأكيد الحجز", btnUpdate: "تحديث الموعد",
+            detTitle: "تفاصيل الحجز", lblDetName: "اسم المريض:", lblDetDate: "التاريخ:", lblDetTime: "الساعة:", lblDetType: "نوع الكشف:", lblDetNotes: "ملاحظات:", lblDetStatus: "الحالة:",
+            btnEdit: "✏️ تعديل", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟", errSave: "حدث خطأ أثناء الحفظ!", msgDrag: "تم تغيير الموعد بنجاح!"
         },
         en: {
             title: "Appointments Calendar", sub: "Manage clinic bookings and organize doctor's time", btnAdd: "Book Appointment",
-            mTitle: "Book New Appointment", mEditTitle: "Edit Appointment", lName: "Patient Name", lDate: "Appointment Date", lTime: "Time", lType: "Session Type",
-            optNew: "New Checkup", optFollow: "Follow-up", optSess: "Treatment Session", lNotes: "Notes (Optional)", btnSave: "Confirm Booking", btnUpdate: "Update Booking", confDel: "Are you sure you want to delete?"
+            mTitle: "Book New Appointment", mTitleEdit: "Edit Appointment", lName: "Patient Name", lDate: "Date", lTime: "Time", lType: "Session Type",
+            optNew: "New Checkup", optFollow: "Follow-up", optSess: "Treatment Session", lNotes: "Notes (Optional)", btnSave: "Confirm Booking", btnUpdate: "Update Booking",
+            detTitle: "Booking Details", lblDetName: "Patient:", lblDetDate: "Date:", lblDetTime: "Time:", lblDetType: "Type:", lblDetNotes: "Notes:", lblDetStatus: "Status:",
+            btnEdit: "✏️ Edit", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?", errSave: "Error saving appointment!", msgDrag: "Appointment updated successfully!"
         }
     };
     const c = t[lang] || t.ar;
     const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+    const setClassTxt = (cls, txt) => { document.querySelectorAll('.'+cls).forEach(el => el.innerText = txt); };
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('btn-add-txt', c.btnAdd);
     setTxt('modal-title', c.mTitle); setTxt('lbl-app-name', c.lName); setTxt('lbl-app-date', c.lDate);
     setTxt('lbl-app-time', c.lTime); setTxt('lbl-app-type', c.lType); setTxt('lbl-app-notes', c.lNotes);
     setTxt('opt-new', c.optNew); setTxt('opt-follow', c.optFollow); setTxt('opt-session', c.optSess); setTxt('btn-save', c.btnSave);
-    window.calLang = c;
+    
+    setTxt('det-modal-title', c.detTitle); setTxt('btn-edit-app', c.btnEdit); setTxt('btn-del-app', c.btnDel);
+    setClassTxt('lbl-det-name', c.lblDetName); setClassTxt('lbl-det-date', c.lblDetDate); setClassTxt('lbl-det-time', c.lblDetTime); 
+    setClassTxt('lbl-det-type', c.lblDetType); setClassTxt('lbl-det-notes', c.lblDetNotes); setClassTxt('lbl-det-status', c.lblDetStatus);
+
+    window.calendarLang = c;
 }
 
 function openAppointmentModal() {
-    currentEditAppId = null;
+    currentEditAppId = null; 
     document.getElementById('addAppointmentForm').reset();
-    document.getElementById('modal-title').innerText = window.calLang.mTitle;
-    document.getElementById('btn-save').innerText = window.calLang.btnSave;
+    document.getElementById('modal-title').innerText = window.calendarLang.mTitle;
+    document.getElementById('btn-save').innerText = window.calendarLang.btnSave;
     document.getElementById('appointmentModal').style.display = 'flex';
 }
 
-function closeAppointmentModal() { document.getElementById('appointmentModal').style.display = 'none'; }
-function closeAppDetailsModal() { document.getElementById('appDetailsModal').style.display = 'none'; }
+function closeAppointmentModal() {
+    document.getElementById('appointmentModal').style.display = 'none';
+}
+
+function closeAppDetailsModal() {
+    document.getElementById('appDetailsModal').style.display = 'none';
+}
 
 function initCalendar() {
     const calendarEl = document.getElementById('calendar');
     const lang = localStorage.getItem('preferredLang') || 'ar';
-    const isMobile = window.innerWidth < 768; // 🔴 فحص الموبايل
-    
+    const isMobile = window.innerWidth < 768; // فحص الشاشة
+
     calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: isMobile ? 'timeGridDay' : 'timeGridWeek', // 🔴 لو موبايل يعرض يوم واحد عشان ميبقاش زحمة
+        initialView: isMobile ? 'timeGridDay' : 'timeGridWeek', // عرض يوم واحد في الموبايل
         locale: lang === 'ar' ? 'ar' : 'en',
         direction: lang === 'ar' ? 'rtl' : 'ltr',
-        editable: true, // 🔴 تفعيل السحب والإفلات
+        editable: true, 
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
@@ -59,35 +72,42 @@ function initCalendar() {
         allDaySlot: false,
         events: [],
         
-        // 🔴 دالة السحب والإفلات
-        eventDrop: async function(info) {
-            const newDate = info.event.startStr.split('T')[0];
-            const newTime = info.event.startStr.split('T')[1].substring(0, 5);
-            try {
-                await db.collection("Appointments").doc(info.event.id).update({ date: newDate, time: newTime });
-            } catch (error) { info.revert(); }
-        },
-
-        // فتح التفاصيل
         eventClick: function(info) {
             const props = info.event.extendedProps;
-            document.getElementById('appDetailsModal').setAttribute('data-current-id', info.event.id); // حفظ الـ ID
-            document.getElementById('det_name').innerText = props.patientName;
+            const appId = info.event.id;
             
+            document.getElementById('appDetailsModal').setAttribute('data-current-id', appId);
+
+            document.getElementById('det_name').innerText = props.patientName;
             const dateObj = new Date(info.event.start);
             document.getElementById('det_date').innerText = dateObj.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
             document.getElementById('det_time').innerText = dateObj.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
             document.getElementById('det_type').innerText = props.type;
             document.getElementById('det_notes').innerText = props.notes || (lang === 'ar' ? 'لا يوجد ملاحظات' : 'No notes');
             
-            let statusTxt = 'في الانتظار';
-            if(props.status === 'completed') statusTxt = 'مكتمل';
-            if(props.status === 'cancelled') statusTxt = 'ملغي';
+            let statusTxt = lang === 'ar' ? 'في الانتظار' : 'Pending';
+            if(props.status === 'completed') statusTxt = lang === 'ar' ? 'مكتمل' : 'Completed';
+            if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
             document.getElementById('det_status').innerText = statusTxt;
 
             document.getElementById('appDetailsModal').style.display = 'flex';
         },
-        // 🔴 عشان لو لف الموبايل أو كبر الشاشة تتغير طريقة العرض لوحدها
+
+        eventDrop: async function(info) {
+            const newDate = info.event.startStr.split('T')[0];
+            const newTime = info.event.startStr.split('T')[1].substring(0, 5);
+            
+            try {
+                await db.collection("Appointments").doc(info.event.id).update({
+                    date: newDate,
+                    time: newTime
+                });
+            } catch (error) {
+                console.error("Error moving event:", error);
+                info.revert(); 
+            }
+        },
+
         windowResize: function(arg) {
             if (window.innerWidth < 768) { calendar.changeView('timeGridDay'); } 
             else { calendar.changeView('timeGridWeek'); }
@@ -98,12 +118,11 @@ function initCalendar() {
     loadAppointments(); 
 }
 
-// 🔴 دالة التعديل
 async function openEditModal() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     if (!appId) return;
-    currentEditAppId = appId;
 
+    currentEditAppId = appId;
     try {
         const doc = await db.collection("Appointments").doc(appId).get();
         if (doc.exists) {
@@ -114,26 +133,13 @@ async function openEditModal() {
             document.getElementById('app_type').value = data.type;
             document.getElementById('app_notes').value = data.notes || '';
 
-            document.getElementById('modal-title').innerText = window.calLang.mEditTitle;
-            document.getElementById('btn-save').innerText = window.calLang.btnUpdate;
+            document.getElementById('modal-title').innerText = window.calendarLang.mTitleEdit;
+            document.getElementById('btn-save').innerText = window.calendarLang.btnUpdate;
             
-            closeAppDetailsModal();
+            closeAppDetailsModal(); 
             document.getElementById('appointmentModal').style.display = 'flex';
         }
     } catch (e) { console.error(e); }
-}
-
-// 🔴 دالة الحذف
-async function deleteAppointment() {
-    const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
-    if (!appId) return;
-
-    if (confirm(window.calLang.confDel)) {
-        try {
-            await db.collection("Appointments").doc(appId).delete();
-            closeAppDetailsModal();
-        } catch (e) { console.error(e); }
-    }
 }
 
 async function saveAppointment(e) {
@@ -141,7 +147,7 @@ async function saveAppointment(e) {
     const btn = document.getElementById('btn-save');
     btn.disabled = true; btn.innerText = "...";
 
-    if (!currentClinicId) return;
+    if (!currentClinicId) { alert("حدث خطأ!"); return; }
 
     const dateVal = document.getElementById('app_date').value;
     const timeVal = document.getElementById('app_time').value;
@@ -170,14 +176,32 @@ async function saveAppointment(e) {
             await db.collection("Appointments").add(appData);
         }
         closeAppointmentModal();
-    } catch (error) { console.error(error); } 
-    finally { btn.disabled = false; btn.innerText = window.calLang.btnSave; }
+    } catch (error) {
+        console.error("Error saving appointment: ", error);
+        alert(window.calendarLang.errSave);
+    } finally {
+        btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave;
+    }
+}
+
+async function deleteAppointment() {
+    const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
+    if (!appId) return;
+
+    if (confirm(window.calendarLang.confDel)) {
+        try {
+            await db.collection("Appointments").doc(appId).delete();
+            closeAppDetailsModal();
+        } catch (error) { console.error("Error deleting:", error); }
+    }
 }
 
 function loadAppointments() {
     if (!currentClinicId || !calendar) return;
 
-    db.collection("Appointments").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+    db.collection("Appointments")
+      .where("clinicId", "==", currentClinicId)
+      .onSnapshot(snap => {
         calendar.removeAllEvents();
         snap.forEach(doc => {
             const data = doc.data();
@@ -185,11 +209,16 @@ function loadAppointments() {
 
             calendar.addEvent({
                 id: doc.id,
-                title: `${data.patientName}`, // شلت النوع عشان الموبايل المساحة أضيق
+                title: `${data.patientName}`, // إخفاء النوع لتوفير مساحة الموبايل
                 start: startDateTime,
                 backgroundColor: data.color || '#0284C7',
                 borderColor: data.color || '#0284C7',
-                extendedProps: { patientName: data.patientName, type: data.type, notes: data.notes, status: data.status }
+                extendedProps: {
+                    patientName: data.patientName,
+                    type: data.type,
+                    notes: data.notes,
+                    status: data.status
+                }
             });
         });
     });
@@ -200,14 +229,14 @@ window.onload = () => {
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
     
-    firebase.auth().onAuthStateChanged((user) => { if (user) { initCalendar(); } });
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) { initCalendar(); }
+    });
 };
 
-// 🔴 دعم اللمس للمودال في صفحة التقويم
-['click', 'touchstart'].forEach(evt => {
-    window.addEventListener(evt, function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
-        }
-    }, {passive: true});
+// 🔴 الحل السحري: إغلاق المودال بحدث كليك واحد فقط وآمن تماماً
+window.addEventListener('click', function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
 });
