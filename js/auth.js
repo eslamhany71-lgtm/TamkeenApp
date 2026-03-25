@@ -110,28 +110,32 @@ async function activateAccount() {
     const msg = document.getElementById('reg-msg');
 
     if(!codeRaw || !phone || !realEmail || !pass) { 
-        if(msg) msg.innerText = "برجاء إكمال كافة البيانات"; return; 
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "برجاء إكمال كافة البيانات" : "Please complete all fields"; 
+        return; 
     }
 
     try {
-        if(msg) msg.innerText = "جاري فحص البيانات...";
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...";
 
         const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
 
         if (!empDoc.exists) {
-            if(msg) msg.innerText = "الكود غير مسجل، راجع إدارة النظام"; return;
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع إدارة النظام" : "Code not registered, contact admin"; 
+            return;
         }
 
         const empData = empDoc.data();
         if (empData.phone !== phone) {
-            if(msg) msg.innerText = "رقم الموبايل غير مطابق للسجلات"; return;
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "رقم الموبايل غير مطابق للسجلات" : "Phone number does not match records"; 
+            return;
         }
 
         if (empData.activated === true) {
-            if(msg) msg.innerText = "هذا الحساب مفعل بالفعل"; return;
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "هذا الحساب مفعل بالفعل" : "Account already activated"; 
+            return;
         }
 
-        if(msg) msg.innerText = "جاري إنشاء الحساب... برجاء الانتظار";
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
 
         // 1. إنشاء الحساب في الفايربيز
         await auth.createUserWithEmailAndPassword(realEmail, pass);
@@ -151,36 +155,48 @@ async function activateAccount() {
             email: realEmail 
         });
 
-        if(msg) msg.innerText = "تم التفعيل بنجاح! جاري تحويلك...";
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "تم التفعيل بنجاح! جاري تحويلك..." : "Activation successful! Redirecting...";
         
         setTimeout(() => { window.location.href = "index.html"; }, 1500);
 
     } catch (error) {
         if(msg) {
-            if (error.code === 'auth/email-already-in-use') msg.innerText = "هذا البريد الإلكتروني مستخدم بالفعل";
-            else if (error.code === 'auth/invalid-email') msg.innerText = "صيغة البريد الإلكتروني غير صحيحة";
-            else msg.innerText = "خطأ: " + error.message;
+            const isRtl = document.body.dir === 'rtl';
+            if (error.code === 'auth/email-already-in-use') {
+                msg.innerText = isRtl ? "هذا البريد الإلكتروني مستخدم بالفعل" : "Email already in use";
+            } else if (error.code === 'auth/invalid-email') {
+                msg.innerText = isRtl ? "صيغة البريد الإلكتروني غير صحيحة" : "Invalid email format";
+            } else {
+                msg.innerText = (isRtl ? "خطأ: " : "Error: ") + error.message;
+            }
         }
     }
 }
 
 // 4. استعادة كلمة المرور
 function openResetModal() {
-    document.getElementById('resetEmailInput').value = "";
-    document.getElementById('resetModal').style.display = "flex";
+    const emailInput = document.getElementById('resetEmailInput');
+    const modal = document.getElementById('resetModal');
+    if (emailInput) emailInput.value = "";
+    if (modal) modal.style.display = "flex";
 }
+
 function closeResetModal() {
-    document.getElementById('resetModal').style.display = "none";
+    const modal = document.getElementById('resetModal');
+    if (modal) modal.style.display = "none";
 }
+
 async function sendResetLink(e) {
     e.preventDefault();
     const email = document.getElementById('resetEmailInput').value;
     const btn = document.getElementById('btn-send-reset');
     const lang = localStorage.getItem('preferredLang') || 'ar';
     
-    btn.disabled = true;
-    btn.innerText = lang === 'ar' ? "جاري الإرسال..." : "Sending...";
-    btn.style.opacity = "0.7";
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = lang === 'ar' ? "جاري الإرسال..." : "Sending...";
+        btn.style.opacity = "0.7";
+    }
 
     try {
         await auth.sendPasswordResetEmail(email);
@@ -191,13 +207,15 @@ async function sendResetLink(e) {
         else if (error.code === 'auth/invalid-email') alert(lang === 'ar' ? "صيغة البريد الإلكتروني غير صحيحة." : "Invalid email format.");
         else alert((lang === 'ar' ? "حدث خطأ: " : "Error: ") + error.message);
     } finally {
-        btn.disabled = false;
-        btn.innerText = lang === 'ar' ? "إرسال رابط الاستعادة" : "Send Reset Link";
-        btn.style.opacity = "1";
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = lang === 'ar' ? "إرسال رابط الاستعادة" : "Send Reset Link";
+            btn.style.opacity = "1";
+        }
     }
 }
 
-// 5. نظام الترجمة
+// 5. نظام الترجمة (للتوافق مع صفحة الدخول القديمة)
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -243,15 +261,17 @@ function updatePageContent(lang) {
     safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
 }
 
-// 6. دالة إظهار/إخفاء كلمة المرور (العين 👁️)
+// 6. دالة إظهار/إخفاء كلمة المرور في صفحة الدخول (العين 👁️)
 function togglePasswordVisibility() {
     const passInput = document.getElementById('password');
     const toggleIcon = document.querySelector('.toggle-password');
-    if (passInput.type === 'password') {
-        passInput.type = 'text';
-        toggleIcon.innerText = '🙈';
-    } else {
-        passInput.type = 'password';
-        toggleIcon.innerText = '👁️';
+    if (passInput && toggleIcon) {
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            toggleIcon.innerText = '🙈';
+        } else {
+            passInput.type = 'password';
+            toggleIcon.innerText = '👁️';
+        }
     }
 }
