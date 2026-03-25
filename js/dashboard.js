@@ -21,7 +21,9 @@ function updatePageContent(lang) {
             mAppDetTitle: "تفاصيل الحجز", lName: "اسم المريض:", lDate: "التاريخ:", lTime: "الساعة:", lType: "نوع الكشف:", lNotes: "ملاحظات:",
             mPatTitle: "🦷 جميع المرضى", mPatDetTitle: "تفاصيل المريض", lpPhone: "الموبايل:", lpAge: "السن:", lpHist: "أمراض مزمنة:", btnProf: "فتح الملف الطبي الكامل",
             mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الجلسات المكتملة", empty: "لا يوجد بيانات حالياً.",
-            btnComp: "✅ مكتمل", btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟"
+            btnComp: "✅ مكتمل", btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟",
+            // ضيف دول جوه قاموس الـ ar
+            mRevDetTitle: "تفاصيل الإيراد", lRevAmt: "المبلغ:", lRevDate: "التاريخ:", lRevCat: "البند:", lRevNotes: "البيان:",
         }, 
         en: { 
             welcome: "Clinic Overview", sub: "Daily performance and real-time statistics",
@@ -32,7 +34,9 @@ function updatePageContent(lang) {
             mAppDetTitle: "Booking Details", lName: "Patient Name:", lDate: "Date:", lTime: "Time:", lType: "Type:", lNotes: "Notes:",
             mPatTitle: "🦷 All Patients", mPatDetTitle: "Patient Details", lpPhone: "Phone:", lpAge: "Age:", lpHist: "Medical History:", btnProf: "Open Full Profile",
             mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently.",
-            btnComp: "✅ Complete", btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?"
+            btnComp: "✅ Complete", btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?",
+            // وضيف دول جوه قاموس الـ en
+            mRevDetTitle: "Revenue Details", lRevAmt: "Amount:", lRevDate: "Date:", lRevCat: "Category:", lRevNotes: "Notes:",
         } 
     };
     const c = t[lang] || t.ar;
@@ -50,6 +54,12 @@ function updatePageContent(lang) {
     setTxt('mod-pat-title', c.mPatTitle); setTxt('mod-pat-det-title', c.mPatDetTitle); setClassTxt('lbl-p-name', c.lName); setClassTxt('lbl-p-phone', c.lpPhone); setClassTxt('lbl-p-age', c.lpAge); setClassTxt('lbl-p-history', c.lpHist); setTxt('btn-go-profile', c.btnProf);
     
     setTxt('mod-rev-title', c.mRevTitle); setTxt('mod-sess-title', c.mSessTitle);
+    setTxt('mod-rev-det-title', c.mRevDetTitle);
+    setClassTxt('lbl-rev-amount', c.lRevAmt);
+    setClassTxt('lbl-rev-date', c.lRevDate);
+    setClassTxt('lbl-rev-cat', c.lRevCat);
+    setClassTxt('lbl-rev-notes', c.lRevNotes);
+    
     
     setTxt('btn-complete-app', c.btnComp); setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
     
@@ -236,6 +246,7 @@ function openRevenueModal() {
         todayRevenueData.forEach(rev => {
             const li = document.createElement('li');
             li.className = 'data-list-li';
+            li.onclick = () => openRevDetails(rev); // 🔴 هنا ربطنا الضغطة بفتح التفاصيل
             const lang = localStorage.getItem('preferredLang') || 'ar';
             li.innerHTML = `<span style="font-weight: bold; font-size: 15px;">📝 ${rev.notes || (lang==='ar'?'دفعة نقدية':'Cash Payment')}</span><span class="data-badge green">💰 ${rev.amount}</span>`;
             container.appendChild(li);
@@ -259,6 +270,15 @@ function openSessionsModal() {
         });
     }
     document.getElementById('sessionsModal').style.display = 'flex';
+}
+function openRevDetails(rev) {
+    document.getElementById('rdet_amount').innerText = rev.amount;
+    document.getElementById('rdet_date').innerText = rev.date;
+    document.getElementById('rdet_cat').innerText = rev.category || '---';
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    document.getElementById('rdet_notes').innerText = rev.notes || (lang === 'ar' ? 'لا يوجد' : 'None');
+    
+    document.getElementById('revDetailsModal').style.display = 'flex';
 }
 
 window.onload = () => { 
