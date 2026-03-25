@@ -44,7 +44,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (تقرأ الصلاحية ومعرف العيادة من قاعدة clinicId)
+// 2. دالة تسجيل الدخول (تم التعديل لمنع دخول الحسابات الموقوفة)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -75,6 +75,13 @@ async function loginById() {
             }
             
             const empData = empDoc.data();
+
+            // 🛑 التحقق من حالة العيادة (منع الموقوفين)
+            // إذا كانت الحالة في الداتابيز تسمى status، تأكد أنها "نشط" أو "active"
+            if (empData.status !== "active" && empData.status !== "نشط") {
+                throw { code: 'custom/account-suspended' };
+            }
+
             loginEmail = empData.email;
             
             // 🔴 [الختم السحري]: حفظ الصلاحية ومعرف العيادة لضمان الخصوصية
@@ -92,9 +99,17 @@ async function loginById() {
         }
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
-            if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
+
+            // معالجة خطأ الحساب الموقوف
+            if (error.code === 'custom/account-suspended') {
+                errorDiv.innerText = isRtl 
+                    ? "هذا الحساب موقوف حالياً، يرجى التواصل مع الإدارة" 
+                    : "This account is suspended, please contact administration";
+            } 
+            else if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
-            } else {
+            } 
+            else {
                 errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
             }
         }
@@ -215,7 +230,7 @@ async function sendResetLink(e) {
     }
 }
 
-// 5. نظام الترجمة (للتوافق مع صفحة الدخول القديمة)
+// 5. نظام الترجمة
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -261,7 +276,7 @@ function updatePageContent(lang) {
     safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
 }
 
-// 6. دالة إظهار/إخفاء كلمة المرور في صفحة الدخول (العين 👁️)
+// 6. دالة إظهار/إخفاء كلمة المرور
 function togglePasswordVisibility() {
     const passInput = document.getElementById('password');
     const toggleIcon = document.querySelector('.toggle-password');
