@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/finances.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="page-header no-print">
+        <div class="page-title">
+            <h1 id="txt-title">الحسابات والمصروفات</h1>
+            <p id="txt-subtitle">إدارة الخزنة، الإيرادات اليومية، والمصروفات</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-success" onclick="openTransactionModal('income')">
+                <span>➕</span> <span id="btn-add-inc">إضافة إيراد</span>
+            </button>
+            <button class="btn-danger" onclick="openTransactionModal('expense')">
+                <span>➖</span> <span id="btn-add-exp">إضافة مصروف</span>
+            </button>
+            <button class="btn-primary" onclick="window.print()">
+                <span>🖨️</span> <span id="btn-print">طباعة التقرير</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="kpi-grid no-print">
+        <div class="kpi-card green">
+            <div class="kpi-info"><h4 id="lbl-total-inc">إجمالي الإيرادات (الشهر الحالي)</h4><h2 id="stat-income">0</h2></div>
+            <div class="kpi-icon green">📈</div>
+        </div>
+        <div class="kpi-card red">
+            <div class="kpi-info"><h4 id="lbl-total-exp">إجمالي المصروفات (الشهر الحالي)</h4><h2 id="stat-expense">0</h2></div>
+            <div class="kpi-icon red">📉</div>
+        </div>
+        <div class="kpi-card blue">
+            <div class="kpi-info"><h4 id="lbl-net">صافي الربح</h4><h2 id="stat-net">0</h2></div>
+            <div class="kpi-icon blue">💰</div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-header no-print">
+            <h3 id="txt-ledger">دفتر الخزنة</h3>
+            <select id="filterMonth" class="search-box" onchange="loadFinances()" style="width: 200px;">
+                <option value="all" id="opt-all">كل الشهور</option>
+                </select>
+        </div>
+        <table id="financesTable">
+            <thead>
+                <tr>
+                    <th id="th-date">التاريخ</th>
+                    <th id="th-type">النوع</th>
+                    <th id="th-cat">البند / التصنيف</th>
+                    <th id="th-amount">المبلغ</th>
+                    <th id="th-notes">البيان / الملاحظات</th>
+                    <th id="th-action" class="no-print" style="text-align: center;">إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="financesBody">
+                <tr><td colspan="6" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="transactionModal" class="modal no-print">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeTransactionModal()">&times;</span>
+            <h2 id="modal-title" style="margin-top: 0; margin-bottom: 20px;">تسجيل حركة مالية</h2>
+            
+            <form id="transactionForm" onsubmit="saveTransaction(event)">
+                <input type="hidden" id="trans_type"> <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label id="lbl-amount">المبلغ</label>
+                        <input type="number" id="trans_amount" required min="1">
+                    </div>
+                    <div class="form-group">
+                        <label id="lbl-date">التاريخ</label>
+                        <input type="date" id="trans_date" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label id="lbl-cat">البند / التصنيف</label>
+                    <select id="trans_category" required>
+                        </select>
+                </div>
+
+                <div class="form-group">
+                    <label id="lbl-notes">البيان / تفاصيل</label>
+                    <input type="text" id="trans_notes" placeholder="مثال: دفعة من المريض أحمد، أو فاتورة كهرباء..." required>
+                </div>
+
+                <button type="submit" id="btn-save" class="btn-primary" style="width: 100%; margin-top: 10px;">حفظ العملية</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/finances.js"></script>
+</body>
+</html>
