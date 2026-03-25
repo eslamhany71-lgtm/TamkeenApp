@@ -8,9 +8,8 @@ let completedSessionsData = [];
 let todayRevenueData = [];
 
 let currentSelectedPatientId = null; 
-let currentSelectedAppId = null; // لتخزين الموعد المفتوح حالياً
+let currentSelectedAppId = null; 
 
-// 1. القاموس الإنجليزي/العربي الشامل (مظبوط لغوياً 100%)
 function updatePageContent(lang) {
     const t = { 
         ar: { 
@@ -52,14 +51,12 @@ function updatePageContent(lang) {
     
     setTxt('mod-rev-title', c.mRevTitle); setTxt('mod-sess-title', c.mSessTitle);
     
-    // زراير الأكشن
     setTxt('btn-complete-app', c.btnComp); setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
     
     window.emptyTxt = c.empty; 
     window.confDelTxt = c.confDel;
 }
 
-// 2. تحديث الرسم البياني
 let dashChart = null;
 function updateChart(pending, completed, cancelled) {
     const ctx = document.getElementById('dashboardChart').getContext('2d');
@@ -73,7 +70,6 @@ function updateChart(pending, completed, cancelled) {
     });
 }
 
-// 3. سحب كل الداتا
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = new Date().toISOString().split('T')[0];
@@ -112,7 +108,6 @@ function loadDashboardStats() {
         document.getElementById('stat-sessions').innerText = completed;
         updateChart(pending, completed, cancelled);
         
-        // لو المودال بتاع قائمة الانتظار مفتوح، اعمل تحديث للبيانات لحظياً
         if(document.getElementById('waitingListModal').style.display === 'flex'){
             renderWaitList('todayWaitContainer', todayPendingApps);
             renderWaitList('upcomingWaitContainer', upcomingPendingApps);
@@ -122,7 +117,6 @@ function loadDashboardStats() {
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// 4. قائمة الانتظار والمواعيد
 function openWaitingListModal() {
     renderWaitList('todayWaitContainer', todayPendingApps);
     renderWaitList('upcomingWaitContainer', upcomingPendingApps);
@@ -162,7 +156,7 @@ function renderWaitList(containerId, dataArray) {
 }
 
 function openAppDetails(app) {
-    currentSelectedAppId = app.id; // حفظ الـ ID عشان نعدل عليه
+    currentSelectedAppId = app.id; 
     document.getElementById('det_name').innerText = app.patientName;
     document.getElementById('det_date').innerText = app.date;
     document.getElementById('det_time').innerText = app.time;
@@ -170,7 +164,6 @@ function openAppDetails(app) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.getElementById('det_notes').innerText = app.notes || (lang === 'ar' ? 'لا يوجد' : 'None');
     
-    // إخفاء الأكشنز لو الموعد مش في الانتظار (اختياري، بس منطقي عشان منعدلش في المكتمل)
     const actionsDiv = document.getElementById('app-actions-container');
     if(app.status !== 'pending') actionsDiv.style.display = 'none';
     else actionsDiv.style.display = 'flex';
@@ -178,7 +171,6 @@ function openAppDetails(app) {
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
 
-// 🔴 الأكشنز الخاصة بالموعد (مكتمل - إلغاء - حذف)
 async function updateAppStatus(newStatus) {
     if(!currentSelectedAppId) return;
     try {
@@ -197,7 +189,6 @@ async function deleteAppointment() {
     }
 }
 
-// 5. قائمة المرضى والتفاصيل
 function openPatientsModal() {
     const container = document.getElementById('patientsContainer');
     container.innerHTML = '';
@@ -236,7 +227,6 @@ function goToPatientProfile() {
     }
 }
 
-// 6. الإيرادات والجلسات
 function openRevenueModal() {
     const container = document.getElementById('revenueContainer');
     container.innerHTML = '';
@@ -281,11 +271,10 @@ window.onload = () => {
         if (user) loadDashboardStats();
     });
 };
-// 🔴 السحر هنا: دعم اللمس (Touch) والضغط (Click) في الموبايل والكمبيوتر
-['click', 'touchstart'].forEach(evt => {
-    window.addEventListener(evt, function(event) {
-        if (event.target.classList.contains('modal')) {
-            event.target.style.display = 'none';
-        }
-    }, {passive: true});
+
+// 🔴 الحل السحري: إغلاق المودال بحدث كليك واحد فقط وآمن تماماً
+window.addEventListener('click', function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
 });
