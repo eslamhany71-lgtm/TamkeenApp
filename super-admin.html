@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/super-admin.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div class="page-header">
+        <div class="page-title">
+            <h1 id="txt-title">إدارة النظام المركزية (SaaS)</h1>
+            <p id="txt-subtitle" style="color: #ef4444; font-weight: bold;">لوحة تحكم المالك - صلاحيات عليا</p>
+        </div>
+        <div class="header-actions">
+            <input type="text" id="searchInput" class="search-box" placeholder="بحث باسم العيادة..." onkeyup="filterClinics()">
+            <button class="btn-primary" onclick="openClinicModal()">
+                <span>🏢</span> <span id="btn-add-clinic">إضافة عيادة جديدة</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card blue">
+            <div class="kpi-info"><h4>إجمالي العيادات النشطة</h4><h2 id="stat-clinics">0</h2></div>
+            <div class="kpi-icon blue">🏥</div>
+        </div>
+        <div class="kpi-card green">
+            <div class="kpi-info"><h4>إجمالي المرضى (في كل النظام)</h4><h2 id="stat-all-patients">0</h2></div>
+            <div class="kpi-icon green">👥</div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="clinicsTable">
+            <thead>
+                <tr>
+                    <th>تاريخ الاشتراك</th>
+                    <th>اسم العيادة</th>
+                    <th>إيميل الأدمن (الدكتور)</th>
+                    <th>حالة الاشتراك</th>
+                    <th style="text-align: center;">إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="clinicsBody">
+                <tr><td colspan="5" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="clinicModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeClinicModal()">&times;</span>
+            <h2 style="margin-top: 0; margin-bottom: 20px;">تسجيل عيادة جديدة بالنظام</h2>
+            
+            <form id="clinicForm" onsubmit="saveNewClinic(event)">
+                <div class="form-group">
+                    <label>اسم العيادة / المركز الطبي</label>
+                    <input type="text" id="clinic_name" placeholder="مثال: عيادة د. أحمد للأسنان" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>البريد الإلكتروني للأدمن (سيتم استخدامه لتسجيل الدخول)</label>
+                    <input type="email" id="clinic_admin_email" placeholder="doctor@clinic.com" required dir="ltr" style="text-align: left;">
+                    <small style="color: #64748b; font-size: 12px; display: block; margin-top: 5px;">* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول أو الكونسول.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>خطة الاشتراك</label>
+                    <select id="clinic_plan">
+                        <option value="active">نشط (Active)</option>
+                        <option value="trial">فترة تجريبية (Trial)</option>
+                        <option value="suspended">موقوف (Suspended)</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="btn-save" class="btn-primary" style="width: 100%; margin-top: 10px;">إنشاء العيادة وتوليد المعرف</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/super-admin.js"></script>
+</body>
+</html>
