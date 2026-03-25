@@ -18,13 +18,14 @@ body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     transition: 0.3s;
 }
-.sidebar-brand img { max-width: 45px; transition: 0.3s; }
+.sidebar-brand img { max-width: 45px; transition: 0.3s; display: block; }
 .sidebar-brand span { font-size: 18px; font-weight: 800; margin-top: 10px; transition: 0.3s; white-space: nowrap; }
 
-/* اختفاء النص وتصغير اللوجو عند الطي */
-.sidebar.collapsed .sidebar-brand span { display: none; }
-.sidebar.collapsed .sidebar-brand { padding: 15px 5px; }
-.sidebar.collapsed .sidebar-brand img { max-width: 35px; }
+/* 🔴 السحر هنا: اختفاء النص وتوسيط اللوجو عند الطي */
+.sidebar.collapsed .sidebar-brand span { display: none !important; }
+.sidebar.collapsed .sidebar-brand { padding: 15px 0; }
+.sidebar.collapsed .sidebar-brand img { max-width: 40px; }
+.sidebar.collapsed #txt-clinic-name { display: none !important; }
 
 /* روابط القائمة */
 .nav-links { list-style: none; padding: 0; margin: 20px 0; overflow-y: auto; flex: 1; }
@@ -47,9 +48,10 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 /* ================= المحتوى الرئيسي والهيدر ================= */
 .main-content { flex: 1; display: flex; flex-direction: column; transition: 0.3s; width: 100%; overflow: hidden; }
 
+/* 🔴 السحر هنا: الهيدر فوق القائمة الجانبية دايماً */
 .topbar {
     background: #fff; height: 70px; display: flex; justify-content: space-between; align-items: center;
-    padding: 0 25px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); z-index: 100;
+    padding: 0 25px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 1005; position: relative;
 }
 
 .topbar-right, .topbar-left { display: flex; align-items: center; gap: 15px; }
@@ -61,7 +63,6 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 }
 .menu-toggle:hover, .desktop-toggle:hover { background: #f1f5f9; color: #0284C7; }
 
-/* إخفاء زر الموبايل في الكمبيوتر */
 .menu-toggle { display: none; }
 
 .user-profile { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #e2e8f0;}
@@ -72,18 +73,16 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
 .logout-btn:hover { background: #dc2626; }
 
-/* الـ Iframe اللي بيشيل الشاشات */
 .content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; }
 
 /* ================= تظبيط الموبايل (Mobile Responsive) ================= */
 @media (max-width: 992px) {
-    /* إظهار زر الموبايل وإخفاء زر الكمبيوتر */
     .menu-toggle { display: block; }
     .desktop-toggle { display: none; }
 
-    /* القائمة الجانبية في الموبايل (عائمة ومخفية) */
+    /* 🔴 القائمة تفتح تحت الهيدر عشان الزرار يفضل باين */
     .sidebar {
-        position: fixed; top: 0; bottom: 0; right: 0; /* للغة العربية */
+        position: fixed; top: 70px; bottom: 0; right: 0; 
         transform: translateX(100%);
         box-shadow: -5px 0 15px rgba(0,0,0,0.1);
     }
@@ -93,12 +92,10 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
         box-shadow: 5px 0 15px rgba(0,0,0,0.1);
     }
     
-    /* إظهار القائمة لما تاخد كلاس active */
     .sidebar.active { transform: translateX(0); }
     html[dir="ltr"] .sidebar.active { transform: translateX(0); }
 
-    /* تظبيط الهيدر في الموبايل */
     .topbar { padding: 0 15px; }
-    .topbar h2 { display: none; } /* إخفاء الكلمة عشان الزحمة */
-    .user-email { display: none; } /* إخفاء الإيميل في الموبايل */
+    .topbar h2 { display: none; } 
+    .user-email { display: none; } 
 }
