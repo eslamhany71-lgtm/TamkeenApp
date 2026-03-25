@@ -1,0 +1,29 @@
+body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; }
+
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
+.page-title h1 { margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; }
+.page-title p { margin: 5px 0 0 0; color: #64748b; font-size: 15px; }
+
+.settings-container { display: flex; justify-content: center; }
+.settings-card { background: #fff; padding: 35px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; width: 100%; max-width: 600px; text-align: start; }
+
+.logo-upload-section { display: flex; align-items: center; gap: 25px; flex-wrap: wrap; }
+.logo-preview-container { width: 100px; height: 100px; border-radius: 16px; background: #f8fafc; border: 2px dashed #cbd5e1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 5px; }
+#logo-preview { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 12px; }
+
+.logo-actions { flex: 1; }
+.logo-actions input[type="file"] { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; background: #f8fafc; cursor: pointer; }
+
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: 700; color: #334155; font-size: 15px; }
+.form-group input[type="text"] { width: 100%; padding: 14px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 15px; box-sizing: border-box; outline: none; transition: 0.3s; background: #f8fafc; }
+.form-group input[type="text"]:focus { border-color: #0284C7; background: #fff; }
+
+.btn-primary { background: #0284C7; color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-family: inherit; }
+.btn-primary:hover { background: #0369a1; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3); }
+
+/* Responsive */
+@media (max-width: 600px) {
+    .logo-upload-section { flex-direction: column; text-align: center; }
+    .logo-preview-container { margin: 0 auto; }
+}
