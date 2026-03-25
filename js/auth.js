@@ -44,7 +44,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (تقرأ الصلاحية ومعرف العيادة من قاعدة الموظفين الأصلية)
+// 2. دالة تسجيل الدخول (تقرأ الصلاحية ومعرف العيادة من قاعدة clinicId)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -66,9 +66,9 @@ async function loginById() {
     try {
         let loginEmail = rawInput.toLowerCase();
 
-        // الاعتماد الكلي على Employee_Database لجلب الإيميل والصلاحية ومعرف العيادة
+        // الاعتماد الكلي على clinicId لجلب الإيميل والصلاحية ومعرف العيادة
         if (!rawInput.includes('@')) {
-            const empDoc = await db.collection("Employee_Database").doc(rawInput).get();
+            const empDoc = await db.collection("clinicId").doc(rawInput).get();
             
             if (!empDoc.exists || !empDoc.data().email) {
                 throw { code: 'custom/user-not-found' }; 
@@ -117,7 +117,7 @@ async function activateAccount() {
     try {
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...";
 
-        const empDoc = await db.collection("Employee_Database").doc(codeRaw).get();
+        const empDoc = await db.collection("clinicId").doc(codeRaw).get();
 
         if (!empDoc.exists) {
             if(msg) msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع إدارة النظام" : "Code not registered, contact admin"; 
@@ -150,7 +150,7 @@ async function activateAccount() {
         });
 
         // 3. تحديث جدول الموظفين الأساسي
-        await db.collection("Employee_Database").doc(codeRaw).update({ 
+        await db.collection("clinicId").doc(codeRaw).update({ 
             activated: true,
             email: realEmail 
         });
