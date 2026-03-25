@@ -272,9 +272,15 @@ window.onload = () => {
     });
 };
 
-// 🔴 الحل السحري: إغلاق المودال بحدث كليك واحد فقط وآمن تماماً
-window.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
+// 🔴 الحل النهائي للموبايل والكمبيوتر (إغلاق المودال بالضغط خارجه)
+document.addEventListener('DOMContentLoaded', () => {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(event) {
+            // يتأكد إنه داس على الخلفية الضلمة مش جوه المربع الأبيض
+            if (event.target === this) {
+                this.style.display = 'none';
+            }
+        });
+    });
 });
