@@ -12,7 +12,7 @@ function updatePageContent(lang) {
             lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.", lPlan: "خطة الاشتراك", 
             optAct: "نشط (Active)", optTri: "فترة تجريبية (Trial)", optSusp: "موقوف (Suspended)", btnSave: "إنشاء العيادة وتوليد المعرف",
             sAct: "نشط", sTri: "تجريبي", sSusp: "موقوف", btnChange: "تغيير الحالة",
-            msgSuccess: "تم إنشاء العيادة بنجاح!\n\nمعرف العيادة: {id}\nإيميل الأدمن: {email}\n\nيرجى التأكد من تسجيل هذا الإيميل بكلمة مرور في شاشة الدخول.",
+            msgSuccess: "تم إنشاء العيادة بنجاح!\n\nكود الدخول: {id}\nإيميل الأدمن: {email}\n\nيرجى إرسال الكود للدكتور لتفعيل الحساب من صفحة التفعيل.",
             msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل تريد تغيير حالة العيادة إلى {status}؟",
             msgWarnDel: "تحذير: هذا سيحذف العيادة! اكتب '1234' للتأكيد:", msgDelSuccess: "تم مسح العيادة وصلاحية دخول الأدمن.", btnSaving: "جاري الإنشاء..."
         },
@@ -25,7 +25,7 @@ function updatePageContent(lang) {
             lHint: "* This account must be created later from the login screen.", lPlan: "Subscription Plan", 
             optAct: "Active", optTri: "Trial", optSusp: "Suspended", btnSave: "Create Clinic & Generate ID",
             sAct: "Active", sTri: "Trial", sSusp: "Suspended", btnChange: "Change Status",
-            msgSuccess: "Clinic created successfully!\n\nClinic ID: {id}\nAdmin Email: {email}\n\nPlease ensure this email is registered from the login screen.",
+            msgSuccess: "Clinic created successfully!\n\nAccess Code: {id}\nAdmin Email: {email}\n\nPlease send this code to the doctor to activate the account.",
             msgError: "Error creating clinic!", msgConfirmToggle: "Change clinic status to {status}?",
             msgWarnDel: "WARNING: This will delete the clinic! Type '1234' to confirm:", msgDelSuccess: "Clinic and admin access deleted.", btnSaving: "Creating..."
         }
@@ -40,7 +40,6 @@ function updatePageContent(lang) {
     setTxt('mod-title', c.mTitle); setTxt('lbl-c-name', c.lName); setTxt('lbl-c-email', c.lEmail); setTxt('lbl-c-hint', c.lHint); setTxt('lbl-c-plan', c.lPlan);
     setTxt('opt-active', c.optAct); setTxt('opt-trial', c.optTri); setTxt('opt-susp', c.optSusp); setTxt('btn-save', c.btnSave);
     
-    // حفظ متغيرات الجافاسكريبت
     window.superLang = c;
 }
 
@@ -69,7 +68,7 @@ function closeClinicModal() {
     document.getElementById('clinicModal').style.display = 'none';
 }
 
-// 3. إغلاق المودال بالضغط خارجه (الحل النهائي)
+// 3. إغلاق المودال بالضغط خارجه
 document.addEventListener('DOMContentLoaded', () => {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
@@ -81,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 4. إنشاء عيادة جديدة
+// 4. إنشاء عيادة جديدة وتوليد الكود (السايكل الصح)
 async function saveNewClinic(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -90,24 +89,40 @@ async function saveNewClinic(e) {
     const clinicName = document.getElementById('clinic_name').value.trim();
     const adminEmail = document.getElementById('clinic_admin_email').value.trim().toLowerCase();
     const plan = document.getElementById('clinic_plan').value;
+    
+    // سحب رقم الموبايل من الشاشة (مهم عشان التأكيد في صفحة التفعيل)
+    const phoneInput = document.getElementById('clinic_phone');
+    const adminPhone = phoneInput && phoneInput.value.trim() !== "" ? phoneInput.value.trim() : "01000000000";
 
     try {
-        const clinicRef = await db.collection("Clinics").add({
+        // 1. إنشاء كود دخول عشوائي من 4 أرقام
+        const accessCode = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        // 2. إنشاء المعرف البرمجي الفريد للعيادة (الختم السحري)
+        const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
+
+        // 3. تسجيل العيادة في جدول Clinics (عشان تظهر قدامك في الجدول)
+        await db.collection("Clinics").doc(uniqueClinicId).set({
             clinicName: clinicName,
             status: plan,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            logoUrl: "" 
+            logoUrl: "",
+            accessCode: accessCode, // حفظ الكود هنا عشان لو حبينا نرجعله
+            adminEmail: adminEmail
         });
 
-        const newClinicId = clinicRef.id;
-
-        await db.collection("Users").doc(adminEmail).set({
-            clinicId: newClinicId,
+        // 4. زراعة كود التفعيل في جدول clinicId (عشان صفحة التفعيل تشوفه)
+        await db.collection("clinicId").doc(accessCode).set({
+            activated: false, // لسه متفعلش
+            name: clinicName,
+            phone: adminPhone, // الرقم اللي الدكتور هيكتبه وهو بيفعل الحساب
+            email: adminEmail,
             role: "admin",
-            email: adminEmail
+            clinicId: uniqueClinicId // الختم السحري للعيادة دي
         });
 
-        let msg = window.superLang.msgSuccess.replace('{id}', newClinicId).replace('{email}', adminEmail);
+        // رسالة النجاح وفيها الكود اللي هتبعته للدكتور
+        let msg = window.superLang.msgSuccess.replace('{id}', accessCode).replace('{email}', adminEmail);
         alert(msg);
         closeClinicModal();
     } catch (error) {
@@ -118,7 +133,7 @@ async function saveNewClinic(e) {
     }
 }
 
-// 5. عرض العيادات
+// 5. عرض العيادات (تم تعديلها عشان تقرأ الداتا الصح)
 function loadClinics() {
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
         const tbody = document.getElementById('clinicsBody');
@@ -137,9 +152,9 @@ function loadClinics() {
             const c = doc.data();
             const dateStr = c.createdAt ? c.createdAt.toDate().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US') : '---';
             
-            let adminEmail = "---";
-            const usersSnap = await db.collection("Users").where("clinicId", "==", doc.id).where("role", "==", "admin").get();
-            if (!usersSnap.empty) { adminEmail = usersSnap.docs[0].id; } 
+            // قراءة الإيميل مباشرة من جدول Clinics
+            let adminEmail = c.adminEmail || "---";
+            let accessCode = c.accessCode || ""; 
 
             let statusHtml = '';
             if(c.status === 'active') statusHtml = `<span class="status-badge status-active">${window.superLang.sAct}</span>`;
@@ -149,12 +164,12 @@ function loadClinics() {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${dateStr}</td>
-                <td style="font-weight:bold;">${c.clinicName}</td>
+                <td style="font-weight:bold;">${c.clinicName}<br><small style="color:gray;">الكود: ${accessCode}</small></td>
                 <td dir="ltr" style="text-align:start;">${adminEmail}</td>
                 <td>${statusHtml}</td>
                 <td style="text-align: center;">
                     <button class="btn-warning" onclick="toggleStatus('${doc.id}', '${c.status}')">${window.superLang.btnChange}</button>
-                    <button class="btn-danger" onclick="deleteClinic('${doc.id}', '${adminEmail}')">🗑️</button>
+                    <button class="btn-danger" onclick="deleteClinic('${doc.id}', '${accessCode}')">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -172,13 +187,15 @@ async function toggleStatus(clinicId, currentStatus) {
     }
 }
 
-// 7. حذف العيادة
-async function deleteClinic(clinicId, adminEmail) {
+// 7. حذف العيادة (تم تعديلها عشان تمسح من Clinics و clinicId)
+async function deleteClinic(clinicId, accessCode) {
     const code = prompt(window.superLang.msgWarnDel);
     if (code === '1234') {
+        // بنمسحها من جدول العيادات
         await db.collection("Clinics").doc(clinicId).delete();
-        if(adminEmail !== "---") {
-            await db.collection("Users").doc(adminEmail).delete();
+        // وبنمسح الكود بتاعها عشان محدش يفعله
+        if(accessCode && accessCode !== "") {
+            await db.collection("clinicId").doc(accessCode).delete();
         }
         alert(window.superLang.msgDelSuccess);
     }
