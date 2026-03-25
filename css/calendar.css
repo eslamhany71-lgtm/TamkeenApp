@@ -31,3 +31,16 @@ body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Ta
 .btn-action-primary:hover { background: #e2e8f0; }
 .btn-action-danger { background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; }
 .btn-action-danger:hover { background: #fca5a5; }
+
+/* أزرار التعديل والحذف في المودال */
+.btn-action-primary { background: #f8fafc; border: 1px solid #e2e8f0; color: #0f172a; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.btn-action-primary:hover { background: #e2e8f0; }
+.btn-action-danger { background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.btn-action-danger:hover { background: #fca5a5; }
+
+/* 🔴 تظبيط شكل التقويم على الموبايل */
+@media (max-width: 768px) {
+    .calendar-container { padding: 10px; }
+    .fc-toolbar { flex-direction: column; gap: 10px; }
+    .fc-toolbar-title { font-size: 1.2rem !important; }
+}
