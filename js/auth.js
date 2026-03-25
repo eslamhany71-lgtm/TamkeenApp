@@ -197,7 +197,7 @@ async function sendResetLink(e) {
     }
 }
 
-// 5. نظام الترجمة (محدث بالكامل ليتوافق مع NivaDent)
+// 5. نظام الترجمة
 function updatePageContent(lang) {
     const translations = {
         ar: {
@@ -241,4 +241,17 @@ function updatePageContent(lang) {
     safeSetText('lbl-act-phone', t.actPhone); safeSetText('lbl-act-pass', t.actPass); safeSetText('btn-activate', t.btnAct);
     safeSetText('txt-back-str', t.backLoginStr); safeSetText('link-back-login', t.backLoginLink); safeSetText('brand-act-title', t.brandActTitle);
     safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
+}
+
+// 6. دالة إظهار/إخفاء كلمة المرور (العين 👁️)
+function togglePasswordVisibility() {
+    const passInput = document.getElementById('password');
+    const toggleIcon = document.querySelector('.toggle-password');
+    if (passInput.type === 'password') {
+        passInput.type = 'text';
+        toggleIcon.innerText = '🙈';
+    } else {
+        passInput.type = 'password';
+        toggleIcon.innerText = '👁️';
+    }
 }
