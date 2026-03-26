@@ -44,7 +44,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (تم التعديل لمنع دخول الحسابات الموقوفة)
+// 2. دالة تسجيل الدخول (مع حماية العيادة الموقوفة)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -65,8 +65,8 @@ async function loginById() {
 
     try {
         let loginEmail = rawInput.toLowerCase();
+        let targetClinicId = 'default';
 
-        // الاعتماد الكلي على clinicId لجلب الإيميل والصلاحية ومعرف العيادة
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             
@@ -75,19 +75,34 @@ async function loginById() {
             }
             
             const empData = empDoc.data();
-
-            // 🛑 التحقق من حالة العيادة (منع الموقوفين)
-            // إذا كانت الحالة في الداتابيز تسمى status، تأكد أنها "نشط" أو "active"
-            if (empData.status !== "active" && empData.status !== "نشط") {
-                throw { code: 'custom/account-suspended' };
-            }
-
             loginEmail = empData.email;
+            targetClinicId = empData.clinicId;
             
-            // 🔴 [الختم السحري]: حفظ الصلاحية ومعرف العيادة لضمان الخصوصية
             sessionStorage.setItem('userRole', empData.role);
             sessionStorage.setItem('empCode', rawInput);
-            sessionStorage.setItem('clinicId', empData.clinicId || 'default'); // حفظ معرف العيادة
+            sessionStorage.setItem('clinicId', targetClinicId); 
+        }
+
+        // 🔴🔴 الختم السحري الجديد: فحص حالة الاشتراك قبل الدخول 🔴🔴
+        if (targetClinicId !== 'default') {
+            const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
+            if (clinicDoc.exists) {
+                const clinicStatus = clinicDoc.data().status;
+                const nextPaymentDate = clinicDoc.data().nextPaymentDate ? clinicDoc.data().nextPaymentDate.toDate() : null;
+                const now = new Date();
+
+                // لو الحالة موقوفة يدوياً
+                if (clinicStatus === 'suspended') {
+                    throw { code: 'custom/suspended-clinic' };
+                }
+                
+                // الإيقاف الأوتوماتيكي: لو ميعاد الدفع عدى والعيادة لسه متدفعتش
+                if (nextPaymentDate && now > nextPaymentDate) {
+                    // نغير حالتها لموقوف في الداتا بيز عشان السوبر أدمن يشوفها
+                    await db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' });
+                    throw { code: 'custom/subscription-expired' };
+                }
+            }
         }
 
         await auth.signInWithEmailAndPassword(loginEmail, pass);
@@ -99,24 +114,22 @@ async function loginById() {
         }
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
-
-            // معالجة خطأ الحساب الموقوف
-            if (error.code === 'custom/account-suspended') {
-                errorDiv.innerText = isRtl 
-                    ? "هذا الحساب موقوف حالياً، يرجى التواصل مع الإدارة" 
-                    : "This account is suspended, please contact administration";
-            } 
-            else if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
+            
+            // رسايل المنع الجديدة 
+            if (error.code === 'custom/suspended-clinic') {
+                errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً. يرجى التواصل مع الإدارة." : "Account suspended. Please contact admin.";
+            } else if (error.code === 'custom/subscription-expired') {
+                errorDiv.innerText = isRtl ? "عفواً، انتهت فترة الاشتراك. يرجى تجديد الاشتراك والتواصل مع الإدارة." : "Subscription expired. Please renew and contact admin.";
+            } else if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
-            } 
-            else {
+            } else {
                 errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
             }
         }
     }
 }
 
-// 3. دالة التفعيل (تزرع معرف العيادة في جدول المستخدمين الجديد)
+// 3. دالة التفعيل
 async function activateAccount() {
     const codeRaw = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -152,19 +165,16 @@ async function activateAccount() {
 
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
 
-        // 1. إنشاء الحساب في الفايربيز
         await auth.createUserWithEmailAndPassword(realEmail, pass);
         
-        // 2. بناء جدول الـ Users (مع إضافة ختم العيادة)
         await db.collection("Users").doc(realEmail).set({
             role: (empData.role || "doctor").toLowerCase().trim(),
             name: empData.name,
             empCode: codeRaw, 
             email: realEmail,
-            clinicId: empData.clinicId || 'default' // 🔴 إضافة الختم هنا كمان
+            clinicId: empData.clinicId || 'default'
         });
 
-        // 3. تحديث جدول الموظفين الأساسي
         await db.collection("clinicId").doc(codeRaw).update({ 
             activated: true,
             email: realEmail 
@@ -276,7 +286,6 @@ function updatePageContent(lang) {
     safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
 }
 
-// 6. دالة إظهار/إخفاء كلمة المرور
 function togglePasswordVisibility() {
     const passInput = document.getElementById('password');
     const toggleIcon = document.querySelector('.toggle-password');
