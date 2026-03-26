@@ -8,7 +8,6 @@ function loadPage(pageUrl, clickedLi) {
     allLinks.forEach(li => li.classList.remove('active'));
     clickedLi.classList.add('active');
 
-    // قفل القائمة في الموبايل بعد اختيار صفحة
     if (window.innerWidth <= 992) {
         document.getElementById('sidebar').classList.remove('active');
         const overlay = document.getElementById('mobile-overlay');
@@ -26,20 +25,24 @@ function switchAppLanguage(lang) {
     }
 }
 
-// 3. الترجمة الخاصة بالهيكل الخارجي (NivaDent Menu)
+// 3. الترجمة الخاصة بالهيكل الخارجي
 function updatePageContent(lang) {
     const t = {
         ar: {
             header: "لوحة التحكم",
             navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
             navSessions: "الجلسات والروشتات", navFinances: "الحسابات والمصروفات",
-            navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج"
+            navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
+            alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
+            alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام."
         },
         en: {
             header: "Dashboard",
             navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
             navSessions: "Sessions & Prescriptions", navFinances: "Finances",
-            navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout"
+            navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
+            alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
+            alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension."
         }
     };
     const c = t[lang] || t.ar;
@@ -49,6 +52,8 @@ function updatePageContent(lang) {
     setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
     setTxt('nav-sessions', c.navSessions); setTxt('nav-finances', c.navFinances);
     setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
+    
+    window.homeLang = c;
 }
 
 // 4. مراقب الصلاحيات وجلب بيانات العيادة (The Magic Router)
@@ -57,21 +62,21 @@ firebase.auth().onAuthStateChanged(async (user) => {
         document.getElementById('userEmail').innerText = user.email;
 
         try {
-            // جلب بيانات المستخدم من الفايربيز
             const userDoc = await db.collection("Users").doc(user.email).get();
             if (userDoc.exists) {
                 const userData = userDoc.data();
                 const role = userData.role || 'reception';
                 const clinicId = userData.clinicId || sessionStorage.getItem('clinicId') || 'default';
 
-                // حفظ معرف العيادة لضمان استخدامه في الشاشات الداخلية
                 sessionStorage.setItem('clinicId', clinicId);
 
-                // تطبيق الصلاحيات
                 applyRoles(role);
-
-                // تحميل اللوجو واسم العيادة الديناميكي
                 loadClinicBranding(clinicId);
+                
+                // 🔴 تشغيل فحص التنبيهات للعيادة 🔴
+                if(role !== 'superadmin' && clinicId !== 'default') {
+                    checkSubscriptionAlert(clinicId);
+                }
             }
         } catch (error) {
             console.error("خطأ في جلب بيانات المستخدم:", error);
@@ -81,22 +86,68 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// 5. دالة جلب لوجو واسم العيادة
+// 🔴 5. دالة فحص التنبيهات (Billing Alerts) 🔴
+async function checkSubscriptionAlert(clinicId) {
+    try {
+        const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
+        if (clinicDoc.exists) {
+            const cData = clinicDoc.data();
+            
+            // تأكيد الطرد لو العيادة اتوقفت وهو جوه السيستم
+            if (cData.status === 'suspended') {
+                firebase.auth().signOut();
+                return;
+            }
+
+            if (cData.nextPaymentDate) {
+                const nextPayDate = cData.nextPaymentDate.toDate();
+                const now = new Date();
+                
+                const diffTime = nextPayDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+                // لو فاضل 3 أيام أو أقل، نظهر شريط التنبيه
+                if (diffDays >= 0 && diffDays <= 3) {
+                    showBillingAlert(diffDays);
+                }
+            }
+        }
+    } catch (error) {
+        console.error("خطأ في فحص الاشتراك:", error);
+    }
+}
+
+// دالة رسم شريط التنبيه في الشاشة
+function showBillingAlert(daysLeft) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const t = window.homeLang || updatePageContent(lang); 
+    
+    let alertMsg = daysLeft === 0 ? window.homeLang.alertToday : window.homeLang.alertText.replace('{days}', daysLeft);
+
+    // إنشاء شريط التنبيه HTML
+    const alertDiv = document.createElement('div');
+    alertDiv.id = "billing-alert-banner";
+    alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);";
+    alertDiv.innerHTML = `<span>${alertMsg}</span>`;
+
+    // إضافته في أعلى الصفحة (فوق الـ Header)
+    document.body.insertBefore(alertDiv, document.body.firstChild);
+}
+
+// 6. دالة جلب لوجو واسم العيادة
 async function loadClinicBranding(clinicId) {
-    if (clinicId === 'default' || !clinicId) return; // الاحتفاظ بلوجو NivaDent الافتراضي
+    if (clinicId === 'default' || !clinicId) return; 
 
     try {
         const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
         if (clinicDoc.exists) {
             const clinicData = clinicDoc.data();
             
-            // تغيير اسم العيادة
             if (clinicData.clinicName) {
                 const nameElement = document.getElementById('txt-clinic-name');
                 if (nameElement) nameElement.innerText = clinicData.clinicName;
             }
             
-            // تغيير اللوجو
             if (clinicData.logoUrl) {
                 const logoContainer = document.getElementById('clinic-logo-container');
                 if (logoContainer) {
@@ -109,45 +160,38 @@ async function loadClinicBranding(clinicId) {
     }
 }
 
-// 6. توزيع الصلاحيات
+// 7. توزيع الصلاحيات
 function applyRoles(role) {
     const r = role.toLowerCase();
     
-    // إخفاء القوائم الحساسة كإجراء افتراضي
     const settingsLi = document.getElementById('nav-settings-li');
     const superAdminLi = document.getElementById('nav-super-admin');
     
     if (settingsLi) settingsLi.style.display = 'none';
     if (superAdminLi) superAdminLi.style.display = 'none';
 
-    // الدكتور (أو أدمن العيادة) يشوف الإعدادات
     if (r === 'doctor' || r === 'admin') {
         if (settingsLi) settingsLi.style.display = 'block';
     }
     
-    // مالك النظام يشوف كل حاجة
     if (r === 'superadmin') {
         if (settingsLi) settingsLi.style.display = 'block';
         if (superAdminLi) superAdminLi.style.display = 'block';
     }
 }
 
-// ================= الجزء الجديد لحل مشاكل الموبايل =================
-
-// 7. إضافة طبقة خلفية عائمة (Overlay) لتقفيل الموبايل بشياكة عند فتح القائمة
+// 8. إضافة طبقة خلفية عائمة (Overlay)
 document.addEventListener('DOMContentLoaded', () => {
     let overlay = document.createElement('div');
     overlay.id = 'mobile-overlay';
     overlay.className = 'mobile-overlay';
-    // 🔴 لما اليوزر يدوس في أي مكان فاضي، القائمة تقفل
     overlay.onclick = toggleSidebar; 
     document.body.appendChild(overlay);
 });
 
-// 8. التحكم في القائمة الجانبية (UI)
+// 9. التحكم في القائمة الجانبية (UI)
 function toggleSidebar() { 
     document.getElementById('sidebar').classList.toggle('active'); 
-    // إظهار/إخفاء الطبقة المظللة
     document.getElementById('mobile-overlay').classList.toggle('active');
 }
 
@@ -155,3 +199,9 @@ function toggleSidebarDesktop() {
     document.getElementById('sidebar').classList.toggle('collapsed');
     document.querySelector('.main-content').classList.toggle('expanded');
 }
+
+window.onload = () => {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    updatePageContent(lang);
+};
