@@ -10,7 +10,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <style>
-        /* إضافة ستايل الكارت البرتقالي للعيادات الموقوفة */
         .kpi-card.orange { border-right: 5px solid #f97316; }
         .kpi-icon.orange { background: #ffedd5; color: #f97316; }
     </style>
@@ -53,7 +52,7 @@
                     <th id="th-next-pay">ميعاد التجديد</th>
                     <th id="th-name">اسم العيادة</th>
                     <th id="th-email">إيميل الأدمن (الدكتور)</th>
-                    <th id="th-status">حالة الاشتراك</th>
+                    <th id="th-status">حالة الحساب</th>
                     <th id="th-action" style="text-align: center;">إجراءات</th>
                 </tr>
             </thead>
@@ -86,10 +85,19 @@
                 </div>
 
                 <div class="form-group">
-                    <label id="lbl-c-plan">خطة الاشتراك</label>
+                    <label id="lbl-c-pkg">باقة الاشتراك</label>
+                    <select id="clinic_package">
+                        <option value="trial_7" id="opt-pkg-t7">تجريبي (7 أيام)</option>
+                        <option value="trial_14" id="opt-pkg-t14">تجريبي (14 يوم)</option>
+                        <option value="monthly" id="opt-pkg-month" selected>شهري (Monthly)</option>
+                        <option value="yearly" id="opt-pkg-year">سنوي (Yearly)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label id="lbl-c-plan">حالة الحساب</label>
                     <select id="clinic_plan">
                         <option value="active" id="opt-active">نشط (Active)</option>
-                        <option value="trial" id="opt-trial">فترة تجريبية (Trial)</option>
                         <option value="suspended" id="opt-susp">موقوف (Suspended)</option>
                     </select>
                 </div>
