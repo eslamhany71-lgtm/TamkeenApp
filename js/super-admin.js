@@ -1,35 +1,37 @@
 const db = firebase.firestore();
 
-// 1. نظام الترجمة (عربي/إنجليزي)
+// 1. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
             title: "إدارة النظام المركزية (SaaS)", sub: "لوحة تحكم المالك - صلاحيات عليا", search: "بحث باسم العيادة...", btnAdd: "إضافة عيادة جديدة",
             totClinics: "العيادات النشطة", totSusp: "العيادات الموقوفة", totPatients: "المرضى (في كل النظام)",
-            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد التجديد", thName: "اسم العيادة", thEmail: "إيميل الأدمن (الدكتور)", thStatus: "الحالة", thAction: "إجراءات",
+            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد التجديد", thName: "اسم العيادة", thEmail: "إيميل الأدمن", thStatus: "الحالة", thAction: "إجراءات",
             loading: "جاري تحميل البيانات...", empty: "لا توجد عيادات مسجلة حالياً.",
             mTitle: "تسجيل عيادة جديدة بالنظام", lName: "اسم العيادة / المركز الطبي", lEmail: "البريد الإلكتروني للأدمن", 
-            lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.", lPlan: "خطة الاشتراك", 
-            optAct: "نشط (Active)", optTri: "فترة تجريبية (Trial)", optSusp: "موقوف (Suspended)", btnSave: "إنشاء العيادة وتوليد المعرف",
-            sAct: "نشط", sTri: "تجريبي", sSusp: "موقوف", 
-            btnPaid: "تم الدفع", btnCancelSub: "إلغاء الاشتراك", btnRenew: "تجديد الاشتراك", btnDelete: "حذف العيادة",
-            msgSuccess: "تم إنشاء العيادة بنجاح!\n\nكود الدخول: {id}\nإيميل الأدمن: {email}\n\nيرجى إرسال الكود للدكتور لتفعيل الحساب من صفحة التفعيل.",
-            msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل متأكد من تغيير حالة اشتراك العيادة؟",
-            msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر وتفعيل العيادة؟",
+            lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.",
+            lPkg: "باقة الاشتراك", optPkgT7: "تجريبي (7 أيام)", optPkgT14: "تجريبي (14 يوم)", optPkgMonth: "شهري (Monthly)", optPkgYear: "سنوي (Yearly)",
+            lPlan: "حالة الحساب", optAct: "نشط (Active)", optSusp: "موقوف (Suspended)", btnSave: "إنشاء العيادة وتوليد المعرف",
+            sAct: "نشط", sSusp: "موقوف", 
+            btnPaid: "تم الدفع", btnCancelSub: "إيقاف الحساب", btnRenew: "تفعيل الحساب", btnDelete: "حذف العيادة",
+            msgSuccess: "تم إنشاء العيادة بنجاح!\n\nكود الدخول: {id}\nإيميل الأدمن: {email}\n\nيرجى إرسال الكود للدكتور لتفعيل الحساب.",
+            msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل متأكد من تغيير حالة العيادة؟",
+            msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر؟",
             msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً ولن يمكن استرجاعها! اكتب '1234' للتأكيد:", msgDelSuccess: "تم حذف العيادة بنجاح.", btnSaving: "جاري الإنشاء..."
         },
         en: {
             title: "Central SaaS Management", sub: "Owner Dashboard - Super Admin", search: "Search by clinic name...", btnAdd: "Add New Clinic",
-            totClinics: "Active Clinics", totSusp: "Suspended Clinics", totPatients: "Total Patients (Global)",
+            totClinics: "Active Clinics", totSusp: "Suspended Clinics", totPatients: "Total Patients",
             thDate: "Sub Date", thNextPay: "Next Payment", thName: "Clinic Name", thEmail: "Admin Email", thStatus: "Status", thAction: "Actions",
             loading: "Loading data...", empty: "No clinics registered yet.",
             mTitle: "Register New Clinic", lName: "Clinic / Center Name", lEmail: "Admin Email", 
-            lHint: "* This account must be created later from the login screen.", lPlan: "Subscription Plan", 
-            optAct: "Active", optTri: "Trial", optSusp: "Suspended", btnSave: "Create Clinic & Generate ID",
-            sAct: "Active", sTri: "Trial", sSusp: "Suspended", 
-            btnPaid: "Paid", btnCancelSub: "Cancel Sub", btnRenew: "Renew Sub", btnDelete: "Delete Clinic",
+            lHint: "* This account must be created later from the login screen.", 
+            lPkg: "Subscription Package", optPkgT7: "Trial (7 Days)", optPkgT14: "Trial (14 Days)", optPkgMonth: "Monthly", optPkgYear: "Yearly",
+            lPlan: "Account Status", optAct: "Active", optSusp: "Suspended", btnSave: "Create Clinic & Generate ID",
+            sAct: "Active", sSusp: "Suspended", 
+            btnPaid: "Paid", btnCancelSub: "Suspend Acc", btnRenew: "Activate Acc", btnDelete: "Delete Clinic",
             msgSuccess: "Clinic created successfully!\n\nAccess Code: {id}\nAdmin Email: {email}\n\nPlease send this code to the doctor to activate the account.",
-            msgError: "Error creating clinic!", msgConfirmToggle: "Are you sure you want to change the subscription status?",
+            msgError: "Error creating clinic!", msgConfirmToggle: "Are you sure you want to change the status?",
             msgConfirmPaid: "Confirm payment receipt and renew subscription for one month?",
             msgWarnDel: "WARNING: This will permanently delete the clinic! Type '1234' to confirm:", msgDelSuccess: "Clinic deleted successfully.", btnSaving: "Creating..."
         }
@@ -41,13 +43,15 @@ function updatePageContent(lang) {
     setTxt('btn-add-clinic', c.btnAdd); setTxt('lbl-tot-clinics', c.totClinics); setTxt('lbl-tot-susp', c.totSusp); setTxt('lbl-tot-patients', c.totPatients);
     setTxt('th-date', c.thDate); setTxt('th-next-pay', c.thNextPay); setTxt('th-name', c.thName); setTxt('th-email', c.thEmail); setTxt('th-status', c.thStatus); setTxt('th-action', c.thAction);
     if(document.getElementById('txt-loading')) setTxt('txt-loading', c.loading);
-    setTxt('mod-title', c.mTitle); setTxt('lbl-c-name', c.lName); setTxt('lbl-c-email', c.lEmail); setTxt('lbl-c-hint', c.lHint); setTxt('lbl-c-plan', c.lPlan);
-    setTxt('opt-active', c.optAct); setTxt('opt-trial', c.optTri); setTxt('opt-susp', c.optSusp); setTxt('btn-save', c.btnSave);
+    setTxt('mod-title', c.mTitle); setTxt('lbl-c-name', c.lName); setTxt('lbl-c-email', c.lEmail); setTxt('lbl-c-hint', c.lHint); 
+    
+    setTxt('lbl-c-pkg', c.lPkg); setTxt('opt-pkg-t7', c.optPkgT7); setTxt('opt-pkg-t14', c.optPkgT14); setTxt('opt-pkg-month', c.optPkgMonth); setTxt('opt-pkg-year', c.optPkgYear);
+    
+    setTxt('lbl-c-plan', c.lPlan); setTxt('opt-active', c.optAct); setTxt('opt-susp', c.optSusp); setTxt('btn-save', c.btnSave);
     
     window.superLang = c;
 }
 
-// 2. التأكد من الصلاحيات
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         const userDoc = await db.collection("Users").doc(user.email).get();
@@ -83,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 4. إنشاء عيادة جديدة وتوليد الكود
+// 4. الحفظ وتوليد التاريخ بناءً على الباقة المختارة
 async function saveNewClinic(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -91,7 +95,9 @@ async function saveNewClinic(e) {
 
     const clinicName = document.getElementById('clinic_name').value.trim();
     const adminEmail = document.getElementById('clinic_admin_email').value.trim().toLowerCase();
-    const plan = document.getElementById('clinic_plan').value;
+    const plan = document.getElementById('clinic_plan').value; // active, suspended
+    const packageType = document.getElementById('clinic_package').value; // trial_7, trial_14, monthly, yearly
+    
     const phoneInput = document.getElementById('clinic_phone');
     const adminPhone = phoneInput && phoneInput.value.trim() !== "" ? phoneInput.value.trim() : "01000000000";
 
@@ -99,12 +105,22 @@ async function saveNewClinic(e) {
         const accessCode = Math.floor(1000 + Math.random() * 9000).toString();
         const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
 
+        // حساب التاريخ أوتوماتيك بناءً على الباقة المختارة
         const nextPayDate = new Date();
-        nextPayDate.setMonth(nextPayDate.getMonth() + 1);
+        if (packageType === 'monthly') {
+            nextPayDate.setMonth(nextPayDate.getMonth() + 1);
+        } else if (packageType === 'yearly') {
+            nextPayDate.setFullYear(nextPayDate.getFullYear() + 1);
+        } else if (packageType === 'trial_7') {
+            nextPayDate.setDate(nextPayDate.getDate() + 7);
+        } else if (packageType === 'trial_14') {
+            nextPayDate.setDate(nextPayDate.getDate() + 14);
+        }
 
         await db.collection("Clinics").doc(uniqueClinicId).set({
             clinicName: clinicName,
             status: plan,
+            package: packageType, // تسجيل نوع الباقة في قاعدة البيانات
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             nextPaymentDate: nextPayDate,
             logoUrl: "",
@@ -132,7 +148,7 @@ async function saveNewClinic(e) {
     }
 }
 
-// 5. عرض العيادات (مع نظام التنبيهات المبكرة للسوبر أدمن)
+// 5. عرض العيادات 
 function loadClinics() {
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
         const tbody = document.getElementById('clinicsBody');
@@ -157,39 +173,41 @@ function loadClinics() {
             
             let nextPayStr = "---";
             let payStyle = "";
-            let alertBadge = ""; // علامة التنبيه
+            let alertBadge = "";
 
             if (c.nextPaymentDate) {
                 const npDate = c.nextPaymentDate.toDate();
                 nextPayStr = npDate.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
                 
-                // حساب الأيام المتبقية
                 const diffTime = npDate - now;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
                 if (diffDays < 0 && c.status !== 'suspended') {
-                    // عدى الميعاد ولسه متوقفش (المفروض دي متحصلش لأننا عاملين الطرد، بس زيادة تأكيد)
                     payStyle = "color: red; font-weight: bold;";
                     alertBadge = `<span style="background: red; color: white; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px;">منتهي</span>`;
                 } else if (diffDays >= 0 && diffDays <= 3 && c.status === 'active') {
-                    // ⚠️ التنبيه المبكر: فاضل 3 أيام أو أقل
-                    payStyle = "color: #d97706; font-weight: bold;"; // لون برتقالي غامق
+                    payStyle = "color: #d97706; font-weight: bold;";
                     alertBadge = `<span style="background: #fef3c7; color: #d97706; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px; border: 1px solid #fde68a;">⚠️ قريباً</span>`;
                 } else {
                     payStyle = "color: green;";
                 }
             }
 
-            // تحديث الإحصائيات
-            if (c.status === 'active' || c.status === 'trial') activeCount++;
+            if (c.status === 'active') activeCount++;
             else if (c.status === 'suspended') suspendedCount++;
 
             let adminEmail = c.adminEmail || "---";
             let accessCode = c.accessCode || ""; 
 
+            // دمج نوع الباقة مع اسم العيادة لتوضيحها لك في الجدول
+            let pkgLabel = '';
+            if(c.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
+            else if(c.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
+            else if(c.package === 'yearly') pkgLabel = 'اشتراك سنوي';
+            else pkgLabel = 'اشتراك شهري';
+
             let statusHtml = '';
             if(c.status === 'active') statusHtml = `<span class="status-badge status-active">${window.superLang.sAct}</span>`;
-            else if(c.status === 'trial') statusHtml = `<span class="status-badge status-trial">${window.superLang.sTri}</span>`;
             else statusHtml = `<span class="status-badge status-suspended">${window.superLang.sSusp}</span>`;
 
             let toggleBtnHtml = '';
@@ -203,7 +221,7 @@ function loadClinics() {
             tr.innerHTML = `
                 <td>${dateStr}</td>
                 <td style="${payStyle}" dir="ltr">${nextPayStr} ${alertBadge}</td>
-                <td style="font-weight:bold;">${c.clinicName}<br><small style="color:gray;">الكود: ${accessCode}</small></td>
+                <td style="font-weight:bold;">${c.clinicName}<br><small style="color:gray;">الكود: ${accessCode} | الباقة: <span style="color:#3b82f6;">${pkgLabel}</span></small></td>
                 <td dir="ltr" style="text-align:start;">${adminEmail}</td>
                 <td>${statusHtml}</td>
                 <td style="text-align: center; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
@@ -219,7 +237,7 @@ function loadClinics() {
         document.getElementById('stat-susp-clinics').innerText = suspendedCount;
     });
 }
-// 6. زرار تم الدفع (يجدد شهر ويخلي الحالة نشطة)
+
 async function markAsPaid(clinicId) {
     if(confirm(window.superLang.msgConfirmPaid)) {
         const newNextPay = new Date();
@@ -227,19 +245,18 @@ async function markAsPaid(clinicId) {
         
         await db.collection("Clinics").doc(clinicId).update({ 
             status: 'active',
-            nextPaymentDate: newNextPay
+            nextPaymentDate: newNextPay,
+            package: 'monthly' // تحويل الباقة لشهري تلقائياً بعد الدفع لو كان تجريبي
         });
     }
 }
 
-// 7. إيقاف / تفعيل اشتراك (إلغاء أو تجديد بدون مسح الداتا)
 async function toggleSubscription(clinicId, newStatus) {
     if(confirm(window.superLang.msgConfirmToggle)) {
         await db.collection("Clinics").doc(clinicId).update({ status: newStatus });
     }
 }
 
-// 8. الحذف النهائي (Hard Delete)
 async function deleteClinic(clinicId, accessCode) {
     const code = prompt(window.superLang.msgWarnDel);
     if (code === '1234') {
