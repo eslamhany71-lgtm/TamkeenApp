@@ -132,7 +132,7 @@ async function saveNewClinic(e) {
     }
 }
 
-// 5. عرض العيادات (بالأزرار الذكية الجديدة)
+// 5. عرض العيادات (مع نظام التنبيهات المبكرة للسوبر أدمن)
 function loadClinics() {
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
         const tbody = document.getElementById('clinicsBody');
@@ -149,6 +149,7 @@ function loadClinics() {
         }
 
         const lang = localStorage.getItem('preferredLang') || 'ar';
+        const now = new Date();
 
         for (const doc of snap.docs) {
             const c = doc.data();
@@ -156,11 +157,24 @@ function loadClinics() {
             
             let nextPayStr = "---";
             let payStyle = "";
+            let alertBadge = ""; // علامة التنبيه
+
             if (c.nextPaymentDate) {
                 const npDate = c.nextPaymentDate.toDate();
                 nextPayStr = npDate.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
-                if (new Date() > npDate) {
+                
+                // حساب الأيام المتبقية
+                const diffTime = npDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+                if (diffDays < 0 && c.status !== 'suspended') {
+                    // عدى الميعاد ولسه متوقفش (المفروض دي متحصلش لأننا عاملين الطرد، بس زيادة تأكيد)
                     payStyle = "color: red; font-weight: bold;";
+                    alertBadge = `<span style="background: red; color: white; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px;">منتهي</span>`;
+                } else if (diffDays >= 0 && diffDays <= 3 && c.status === 'active') {
+                    // ⚠️ التنبيه المبكر: فاضل 3 أيام أو أقل
+                    payStyle = "color: #d97706; font-weight: bold;"; // لون برتقالي غامق
+                    alertBadge = `<span style="background: #fef3c7; color: #d97706; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px; border: 1px solid #fde68a;">⚠️ قريباً</span>`;
                 } else {
                     payStyle = "color: green;";
                 }
@@ -178,20 +192,17 @@ function loadClinics() {
             else if(c.status === 'trial') statusHtml = `<span class="status-badge status-trial">${window.superLang.sTri}</span>`;
             else statusHtml = `<span class="status-badge status-suspended">${window.superLang.sSusp}</span>`;
 
-            // 🔴 منطق الأزرار الذكية
             let toggleBtnHtml = '';
             if (c.status === 'suspended') {
-                // لو العيادة موقوفة، يظهر زرار "تجديد الاشتراك" بلون أزرق
                 toggleBtnHtml = `<button class="btn-primary" onclick="toggleSubscription('${doc.id}', 'active')" style="background:#3b82f6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">▶️ ${window.superLang.btnRenew}</button>`;
             } else {
-                // لو العيادة شغالة، يظهر زرار "إلغاء الاشتراك" بلون أصفر/برتقالي
                 toggleBtnHtml = `<button class="btn-warning" onclick="toggleSubscription('${doc.id}', 'suspended')" style="background:#f59e0b; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">⏸️ ${window.superLang.btnCancelSub}</button>`;
             }
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${dateStr}</td>
-                <td style="${payStyle}" dir="ltr">${nextPayStr}</td>
+                <td style="${payStyle}" dir="ltr">${nextPayStr} ${alertBadge}</td>
                 <td style="font-weight:bold;">${c.clinicName}<br><small style="color:gray;">الكود: ${accessCode}</small></td>
                 <td dir="ltr" style="text-align:start;">${adminEmail}</td>
                 <td>${statusHtml}</td>
@@ -208,7 +219,6 @@ function loadClinics() {
         document.getElementById('stat-susp-clinics').innerText = suspendedCount;
     });
 }
-
 // 6. زرار تم الدفع (يجدد شهر ويخلي الحالة نشطة)
 async function markAsPaid(clinicId) {
     if(confirm(window.superLang.msgConfirmPaid)) {
