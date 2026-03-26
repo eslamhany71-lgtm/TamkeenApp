@@ -3,6 +3,9 @@
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// 🔴 متغير الفرملة لمنع التحويل التلقائي قبل فحص حالة العيادة
+let isLoginInProgress = false; 
+
 // 1. مراقب الحالة
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
@@ -13,8 +16,11 @@ auth.onAuthStateChanged((user) => {
     const isLoginPage = fileName === "index.html" || fileName === "";
 
     if (user) {
-        if (isLoginPage) window.location.href = "home.html";
-        requestNotificationPermission();
+        // لو في صفحة الدخول، متحولوش إلا لو الفحص خلص
+        if (isLoginPage && !isLoginInProgress) {
+            window.location.href = "home.html";
+        }
+        if (!isLoginPage) requestNotificationPermission();
     } else {
         if (!isLoginPage) window.location.href = "index.html";
     }
@@ -37,7 +43,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (مع حماية الطرد الفوري للعيادات الموقوفة)
+// 2. دالة تسجيل الدخول (مع حماية الطرد الفوري)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -56,28 +62,37 @@ async function loginById() {
     const btn = document.getElementById('btn-login');
     if (btn) { btn.innerText = "..."; btn.disabled = true; }
 
+    isLoginInProgress = true; // 🔴 إيقاف التحويل التلقائي للمراقب
+
     try {
         let loginEmail = rawInput.toLowerCase();
+        let targetClinicId = 'default';
         let usedCode = rawInput;
+        let finalRole = 'doctor';
 
-        // 1. لو دخل بالكود، نجيب الإيميل الأول من غير ما نفحص العيادة
+        // 1. جلب البيانات بناءً على الكود أو الإيميل قبل الدخول
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
-            loginEmail = empDoc.data().email;
+            
+            const empData = empDoc.data();
+            loginEmail = empData.email;
+            targetClinicId = empData.clinicId || 'default';
+            finalRole = empData.role;
+        } else {
+            const userDoc = await db.collection("Users").doc(loginEmail).get();
+            if (!userDoc.exists) throw { code: 'custom/user-not-found' };
+            
+            const userData = userDoc.data();
+            targetClinicId = userData.clinicId || 'default';
+            usedCode = userData.empCode || rawInput;
+            finalRole = userData.role;
         }
 
-        // 2. نعمل تسجيل دخول رسمي الأول (عشان الفايربيز تدينا صلاحية القراءة)
+        // 2. عمل تسجيل الدخول (المراقب هيقف يتفرج ومش هيحول لـ home)
         await auth.signInWithEmailAndPassword(loginEmail, pass);
 
-        // 3. دلوقتي هو جوه، نقرأ ملفه السري من Users
-        const userDoc = await db.collection("Users").doc(loginEmail).get();
-        if (!userDoc.exists) throw { code: 'custom/user-not-found' };
-        
-        const userData = userDoc.data();
-        const targetClinicId = userData.clinicId || 'default';
-
-        // 4. الفحص الإجباري لحالة العيادة (لو مش سوبر أدمن)
+        // 3. الفحص الإجباري لحالة العيادة
         if (targetClinicId !== 'default') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -88,35 +103,39 @@ async function loginById() {
                 let isSuspended = false;
                 let suspendReason = '';
 
-                // لو العيادة موقوفة من الإدارة
+                // فحص الإيقاف اليدوي
                 if (clinicStatus === 'suspended') {
                     isSuspended = true;
                     suspendReason = 'suspended-clinic';
                 } 
-                // لو ميعاد الدفع عدى
+                // فحص انتهاء الاشتراك التلقائي
                 else if (nextPaymentDate && now > nextPaymentDate) {
                     isSuspended = true;
                     suspendReason = 'subscription-expired';
-                    // تحويل الحالة لموقوف عشان تظهر للأدمن
+                    // تغييرها لموقوف أوتوماتيك
                     await db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' });
                 }
 
-                // لو في أي مشكلة، اطرده فوراً بره السيستم!
+                // لو موقوفة، اطرده فوراً!
                 if (isSuspended) {
-                    await auth.signOut(); 
+                    await auth.signOut(); // تسجيل خروج فوري
+                    isLoginInProgress = false; // السماح للمراقب بالعمل
                     throw { code: 'custom/' + suspendReason };
                 }
             }
         }
 
-        // 5. لو كل حاجة تمام ومطردش، نحفظ بياناته ونفتحله السيستم
-        sessionStorage.setItem('userRole', userData.role);
-        sessionStorage.setItem('empCode', userData.empCode || usedCode);
+        // 4. لو كل الفحوصات عدت بسلام، نحفظ الجلسة ونحوله يدوي
+        sessionStorage.setItem('userRole', finalRole);
+        sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
-
-        // هيتحول أوتوماتيك لـ home.html من خلال المراقب اللي فوق
+        
+        // التحويل هيتم من هنا بعد ما اتأكدنا 100%
+        window.location.href = "home.html"; 
 
     } catch (error) {
+        isLoginInProgress = false; // 🔴 فك الفرملة في حالة وجود خطأ
+        
         if (btn) {
             btn.innerText = document.body.dir === 'rtl' ? "تسجيل الدخول" : "Login";
             btn.disabled = false;
