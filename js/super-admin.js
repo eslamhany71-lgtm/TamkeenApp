@@ -5,38 +5,40 @@ function updatePageContent(lang) {
     const t = {
         ar: {
             title: "إدارة النظام المركزية (SaaS)", sub: "لوحة تحكم المالك - صلاحيات عليا", search: "بحث باسم العيادة...", btnAdd: "إضافة عيادة جديدة",
-            totClinics: "إجمالي العيادات النشطة", totPatients: "إجمالي المرضى (في كل النظام)",
-            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد التجديد", thName: "اسم العيادة", thEmail: "إيميل الأدمن (الدكتور)", thStatus: "حالة الاشتراك", thAction: "إجراءات",
+            totClinics: "العيادات النشطة", totSusp: "العيادات الموقوفة", totPatients: "المرضى (في كل النظام)",
+            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد التجديد", thName: "اسم العيادة", thEmail: "إيميل الأدمن (الدكتور)", thStatus: "الحالة", thAction: "إجراءات",
             loading: "جاري تحميل البيانات...", empty: "لا توجد عيادات مسجلة حالياً.",
             mTitle: "تسجيل عيادة جديدة بالنظام", lName: "اسم العيادة / المركز الطبي", lEmail: "البريد الإلكتروني للأدمن", 
             lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.", lPlan: "خطة الاشتراك", 
             optAct: "نشط (Active)", optTri: "فترة تجريبية (Trial)", optSusp: "موقوف (Suspended)", btnSave: "إنشاء العيادة وتوليد المعرف",
-            sAct: "نشط", sTri: "تجريبي", sSusp: "موقوف", btnChange: "تغيير الحالة", btnPaid: "تم الدفع", btnCancelSub: "إلغاء الاشتراك",
+            sAct: "نشط", sTri: "تجريبي", sSusp: "موقوف", 
+            btnPaid: "تم الدفع", btnCancelSub: "إلغاء الاشتراك", btnRenew: "تجديد الاشتراك", btnDelete: "حذف العيادة",
             msgSuccess: "تم إنشاء العيادة بنجاح!\n\nكود الدخول: {id}\nإيميل الأدمن: {email}\n\nيرجى إرسال الكود للدكتور لتفعيل الحساب من صفحة التفعيل.",
-            msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل تريد تغيير حالة العيادة إلى {status}؟",
-            msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر؟",
-            msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً! اكتب '1234' للتأكيد:", msgDelSuccess: "تم مسح العيادة وإلغاء الاشتراك.", btnSaving: "جاري الإنشاء..."
+            msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل متأكد من تغيير حالة اشتراك العيادة؟",
+            msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر وتفعيل العيادة؟",
+            msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً ولن يمكن استرجاعها! اكتب '1234' للتأكيد:", msgDelSuccess: "تم حذف العيادة بنجاح.", btnSaving: "جاري الإنشاء..."
         },
         en: {
             title: "Central SaaS Management", sub: "Owner Dashboard - Super Admin", search: "Search by clinic name...", btnAdd: "Add New Clinic",
-            totClinics: "Total Active Clinics", totPatients: "Total Patients (Global)",
-            thDate: "Subscription Date", thNextPay: "Next Payment", thName: "Clinic Name", thEmail: "Admin Email (Doctor)", thStatus: "Status", thAction: "Actions",
+            totClinics: "Active Clinics", totSusp: "Suspended Clinics", totPatients: "Total Patients (Global)",
+            thDate: "Sub Date", thNextPay: "Next Payment", thName: "Clinic Name", thEmail: "Admin Email", thStatus: "Status", thAction: "Actions",
             loading: "Loading data...", empty: "No clinics registered yet.",
             mTitle: "Register New Clinic", lName: "Clinic / Center Name", lEmail: "Admin Email", 
             lHint: "* This account must be created later from the login screen.", lPlan: "Subscription Plan", 
             optAct: "Active", optTri: "Trial", optSusp: "Suspended", btnSave: "Create Clinic & Generate ID",
-            sAct: "Active", sTri: "Trial", sSusp: "Suspended", btnChange: "Toggle Status", btnPaid: "Paid", btnCancelSub: "Cancel Sub",
+            sAct: "Active", sTri: "Trial", sSusp: "Suspended", 
+            btnPaid: "Paid", btnCancelSub: "Cancel Sub", btnRenew: "Renew Sub", btnDelete: "Delete Clinic",
             msgSuccess: "Clinic created successfully!\n\nAccess Code: {id}\nAdmin Email: {email}\n\nPlease send this code to the doctor to activate the account.",
-            msgError: "Error creating clinic!", msgConfirmToggle: "Change clinic status to {status}?",
+            msgError: "Error creating clinic!", msgConfirmToggle: "Are you sure you want to change the subscription status?",
             msgConfirmPaid: "Confirm payment receipt and renew subscription for one month?",
-            msgWarnDel: "WARNING: This will delete the clinic! Type '1234' to confirm:", msgDelSuccess: "Clinic and subscription deleted.", btnSaving: "Creating..."
+            msgWarnDel: "WARNING: This will permanently delete the clinic! Type '1234' to confirm:", msgDelSuccess: "Clinic deleted successfully.", btnSaving: "Creating..."
         }
     };
     const c = t[lang] || t.ar;
     const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); document.getElementById('searchInput').placeholder = c.search;
-    setTxt('btn-add-clinic', c.btnAdd); setTxt('lbl-tot-clinics', c.totClinics); setTxt('lbl-tot-patients', c.totPatients);
+    setTxt('btn-add-clinic', c.btnAdd); setTxt('lbl-tot-clinics', c.totClinics); setTxt('lbl-tot-susp', c.totSusp); setTxt('lbl-tot-patients', c.totPatients);
     setTxt('th-date', c.thDate); setTxt('th-next-pay', c.thNextPay); setTxt('th-name', c.thName); setTxt('th-email', c.thEmail); setTxt('th-status', c.thStatus); setTxt('th-action', c.thAction);
     if(document.getElementById('txt-loading')) setTxt('txt-loading', c.loading);
     setTxt('mod-title', c.mTitle); setTxt('lbl-c-name', c.lName); setTxt('lbl-c-email', c.lEmail); setTxt('lbl-c-hint', c.lHint); setTxt('lbl-c-plan', c.lPlan);
@@ -81,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 4. إنشاء عيادة جديدة وتوليد الكود (مع حساب ميعاد الدفع)
+// 4. إنشاء عيادة جديدة وتوليد الكود
 async function saveNewClinic(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -97,7 +99,6 @@ async function saveNewClinic(e) {
         const accessCode = Math.floor(1000 + Math.random() * 9000).toString();
         const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
 
-        // 🔴 حساب تاريخ التجديد (بعد شهر من النهارده)
         const nextPayDate = new Date();
         nextPayDate.setMonth(nextPayDate.getMonth() + 1);
 
@@ -105,7 +106,7 @@ async function saveNewClinic(e) {
             clinicName: clinicName,
             status: plan,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            nextPaymentDate: nextPayDate, // حفظ الميعاد في الفايربيز
+            nextPaymentDate: nextPayDate,
             logoUrl: "",
             accessCode: accessCode,
             adminEmail: adminEmail
@@ -131,16 +132,18 @@ async function saveNewClinic(e) {
     }
 }
 
-// 5. عرض العيادات (مع التواريخ والزراير الجديدة)
+// 5. عرض العيادات (بالأزرار الذكية الجديدة)
 function loadClinics() {
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
         const tbody = document.getElementById('clinicsBody');
         tbody.innerHTML = '';
         
         let activeCount = 0;
+        let suspendedCount = 0;
 
         if (snap.empty) {
             document.getElementById('stat-clinics').innerText = 0;
+            document.getElementById('stat-susp-clinics').innerText = 0;
             tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${window.superLang.empty}</td></tr>`;
             return;
         }
@@ -151,20 +154,21 @@ function loadClinics() {
             const c = doc.data();
             const dateStr = c.createdAt ? c.createdAt.toDate().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US') : '---';
             
-            // قراءة ميعاد الدفع وتلوينه لو متأخر
             let nextPayStr = "---";
             let payStyle = "";
             if (c.nextPaymentDate) {
                 const npDate = c.nextPaymentDate.toDate();
                 nextPayStr = npDate.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
                 if (new Date() > npDate) {
-                    payStyle = "color: red; font-weight: bold;"; // تنبيه أحمر لو عدى الميعاد
+                    payStyle = "color: red; font-weight: bold;";
                 } else {
                     payStyle = "color: green;";
                 }
             }
 
-            if (c.status === 'active') activeCount++;
+            // تحديث الإحصائيات
+            if (c.status === 'active' || c.status === 'trial') activeCount++;
+            else if (c.status === 'suspended') suspendedCount++;
 
             let adminEmail = c.adminEmail || "---";
             let accessCode = c.accessCode || ""; 
@@ -174,6 +178,16 @@ function loadClinics() {
             else if(c.status === 'trial') statusHtml = `<span class="status-badge status-trial">${window.superLang.sTri}</span>`;
             else statusHtml = `<span class="status-badge status-suspended">${window.superLang.sSusp}</span>`;
 
+            // 🔴 منطق الأزرار الذكية
+            let toggleBtnHtml = '';
+            if (c.status === 'suspended') {
+                // لو العيادة موقوفة، يظهر زرار "تجديد الاشتراك" بلون أزرق
+                toggleBtnHtml = `<button class="btn-primary" onclick="toggleSubscription('${doc.id}', 'active')" style="background:#3b82f6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">▶️ ${window.superLang.btnRenew}</button>`;
+            } else {
+                // لو العيادة شغالة، يظهر زرار "إلغاء الاشتراك" بلون أصفر/برتقالي
+                toggleBtnHtml = `<button class="btn-warning" onclick="toggleSubscription('${doc.id}', 'suspended')" style="background:#f59e0b; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">⏸️ ${window.superLang.btnCancelSub}</button>`;
+            }
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${dateStr}</td>
@@ -182,14 +196,16 @@ function loadClinics() {
                 <td dir="ltr" style="text-align:start;">${adminEmail}</td>
                 <td>${statusHtml}</td>
                 <td style="text-align: center; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
-                    <button class="btn-primary" onclick="markAsPaid('${doc.id}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">${window.superLang.btnPaid}</button>
-                    <button class="btn-warning" onclick="toggleStatus('${doc.id}', '${c.status}')" style="border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">${window.superLang.btnChange}</button>
-                    <button class="btn-danger" onclick="deleteClinic('${doc.id}', '${accessCode}')" style="border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">${window.superLang.btnCancelSub}</button>
+                    <button onclick="markAsPaid('${doc.id}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="إضافة شهر جديد">💰 ${window.superLang.btnPaid}</button>
+                    ${toggleBtnHtml}
+                    <button class="btn-danger" onclick="deleteClinic('${doc.id}', '${accessCode}')" style="background:#ef4444; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">🗑️ ${window.superLang.btnDelete}</button>
                 </td>
             `;
             tbody.appendChild(tr);
         }
-        document.getElementById('stat-clinics').innerText = activeCount; // تحديث الإحصائيات بالعيادات النشطة فقط
+        
+        document.getElementById('stat-clinics').innerText = activeCount;
+        document.getElementById('stat-susp-clinics').innerText = suspendedCount;
     });
 }
 
@@ -197,7 +213,7 @@ function loadClinics() {
 async function markAsPaid(clinicId) {
     if(confirm(window.superLang.msgConfirmPaid)) {
         const newNextPay = new Date();
-        newNextPay.setMonth(newNextPay.getMonth() + 1); // يزود شهر من تاريخ النهارده
+        newNextPay.setMonth(newNextPay.getMonth() + 1); 
         
         await db.collection("Clinics").doc(clinicId).update({ 
             status: 'active',
@@ -206,17 +222,14 @@ async function markAsPaid(clinicId) {
     }
 }
 
-// 7. إيقاف / تفعيل عيادة يدوياً
-async function toggleStatus(clinicId, currentStatus) {
-    const newStatus = currentStatus === 'suspended' ? 'active' : 'suspended';
-    const statusTxt = newStatus === 'active' ? window.superLang.sAct : window.superLang.sSusp;
-    
-    if(confirm(window.superLang.msgConfirmToggle.replace('{status}', statusTxt))) {
+// 7. إيقاف / تفعيل اشتراك (إلغاء أو تجديد بدون مسح الداتا)
+async function toggleSubscription(clinicId, newStatus) {
+    if(confirm(window.superLang.msgConfirmToggle)) {
         await db.collection("Clinics").doc(clinicId).update({ status: newStatus });
     }
 }
 
-// 8. إلغاء الاشتراك (حذف)
+// 8. الحذف النهائي (Hard Delete)
 async function deleteClinic(clinicId, accessCode) {
     const code = prompt(window.superLang.msgWarnDel);
     if (code === '1234') {
@@ -238,7 +251,7 @@ function filterClinics() {
     const input = document.getElementById('searchInput').value.toLowerCase();
     const rows = document.getElementById('clinicsBody').getElementsByTagName('tr');
     for (let i = 0; i < rows.length; i++) {
-        const nameCol = rows[i].getElementsByTagName('td')[2]; // العمود بقى رقم 2 بدل 1 عشان ضفنا ميعاد الدفع
+        const nameCol = rows[i].getElementsByTagName('td')[2]; 
         if (nameCol) {
             const textToSearch = nameCol.textContent.toLowerCase();
             if (textToSearch.indexOf(input) > -1) rows[i].style.display = "";
