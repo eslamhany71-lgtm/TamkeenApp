@@ -37,7 +37,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (محمية بالكامل ضد العيادات الموقوفة)
+// 2. دالة تسجيل الدخول (مع حماية الطرد الفوري للعيادات الموقوفة)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -58,35 +58,26 @@ async function loginById() {
 
     try {
         let loginEmail = rawInput.toLowerCase();
-        let targetClinicId = 'default';
+        let usedCode = rawInput;
 
-        // 🟢 جلب الختم السحري سواء دخل بالكود أو بالإيميل
+        // 1. لو دخل بالكود، نجيب الإيميل الأول من غير ما نفحص العيادة
         if (!rawInput.includes('@')) {
-            // الدخول عن طريق كود العيادة
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
-            
-            const empData = empDoc.data();
-            loginEmail = empData.email;
-            targetClinicId = empData.clinicId;
-            
-            sessionStorage.setItem('userRole', empData.role);
-            sessionStorage.setItem('empCode', rawInput);
-            sessionStorage.setItem('clinicId', targetClinicId); 
-        } else {
-            // الدخول عن طريق الإيميل
-            const userDoc = await db.collection("Users").doc(loginEmail).get();
-            if (!userDoc.exists) throw { code: 'custom/user-not-found' };
-            
-            const userData = userDoc.data();
-            targetClinicId = userData.clinicId || 'default';
-            
-            sessionStorage.setItem('userRole', userData.role);
-            sessionStorage.setItem('empCode', userData.empCode);
-            sessionStorage.setItem('clinicId', targetClinicId);
+            loginEmail = empDoc.data().email;
         }
 
-        // 🔴🔴 الختم السحري: فحص حالة الاشتراك الإجبارية 🔴🔴
+        // 2. نعمل تسجيل دخول رسمي الأول (عشان الفايربيز تدينا صلاحية القراءة)
+        await auth.signInWithEmailAndPassword(loginEmail, pass);
+
+        // 3. دلوقتي هو جوه، نقرأ ملفه السري من Users
+        const userDoc = await db.collection("Users").doc(loginEmail).get();
+        if (!userDoc.exists) throw { code: 'custom/user-not-found' };
+        
+        const userData = userDoc.data();
+        const targetClinicId = userData.clinicId || 'default';
+
+        // 4. الفحص الإجباري لحالة العيادة (لو مش سوبر أدمن)
         if (targetClinicId !== 'default') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -94,21 +85,36 @@ async function loginById() {
                 const nextPaymentDate = clinicDoc.data().nextPaymentDate ? clinicDoc.data().nextPaymentDate.toDate() : null;
                 const now = new Date();
 
-                // لو العيادة موقوفة (من السوبر أدمن)
+                let isSuspended = false;
+                let suspendReason = '';
+
+                // لو العيادة موقوفة من الإدارة
                 if (clinicStatus === 'suspended') {
-                    throw { code: 'custom/suspended-clinic' };
-                }
-                
-                // لو ميعاد الدفع عدى والعيادة لسه متدفعتش
-                if (nextPaymentDate && now > nextPaymentDate) {
+                    isSuspended = true;
+                    suspendReason = 'suspended-clinic';
+                } 
+                // لو ميعاد الدفع عدى
+                else if (nextPaymentDate && now > nextPaymentDate) {
+                    isSuspended = true;
+                    suspendReason = 'subscription-expired';
+                    // تحويل الحالة لموقوف عشان تظهر للأدمن
                     await db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' });
-                    throw { code: 'custom/subscription-expired' };
+                }
+
+                // لو في أي مشكلة، اطرده فوراً بره السيستم!
+                if (isSuspended) {
+                    await auth.signOut(); 
+                    throw { code: 'custom/' + suspendReason };
                 }
             }
         }
 
-        // لو كل حاجة تمام، اعمل تسجيل دخول
-        await auth.signInWithEmailAndPassword(loginEmail, pass);
+        // 5. لو كل حاجة تمام ومطردش، نحفظ بياناته ونفتحله السيستم
+        sessionStorage.setItem('userRole', userData.role);
+        sessionStorage.setItem('empCode', userData.empCode || usedCode);
+        sessionStorage.setItem('clinicId', targetClinicId);
+
+        // هيتحول أوتوماتيك لـ home.html من خلال المراقب اللي فوق
 
     } catch (error) {
         if (btn) {
