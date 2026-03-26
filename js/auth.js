@@ -8,22 +8,15 @@ auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
     const fileName = path.split("/").pop() || "index.html";
     
-    // إيقاف المراقب في صفحة التفعيل لمنع المقاطعة
-    if (fileName === "activate.html") {
-        return; 
-    }
+    if (fileName === "activate.html") return; 
 
     const isLoginPage = fileName === "index.html" || fileName === "";
 
     if (user) {
-        if (isLoginPage) {
-            window.location.href = "home.html";
-        }
+        if (isLoginPage) window.location.href = "home.html";
         requestNotificationPermission();
     } else {
-        if (!isLoginPage) {
-            window.location.href = "index.html";
-        }
+        if (!isLoginPage) window.location.href = "index.html";
     }
 });
 
@@ -44,7 +37,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (مع حماية العيادة الموقوفة)
+// 2. دالة تسجيل الدخول (محمية بالكامل ضد العيادات الموقوفة)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -67,12 +60,11 @@ async function loginById() {
         let loginEmail = rawInput.toLowerCase();
         let targetClinicId = 'default';
 
+        // 🟢 جلب الختم السحري سواء دخل بالكود أو بالإيميل
         if (!rawInput.includes('@')) {
+            // الدخول عن طريق كود العيادة
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
-            
-            if (!empDoc.exists || !empDoc.data().email) {
-                throw { code: 'custom/user-not-found' }; 
-            }
+            if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
             
             const empData = empDoc.data();
             loginEmail = empData.email;
@@ -81,9 +73,20 @@ async function loginById() {
             sessionStorage.setItem('userRole', empData.role);
             sessionStorage.setItem('empCode', rawInput);
             sessionStorage.setItem('clinicId', targetClinicId); 
+        } else {
+            // الدخول عن طريق الإيميل
+            const userDoc = await db.collection("Users").doc(loginEmail).get();
+            if (!userDoc.exists) throw { code: 'custom/user-not-found' };
+            
+            const userData = userDoc.data();
+            targetClinicId = userData.clinicId || 'default';
+            
+            sessionStorage.setItem('userRole', userData.role);
+            sessionStorage.setItem('empCode', userData.empCode);
+            sessionStorage.setItem('clinicId', targetClinicId);
         }
 
-        // 🔴🔴 الختم السحري الجديد: فحص حالة الاشتراك قبل الدخول 🔴🔴
+        // 🔴🔴 الختم السحري: فحص حالة الاشتراك الإجبارية 🔴🔴
         if (targetClinicId !== 'default') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -91,20 +94,20 @@ async function loginById() {
                 const nextPaymentDate = clinicDoc.data().nextPaymentDate ? clinicDoc.data().nextPaymentDate.toDate() : null;
                 const now = new Date();
 
-                // لو الحالة موقوفة يدوياً
+                // لو العيادة موقوفة (من السوبر أدمن)
                 if (clinicStatus === 'suspended') {
                     throw { code: 'custom/suspended-clinic' };
                 }
                 
-                // الإيقاف الأوتوماتيكي: لو ميعاد الدفع عدى والعيادة لسه متدفعتش
+                // لو ميعاد الدفع عدى والعيادة لسه متدفعتش
                 if (nextPaymentDate && now > nextPaymentDate) {
-                    // نغير حالتها لموقوف في الداتا بيز عشان السوبر أدمن يشوفها
                     await db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' });
                     throw { code: 'custom/subscription-expired' };
                 }
             }
         }
 
+        // لو كل حاجة تمام، اعمل تسجيل دخول
         await auth.signInWithEmailAndPassword(loginEmail, pass);
 
     } catch (error) {
@@ -115,7 +118,6 @@ async function loginById() {
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
             
-            // رسايل المنع الجديدة 
             if (error.code === 'custom/suspended-clinic') {
                 errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً. يرجى التواصل مع الإدارة." : "Account suspended. Please contact admin.";
             } else if (error.code === 'custom/subscription-expired') {
@@ -240,7 +242,7 @@ async function sendResetLink(e) {
     }
 }
 
-// 5. نظام الترجمة
+// 5. نظام الترجمة 
 function updatePageContent(lang) {
     const translations = {
         ar: {
