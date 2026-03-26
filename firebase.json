@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "nivadent-app",
+    "site": "nivadent",
     "public": ".",
     "ignore": [
       "firebase.json",
