@@ -65,7 +65,7 @@ async function fetchPatientsMap() {
     } catch(e) { console.error("Error fetching patients map:", e); }
 }
 
-// 4. جلب جميع الجلسات (تم التحديث لدعم الـ Base64)
+// 4. جلب جميع الجلسات 
 function loadAllSessions() {
     db.collection("Sessions").where("clinicId", "==", clinicId).orderBy("createdAt", "desc").onSnapshot(snap => {
         const tbody = document.getElementById('sessionsBody');
@@ -87,9 +87,8 @@ function loadAllSessions() {
                 actionButtons += `<button class="btn-action" style="background:#10b981; color:white; border:none;" onclick="markSessionComplete('${doc.id}', ${paid}, ${remaining})">${window.globalStrings.btnComplete}</button>`;
             }
 
-            // لو الروشتة محفوظة كـ Base64
             if(s.prescriptionBase64) {
-                prescriptionsData[doc.id] = s.prescriptionBase64; // بنخزنها في القاموس عشان نعرضها بعدين
+                prescriptionsData[doc.id] = s.prescriptionBase64; 
                 actionButtons += `<button class="btn-action" style="background:#3b82f6; color:white; border:none;" onclick="viewPrescription('${doc.id}')">${window.globalStrings.btnViewDoc}</button>`;
             } else {
                 actionButtons += `<button class="btn-action" onclick="triggerUpload('${doc.id}')">${window.globalStrings.btnUpload}</button>`;
@@ -131,7 +130,7 @@ function markSessionComplete(sessionId, currentPaid, currentRemaining) {
     }
 }
 
-// 6. دوال رفع الروشتة وعرضها (بطريقة الـ Base64)
+// 6. دوال رفع الروشتة وعرضها (مع الضغط السحري للصور)
 function triggerUpload(sessionId) {
     currentSessionIdForUpload = sessionId;
     document.getElementById('uploadPrescriptionInput').click(); 
@@ -141,34 +140,71 @@ document.getElementById('uploadPrescriptionInput').addEventListener('change', fu
     const file = e.target.files[0];
     if(!file || !currentSessionIdForUpload) return;
 
-    // بنعمل حماية لأن الفايرستور آخره 1 ميجا بايت للدوكيومنت الواحد (خلينا الحد الأقصى 800 كيلو بايت عشان نكون في الأمان)
-    if(file.size > 800 * 1024) {
-        alert("حجم الملف كبير جداً! يرجى اختيار صورة أو ملف أقل من 800 كيلوبايت حتى يمكن حفظه مباشرة.");
-        this.value = ''; // نفضي الانبوت
+    // لو الملف PDF (مش هينفع نضغطه بالكانفاس)
+    if (file.type === "application/pdf") {
+        if(file.size > 500 * 1024) {
+            alert("حجم ملف الـ PDF كبير! يرجى اختيار ملف أقل من 500 كيلوبايت لضمان سرعة النظام.");
+            this.value = '';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(event) { saveBase64ToFirestore(event.target.result); };
+        reader.readAsDataURL(file);
         return;
     }
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const base64String = event.target.result;
-        
-        alert("جاري حفظ الروشتة... برجاء الانتظار");
-        
-        db.collection("Sessions").doc(currentSessionIdForUpload).update({
-            prescriptionBase64: base64String
-        }).then(() => {
-            alert("تم حفظ الروشتة بنجاح!");
-            document.getElementById('uploadPrescriptionInput').value = ''; 
-            currentSessionIdForUpload = null;
-        }).catch((error) => {
-            console.error("Upload failed: ", error);
-            alert("فشل حفظ الروشتة.");
-        });
-    };
-    reader.readAsDataURL(file); // تحويل الصورة لنص Base64
+    // لو الملف صورة (هنعملها ضغط وتصغير)
+    if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const max_dim = 800; // أقصى عرض أو طول للصورة
+
+                // تظبيط الأبعاد عشان الصورة متبقاش ممطوطة
+                if (width > height) {
+                    if (width > max_dim) { height *= max_dim / width; width = max_dim; }
+                } else {
+                    if (height > max_dim) { width *= max_dim / height; height = max_dim; }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // ضغط الصورة لجودة 60% (ممتازة للروشتات وخفيفة جداً)
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+                saveBase64ToFirestore(compressedBase64);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        alert("يرجى اختيار صورة أو ملف PDF فقط.");
+        this.value = '';
+    }
 });
 
-// دالة العرض (بتفتح تابة جديدة وتحط فيها الصورة أو الـ PDF)
+// دالة الحفظ في الفايرستور (مجمعة عشان نستخدمها للصور والـ PDF)
+function saveBase64ToFirestore(base64String) {
+    alert("جاري حفظ الروشتة المدمجة... برجاء الانتظار");
+    db.collection("Sessions").doc(currentSessionIdForUpload).update({
+        prescriptionBase64: base64String
+    }).then(() => {
+        alert("تم حفظ الروشتة بنجاح! السيرفر الآن سريع وآمن.");
+        document.getElementById('uploadPrescriptionInput').value = ''; 
+        currentSessionIdForUpload = null;
+    }).catch((error) => {
+        console.error("Upload failed: ", error);
+        alert("فشل حفظ الروشتة.");
+    });
+}
+
+// دالة العرض 
 function viewPrescription(sessionId) {
     const base64Data = prescriptionsData[sessionId];
     if(!base64Data) return;
