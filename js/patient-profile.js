@@ -72,14 +72,22 @@ async function loadPatientData() {
     } catch (e) { console.error(e); }
 }
 
-// ================= 2. برمجة الجلسات =================
+// ================= 2. برمجة الجلسات (مع إضافة الحسابات) =================
 async function saveSession(e) {
     e.preventDefault();
+    
+    // سحب القيم وتحويلها لأرقام
+    const paidAmount = Number(document.getElementById('sess_paid').value) || 0;
+    const remainingAmount = Number(document.getElementById('sess_remaining').value) || 0;
+
     const data = {
-        clinicId: clinicId, patientId: patientId,
+        clinicId: clinicId, 
+        patientId: patientId,
         procedure: document.getElementById('sess_procedure').value,
         tooth: document.getElementById('sess_tooth').value,
         notes: document.getElementById('sess_notes').value,
+        paid: paidAmount, // المدفوع
+        remaining: remainingAmount, // المتبقي
         date: new Date().toISOString().split('T')[0],
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -97,12 +105,23 @@ function loadSessions() {
         if (snap.empty) { list.innerHTML = `<div class="empty-state">لا توجد جلسات مسجلة.</div>`; return; }
         snap.forEach(doc => {
             const s = doc.data();
+            
+            // قراءة المبالغ
+            const paid = s.paid || 0;
+            const remaining = s.remaining || 0;
+
             list.innerHTML += `
                 <div class="data-card">
                     <div class="data-card-info">
                         <span class="data-badge">📅 ${s.date}</span>
                         <h4>🦷 ${s.procedure}</h4>
                         ${s.tooth ? `<p><strong>رقم السن:</strong> <span dir="ltr">${s.tooth}</span></p>` : ''}
+                        
+                        <div style="display: flex; gap: 15px; margin: 10px 0; padding: 10px; background: #f8fafc; border-radius: 8px;">
+                            <div style="color: #10b981; font-weight: bold;">المدفوع: ${paid} ج.م</div>
+                            <div style="color: ${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight: bold;">المتبقي: ${remaining} ج.م</div>
+                        </div>
+
                         <p><strong>ملاحظات:</strong> ${s.notes || 'لا يوجد'}</p>
                     </div>
                     <button class="btn-danger" onclick="deleteDoc('Sessions', '${doc.id}')">🗑️</button>
@@ -113,7 +132,6 @@ function loadSessions() {
 }
 
 // ================= 3. برمجة الأشعة (Base64 Magic) =================
-// تحويل الصورة لنص عشان نحفظها في Firestore مباشرة (مناسب للـ MVP السريع)
 function encodeImage(element) {
     const file = element.files[0];
     const reader = new FileReader();
