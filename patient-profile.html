@@ -10,6 +10,14 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <style>
+        .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f8fafc; color: #475569; font-weight: 700; }
+        tr:hover { background: #f1f5f9; }
+        .btn-view { background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+    </style>
 </head>
 <body>
 
@@ -34,66 +42,72 @@
                 <div class="patient-alerts" id="prof-alerts"></div>
             </div>
 
-            <div class="tabs-container">
-                <div class="tab active" onclick="switchTab('sessions', this)" id="tab-sessions">🦷 الجلسات السابقة</div>
-                <div class="tab" onclick="switchTab('xrays', this)" id="tab-xrays">📸 الأشعة والصور</div>
-                <div class="tab" onclick="switchTab('prescriptions', this)" id="tab-prescriptions">💊 الروشتات</div>
+            <div class="action-bar" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="txt-sess-title" style="margin: 0;">سجل الجلسات العلاجية</h3>
+                <button class="btn-primary" onclick="openModal('sessionModal')" id="btn-add-sess">➕ إضافة جلسة جديدة</button>
             </div>
 
-            <div class="tab-content active" id="content-sessions">
-                <div class="action-bar">
-                    <h3 id="txt-sess-title">سجل الجلسات</h3>
-                    <button class="btn-primary" onclick="openModal('sessionModal')" id="btn-add-sess">➕ إضافة جلسة جديدة</button>
-                </div>
-                <div id="sessions-list">
-                    <div class="empty-state" id="txt-no-sess">جاري التحميل...</div>
-                </div>
+            <div class="table-container">
+                <table id="sessionsTable">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>الإجراء الطبي</th>
+                            <th>الإجمالي</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                            <th>الموعد القادم</th>
+                            <th style="text-align: center;">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessions-list">
+                        <tr><td colspan="7" style="text-align: center;">جاري التحميل...</td></tr>
+                    </tbody>
+                </table>
             </div>
 
-            <div class="tab-content" id="content-xrays">
-                <div class="action-bar">
-                    <h3 id="txt-xray-title">معرض الأشعة والصور</h3>
-                    <button class="btn-primary" onclick="openModal('xrayModal')" id="btn-add-xray">📸 رفع صورة/أشعة</button>
-                </div>
-                <div class="xray-grid" id="xrays-list">
-                    <div class="empty-state" id="txt-no-xray" style="grid-column: 1 / -1;">جاري التحميل...</div>
-                </div>
-            </div>
-
-            <div class="tab-content" id="content-prescriptions">
-                <div class="action-bar">
-                    <h3 id="txt-presc-title">الروشتات المصدرة</h3>
-                    <button class="btn-primary" onclick="openModal('prescriptionModal')" id="btn-add-presc">💊 كتابة روشتة جديدة</button>
-                </div>
-                <div id="prescriptions-list">
-                    <div class="empty-state" id="txt-no-presc">جاري التحميل...</div>
-                </div>
-            </div>
         </div>
     </div>
 
     <div id="sessionModal" class="modal no-print">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeModal('sessionModal')">&times;</span>
             <h2 style="margin-top: 0;">إضافة جلسة جديدة</h2>
             <form onsubmit="saveSession(event)">
+                
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>تاريخ الجلسة</label>
+                        <input type="date" id="sess_date" required>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>الموعد القادم (اختياري)</label>
+                        <input type="date" id="sess_next_date">
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>الإجراء الطبي</label>
-                    <input type="text" id="sess_procedure" placeholder="مثال: حشو عصب، خلع، تنظيف..." required>
+                    <input type="text" id="sess_procedure" placeholder="مثال: حشو عصب، خلع، كشف..." required>
                 </div>
+                
                 <div class="form-group">
                     <label>رقم السن / الضرس (اختياري)</label>
                     <input type="text" id="sess_tooth" placeholder="مثال: Upper Right 6">
                 </div>
                 
-                <div style="display: flex; gap: 10px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label>المدفوع (ج.م)</label>
-                        <input type="number" id="sess_paid" placeholder="المبلغ المدفوع" min="0" required>
+                <div style="display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>إجمالي الحساب (ج.م)</label>
+                        <input type="number" id="sess_total" placeholder="0" min="0" required oninput="calculateRemaining()">
                     </div>
-                    <div class="form-group" style="flex: 1;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>المدفوع (ج.م)</label>
+                        <input type="number" id="sess_paid" placeholder="0" min="0" required oninput="calculateRemaining()">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
                         <label>المتبقي (ج.م)</label>
-                        <input type="number" id="sess_remaining" placeholder="المبلغ المتبقي" min="0" required>
+                        <input type="number" id="sess_remaining" placeholder="0" readonly style="background: #e2e8f0; font-weight: bold; color: #ef4444;">
                     </div>
                 </div>
 
@@ -101,75 +115,8 @@
                     <label>ملاحظات الطبيب</label>
                     <textarea id="sess_notes" rows="3" style="width:100%; border-radius:8px; border:1px solid #cbd5e1; padding:10px; font-family:inherit;"></textarea>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">حفظ الجلسة</button>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px; justify-content: center;" id="btn-save-session">حفظ الجلسة</button>
             </form>
-        </div>
-    </div>
-
-    <div id="xrayModal" class="modal no-print">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeModal('xrayModal')">&times;</span>
-            <h2 style="margin-top: 0;">رفع صورة أو أشعة</h2>
-            <form onsubmit="saveXRay(event)">
-                <div class="form-group">
-                    <label>نوع الأشعة</label>
-                    <select id="xray_type" required>
-                        <option value="بانوراما (Panoramic)">بانوراما (Panoramic)</option>
-                        <option value="سيفالومترك (Cephalometric)">سيفالومترك (Cephalometric)</option>
-                        <option value="أشعة ذروية (Periapical)">أشعة ذروية (Periapical)</option>
-                        <option value="صورة فوتوغرافية (Photo)">صورة فوتوغرافية</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>اختر الصورة</label>
-                    <input type="file" id="xray_file" accept="image/*" onchange="encodeImage(this)" required>
-                    <input type="hidden" id="xray_base64"> </div>
-                <div class="form-group">
-                    <label>ملاحظات</label>
-                    <input type="text" id="xray_notes" placeholder="ملاحظات على الأشعة...">
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;" id="btn-save-xray">رفع وحفظ</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="prescriptionModal" class="modal no-print">
-        <div class="modal-content" style="max-width: 600px;">
-            <span class="close-modal" onclick="closeModal('prescriptionModal')">&times;</span>
-            <h2 style="margin-top: 0;">كتابة روشتة جديدة</h2>
-            <form onsubmit="savePrescription(event)">
-                <div class="form-group">
-                    <label>الأدوية والجرعات</label>
-                    <textarea id="presc_meds" rows="5" placeholder="1. Augmentin 1gm - قرص كل 12 ساعة&#10;2. Brufen 600mg - عند اللزوم" required style="width:100%; border-radius:8px; border:1px solid #cbd5e1; padding:10px; font-family:inherit; direction: ltr; text-align: left;"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>تعليمات للمريض</label>
-                    <input type="text" id="presc_notes" placeholder="مثال: يرجى المضمضة بماء دافئ وملح">
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">إصدار الروشتة</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="print-only" id="print-prescription-area">
-        <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-            <h1 id="print-clinic-name" style="margin: 0;">NivaDent Clinic</h1>
-            <p>روشتة طبية - Medical Prescription</p>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 16px;">
-            <div><strong>اسم المريض:</strong> <span id="print-patient-name">---</span></div>
-            <div><strong>التاريخ:</strong> <span id="print-date">---</span></div>
-        </div>
-        <div style="min-height: 400px;">
-            <h3 style="font-size: 24px; color: #000; margin-bottom: 20px;">Rx,</h3>
-            <div id="print-meds" style="white-space: pre-wrap; font-size: 18px; line-height: 1.8; direction: ltr; text-align: left; padding-left: 20px;">
-                </div>
-            <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 10px;">
-                <strong>التعليمات:</strong> <span id="print-notes"></span>
-            </div>
-        </div>
-        <div style="text-align: center; margin-top: 50px; border-top: 2px solid #000; padding-top: 10px;">
-            <p>مع تمنياتنا بالشفاء العاجل</p>
         </div>
     </div>
 
