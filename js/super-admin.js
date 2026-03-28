@@ -76,6 +76,71 @@ function closeClinicModal() {
     document.getElementById('clinicModal').style.display = 'none';
 }
 
+// === دوال إضافة المستخدمين (الممرضة) السحرية ===
+async function openUserModal() {
+    document.getElementById('userForm').reset();
+    const clinicSelect = document.getElementById('user_clinic');
+    clinicSelect.innerHTML = '<option value="">جاري تحميل العيادات...</option>';
+    document.getElementById('userModal').style.display = 'flex';
+
+    try {
+        // بنسحب العيادات عشان نملى القائمة المنسدلة
+        const snap = await db.collection("Clinics").where("status", "==", "active").get();
+        clinicSelect.innerHTML = '<option value="" disabled selected>اختر العيادة...</option>';
+        snap.forEach(doc => {
+            const c = doc.data();
+            clinicSelect.innerHTML += `<option value="${doc.id}">${c.clinicName}</option>`;
+        });
+    } catch(e) {
+        console.error(e);
+        clinicSelect.innerHTML = '<option value="">خطأ في تحميل العيادات</option>';
+    }
+}
+
+function closeUserModal() {
+    document.getElementById('userModal').style.display = 'none';
+}
+
+async function saveNewUser(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true;
+    btn.innerText = "جاري الحفظ والربط...";
+
+    const userName = document.getElementById('user_name').value.trim();
+    const userEmail = document.getElementById('user_email').value.trim().toLowerCase();
+    const clinicId = document.getElementById('user_clinic').value;
+    const role = "nurse";
+
+    if (!clinicId) {
+        alert("برجاء اختيار العيادة التي ستعمل بها الممرضة أولاً.");
+        btn.disabled = false;
+        btn.innerText = "تسجيل وربط الصلاحية";
+        return;
+    }
+
+    try {
+        // حجز الإيميل كممرضة في الداتا بيز (Whitelist)
+        await db.collection("Users").doc(userEmail).set({
+            name: userName,
+            email: userEmail,
+            role: role,
+            clinicId: clinicId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert(`تم إضافة الممرضة بنجاح! 🎉\n\nالعيادة تم ربطها، ويمكن للممرضة الآن إنشاء حساب جديد باستخدام الإيميل:\n${userEmail}\nوسيتم توجيهها لعيادتها مباشرة كـ "ممرضة".`);
+        closeUserModal();
+    } catch (error) {
+        console.error("Error adding user:", error);
+        alert("حدث خطأ أثناء إضافة الممرضة!");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "تسجيل وربط الصلاحية";
+    }
+}
+// ===============================================
+
 document.addEventListener('DOMContentLoaded', () => {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
@@ -95,8 +160,8 @@ async function saveNewClinic(e) {
 
     const clinicName = document.getElementById('clinic_name').value.trim();
     const adminEmail = document.getElementById('clinic_admin_email').value.trim().toLowerCase();
-    const plan = document.getElementById('clinic_plan').value; // active, suspended
-    const packageType = document.getElementById('clinic_package').value; // trial_7, trial_14, monthly, yearly
+    const plan = document.getElementById('clinic_plan').value; 
+    const packageType = document.getElementById('clinic_package').value; 
     
     const phoneInput = document.getElementById('clinic_phone');
     const adminPhone = phoneInput && phoneInput.value.trim() !== "" ? phoneInput.value.trim() : "01000000000";
@@ -105,7 +170,6 @@ async function saveNewClinic(e) {
         const accessCode = Math.floor(1000 + Math.random() * 9000).toString();
         const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
 
-        // حساب التاريخ أوتوماتيك بناءً على الباقة المختارة
         const nextPayDate = new Date();
         if (packageType === 'monthly') {
             nextPayDate.setMonth(nextPayDate.getMonth() + 1);
@@ -120,7 +184,7 @@ async function saveNewClinic(e) {
         await db.collection("Clinics").doc(uniqueClinicId).set({
             clinicName: clinicName,
             status: plan,
-            package: packageType, // تسجيل نوع الباقة في قاعدة البيانات
+            package: packageType, 
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             nextPaymentDate: nextPayDate,
             logoUrl: "",
@@ -199,7 +263,6 @@ function loadClinics() {
             let adminEmail = c.adminEmail || "---";
             let accessCode = c.accessCode || ""; 
 
-            // دمج نوع الباقة مع اسم العيادة لتوضيحها لك في الجدول
             let pkgLabel = '';
             if(c.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
             else if(c.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
@@ -246,7 +309,7 @@ async function markAsPaid(clinicId) {
         await db.collection("Clinics").doc(clinicId).update({ 
             status: 'active',
             nextPaymentDate: newNextPay,
-            package: 'monthly' // تحويل الباقة لشهري تلقائياً بعد الدفع لو كان تجريبي
+            package: 'monthly' 
         });
     }
 }
