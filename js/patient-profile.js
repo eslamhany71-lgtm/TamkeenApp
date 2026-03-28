@@ -8,31 +8,22 @@ let currentPatientName = "مريض";
 function updatePageContent(lang) {
     const isAr = lang === 'ar';
     document.body.dir = isAr ? 'rtl' : 'ltr';
-    // ترجمة سريعة للأساسيات
     if(isAr) {
         document.getElementById('txt-back').innerText = "العودة لقائمة المرضى";
-        document.getElementById('tab-sessions').innerText = "🦷 الجلسات السابقة";
-        document.getElementById('tab-xrays').innerText = "📸 الأشعة والصور";
-        document.getElementById('tab-prescriptions').innerText = "💊 الروشتات";
     } else {
         document.getElementById('txt-back').innerText = "Back to Patients";
-        document.getElementById('tab-sessions').innerText = "🦷 Previous Sessions";
-        document.getElementById('tab-xrays').innerText = "📸 X-Rays & Photos";
-        document.getElementById('tab-prescriptions').innerText = "💊 Prescriptions";
     }
 }
 
-function switchTab(tabId, element) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    element.classList.add('active');
-    document.getElementById(`content-${tabId}`).classList.add('active');
+function openModal(id) { 
+    document.getElementById(id).style.display = 'flex'; 
+    if(id === 'sessionModal') {
+        // تعيين تاريخ اليوم كافتراضي عند فتح المودال
+        document.getElementById('sess_date').value = new Date().toISOString().split('T')[0];
+    }
 }
-
-function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// إغلاق المودال بالضغط خارجه
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', function(e) { if (e.target === this) this.style.display = 'none'; });
@@ -51,7 +42,6 @@ async function loadPatientData() {
             const p = doc.data();
             currentPatientName = p.name;
             document.getElementById('prof-name').innerText = p.name;
-            document.getElementById('print-patient-name').innerText = p.name; // للروشتة
             document.getElementById('prof-phone').innerText = `📞 ${p.phone}`;
             document.getElementById('prof-age').innerText = `🎂 ${p.age} سنة`;
             document.getElementById('prof-gender').innerText = `🚻 ${p.gender || 'غير محدد'}`;
@@ -64,197 +54,100 @@ async function loadPatientData() {
                 alerts.innerHTML = `<span style="color: #10b981; font-weight: bold;">✅ سليم / لا يوجد أمراض مزمنة</span>`;
             }
 
-            // بعد ما نجيب المريض، نجيب ملفاته
-            loadSessions();
-            loadXRays();
-            loadPrescriptions();
+            loadSessions(); // جلب الجلسات فقط لأن الباقي اتنقل
         }
     } catch (e) { console.error(e); }
 }
 
-// ================= 2. برمجة الجلسات (مع إضافة الحسابات) =================
+// ================= 2. برمجة الجلسات (مع الجدول المطور) =================
+
+// دالة حساب المتبقي أوتوماتيك
+function calculateRemaining() {
+    const total = Number(document.getElementById('sess_total').value) || 0;
+    const paid = Number(document.getElementById('sess_paid').value) || 0;
+    let remaining = total - paid;
+    if (remaining < 0) remaining = 0; // عشان ميطلعش بالسالب لو دفع أكتر بالغلط
+    document.getElementById('sess_remaining').value = remaining;
+}
+
 async function saveSession(e) {
     e.preventDefault();
+    const btn = document.getElementById('btn-save-session');
+    btn.disabled = true;
+    btn.innerText = "جاري الحفظ...";
     
-    // سحب القيم وتحويلها لأرقام
+    const totalAmount = Number(document.getElementById('sess_total').value) || 0;
     const paidAmount = Number(document.getElementById('sess_paid').value) || 0;
     const remainingAmount = Number(document.getElementById('sess_remaining').value) || 0;
 
     const data = {
         clinicId: clinicId, 
         patientId: patientId,
+        date: document.getElementById('sess_date').value, // التاريخ المانيوال
+        nextAppointment: document.getElementById('sess_next_date').value || null, // الموعد القادم
         procedure: document.getElementById('sess_procedure').value,
         tooth: document.getElementById('sess_tooth').value,
         notes: document.getElementById('sess_notes').value,
-        paid: paidAmount, // المدفوع
-        remaining: remainingAmount, // المتبقي
-        date: new Date().toISOString().split('T')[0],
+        total: totalAmount,
+        paid: paidAmount,
+        remaining: remainingAmount,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
+    
     try {
         await db.collection("Sessions").add(data);
-        closeModal('sessionModal'); document.querySelector('#sessionModal form').reset();
-    } catch (error) { console.error(error); }
+        closeModal('sessionModal'); 
+        document.querySelector('#sessionModal form').reset();
+    } catch (error) { 
+        console.error(error); 
+        alert("حدث خطأ أثناء حفظ الجلسة.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "حفظ الجلسة";
+    }
 }
 
 function loadSessions() {
-    db.collection("Sessions").where("patientId", "==", patientId).orderBy("createdAt", "desc")
+    db.collection("Sessions").where("patientId", "==", patientId).orderBy("date", "desc")
       .onSnapshot(snap => {
-        const list = document.getElementById('sessions-list');
-        list.innerHTML = '';
-        if (snap.empty) { list.innerHTML = `<div class="empty-state">لا توجد جلسات مسجلة.</div>`; return; }
+        const tbody = document.getElementById('sessions-list');
+        tbody.innerHTML = '';
+        if (snap.empty) { tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">لا توجد جلسات مسجلة حتى الآن.</td></tr>`; return; }
+        
         snap.forEach(doc => {
             const s = doc.data();
             
-            // قراءة المبالغ
+            const total = s.total || 0;
             const paid = s.paid || 0;
             const remaining = s.remaining || 0;
+            const nextApp = s.nextAppointment ? `<span style="color:#d97706; font-weight:bold;">${s.nextAppointment}</span>` : '---';
 
-            list.innerHTML += `
-                <div class="data-card">
-                    <div class="data-card-info">
-                        <span class="data-badge">📅 ${s.date}</span>
-                        <h4>🦷 ${s.procedure}</h4>
-                        ${s.tooth ? `<p><strong>رقم السن:</strong> <span dir="ltr">${s.tooth}</span></p>` : ''}
-                        
-                        <div style="display: flex; gap: 15px; margin: 10px 0; padding: 10px; background: #f8fafc; border-radius: 8px;">
-                            <div style="color: #10b981; font-weight: bold;">المدفوع: ${paid} ج.م</div>
-                            <div style="color: ${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight: bold;">المتبقي: ${remaining} ج.م</div>
-                        </div>
-
-                        <p><strong>ملاحظات:</strong> ${s.notes || 'لا يوجد'}</p>
-                    </div>
-                    <button class="btn-danger" onclick="deleteDoc('Sessions', '${doc.id}')">🗑️</button>
-                </div>
+            tbody.innerHTML += `
+                <tr>
+                    <td><span class="data-badge">${s.date}</span></td>
+                    <td style="font-weight:bold; color:#0f172a;">${s.procedure} <br> <small style="color:gray;">السن: ${s.tooth || '---'}</small></td>
+                    <td style="font-weight:bold;">${total}</td>
+                    <td style="color: #10b981; font-weight: bold;">${paid}</td>
+                    <td style="color: ${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight: bold;">${remaining}</td>
+                    <td dir="ltr">${nextApp}</td>
+                    <td style="text-align: center;">
+                        <button class="btn-view" onclick="viewSessionDetails('${doc.id}')">👁️ عرض التفاصيل</button>
+                        <button class="btn-danger" style="margin-right:5px; padding: 6px 10px;" onclick="deleteDoc('Sessions', '${doc.id}')">🗑️</button>
+                    </td>
+                </tr>
             `;
         });
     });
 }
 
-// ================= 3. برمجة الأشعة (Base64 Magic) =================
-function encodeImage(element) {
-    const file = element.files[0];
-    const reader = new FileReader();
-    reader.onloadend = function() {
-        document.getElementById('xray_base64').value = reader.result;
-    }
-    if (file) reader.readAsDataURL(file);
-}
-
-async function saveXRay(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-save-xray');
-    btn.disabled = true; btn.innerText = "جاري الرفع...";
-
-    const data = {
-        clinicId: clinicId, patientId: patientId,
-        type: document.getElementById('xray_type').value,
-        notes: document.getElementById('xray_notes').value,
-        imageBase64: document.getElementById('xray_base64').value,
-        date: new Date().toISOString().split('T')[0],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-
-    try {
-        await db.collection("XRays").add(data);
-        closeModal('xrayModal'); document.querySelector('#xrayModal form').reset();
-    } catch (error) { 
-        console.error(error); 
-        alert("حجم الصورة كبير جداً! يرجى استخدام صورة أقل من 1 ميجابايت.");
-    } finally {
-        btn.disabled = false; btn.innerText = "رفع وحفظ";
-    }
-}
-
-function loadXRays() {
-    db.collection("XRays").where("patientId", "==", patientId).orderBy("createdAt", "desc")
-      .onSnapshot(snap => {
-        const list = document.getElementById('xrays-list');
-        list.innerHTML = '';
-        if (snap.empty) { list.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">لا توجد صور مرفوعة.</div>`; return; }
-        snap.forEach(doc => {
-            const x = doc.data();
-            list.innerHTML += `
-                <div class="xray-card">
-                    <span class="data-badge">📅 ${x.date}</span>
-                    <a href="${x.imageBase64}" target="_blank" title="اضغط لتكبير الصورة">
-                        <img src="${x.imageBase64}" alt="X-Ray">
-                    </a>
-                    <p>${x.type}</p>
-                    <p style="color:#64748b; font-size:12px;">${x.notes}</p>
-                    <button class="btn-danger" style="width:100%; margin-top:10px;" onclick="deleteDoc('XRays', '${doc.id}')">🗑️ حذف</button>
-                </div>
-            `;
-        });
-    });
-}
-
-// ================= 4. برمجة الروشتات والطباعة =================
-async function savePrescription(e) {
-    e.preventDefault();
-    const data = {
-        clinicId: clinicId, patientId: patientId,
-        medications: document.getElementById('presc_meds').value,
-        notes: document.getElementById('presc_notes').value,
-        date: new Date().toISOString().split('T')[0],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    try {
-        await db.collection("Prescriptions").add(data);
-        closeModal('prescriptionModal'); document.querySelector('#prescriptionModal form').reset();
-    } catch (error) { console.error(error); }
-}
-
-function loadPrescriptions() {
-    db.collection("Prescriptions").where("patientId", "==", patientId).orderBy("createdAt", "desc")
-      .onSnapshot(snap => {
-        const list = document.getElementById('prescriptions-list');
-        list.innerHTML = '';
-        if (snap.empty) { list.innerHTML = `<div class="empty-state">لم يتم إصدار روشتات.</div>`; return; }
-        snap.forEach(doc => {
-            const p = doc.data();
-            list.innerHTML += `
-                <div class="data-card" style="flex-direction: column;">
-                    <div style="display:flex; justify-content:space-between; width:100%; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:10px;">
-                        <span class="data-badge">📅 ${p.date}</span>
-                        <div>
-                            <button class="btn-primary" onclick="printPrescription('${doc.id}')" style="padding: 5px 10px; background:#10b981;">🖨️ طباعة</button>
-                            <button class="btn-danger" onclick="deleteDoc('Prescriptions', '${doc.id}')" style="padding: 5px 10px;">🗑️</button>
-                        </div>
-                    </div>
-                    <div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:bold; color:#0f172a; width: 100%;">${p.medications}</div>
-                    ${p.notes ? `<p style="margin-top:10px; color:#475569;"><strong>تعليمات:</strong> ${p.notes}</p>` : ''}
-                </div>
-            `;
-        });
-    });
-}
-
-// دالة الطباعة السحرية
-async function printPrescription(docId) {
-    try {
-        const doc = await db.collection("Prescriptions").doc(docId).get();
-        if(doc.exists) {
-            const p = doc.data();
-            document.getElementById('print-date').innerText = p.date;
-            document.getElementById('print-meds').innerText = p.medications;
-            document.getElementById('print-notes').innerText = p.notes || 'لا يوجد';
-            
-            // اسم العيادة من الجلسة لو موجود
-            db.collection("Clinics").doc(clinicId).get().then(cDoc => {
-                if(cDoc.exists && cDoc.data().clinicName) {
-                    document.getElementById('print-clinic-name').innerText = cDoc.data().clinicName;
-                }
-                // أمر الطباعة للمتصفح
-                window.print();
-            });
-        }
-    } catch(e) { console.error(e); }
+// دالة التوجيه لصفحة تفاصيل الجلسة الجديدة
+function viewSessionDetails(sessionId) {
+    window.parent.loadPage(`session-details.html?sessionId=${sessionId}&patientId=${patientId}`, window.parent.document.getElementById('nav-patients').parentElement);
 }
 
 // دالة حذف عامة
 async function deleteDoc(collectionName, docId) {
-    if(confirm("هل أنت متأكد من الحذف؟")) {
+    if(confirm("هل أنت متأكد من حذف هذه الجلسة بالكامل؟ سيتم حذف جميع المرفقات المرتبطة بها.")) {
         try { await db.collection(collectionName).doc(docId).delete(); } 
         catch (e) { console.error(e); }
     }
