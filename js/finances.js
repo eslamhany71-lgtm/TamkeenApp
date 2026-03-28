@@ -46,7 +46,6 @@ function updatePageContent(lang) {
 function populateMonthsDropdown(lang) {
     const select = document.getElementById('filterMonth');
     const isAr = lang === 'ar';
-    // نحتفظ بالخيار الأول (كل الشهور)
     select.innerHTML = `<option value="all">${isAr ? 'كل الشهور' : 'All Months'}</option>`;
     
     const today = new Date();
@@ -56,7 +55,6 @@ function populateMonthsDropdown(lang) {
         const monthTxt = d.toLocaleString(isAr ? 'ar-EG' : 'en-US', { month: 'long', year: 'numeric' });
         select.innerHTML += `<option value="${monthVal}">${monthTxt}</option>`;
     }
-    // اختيار الشهر الحالي افتراضياً
     select.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -91,8 +89,9 @@ function openTransactionModal(type) {
 }
 
 function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
+function closeEditTransactionModal() { document.getElementById('editTransactionModal').style.display = 'none'; }
 
-// 3. حفظ العملية
+// 3. حفظ العملية اليدوية
 async function saveTransaction(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -107,6 +106,7 @@ async function saveTransaction(e) {
         date: document.getElementById('trans_date').value,
         category: document.getElementById('trans_category').value,
         notes: document.getElementById('trans_notes').value.trim(),
+        isManual: true, // نميزها إنها يدوية مش من جلسة
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -117,29 +117,75 @@ async function saveTransaction(e) {
     finally { btn.disabled = false; btn.innerText = window.finLang.btnSave; }
 }
 
-// 4. جلب الحركات المالية (مع الفلترة والحسابات)
-function loadFinances() {
+// 4. جلب الحركات (دمج الحسابات اليدوية مع إيرادات الجلسات)
+let allTransactionsForEdit = []; // عشان نحتفظ بالداتا للتعديل
+
+async function loadFinances() {
     if (!clinicId) return;
-    const selectedMonth = document.getElementById('filterMonth').value; // مثلا "2023-10" أو "all"
+    const selectedMonth = document.getElementById('filterMonth').value; 
+    const tbody = document.getElementById('financesBody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">جاري تجميع البيانات...</td></tr>';
+    
+    let totalInc = 0;
+    let totalExp = 0;
+    let combinedData = [];
 
-    db.collection("Finances").where("clinicId", "==", clinicId).orderBy("date", "desc").onSnapshot(snap => {
-        const tbody = document.getElementById('financesBody');
-        tbody.innerHTML = '';
+    try {
+        // 1. جلب المصروفات والإيرادات اليدوية
+        const finQuery = selectedMonth === 'all' 
+            ? db.collection("Finances").where("clinicId", "==", clinicId) 
+            : db.collection("Finances").where("clinicId", "==", clinicId)
+                .where("date", ">=", selectedMonth + "-01")
+                .where("date", "<=", selectedMonth + "-31");
+                
+        const finSnap = await finQuery.get();
+        finSnap.forEach(doc => {
+            combinedData.push({ id: doc.id, collection: 'Finances', ...doc.data() });
+        });
+
+        // 2. جلب إيرادات الجلسات (اللي الدكاترة سجلوها)
+        const sessQuery = selectedMonth === 'all'
+            ? db.collection("Sessions").where("clinicId", "==", clinicId)
+            : db.collection("Sessions").where("clinicId", "==", clinicId)
+                .where("date", ">=", selectedMonth + "-01")
+                .where("date", "<=", selectedMonth + "-31");
+                
+        const sessSnap = await sessQuery.get();
         
-        let totalInc = 0;
-        let totalExp = 0;
-        let count = 0;
+        // جلب أسماء المرضى عشان نكتبها في البيان
+        const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
+        let patientsMap = {};
+        patSnap.forEach(p => patientsMap[p.id] = p.data().name);
 
-        snap.forEach(doc => {
-            const f = doc.data();
-            
-            // فلترة بالشهر لو مش "all"
-            if (selectedMonth !== 'all' && !f.date.startsWith(selectedMonth)) return;
+        sessSnap.forEach(doc => {
+            const s = doc.data();
+            if (s.paid && s.paid > 0) { // لو الجلسة اتدفع فيها فلوس
+                const patName = patientsMap[s.patientId] || "مريض";
+                combinedData.push({
+                    id: doc.id,
+                    collection: 'Sessions', // بنميزها إنها جاية من الجلسات
+                    type: 'income',
+                    amount: s.paid,
+                    date: s.date,
+                    category: 'إيراد جلسة علاجية',
+                    notes: `إجراء: ${s.procedure} - (المريض: ${patName})`
+                });
+            }
+        });
 
-            count++;
-            
-            if (f.type === 'income') totalInc += f.amount;
-            else totalExp += f.amount;
+        // 3. ترتيب الكل تنازلياً بالتاريخ
+        combinedData.sort((a, b) => new Date(b.date) - new Date(a.date));
+        allTransactionsForEdit = combinedData;
+
+        // 4. رسم الجدول
+        tbody.innerHTML = '';
+        if(combinedData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
+        }
+
+        combinedData.forEach(f => {
+            if (f.type === 'income') totalInc += Number(f.amount);
+            else totalExp += Number(f.amount);
 
             const isInc = f.type === 'income';
             const badgeClass = isInc ? 'badge-inc' : 'badge-exp';
@@ -155,15 +201,12 @@ function loadFinances() {
                 <td class="amount-text" style="color: ${amountColor};" dir="ltr">${amountSign} ${f.amount}</td>
                 <td>${f.notes}</td>
                 <td class="no-print" style="text-align: center;">
-                    <button class="btn-danger" style="padding: 5px 10px; font-size:12px;" onclick="deleteTransaction('${doc.id}')">🗑️</button>
+                    <button class="btn-primary" style="background:#f59e0b; padding: 5px 10px; font-size:12px; margin-right:5px;" onclick="openEditTrans('${f.id}')">✏️</button>
+                    <button class="btn-danger" style="padding: 5px 10px; font-size:12px;" onclick="deleteTransaction('${f.id}', '${f.collection}')">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
-
-        if (count === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
-        }
 
         // تحديث الكروت العلوية
         document.getElementById('stat-income').innerText = totalInc.toLocaleString();
@@ -171,13 +214,61 @@ function loadFinances() {
         const netProfit = totalInc - totalExp;
         document.getElementById('stat-net').innerText = netProfit.toLocaleString();
         document.getElementById('stat-net').style.color = netProfit >= 0 ? '#0284C7' : '#ef4444';
-    });
+
+    } catch (error) {
+        console.error("Error loading finances:", error);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل البيانات.</td></tr>';
+    }
 }
 
-// 5. حذف حركة
-async function deleteTransaction(docId) {
+// 5. دوال التعديل
+function openEditTrans(docId) {
+    const trans = allTransactionsForEdit.find(t => t.id === docId);
+    if(!trans) return;
+
+    if(trans.collection === 'Sessions') {
+        alert("هذا الإيراد مسجل من داخل جلسة المريض. يرجى تعديل (المدفوع) من داخل ملف المريض لتجنب تضارب الحسابات.");
+        return;
+    }
+
+    document.getElementById('edit_trans_id').value = trans.id;
+    document.getElementById('edit_trans_amount').value = trans.amount;
+    document.getElementById('edit_trans_date').value = trans.date;
+    document.getElementById('edit_trans_notes').value = trans.notes;
+    
+    document.getElementById('editTransactionModal').style.display = 'flex';
+}
+
+async function updateTransaction(e) {
+    e.preventDefault();
+    const docId = document.getElementById('edit_trans_id').value;
+    const newAmount = Number(document.getElementById('edit_trans_amount').value);
+    const newDate = document.getElementById('edit_trans_date').value;
+    const newNotes = document.getElementById('edit_trans_notes').value;
+
+    try {
+        await db.collection("Finances").doc(docId).update({
+            amount: newAmount,
+            date: newDate,
+            notes: newNotes
+        });
+        closeEditTransactionModal();
+        loadFinances(); // Refresh
+    } catch(e) { console.error(e); }
+}
+
+// 6. حذف حركة
+async function deleteTransaction(docId, collection) {
+    if(collection === 'Sessions') {
+        alert("لا يمكن حذف إيراد الجلسة من هنا. يجب حذفه من ملف المريض.");
+        return;
+    }
+
     if(confirm(window.finLang.confDel)) {
-        try { await db.collection("Finances").doc(docId).delete(); } 
+        try { 
+            await db.collection("Finances").doc(docId).delete(); 
+            loadFinances(); // Refresh
+        } 
         catch (e) { console.error(e); }
     }
 }
