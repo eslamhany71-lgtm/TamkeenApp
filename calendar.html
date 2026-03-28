@@ -33,14 +33,43 @@
     </div>
 
     <div id="appointmentModal" class="modal" style="display: none;">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeAppointmentModal()">&times;</span>
             <h2 id="modal-title" style="margin-top: 0; margin-bottom: 20px;">حجز موعد جديد</h2>
             
             <form id="addAppointmentForm" onsubmit="saveAppointment(event)">
-                <div class="form-group">
-                    <label id="lbl-app-name">اسم المريض</label>
-                    <input type="text" id="app_name" placeholder="ابحث أو اكتب اسم المريض" required>
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
+                    <h3 style="margin-top: 0; font-size: 16px; color: #0284c7;">بيانات المريض</h3>
+                    
+                    <div class="form-group">
+                        <label>اسم المريض</label>
+                        <input type="text" id="app_name" placeholder="الاسم ثلاثي" required>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>رقم الموبايل</label>
+                            <input type="tel" id="app_phone" placeholder="01xxxxxxxxx" required dir="ltr" style="text-align: left;">
+                        </div>
+                        <div class="form-group">
+                            <label>العمر (سنوات)</label>
+                            <input type="number" id="app_age" placeholder="مثال: 35" required min="1" max="120">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>النوع</label>
+                            <select id="app_gender" required>
+                                <option value="ذكر">ذكر</option>
+                                <option value="أنثى">أنثى</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>أمراض مزمنة (إن وجد)</label>
+                            <input type="text" id="app_history" placeholder="سكر، ضغط، سيولة... (اتركه فارغاً إن لم يوجد)">
+                        </div>
+                    </div>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -64,24 +93,25 @@
                 </div>
 
                 <div class="form-group">
-                    <label id="lbl-app-notes">ملاحظات (اختياري)</label>
+                    <label id="lbl-app-notes">ملاحظات الحجز (اختياري)</label>
                     <input type="text" id="app_notes">
                 </div>
 
-                <button type="submit" id="btn-save" class="btn-add" style="width: 100%; justify-content: center; margin-top: 20px; padding: 12px; font-size: 16px;">
+                <button type="submit" id="btn-save" class="btn-add" style="width: 100%; justify-content: center; margin-top: 10px; padding: 12px; font-size: 16px;">
                     تأكيد الحجز
                 </button>
             </form>
         </div>
     </div>
 
-   <div id="appDetailsModal" class="modal" style="display: none; z-index: 1005;">
+    <div id="appDetailsModal" class="modal" style="display: none; z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeAppDetailsModal()">&times;</span>
             <h2 style="margin-top: 0; margin-bottom: 20px; color: #0f172a;">تفاصيل الحجز</h2>
             
-            <div class="details-box" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <div class="details-box" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>👤 اسم المريض:</strong> <span id="det_name" style="color: #0284C7; font-weight: bold;"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📱 الموبايل:</strong> <span id="det_phone" dir="ltr" style="display:inline-block;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📅 التاريخ:</strong> <span id="det_date"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>⏰ الساعة:</strong> <span id="det_time"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🩺 نوع الكشف:</strong> <span id="det_type"></span></p>
@@ -89,9 +119,13 @@
                 <p style="margin: 0; font-size: 16px;"><strong>📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn-action-primary" onclick="openEditModal()" style="flex: 1;">✏️ تعديل الموعد</button>
-                <button class="btn-action-danger" onclick="deleteAppointment()" style="flex: 1;">🗑️ حذف الموعد</button>
+            <div id="complete-action-box" style="margin-bottom: 15px;">
+                <button class="btn-success" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وإنشاء ملف)</button>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-action-primary" onclick="openEditModal()" style="flex: 1;">✏️ تعديل</button>
+                <button class="btn-action-danger" onclick="deleteAppointment()" style="flex: 1;">🗑️ حذف</button>
             </div>
         </div>
     </div>
