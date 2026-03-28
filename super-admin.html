@@ -12,6 +12,9 @@
     <style>
         .kpi-card.orange { border-right: 5px solid #f97316; }
         .kpi-icon.orange { background: #ffedd5; color: #f97316; }
+        /* لون مميز لزرار الممرضة */
+        .btn-nurse { background-color: #8b5cf6; border: none; }
+        .btn-nurse:hover { background-color: #7c3aed; }
     </style>
 </head>
 <body>
@@ -23,6 +26,11 @@
         </div>
         <div class="header-actions">
             <input type="text" id="searchInput" class="search-box" onkeyup="filterClinics()">
+            
+            <button class="btn-primary btn-nurse" onclick="openUserModal()">
+                <span>👩‍⚕️</span> <span id="btn-add-user">إضافة مستخدم للعيادة</span>
+            </button>
+
             <button class="btn-primary" onclick="openClinicModal()">
                 <span>🏢</span> <span id="btn-add-clinic">إضافة عيادة جديدة</span>
             </button>
@@ -103,6 +111,42 @@
                 </div>
 
                 <button type="submit" id="btn-save" class="btn-primary" style="width: 100%; margin-top: 10px; justify-content: center;">إنشاء العيادة وتوليد المعرف</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeUserModal()">&times;</span>
+            <h2 style="margin-top: 0; margin-bottom: 20px;">ربط مستخدم (ممرضة) بعيادة</h2>
+            
+            <form id="userForm" onsubmit="saveNewUser(event)">
+                <div class="form-group">
+                    <label>اسم المستخدم / الممرضة</label>
+                    <input type="text" id="user_name" required placeholder="مثال: منى أحمد">
+                </div>
+                
+                <div class="form-group">
+                    <label>البريد الإلكتروني للممرضة</label>
+                    <input type="email" id="user_email" required dir="ltr" style="text-align: left;" placeholder="nurse@clinic.com">
+                    <small style="color: #64748b; font-size: 12px; display: block; margin-top: 5px;">* ستقوم الممرضة بإنشاء حساب بهذا الإيميل للدخول لعيادتها.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>العيادة التابعة لها</label>
+                    <select id="user_clinic" required>
+                        <option value="">جاري تحميل العيادات...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>الصلاحية الممنوحة</label>
+                    <select id="user_role" disabled>
+                        <option value="nurse" selected>ممرضة (Nurse) - مشاهدة إيراد اليوم فقط وتخفّي الحسابات</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-primary btn-nurse" style="width: 100%; margin-top: 10px; justify-content: center;">تسجيل وربط الصلاحية</button>
             </form>
         </div>
     </div>
