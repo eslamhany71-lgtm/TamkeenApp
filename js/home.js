@@ -160,20 +160,30 @@ async function loadClinicBranding(clinicId) {
     }
 }
 
-// 7. توزيع الصلاحيات
+// 7. توزيع الصلاحيات (مع حجب الحسابات عن الممرضة)
 function applyRoles(role) {
     const r = role.toLowerCase();
     
     const settingsLi = document.getElementById('nav-settings-li');
     const superAdminLi = document.getElementById('nav-super-admin');
+    const financesLi = document.getElementById('nav-finances-li'); // سحبنا زرار الحسابات
     
+    // الوضع الافتراضي للكل
     if (settingsLi) settingsLi.style.display = 'none';
     if (superAdminLi) superAdminLi.style.display = 'none';
+    if (financesLi) financesLi.style.display = 'block'; // الحسابات ظاهرة للكل كوضع مبدئي
 
+    // لو اليوزر ده ممرضة (أخفي الحسابات)
+    if (r === 'nurse') {
+        if (financesLi) financesLi.style.display = 'none';
+    }
+
+    // لو اليوزر دكتور أو أدمن
     if (r === 'doctor' || r === 'admin') {
         if (settingsLi) settingsLi.style.display = 'block';
     }
     
+    // لو اليوزر مالك النظام
     if (r === 'superadmin') {
         if (settingsLi) settingsLi.style.display = 'block';
         if (superAdminLi) superAdminLi.style.display = 'block';
