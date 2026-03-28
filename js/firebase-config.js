@@ -1,4 +1,4 @@
-// firebase-config.js - التهيئة النظيفة مع السرعة الصاروخية (Offline Persistence)
+// firebase-config.js - التهيئة النظيفة مع السرعة الصاروخية ومزامنة الإطارات والتابات
 
 const firebaseConfig = {
   apiKey: "AIzaSyCFVu8FHYq2leGA1F9SQEAXmn1agv1V1cM",
@@ -9,17 +9,17 @@ const firebaseConfig = {
   appId: "1:906640049959:web:c6c619a53ef4d6f9704b02"
 };
 
-// تهيئة Firebase
-firebase.initializeApp(firebaseConfig);
+// التأكد من عدم تهيئة الفايربيز مرتين (مهمة جداً مع الـ iframe)
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
-// 🚀 تفعيل الكاش المحلي (السرعة الصاروخية والعمل بدون إنترنت) 🚀
-firebase.firestore().enablePersistence()
+// 🚀 تفعيل الكاش المحلي مع دعم التابات المتعددة (synchronizeTabs) 🚀
+firebase.firestore().enablePersistence({ synchronizeTabs: true })
   .catch((err) => {
       if (err.code == 'failed-precondition') {
-          // بيحصل لو الدكتور فاتح السيستم في أكتر من تابة في نفس الوقت
-          console.warn("الكاش يعمل في تابة واحدة فقط.");
+          console.warn("تحذير: عدة تابات مفتوحة، تم تفعيل المزامنة.");
       } else if (err.code == 'unimplemented') {
-          // بيحصل لو المتصفح قديم جداً (نادر الحدوث)
           console.warn("المتصفح لا يدعم التخزين المحلي.");
       }
   });
