@@ -18,7 +18,6 @@ function updatePageContent(lang) {
 function openModal(id) { 
     document.getElementById(id).style.display = 'flex'; 
     if(id === 'sessionModal') {
-        // تعيين تاريخ اليوم كافتراضي عند فتح المودال
         document.getElementById('sess_date').value = new Date().toISOString().split('T')[0];
     }
 }
@@ -30,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 1. جلب بيانات المريض
 async function loadPatientData() {
     if (!patientId || !clinicId) {
         document.getElementById('prof-name').innerText = "خطأ: لم يتم العثور على المريض";
@@ -54,19 +52,16 @@ async function loadPatientData() {
                 alerts.innerHTML = `<span style="color: #10b981; font-weight: bold;">✅ سليم / لا يوجد أمراض مزمنة</span>`;
             }
 
-            loadSessions(); // جلب الجلسات فقط لأن الباقي اتنقل
+            loadSessions(); 
         }
     } catch (e) { console.error(e); }
 }
 
-// ================= 2. برمجة الجلسات (مع الجدول المطور) =================
-
-// دالة حساب المتبقي أوتوماتيك
 function calculateRemaining() {
     const total = Number(document.getElementById('sess_total').value) || 0;
     const paid = Number(document.getElementById('sess_paid').value) || 0;
     let remaining = total - paid;
-    if (remaining < 0) remaining = 0; // عشان ميطلعش بالسالب لو دفع أكتر بالغلط
+    if (remaining < 0) remaining = 0; 
     document.getElementById('sess_remaining').value = remaining;
 }
 
@@ -83,8 +78,8 @@ async function saveSession(e) {
     const data = {
         clinicId: clinicId, 
         patientId: patientId,
-        date: document.getElementById('sess_date').value, // التاريخ المانيوال
-        nextAppointment: document.getElementById('sess_next_date').value || null, // الموعد القادم
+        date: document.getElementById('sess_date').value,
+        nextAppointment: document.getElementById('sess_next_date').value || null,
         procedure: document.getElementById('sess_procedure').value,
         tooth: document.getElementById('sess_tooth').value,
         notes: document.getElementById('sess_notes').value,
@@ -140,12 +135,29 @@ function loadSessions() {
     });
 }
 
-// دالة التوجيه لصفحة تفاصيل الجلسة الجديدة
+// الدالة السحرية الجديدة للبحث والفلترة
+function filterPatientSessions() {
+    const input = document.getElementById('searchSessionInput').value.toLowerCase();
+    const rows = document.getElementById('sessions-list').getElementsByTagName('tr');
+
+    for (let i = 0; i < rows.length; i++) {
+        // نتخطى صف "لا توجد جلسات" لو الجدول فاضي
+        if (rows[i].getElementsByTagName('td').length < 2) continue;
+
+        // بنقرأ كل النص اللي جوه الصف ونقارنه بكلمة البحث
+        const rowText = rows[i].textContent || rows[i].innerText;
+        if (rowText.toLowerCase().indexOf(input) > -1) {
+            rows[i].style.display = ""; // إظهار
+        } else {
+            rows[i].style.display = "none"; // إخفاء
+        }
+    }
+}
+
 function viewSessionDetails(sessionId) {
     window.parent.loadPage(`session-details.html?sessionId=${sessionId}&patientId=${patientId}`, window.parent.document.getElementById('nav-patients').parentElement);
 }
 
-// دالة حذف عامة
 async function deleteDoc(collectionName, docId) {
     if(confirm("هل أنت متأكد من حذف هذه الجلسة بالكامل؟ سيتم حذف جميع المرفقات المرتبطة بها.")) {
         try { await db.collection(collectionName).doc(docId).delete(); } 
