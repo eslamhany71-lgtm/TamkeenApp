@@ -5,7 +5,11 @@ let todayPendingApps = [];
 let upcomingPendingApps = [];
 let allPatientsData = [];
 let completedSessionsData = [];
-let todayRevenueData = [];
+
+// قسمنا الإيرادات لنوعين عشان نجمعهم صح
+let todayFinancesData = []; 
+let todaySessionsRevData = [];
+let todayRevenueData = []; // المجموع الكلي
 
 let currentSelectedPatientId = null; 
 let currentSelectedAppId = null; 
@@ -22,7 +26,6 @@ function updatePageContent(lang) {
             mPatTitle: "🦷 جميع المرضى", mPatDetTitle: "تفاصيل المريض", lpPhone: "الموبايل:", lpAge: "السن:", lpHist: "أمراض مزمنة:", btnProf: "فتح الملف الطبي الكامل",
             mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الجلسات المكتملة", empty: "لا يوجد بيانات حالياً.",
             btnComp: "✅ مكتمل", btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟",
-            // ضيف دول جوه قاموس الـ ar
             mRevDetTitle: "تفاصيل الإيراد", lRevAmt: "المبلغ:", lRevDate: "التاريخ:", lRevCat: "البند:", lRevNotes: "البيان:",
         }, 
         en: { 
@@ -35,7 +38,6 @@ function updatePageContent(lang) {
             mPatTitle: "🦷 All Patients", mPatDetTitle: "Patient Details", lpPhone: "Phone:", lpAge: "Age:", lpHist: "Medical History:", btnProf: "Open Full Profile",
             mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently.",
             btnComp: "✅ Complete", btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?",
-            // وضيف دول جوه قاموس الـ en
             mRevDetTitle: "Revenue Details", lRevAmt: "Amount:", lRevDate: "Date:", lRevCat: "Category:", lRevNotes: "Notes:",
         } 
     };
@@ -60,7 +62,6 @@ function updatePageContent(lang) {
     setClassTxt('lbl-rev-cat', c.lRevCat);
     setClassTxt('lbl-rev-notes', c.lRevNotes);
     
-    
     setTxt('btn-complete-app', c.btnComp); setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
     
     window.emptyTxt = c.empty; 
@@ -80,25 +81,56 @@ function updateChart(pending, completed, cancelled) {
     });
 }
 
+// دالة تجميع الإيرادات من الحسابات والجلسات مع بعض
+function updateTotalRevenue() {
+    todayRevenueData = [...todayFinancesData, ...todaySessionsRevData];
+    const total = todayRevenueData.reduce((sum, item) => sum + Number(item.amount), 0);
+    document.getElementById('stat-revenue').innerText = total;
+}
+
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = new Date().toISOString().split('T')[0];
 
+    // 1. جلب المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         allPatientsData = [];
         snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
         document.getElementById('stat-patients').innerText = allPatientsData.length;
     });
 
+    // 2. جلب الدخل من الحسابات العامة (Finances)
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
-        todayRevenueData = []; let todayRevTotal = 0; 
+        todayFinancesData = []; 
         snap.forEach(doc => { 
             const data = doc.data();
-            if (data.date === todayStr && data.amount) { todayRevTotal += Number(data.amount); todayRevenueData.push({ id: doc.id, ...data }); }
+            if (data.date === todayStr && data.amount) { 
+                todayFinancesData.push({ id: doc.id, ...data }); 
+            }
         });
-        document.getElementById('stat-revenue').innerText = todayRevTotal;
+        updateTotalRevenue();
     });
 
+    // 3. جلب الدخل من الجلسات اللي تمت النهاردة (Sessions)
+    db.collection("Sessions").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        todaySessionsRevData = [];
+        snap.forEach(doc => {
+            const data = doc.data();
+            // لو الجلسة اتعملت النهاردة وفيها فلوس مدفوعة، نحسبها في الإيراد
+            if (data.date === todayStr && data.paid > 0) {
+                todaySessionsRevData.push({
+                    id: doc.id,
+                    amount: data.paid,
+                    date: data.date,
+                    category: "إيراد جلسة",
+                    notes: `إجراء: ${data.procedure || 'جلسة علاجية'}`
+                });
+            }
+        });
+        updateTotalRevenue();
+    });
+
+    // 4. جلب المواعيد وحالتها
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         let pending = 0, completed = 0, cancelled = 0;
         todayPendingApps = []; upcomingPendingApps = []; completedSessionsData = [];
@@ -246,7 +278,7 @@ function openRevenueModal() {
         todayRevenueData.forEach(rev => {
             const li = document.createElement('li');
             li.className = 'data-list-li';
-            li.onclick = () => openRevDetails(rev); // 🔴 هنا ربطنا الضغطة بفتح التفاصيل
+            li.onclick = () => openRevDetails(rev); 
             const lang = localStorage.getItem('preferredLang') || 'ar';
             li.innerHTML = `<span style="font-weight: bold; font-size: 15px;">📝 ${rev.notes || (lang==='ar'?'دفعة نقدية':'Cash Payment')}</span><span class="data-badge green">💰 ${rev.amount}</span>`;
             container.appendChild(li);
@@ -297,7 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
         modal.addEventListener('click', function(event) {
-            // يتأكد إنه داس على الخلفية الضلمة مش جوه المربع الأبيض
             if (event.target === this) {
                 this.style.display = 'none';
             }
