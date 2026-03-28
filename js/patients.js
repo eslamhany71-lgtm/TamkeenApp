@@ -9,7 +9,7 @@ function updatePageContent(lang) {
         ar: {
             title: "إدارة المرضى", sub: "قائمة المرضى المسجلين بالعيادة والتاريخ الطبي",
             search: "بحث بالاسم أو رقم الموبايل...", btnAdd: "إضافة مريض",
-            thName: "اسم المريض", thPhone: "رقم الموبايل", thAge: "السن", thHistory: "تنبيهات طبية", thAction: "إجراءات",
+            thName: "اسم المريض", thPhone: "رقم الموبايل", thAge: "السن", thHistory: "تنبيهات طبية", thNotes: "الملاحظات", thAction: "إجراءات",
             mTitleAdd: "تسجيل مريض جديد", mTitleEdit: "تعديل بيانات المريض", lName: "اسم المريض بالكامل", lPhone: "رقم الموبايل", lAge: "السن", lGender: "النوع",
             optM: "ذكر", optF: "أنثى", lHistory: "التاريخ الطبي والأمراض المزمنة (إن وجد)", 
             cDiab: "مرض السكر", cBp: "ضغط الدم", cBleed: "سيولة بالدم", cAllg: "حساسية بنج",
@@ -19,7 +19,7 @@ function updatePageContent(lang) {
         en: {
             title: "Patients Management", sub: "List of registered clinic patients and medical history",
             search: "Search by name or phone...", btnAdd: "Add Patient",
-            thName: "Patient Name", thPhone: "Phone Number", thAge: "Age", thHistory: "Medical Alerts", thAction: "Actions",
+            thName: "Patient Name", thPhone: "Phone Number", thAge: "Age", thHistory: "Medical Alerts", thNotes: "Notes", thAction: "Actions",
             mTitleAdd: "Register New Patient", mTitleEdit: "Edit Patient Data", lName: "Full Name", lPhone: "Phone Number", lAge: "Age", lGender: "Gender",
             optM: "Male", optF: "Female", lHistory: "Medical History & Chronic Diseases", 
             cDiab: "Diabetes", cBp: "Blood Pressure", cBleed: "Bleeding", cAllg: "Anesthesia Allergy",
@@ -32,7 +32,7 @@ function updatePageContent(lang) {
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('btn-add-txt', c.btnAdd);
     document.getElementById('searchInput').placeholder = c.search;
-    setTxt('th-name', c.thName); setTxt('th-phone', c.thPhone); setTxt('th-age', c.thAge); setTxt('th-history', c.thHistory); setTxt('th-action', c.thAction);
+    setTxt('th-name', c.thName); setTxt('th-phone', c.thPhone); setTxt('th-age', c.thAge); setTxt('th-history', c.thHistory); setTxt('th-notes', c.thNotes); setTxt('th-action', c.thAction);
     setTxt('lbl-p-name', c.lName); setTxt('lbl-p-phone', c.lPhone); setTxt('lbl-p-age', c.lAge); setTxt('lbl-p-gender', c.lGender);
     setTxt('opt-male', c.optM); setTxt('opt-female', c.optF); setTxt('lbl-p-history', c.lHistory);
     setTxt('chk-diab', c.cDiab); setTxt('chk-bp', c.cBp); setTxt('chk-bleed', c.cBleed); setTxt('chk-allg', c.cAllg);
@@ -146,7 +146,7 @@ function loadPatients() {
         patientsDataArray = []; // تحديث المصفوفة المحلية
         
         if(snap.empty) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color:#64748b;">لا يوجد مرضى مسجلين</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">لا يوجد مرضى مسجلين</td></tr>`;
             updateBulkActionBar();
             return;
         }
@@ -175,6 +175,7 @@ function loadPatients() {
                 <td dir="ltr" style="text-align: start;">${p.phone}</td>
                 <td>${p.age}</td>
                 <td>${historyTags}</td>
+                <td style="color: #64748b; font-size: 14px;">${p.notes || '---'}</td>
                 <td>
                     <div class="action-group">
                         <button class="btn-action btn-open" onclick="openMedicalProfile('${p.id}')" title="فتح الملف">📂</button>
@@ -272,6 +273,7 @@ window.onload = () => {
         if (user) loadPatients();
     });
 };
+
 // إغلاق المودال عند الضغط في أي مكان فارغ بالشاشة
 window.addEventListener('click', function(event) {
     if (event.target.classList.contains('modal')) {
