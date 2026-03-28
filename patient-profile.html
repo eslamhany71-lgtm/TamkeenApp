@@ -17,6 +17,8 @@
         th { background: #f8fafc; color: #475569; font-weight: 700; }
         tr:hover { background: #f1f5f9; }
         .btn-view { background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+        .search-box { padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-family: inherit; width: 100%; max-width: 300px; transition: border-color 0.3s; }
+        .search-box:focus { border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1); }
     </style>
 </head>
 <body>
@@ -42,9 +44,12 @@
                 <div class="patient-alerts" id="prof-alerts"></div>
             </div>
 
-            <div class="action-bar" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div class="action-bar" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <h3 id="txt-sess-title" style="margin: 0;">سجل الجلسات العلاجية</h3>
-                <button class="btn-primary" onclick="openModal('sessionModal')" id="btn-add-sess">➕ إضافة جلسة جديدة</button>
+                <div style="display: flex; gap: 10px; flex: 1; justify-content: flex-end; align-items: center; min-width: 300px;">
+                    <input type="text" id="searchSessionInput" class="search-box" placeholder="بحث بالتاريخ، الإجراء، أو المبلغ..." onkeyup="filterPatientSessions()">
+                    <button class="btn-primary" onclick="openModal('sessionModal')" id="btn-add-sess" style="white-space: nowrap;">➕ إضافة جلسة</button>
+                </div>
             </div>
 
             <div class="table-container">
