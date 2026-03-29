@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">الرئيسية - NivaDent</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/home.css?v=2.0">
+    <link rel="stylesheet" href="css/home.css?v=2.1">
     <link rel="icon" href="data:,">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -31,27 +31,21 @@
                 <li class="active" onclick="loadPage('dashboard.html', this)">
                     <a href="javascript:void(0)"><span class="icon">📊</span> <span id="nav-dash">الداشبورد</span></a>
                 </li>
-                
                 <li onclick="loadPage('patients.html', this)">
                     <a href="javascript:void(0)"><span class="icon">🩻</span> <span id="nav-patients">المرضى والأشعة</span></a>
                 </li>
-                
                 <li onclick="loadPage('calendar.html', this)">
                     <a href="javascript:void(0)"><span class="icon">📅</span> <span id="nav-calendar">المواعيد والتقويم</span></a>
                 </li>
-                
                 <li onclick="loadPage('sessions.html', this)">
                     <a href="javascript:void(0)"><span class="icon">💊</span> <span id="nav-sessions">الجلسات والروشتات</span></a>
                 </li>
-                
                 <li id="nav-finances-li" onclick="loadPage('finances.html', this)">
                     <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والمصروفات</span></a>
                 </li>
-                
                 <li id="nav-settings-li" onclick="loadPage('settings.html', this)" style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
                     <a href="javascript:void(0)"><span class="icon">⚙️</span> <span id="nav-settings">إعدادات العيادة</span></a>
                 </li>
-                
                 <li id="nav-super-admin" style="display: none;" onclick="loadPage('super-admin.html', this)">
                     <a href="javascript:void(0)"><span class="icon">👑</span> <span id="nav-super">إدارة النظام المركزية</span></a>
                 </li>
@@ -62,15 +56,15 @@
             <header class="topbar">
                 <div class="topbar-right">
                     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-                    <button class="desktop-toggle no-mobile" onclick="toggleSidebarDesktop()">🗜️</button>
+                    <button class="desktop-toggle" onclick="toggleSidebarDesktop()">🗜️</button>
                     <h2 id="txt-header">لوحة التحكم</h2>
                 </div>
                 <div class="topbar-left user-controls">
-                    <div class="lang-switch no-mobile">
+                    <div class="lang-switch">
                         <span onclick="switchAppLanguage('ar')" class="lang-btn">عربي</span> | 
                         <span onclick="switchAppLanguage('en')" class="lang-btn">EN</span>
                     </div>
-                    <div class="user-profile no-mobile">
+                    <div class="user-profile">
                         <span class="user-avatar" style="background: #E0F2FE; color: #0284C7; border-radius: 50%; padding: 5px 8px;">👨‍⚕️</span>
                         <span id="userEmail" class="user-email" style="font-weight: bold; color: #0F172A;">...</span>
                     </div>
