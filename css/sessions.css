@@ -1,16 +1,29 @@
+/* css/sessions.css */
+
 body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; }
 
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;}
 .page-title h1 { margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; }
 .page-title p { margin: 5px 0 0 0; color: #64748b; font-size: 15px; }
 
-.search-box { padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 10px; width: 300px; font-family: inherit; outline: none; }
-.search-box:focus { border-color: #0284C7; }
+/* 🔴 تعديلات شريط البحث والأزرار 🔴 */
+.header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: flex-end; width: 100%; max-width: 500px;}
+.header-actions > div { display: flex; gap: 5px; flex: 1; min-width: 250px; }
+
+.search-box { padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; outline: none; transition: 0.3s; width: 100%; box-sizing: border-box;}
+.search-box:focus { border-color: #0284C7; box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2); }
+
+.btn-primary, .btn-danger { color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; }
+.btn-primary { background: #0284C7; } 
+.btn-primary:hover { background: #0369a1; }
+.btn-danger { background: #ef4444; } 
+.btn-danger:hover { background: #dc2626; }
 
 /* التابات */
-.tabs-container { display: flex; gap: 10px; border-bottom: 2px solid #e2e8f0; margin-bottom: 25px; overflow-x: auto; }
+.tabs-container { display: flex; gap: 10px; border-bottom: 2px solid #e2e8f0; margin-bottom: 25px; overflow-x: auto; scrollbar-width: none; }
+.tabs-container::-webkit-scrollbar { display: none; }
 .tab { padding: 12px 25px; cursor: pointer; font-weight: bold; color: #64748b; border-bottom: 3px solid transparent; transition: 0.3s; white-space: nowrap; }
-.tab:hover { color: #0284C7; }
+.tab:hover { color: #0284C7; background: #f8fafc; border-radius: 8px 8px 0 0;}
 .tab.active { color: #0284C7; border-bottom-color: #0284C7; }
 
 .tab-content { display: none; animation: fadeIn 0.3s; }
@@ -25,7 +38,7 @@ td { padding: 15px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-a
 tr:hover td { background: #f8fafc; }
 
 .data-badge { background: #0284C7; color: white; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; white-space: nowrap;}
-.action-group { display: flex; gap: 8px; justify-content: center; align-items: center; }
+.action-group { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap;}
 .btn-action { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; color: #0f172a; transition: 0.2s; white-space: nowrap;}
 .btn-action:hover { background: #e2e8f0; }
 .btn-open { background: #e0f2fe; color: #0284C7; border-color: #bae6fd; }
@@ -33,12 +46,24 @@ tr:hover td { background: #f8fafc; }
 .btn-print { background: #d1fae5; color: #059669; border-color: #a7f3d0; }
 .btn-print:hover { background: #a7f3d0; }
 
-.presc-text { white-space: pre-wrap; direction: ltr; text-align: left; font-weight: bold; color: #0f172a; max-width: 300px;}
+.presc-text { white-space: pre-wrap; direction: ltr; text-align: left; font-weight: bold; color: #0f172a; max-width: 300px; line-height: 1.5;}
 
-/* الموبايل */
+/* زرار تحميل المزيد */
+#btn-load-more-sessions, #btn-load-more-rx { box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2); transition: 0.3s; }
+#btn-load-more-sessions:hover, #btn-load-more-rx:hover { transform: translateY(-2px); box-shadow: 0 6px 8px -1px rgba(2, 132, 199, 0.3); }
+#btn-load-more-sessions:disabled, #btn-load-more-rx:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+/* 🔴 تجاوب الموبايل 🔴 */
 @media (max-width: 768px) {
+    body { padding: 15px; }
+    .page-header { flex-direction: column; align-items: stretch; }
+    .header-actions { max-width: 100%; width: 100%; }
+    .header-actions > div { flex-direction: row; width: 100%; }
     .search-box { width: 100%; }
+    .table-container { padding: 10px; }
     th, td { font-size: 14px; padding: 10px; }
+    .action-group { flex-direction: column; gap: 5px; }
+    .btn-action { width: 100%; justify-content: center; }
 }
 
 /* الطباعة */
