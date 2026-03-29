@@ -1,13 +1,19 @@
-// js/home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
+// js/home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations) - نسخة منع التكييش العنيف
 
-// 1. دالة التنقل بين الصفحات في الـ Iframe
+// 1. دالة التنقل بين الصفحات في الـ Iframe (مع منع التكييش العنيف للموبايل) 🚀📱
 function loadPage(pageUrl, clickedLi) {
-    document.getElementById('content-frame').src = pageUrl;
+    // 🔴 سحر الـ Cache-Busting: إجبار الموبايل على سحب أحدث نسخة دايماً
+    const timestamp = new Date().getTime();
+    const cleanUrl = pageUrl.split('?')[0]; // لو اللينك فيه بارامترات قديمة نشيلها
+    const finalUrl = `${cleanUrl}?v=${timestamp}`; // إضافة رقم فريد عشان المتصفح ميتغاباش
+
+    document.getElementById('content-frame').src = finalUrl;
     
     const allLinks = document.querySelectorAll('#nav-links li');
     allLinks.forEach(li => li.classList.remove('active'));
     clickedLi.classList.add('active');
 
+    // إغلاق القائمة الجانبية في الموبايل بعد الاختيار
     if (window.innerWidth <= 992) {
         document.getElementById('sidebar').classList.remove('active');
         const overlay = document.getElementById('mobile-overlay');
