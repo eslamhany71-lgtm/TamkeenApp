@@ -3,16 +3,22 @@
 // 🚀 رقم إصدار ذكي: يتغير أوتوماتيكياً كل ساعة واحدة لضمان السرعة والتحديث معاً
 const SMART_VERSION = Math.floor(Date.now() / 3600000); 
 
-// 1. دالة التنقل بين الصفحات في الـ Iframe 
+// 1. دالة التنقل بين الصفحات في الـ Iframe (تم تصليح مشكلة الـ ID 🛠️)
 function loadPage(pageUrl, clickedLi) {
-    const cleanUrl = pageUrl.split('?')[0]; 
-    const finalUrl = `${cleanUrl}?v=${SMART_VERSION}`; 
+    // لو اللينك مبعوت فيه داتا أصلاً (زي id المريض)، هنزود الإصدار بعلامة &
+    // لو لينك صافي، هنزوده بعلامة ?
+    let finalUrl = pageUrl.includes('?') 
+        ? `${pageUrl}&v=${SMART_VERSION}` 
+        : `${pageUrl}?v=${SMART_VERSION}`;
 
     document.getElementById('content-frame').src = finalUrl;
     
-    const allLinks = document.querySelectorAll('#nav-links li');
-    allLinks.forEach(li => li.classList.remove('active'));
-    clickedLi.classList.add('active');
+    // تأمين لو مفيش عنصر clickedLi مبعوت (عشان التحويل من جوه الصفحات)
+    if (clickedLi) {
+        const allLinks = document.querySelectorAll('#nav-links li');
+        allLinks.forEach(li => li.classList.remove('active'));
+        clickedLi.classList.add('active');
+    }
 
     // إغلاق القائمة الجانبية في الموبايل بعد الاختيار
     if (window.innerWidth <= 992) {
