@@ -3,29 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/sessions.css?v=' + currentHour + '">');
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/sessions.css">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    
 </head>
 <body>
 
     <div class="page-header no-print">
         <div class="page-title">
             <h1 id="txt-title">سجل العيادة الشامل</h1>
-            <p id="txt-subtitle">متابعة جميع الجلسات والروشتات الصادرة للمرضى</p>
+            <p id="txt-subtitle">متابعة أحدث الجلسات والروشتات الصادرة للمرضى</p>
         </div>
-        <div class="header-actions">
-            <input type="text" id="searchInput" class="search-box" placeholder="بحث باسم المريض أو الإجراء..." onkeyup="filterData()">
+        
+        <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 5px; flex: 1; min-width: 250px;">
+                <input type="text" id="searchInput" class="search-box" placeholder="بحث باسم المريض..." style="flex: 1;">
+                <button class="btn-primary" onclick="searchActivity()" id="btn-do-search" style="padding: 10px 15px; border-radius: 8px;">🔍 بحث</button>
+                <button class="btn-danger" onclick="resetSearch()" style="padding: 10px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;" title="إعادة ضبط">🔄</button>
+            </div>
         </div>
     </div>
 
     <div class="tabs-container no-print">
-        <div class="tab active" onclick="switchTab('all-sessions', this)" id="tab-all-sessions">🦷 جميع الجلسات</div>
-        <div class="tab" onclick="switchTab('all-prescriptions', this)" id="tab-all-prescriptions">💊 جميع الروشتات</div>
+        <div class="tab active" onclick="switchTab('all-sessions', this)" id="tab-all-sessions">🦷 أحدث الجلسات</div>
+        <div class="tab" onclick="switchTab('all-prescriptions', this)" id="tab-all-prescriptions">💊 أحدث الروشتات</div>
     </div>
 
     <div class="tab-content active no-print" id="content-all-sessions">
@@ -37,16 +44,21 @@
                         <th id="th-s-patient">اسم المريض</th>
                         <th id="th-s-proc">الإجراء الطبي</th>
                         <th id="th-s-tooth">رقم السن</th>
-                        <th id="th-s-notes">ملاحظات</th>
                         <th id="th-s-paid">المدفوع</th>
                         <th id="th-s-remaining">المتبقي</th>
                         <th id="th-s-action" style="text-align: center;">إجراءات</th>
                     </tr>
                 </thead>
                 <tbody id="sessionsBody">
-                    <tr><td colspan="8" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+                    <tr><td colspan="7" style="text-align: center;">جاري تحميل البيانات...</td></tr>
                 </tbody>
             </table>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="btn-load-more-sessions" class="btn-primary" onclick="loadSessions(true)" style="display: none; padding: 10px 30px; border-radius: 20px; font-size: 14px; margin: 0 auto;">
+                    ⬇️ تحميل المزيد من الجلسات...
+                </button>
+            </div>
         </div>
     </div>
 
@@ -65,6 +77,12 @@
                     <tr><td colspan="4" style="text-align: center;">جاري تحميل البيانات...</td></tr>
                 </tbody>
             </table>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="btn-load-more-rx" class="btn-primary" onclick="loadPrescriptions(true)" style="display: none; padding: 10px 30px; border-radius: 20px; font-size: 14px; margin: 0 auto;">
+                    ⬇️ تحميل المزيد من الروشتات...
+                </button>
+            </div>
         </div>
     </div>
 
@@ -91,7 +109,10 @@
         </div>
     </div>
 
-    <script src="js/firebase-config.js"></script>
-    <script src="js/sessions.js"></script>
+    <script>
+        var h = Math.floor(Date.now() / 3600000); 
+        document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/sessions.js?v=' + h + '"><\/script>');
+    </script>
 </body>
 </html>
