@@ -68,19 +68,27 @@ tr:last-child td { border-bottom: none; }
 #btn-load-more-sessions { background: #ffffff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-top: 10px; }
 #btn-load-more-sessions:hover { background: #f8fafc; border-color: #cbd5e1; }
 
-/* 6. النوافذ المنبثقة (Modals) */
+/* 6. النوافذ المنبثقة (Modals) - تم التصليح 🛠️ */
 .modal { display: none; position: fixed; z-index: 1000; inset: 0; background-color: rgba(15, 23, 42, 0.75); align-items: center; justify-content: center; backdrop-filter: blur(6px); }
-.modal-content { background: #ffffff; border-radius: 20px; width: 90%; max-width: 650px; padding: 35px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; max-height: 90vh; overflow-y: auto; text-align: start; }
+.modal-content { background: #ffffff; border-radius: 20px; width: 90%; max-width: 650px; padding: 35px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; max-height: 90vh; overflow-y: auto; text-align: right; direction: rtl; }
 .modal-content h2 { margin: 0 0 25px 0; color: #0f172a; font-weight: 800; font-size: 22px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; }
-.close-modal { position: absolute; inset-inline-start: 25px; top: 25px; font-size: 28px; color: #94a3b8; cursor: pointer; transition: 0.2s ease; line-height: 1; }
+
+/* زرار الإغلاق هيروح شمال غصب عنه */
+.close-modal { position: absolute; left: 25px; right: auto; top: 25px; font-size: 28px; color: #94a3b8; cursor: pointer; transition: 0.2s ease; line-height: 1; }
 .close-modal:hover { color: #ef4444; transform: rotate(90deg); }
 
-.form-group label { display: block; margin-bottom: 8px; font-weight: 700; color: #475569; font-size: 14px; }
+/* تظبيط مقاسات الحقول عشان متكشش */
+.form-group { width: 100%; display: flex; flex-direction: column; margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: 700; color: #475569; font-size: 14px; text-align: right; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; box-sizing: border-box; }
 
-/* قسم الحسابات داخل المودال */
-.finance-box { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; gap: 15px; margin-bottom: 20px; }
+/* قسم الحسابات داخل المودال (عشان يبقوا جنب بعض صح) */
+.finance-box { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; gap: 15px; margin-bottom: 20px; width: 100%; box-sizing: border-box;}
+.finance-box .form-group { margin-bottom: 0; }
 .finance-box-edit { background: #fff7ed; border-color: #fed7aa; }
 
+/* إصلاح الـ Flex اللي كان بيبوظ الـ صفوف */
+form > div[style*="display: flex"] { width: 100%; box-sizing: border-box; }
 /* 7. تجاوب الموبايل */
 @media (max-width: 768px) {
     body { padding: 10px; }
