@@ -132,11 +132,17 @@ async function exportClinicData() {
 
     const btn = document.getElementById('btn-backup');
     const originalText = document.getElementById('btn-backup-txt').innerText;
+    
+    // بديل آمن للترجمة لو المتغير الأساسي مش موجود
+    const safeLang = window.settingsLang || {
+        msgBkpWait: document.body.dir === 'ltr' ? "Gathering data... Please wait" : "جاري تجميع البيانات... برجاء الانتظار",
+        msgBkpDone: document.body.dir === 'ltr' ? "Backup downloaded successfully!" : "تم تحميل النسخة الاحتياطية بنجاح!"
+    };
+
     btn.disabled = true; 
-    document.getElementById('btn-backup-txt').innerText = window.settingsLang.msgBkpWait;
+    document.getElementById('btn-backup-txt').innerText = safeLang.msgBkpWait;
 
     try {
-        // إنشاء الكيان اللي هيشيل الداتا كلها
         let backupData = {
             exportDate: new Date().toISOString(),
             clinicId: clinicId,
@@ -148,36 +154,28 @@ async function exportClinicData() {
             prescriptions: []
         };
 
-        // 1. جلب بيانات العيادة
         const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
         if(clinicDoc.exists) backupData.clinicInfo = clinicDoc.data();
 
-        // 2. جلب المرضى
         const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
         patSnap.forEach(doc => backupData.patients.push({ id: doc.id, ...doc.data() }));
 
-        // 3. جلب المواعيد
         const appSnap = await db.collection("Appointments").where("clinicId", "==", clinicId).get();
         appSnap.forEach(doc => backupData.appointments.push({ id: doc.id, ...doc.data() }));
 
-        // 4. جلب الجلسات
         const sessSnap = await db.collection("Sessions").where("clinicId", "==", clinicId).get();
         sessSnap.forEach(doc => backupData.sessions.push({ id: doc.id, ...doc.data() }));
 
-        // 5. جلب الحسابات
         const finSnap = await db.collection("Finances").where("clinicId", "==", clinicId).get();
         finSnap.forEach(doc => backupData.finances.push({ id: doc.id, ...doc.data() }));
 
-        // 6. جلب الروشتات
         const rxSnap = await db.collection("Prescriptions").where("clinicId", "==", clinicId).get();
         rxSnap.forEach(doc => backupData.prescriptions.push({ id: doc.id, ...doc.data() }));
 
-        // --- تحويل الداتا لملف وتنزيله ---
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
         
-        // تسمية الملف باسم العيادة وتاريخ اليوم
         const clinicNameStr = backupData.clinicInfo.clinicName ? backupData.clinicInfo.clinicName.replace(/\s+/g, '_') : 'Clinic';
         const dateStr = new Date().toISOString().split('T')[0];
         downloadAnchorNode.setAttribute("download", `${clinicNameStr}_Backup_${dateStr}.json`);
@@ -186,7 +184,7 @@ async function exportClinicData() {
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
 
-        alert(window.settingsLang.msgBkpDone);
+        alert(safeLang.msgBkpDone);
 
     } catch (error) {
         console.error("Backup Error:", error);
