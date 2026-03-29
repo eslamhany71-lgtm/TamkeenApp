@@ -1,9 +1,14 @@
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
-let currentEditPatientId = null; // متغير يحدد إحنا بنضيف ولا بنعدل
-let patientsDataArray = []; // لتخزين البيانات محلياً لتسهيل التعديل
+let currentEditPatientId = null;
+let patientsDataArray = []; 
 
-// 1. نظام الترجمة (مسطرة لغوياً)
+// 🔴 متغيرات الـ Pagination للتحكم في قراءات الفايربيز
+const PATIENTS_PER_PAGE = 50;
+let lastVisibleDoc = null; // بيحفظ آخر مريض وقفنا عنده
+let isSearchMode = false;  // عشان نفرق إحنا بنعرض لستة عادية ولا نتيجة بحث
+
+// 1. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -14,7 +19,8 @@ function updatePageContent(lang) {
             optM: "ذكر", optF: "أنثى", lHistory: "التاريخ الطبي والأمراض المزمنة (إن وجد)", 
             cDiab: "مرض السكر", cBp: "ضغط الدم", cBleed: "سيولة بالدم", cAllg: "حساسية بنج",
             lNotes: "ملاحظات إضافية", btnSave: "حفظ البيانات", btnView: "فتح الملف",
-            selCount: "تم تحديد", patWord: "مريض", bulkDel: "🗑️ حذف المحدد", confDel: "هل أنت متأكد من حذف المريض؟ لا يمكن التراجع عن هذا الإجراء.", confBulkDel: "هل أنت متأكد من حذف جميع المرضى المحددين؟"
+            selCount: "تم تحديد", patWord: "مريض", bulkDel: "🗑️ حذف المحدد", confDel: "هل أنت متأكد من حذف المريض؟ لا يمكن التراجع عن هذا الإجراء.", confBulkDel: "هل أنت متأكد من حذف جميع المرضى المحددين؟",
+            loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد مرضى آخرين", empty: "لا يوجد مرضى مسجلين"
         },
         en: {
             title: "Patients Management", sub: "List of registered clinic patients and medical history",
@@ -24,7 +30,8 @@ function updatePageContent(lang) {
             optM: "Male", optF: "Female", lHistory: "Medical History & Chronic Diseases", 
             cDiab: "Diabetes", cBp: "Blood Pressure", cBleed: "Bleeding", cAllg: "Anesthesia Allergy",
             lNotes: "Additional Notes", btnSave: "Save Data", btnView: "Open File",
-            selCount: "Selected", patWord: "Patient(s)", bulkDel: "🗑️ Delete Selected", confDel: "Are you sure you want to delete this patient? This action cannot be undone.", confBulkDel: "Are you sure you want to delete all selected patients?"
+            selCount: "Selected", patWord: "Patient(s)", bulkDel: "🗑️ Delete Selected", confDel: "Are you sure you want to delete this patient?", confBulkDel: "Are you sure you want to delete all selected patients?",
+            loadMore: "⬇️ Load More...", noMore: "No more patients", empty: "No registered patients"
         }
     };
     const c = t[lang] || t.ar;
@@ -39,24 +46,17 @@ function updatePageContent(lang) {
     setTxt('lbl-p-notes', c.lNotes); 
     setTxt('btn-bulk-delete', c.bulkDel);
     
-    // حفظ متغيرات الجافاسكريبت للترجمة الديناميكية
-    window.langVars = {
-        mTitleAdd: c.mTitleAdd, mTitleEdit: c.mTitleEdit, btnSave: c.btnSave, btnView: c.btnView,
-        selCount: c.selCount, patWord: c.patWord, confDel: c.confDel, confBulkDel: c.confBulkDel
-    };
-    updateBulkActionBar(); // تحديث النص لو محددين حاجة
+    window.langVars = c; 
+    updateBulkActionBar(); 
 }
 
-// 2. إدارة النافذة (إضافة وتعديل)
 function openPatientModal(patientId = null) {
     document.getElementById('addPatientForm').reset();
     currentEditPatientId = patientId;
     
-    // تفريغ الشيك بوكس
     ['med_diabetes', 'med_bp', 'med_bleeding', 'med_allergy'].forEach(id => document.getElementById(id).checked = false);
 
     if (patientId) {
-        // وضع التعديل (جلب الداتا وتعبئة الفورم)
         document.getElementById('modal-title').innerText = window.langVars.mTitleEdit;
         const p = patientsDataArray.find(x => x.id === patientId);
         if(p) {
@@ -74,7 +74,6 @@ function openPatientModal(patientId = null) {
             }
         }
     } else {
-        // وضع الإضافة
         document.getElementById('modal-title').innerText = window.langVars.mTitleAdd;
     }
     
@@ -82,17 +81,14 @@ function openPatientModal(patientId = null) {
     document.getElementById('patientModal').style.display = 'flex';
 }
 
-function closePatientModal() {
-    document.getElementById('patientModal').style.display = 'none';
-}
+function closePatientModal() { document.getElementById('patientModal').style.display = 'none'; }
 
-// 3. حفظ أو تعديل المريض
 async function savePatient(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
     btn.disabled = true; btn.innerText = "...";
 
-    if (!currentClinicId) { alert("حدث خطأ: لم يتم التعرف على العيادة!"); return; }
+    if (!currentClinicId) return;
 
     let diseases = [];
     if(document.getElementById('med_diabetes').checked) diseases.push('سكر');
@@ -112,87 +108,196 @@ async function savePatient(e) {
 
     try {
         if (currentEditPatientId) {
-            // تحديث
             await db.collection("Patients").doc(currentEditPatientId).update(patientData);
+            // تعديل في المصفوفة المحلية وعمل ريفرش خفيف
+            const index = patientsDataArray.findIndex(p => p.id === currentEditPatientId);
+            if(index !== -1) patientsDataArray[index] = { ...patientsDataArray[index], ...patientData };
         } else {
-            // إضافة جديدة
             patientData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection("Patients").add(patientData);
+            const docRef = await db.collection("Patients").add(patientData);
+            // إضافة للمصفوفة المحلية في الأول
+            patientsDataArray.unshift({ id: docRef.id, ...patientData });
         }
         closePatientModal();
-    } catch (error) {
-        console.error("Error saving patient: ", error);
-        alert("حدث خطأ أثناء الحفظ");
-    } finally {
-        btn.disabled = false; btn.innerText = window.langVars.btnSave;
-    }
+        renderPatientsTable(); // إعادة رسم الجدول بدون ما نسحب من الفايربيز تاني
+    } catch (error) { console.error(error); } 
+    finally { btn.disabled = false; btn.innerText = window.langVars.btnSave; }
 }
 
-// 4. حذف فردي
 async function deletePatient(patientId) {
     if(confirm(window.langVars.confDel)) {
-        try { await db.collection("Patients").doc(patientId).delete(); } 
-        catch (error) { console.error("Error deleting:", error); }
+        try { 
+            await db.collection("Patients").doc(patientId).delete(); 
+            patientsDataArray = patientsDataArray.filter(p => p.id !== patientId);
+            renderPatientsTable();
+        } 
+        catch (error) { console.error(error); }
     }
 }
 
-// 5. جلب وعرض المرضى
-function loadPatients() {
+// 🔴 6. جلب المرضى بالتقسيم (Pagination) لتوفير القراءات 🔴
+async function loadPatients(isLoadMore = false) {
     if (!currentClinicId) return;
+    isSearchMode = false;
 
-    db.collection("Patients").where("clinicId", "==", currentClinicId).orderBy("createdAt", "desc").onSnapshot(snap => {
-        const tbody = document.getElementById('patientsBody');
-        tbody.innerHTML = '';
-        patientsDataArray = []; // تحديث المصفوفة المحلية
-        
-        if(snap.empty) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">لا يوجد مرضى مسجلين</td></tr>`;
-            updateBulkActionBar();
-            return;
+    const tbody = document.getElementById('patientsBody');
+    const loadMoreBtn = document.getElementById('btn-load-more');
+
+    if (!isLoadMore) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري تحميل البيانات...</td></tr>';
+        patientsDataArray = [];
+        lastVisibleDoc = null;
+    } else {
+        loadMoreBtn.innerText = "...";
+        loadMoreBtn.disabled = true;
+    }
+
+    try {
+        let queryRef = db.collection("Patients")
+                         .where("clinicId", "==", currentClinicId)
+                         .orderBy("createdAt", "desc")
+                         .limit(PATIENTS_PER_PAGE);
+
+        if (isLoadMore && lastVisibleDoc) {
+            queryRef = queryRef.startAfter(lastVisibleDoc);
         }
+
+        const snap = await queryRef.get();
+        
+        if (!snap.empty) {
+            lastVisibleDoc = snap.docs[snap.docs.length - 1];
+            
+            snap.forEach(doc => {
+                const p = doc.data();
+                p.id = doc.id;
+                patientsDataArray.push(p);
+            });
+            
+            renderPatientsTable();
+            
+            // لو اللي رجعوا 50 بالظبط، يبقى احتمال فيه لسه مرضى تانيين
+            if(snap.docs.length === PATIENTS_PER_PAGE) {
+                loadMoreBtn.style.display = 'block';
+                loadMoreBtn.innerText = window.langVars.loadMore;
+            } else {
+                loadMoreBtn.style.display = 'none';
+            }
+        } else {
+            if (!isLoadMore) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">${window.langVars.empty}</td></tr>`;
+            } else {
+                loadMoreBtn.innerText = window.langVars.noMore;
+                setTimeout(() => loadMoreBtn.style.display = 'none', 2000);
+            }
+        }
+    } catch (error) {
+        console.error("Error loading patients:", error);
+    } finally {
+        if(isLoadMore) loadMoreBtn.disabled = false;
+    }
+}
+
+function loadMorePatients() {
+    loadPatients(true);
+}
+
+// 🔴 7. البحث الذكي (يجمع بين البحث المحلي وبحث الفايربيز) 🔴
+async function searchPatients() {
+    const input = document.getElementById('searchInput').value.trim();
+    const loadMoreBtn = document.getElementById('btn-load-more');
+    const tbody = document.getElementById('patientsBody');
+
+    if (!input) {
+        resetPatientSearch();
+        return;
+    }
+
+    isSearchMode = true;
+    loadMoreBtn.style.display = 'none'; // نخفي زرار التحميل لأننا في بحث
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري البحث...</td></tr>';
+
+    try {
+        // بما إن الفايربيز مفيهوش Full-text search مجاني، إحنا هنجيب كل مرضى العيادة (مرة واحدة بس وتتكيش) 
+        // عشان نقدر نبحث بأي جزء من الاسم أو الرقم.
+        const snap = await db.collection("Patients").where("clinicId", "==", currentClinicId).get();
+        let searchResults = [];
 
         snap.forEach(doc => {
             const p = doc.data();
-            p.id = doc.id;
-            patientsDataArray.push(p);
-            
-            let historyTags = '';
-            const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
-            if (p.medicalHistory && p.medicalHistory.length > 0) {
-                p.medicalHistory.forEach(disease => {
-                    historyTags += `<span class="tag tag-danger">${disease}</span>`;
-                });
-            } else {
-                historyTags = `<span style="color: #94a3b8; font-size: 13px;">${isAr ? 'سليم' : 'Healthy'}</span>`;
+            const lowerInput = input.toLowerCase();
+            if ((p.name && p.name.toLowerCase().includes(lowerInput)) || (p.phone && p.phone.includes(lowerInput))) {
+                p.id = doc.id;
+                searchResults.push(p);
             }
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="text-align: center;">
-                    <input type="checkbox" class="custom-checkbox row-checkbox" value="${p.id}" onclick="updateBulkActionBar()">
-                </td>
-                <td style="font-weight: 600;">${p.name}</td>
-                <td dir="ltr" style="text-align: start;">${p.phone}</td>
-                <td>${p.age}</td>
-                <td>${historyTags}</td>
-                <td style="color: #64748b; font-size: 14px;">${p.notes || '---'}</td>
-                <td>
-                    <div class="action-group">
-                        <button class="btn-action btn-open" onclick="openMedicalProfile('${p.id}')" title="فتح الملف">📂</button>
-                        <button class="btn-action btn-edit" onclick="openPatientModal('${p.id}')" title="تعديل">✏️</button>
-                        <button class="btn-action btn-delete" onclick="deletePatient('${p.id}')" title="حذف">🗑️</button>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
         });
-        
-        document.getElementById('selectAll').checked = false;
-        updateBulkActionBar();
-    });
+
+        // ترتيب النتائج المبحوث عنها بالتاريخ
+        searchResults.sort((a, b) => {
+            let d1 = a.createdAt ? a.createdAt.toDate() : new Date(0);
+            let d2 = b.createdAt ? b.createdAt.toDate() : new Date(0);
+            return d2 - d1;
+        });
+
+        patientsDataArray = searchResults; // نعرض نتايج البحث
+        renderPatientsTable();
+
+    } catch (error) {
+        console.error("Search Error:", error);
+    }
 }
 
-// 6. اختيار المتعدد (Bulk Selection)
+function resetPatientSearch() {
+    document.getElementById('searchInput').value = '';
+    loadPatients(); // نرجع نحمل أول 50 مريض تاني
+}
+
+// دالة رسم الجدول (فصلناها عشان نستخدمها بعد الإضافة أو البحث بدون تحميل من الفايربيز)
+function renderPatientsTable() {
+    const tbody = document.getElementById('patientsBody');
+    tbody.innerHTML = '';
+    
+    if(patientsDataArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">لا توجد نتائج مطابقة</td></tr>`;
+        return;
+    }
+
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+
+    patientsDataArray.forEach(p => {
+        let historyTags = '';
+        if (p.medicalHistory && p.medicalHistory.length > 0) {
+            p.medicalHistory.forEach(disease => {
+                historyTags += `<span class="tag tag-danger">${disease}</span>`;
+            });
+        } else {
+            historyTags = `<span style="color: #94a3b8; font-size: 13px;">${isAr ? 'سليم' : 'Healthy'}</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align: center;">
+                <input type="checkbox" class="custom-checkbox row-checkbox" value="${p.id}" onclick="updateBulkActionBar()">
+            </td>
+            <td style="font-weight: 600;">${p.name}</td>
+            <td dir="ltr" style="text-align: start;">${p.phone}</td>
+            <td>${p.age}</td>
+            <td>${historyTags}</td>
+            <td style="color: #64748b; font-size: 14px;">${p.notes || '---'}</td>
+            <td>
+                <div class="action-group">
+                    <button class="btn-action btn-open" onclick="openMedicalProfile('${p.id}')" title="فتح الملف">📂</button>
+                    <button class="btn-action btn-edit" onclick="openPatientModal('${p.id}')" title="تعديل">✏️</button>
+                    <button class="btn-action btn-delete" onclick="deletePatient('${p.id}')" title="حذف">🗑️</button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    document.getElementById('selectAll').checked = false;
+    updateBulkActionBar();
+}
+
 function toggleSelectAll(source) {
     const checkboxes = document.querySelectorAll('.row-checkbox');
     checkboxes.forEach(cb => cb.checked = source.checked);
@@ -211,14 +316,12 @@ function updateBulkActionBar() {
         bulkBar.style.display = 'none';
     }
     
-    // تظبيط زرار التحديد الكل
     const allCheckboxes = document.querySelectorAll('.row-checkbox');
     if(allCheckboxes.length > 0) {
         document.getElementById('selectAll').checked = (checkboxes.length === allCheckboxes.length);
     }
 }
 
-// 7. الحذف الجماعي
 async function deleteSelectedPatients() {
     const checkboxes = document.querySelectorAll('.row-checkbox:checked');
     if(checkboxes.length === 0) return;
@@ -229,14 +332,19 @@ async function deleteSelectedPatients() {
         
         try {
             const batch = db.batch();
+            const idsToDelete = [];
             checkboxes.forEach(cb => {
+                idsToDelete.push(cb.value);
                 const docRef = db.collection("Patients").doc(cb.value);
                 batch.delete(docRef);
             });
             await batch.commit();
+            
+            // حذفهم من المصفوفة المحلية ورسم الجدول
+            patientsDataArray = patientsDataArray.filter(p => !idsToDelete.includes(p.id));
+            renderPatientsTable();
         } catch (error) {
-            console.error("Error bulk deleting:", error);
-            alert("حدث خطأ أثناء الحذف الجماعي");
+            console.error(error);
         } finally {
             btn.disabled = false; btn.innerText = window.langVars.bulkDel;
         }
@@ -244,25 +352,6 @@ async function deleteSelectedPatients() {
 }
 
 function openMedicalProfile(patientId) { window.location.href = `patient-profile.html?id=${patientId}`; }
-
-function filterPatients() {
-    const input = document.getElementById('searchInput').value.toLowerCase();
-    const rows = document.getElementById('patientsBody').getElementsByTagName('tr');
-    
-    for (let i = 0; i < rows.length; i++) {
-        const nameCol = rows[i].getElementsByTagName('td')[1];
-        const phoneCol = rows[i].getElementsByTagName('td')[2];
-        if (nameCol && phoneCol) {
-            const nameTxt = nameCol.textContent || nameCol.innerText;
-            const phoneTxt = phoneCol.textContent || phoneCol.innerText;
-            if (nameTxt.toLowerCase().indexOf(input) > -1 || phoneTxt.indexOf(input) > -1) {
-                rows[i].style.display = "";
-            } else {
-                rows[i].style.display = "none";
-            }
-        }
-    }
-}
 
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
@@ -274,7 +363,6 @@ window.onload = () => {
     });
 };
 
-// إغلاق المودال عند الضغط في أي مكان فارغ بالشاشة
 window.addEventListener('click', function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
