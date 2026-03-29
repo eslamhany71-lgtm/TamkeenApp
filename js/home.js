@@ -1,11 +1,12 @@
-// js/home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations) - نسخة منع التكييش العنيف
+// js/home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
 
-// 1. دالة التنقل بين الصفحات في الـ Iframe (مع منع التكييش العنيف للموبايل) 🚀📱
+// 🚀 رقم إصدار ذكي: يتغير أوتوماتيكياً كل ساعة واحدة لضمان السرعة والتحديث معاً
+const SMART_VERSION = Math.floor(Date.now() / 3600000); 
+
+// 1. دالة التنقل بين الصفحات في الـ Iframe 
 function loadPage(pageUrl, clickedLi) {
-    // 🔴 سحر الـ Cache-Busting: إجبار الموبايل على سحب أحدث نسخة دايماً
-    const timestamp = new Date().getTime();
-    const cleanUrl = pageUrl.split('?')[0]; // لو اللينك فيه بارامترات قديمة نشيلها
-    const finalUrl = `${cleanUrl}?v=${timestamp}`; // إضافة رقم فريد عشان المتصفح ميتغاباش
+    const cleanUrl = pageUrl.split('?')[0]; 
+    const finalUrl = `${cleanUrl}?v=${SMART_VERSION}`; 
 
     document.getElementById('content-frame').src = finalUrl;
     
@@ -62,7 +63,7 @@ function updatePageContent(lang) {
     window.homeLang = c;
 }
 
-// 4. مراقب الصلاحيات وجلب بيانات العيادة (The Magic Router)
+// 4. مراقب الصلاحيات وجلب بيانات العيادة
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -79,7 +80,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 applyRoles(role);
                 loadClinicBranding(clinicId);
                 
-                // 🔴 تشغيل فحص التنبيهات للعيادة 🔴
+                // تشغيل فحص التنبيهات للعيادة
                 if(role !== 'superadmin' && clinicId !== 'default') {
                     checkSubscriptionAlert(clinicId);
                 }
@@ -92,14 +93,13 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// 🔴 5. دالة فحص التنبيهات (Billing Alerts) 🔴
+// 5. دالة فحص التنبيهات (Billing Alerts)
 async function checkSubscriptionAlert(clinicId) {
     try {
         const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
         if (clinicDoc.exists) {
             const cData = clinicDoc.data();
             
-            // تأكيد الطرد لو العيادة اتوقفت وهو جوه السيستم
             if (cData.status === 'suspended') {
                 firebase.auth().signOut();
                 return;
@@ -112,7 +112,6 @@ async function checkSubscriptionAlert(clinicId) {
                 const diffTime = nextPayDate - now;
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
-                // لو فاضل 3 أيام أو أقل، نظهر شريط التنبيه
                 if (diffDays >= 0 && diffDays <= 3) {
                     showBillingAlert(diffDays);
                 }
@@ -123,20 +122,17 @@ async function checkSubscriptionAlert(clinicId) {
     }
 }
 
-// دالة رسم شريط التنبيه في الشاشة
 function showBillingAlert(daysLeft) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const t = window.homeLang || updatePageContent(lang); 
     
     let alertMsg = daysLeft === 0 ? window.homeLang.alertToday : window.homeLang.alertText.replace('{days}', daysLeft);
 
-    // إنشاء شريط التنبيه HTML
     const alertDiv = document.createElement('div');
     alertDiv.id = "billing-alert-banner";
     alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);";
     alertDiv.innerHTML = `<span>${alertMsg}</span>`;
 
-    // إضافته في أعلى الصفحة (فوق الـ Header)
     document.body.insertBefore(alertDiv, document.body.firstChild);
 }
 
@@ -172,24 +168,20 @@ function applyRoles(role) {
     
     const settingsLi = document.getElementById('nav-settings-li');
     const superAdminLi = document.getElementById('nav-super-admin');
-    const financesLi = document.getElementById('nav-finances-li'); // سحبنا زرار الحسابات
+    const financesLi = document.getElementById('nav-finances-li');
     
-    // الوضع الافتراضي للكل
     if (settingsLi) settingsLi.style.display = 'none';
     if (superAdminLi) superAdminLi.style.display = 'none';
-    if (financesLi) financesLi.style.display = 'block'; // الحسابات ظاهرة للكل كوضع مبدئي
+    if (financesLi) financesLi.style.display = 'block';
 
-    // لو اليوزر ده ممرضة (أخفي الحسابات)
     if (r === 'nurse') {
         if (financesLi) financesLi.style.display = 'none';
     }
 
-    // لو اليوزر دكتور أو أدمن
     if (r === 'doctor' || r === 'admin') {
         if (settingsLi) settingsLi.style.display = 'block';
     }
     
-    // لو اليوزر مالك النظام
     if (r === 'superadmin') {
         if (settingsLi) settingsLi.style.display = 'block';
         if (superAdminLi) superAdminLi.style.display = 'block';
