@@ -10,6 +10,9 @@ let clinicPharmacy = [];
 let currentPrescriptionDrugs = []; 
 let activePrescriptionDocId = null; 
 
+// 🔴 متغير لتعقب حالة تعديل الدواء في قاعدة البيانات 🔴
+let editDrugId = null; 
+
 function goBackToPatient() {
     window.parent.loadPage(`patient-profile.html?id=${patientId}`, window.parent.document.getElementById('nav-patients').parentElement);
 }
@@ -145,38 +148,93 @@ function loadSessionXRays() {
     });
 }
 
-// ================= 4. الروشتة الذكية (الصيدلية) =================
+// ================= 4. قاعدة الأدوية (إضافة، تعديل، حذف، بحث) =================
 
 function loadClinicPharmacy() {
     db.collection("Pharmacy").where("clinicId", "==", clinicId).onSnapshot(snap => {
         clinicPharmacy = [];
         snap.forEach(doc => clinicPharmacy.push({ id: doc.id, ...doc.data() }));
+        // لو فاتح البحث، نعمله تحديث عشان يشوف التغيير فوراً
+        if(document.getElementById('drug-search').value.length > 0) {
+            searchDrugs();
+        }
     });
 }
 
+// 🔴 دالة فتح الإضافة 🔴
 function openAddDrugModal() {
+    editDrugId = null; // تصفير الـ ID يعني إحنا بنضيف جديد
     document.getElementById('new_drug_category').value = '';
     document.getElementById('new_drug_name').value = '';
     document.getElementById('new_drug_dose').value = '';
+    document.getElementById('modal-drug-title').innerText = 'إضافة علاج جديد للعيادة';
+    document.getElementById('btn-save-drug').innerText = 'حفظ في قاعدة الأدوية';
     openModal('addDrugModal');
 }
 
+// 🔴 دالة فتح التعديل 🔴
+function openEditDrugModal(drugId, event) {
+    event.stopPropagation(); // عشان منضغطش على الصف بالغلط ونضيف الدواء للروشتة
+    const drug = clinicPharmacy.find(d => d.id === drugId);
+    if(!drug) return;
+
+    editDrugId = drugId; // كده عرفنا إننا في وضع التعديل
+    document.getElementById('new_drug_category').value = drug.category;
+    document.getElementById('new_drug_name').value = drug.name;
+    document.getElementById('new_drug_dose').value = drug.defaultDose;
+    document.getElementById('modal-drug-title').innerText = 'تعديل بيانات العلاج';
+    document.getElementById('btn-save-drug').innerText = 'حفظ التعديلات';
+    openModal('addDrugModal');
+}
+
+// 🔴 دالة الحذف من قاعدة العيادة 🔴
+async function deleteDrugFromPharmacy(drugId, event) {
+    event.stopPropagation(); // منع الإضافة للروشتة
+    if(confirm("هل أنت متأكد من حذف هذا الدواء نهائياً من قاعدة بيانات العيادة؟")) {
+        try {
+            await db.collection("Pharmacy").doc(drugId).delete();
+            // المصفوفة المحلية clinicPharmacy هتتحدث لوحدها عن طريق onSnapshot
+            // بس محتاجين نقفل مربع البحث لو مفتوح
+            document.getElementById('search-results-box').style.display = 'none';
+            document.getElementById('drug-search').value = '';
+        } catch(e) { console.error(e); }
+    }
+}
+
+// 🔴 دالة الحفظ (تضيف أو تعدل، وتمنع التكرار) 🔴
 async function saveNewDrugToPharmacy(e) {
     e.preventDefault();
+    const nameInput = document.getElementById('new_drug_name').value.trim();
+    
+    // فحص التكرار (فقط لو بنضيف دواء جديد)
+    if (!editDrugId) {
+        const isDuplicate = clinicPharmacy.some(d => d.name.toLowerCase() === nameInput.toLowerCase());
+        if (isDuplicate) {
+            alert("❌ هذا العلاج موجود بالفعل في قاعدة البيانات!");
+            return;
+        }
+    }
+
     const data = {
         clinicId: clinicId,
-        category: document.getElementById('new_drug_category').value,
-        name: document.getElementById('new_drug_name').value,
-        defaultDose: document.getElementById('new_drug_dose').value
+        category: document.getElementById('new_drug_category').value.trim(),
+        name: nameInput,
+        defaultDose: document.getElementById('new_drug_dose').value.trim()
     };
+
     try {
-        await db.collection("Pharmacy").add(data);
+        if (editDrugId) {
+            await db.collection("Pharmacy").doc(editDrugId).update(data); // تعديل
+        } else {
+            await db.collection("Pharmacy").add(data); // إضافة
+        }
         closeModal('addDrugModal');
         document.getElementById('drug-search').value = data.name;
-        searchDrugs();
+        searchDrugs(); // عشان نفتحله الليเพ ضافه فوراً
     } catch(e) { console.error(e); }
 }
 
+// 🔴 البحث وعرض النتائج (مع زراير التحكم) 🔴
 function searchDrugs() {
     const input = document.getElementById('drug-search').value.toLowerCase();
     const resultBox = document.getElementById('search-results-box');
@@ -187,13 +245,34 @@ function searchDrugs() {
     const filtered = clinicPharmacy.filter(d => d.name.toLowerCase().includes(input) || d.category.toLowerCase().includes(input));
     
     if(filtered.length === 0) {
-        resultBox.innerHTML = '<div class="search-item" style="color:#64748b; text-align: center;">لا يوجد دواء بهذا الاسم. اضغط (جديد ➕) لإضافته.</div>';
+        resultBox.innerHTML = '<div class="search-item" style="color:#64748b; text-align: center; padding: 15px;">لا يوجد دواء بهذا الاسم. اضغط (جديد ➕) لإضافته.</div>';
     } else {
         filtered.forEach(d => {
             const div = document.createElement('div');
             div.className = 'search-item';
-            div.innerHTML = `<strong style="color: #0f172a;">${d.name}</strong> <small style="color:#64748b;">(${d.category})</small>`;
-            div.onclick = () => addDrugToPrescriptionList(d);
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.alignItems = 'center';
+            div.style.cursor = 'pointer';
+
+            // الجزء اللي لو داس عليه يضيف للروشتة
+            const infoDiv = document.createElement('div');
+            infoDiv.style.flex = '1';
+            infoDiv.innerHTML = `<strong style="color: #0f172a; font-size: 15px;" dir="ltr">${d.name}</strong> <small style="color:#64748b; margin-right: 5px;">(${d.category})</small>`;
+            infoDiv.onclick = () => addDrugToPrescriptionList(d);
+
+            // زراير التحكم في الدواء نفسه
+            const actionsDiv = document.createElement('div');
+            actionsDiv.style.display = 'flex';
+            actionsDiv.style.gap = '5px';
+            
+            actionsDiv.innerHTML = `
+                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa;" onclick="openEditDrugModal('${d.id}', event)" title="تعديل هذا العلاج">✏️</button>
+                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;" onclick="deleteDrugFromPharmacy('${d.id}', event)" title="حذف هذا العلاج نهائياً">🗑️</button>
+            `;
+
+            div.appendChild(infoDiv);
+            div.appendChild(actionsDiv);
             resultBox.appendChild(div);
         });
     }
@@ -204,10 +283,9 @@ function addDrugToPrescriptionList(drug) {
     document.getElementById('search-results-box').style.display = 'none';
     document.getElementById('drug-search').value = '';
     
-    // فحص التكرار (منع إضافة نفس الدواء مرتين)
     const exists = currentPrescriptionDrugs.some(d => d.name === drug.name);
     if(exists) {
-        alert("هذا الدواء مضاف بالفعل في الروشتة.");
+        alert("هذا الدواء مضاف بالفعل في الروشتة الحالية.");
         return;
     }
 
@@ -245,7 +323,6 @@ function updateDose(index, newDose) {
     currentPrescriptionDrugs[index].dose = newDose;
 }
 
-// 🔴 فتح نافذة الروشتة (لإضافة جديدة أو التعديل على الحالية) 🔴
 function openSmartRxModal() {
     document.getElementById('drug-search').value = '';
     document.getElementById('search-results-box').style.display = 'none';
@@ -269,7 +346,7 @@ async function saveSmartPrescription() {
         medications: medsText, 
         notes: notes, 
         date: dateStr,
-        rawDrugsArray: currentPrescriptionDrugs // حفظ المصفوفة الأصلية عشان نقدر نعدل عليها بعدين
+        rawDrugsArray: currentPrescriptionDrugs 
     };
 
     try {
@@ -298,8 +375,7 @@ function loadSessionPrescription() {
             const p = doc.data();
             activePrescriptionDocId = doc.id;
             
-            // تعبئة البيانات في حالة إننا حبينا نعدلها
-            currentPrescriptionDrugs = p.rawDrugsArray || []; // لو المصفوفة محفوظة، نرجعها للواجهة
+            currentPrescriptionDrugs = p.rawDrugsArray || []; 
             document.getElementById('rx_general_notes').value = p.notes || '';
             
             container.innerHTML = `
