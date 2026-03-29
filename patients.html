@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/patients.css?v=' + currentHour + '">');
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/patients.css">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
@@ -17,8 +20,13 @@
             <h1 id="txt-title">إدارة المرضى</h1>
             <p id="txt-subtitle">قائمة المرضى المسجلين بالعيادة والتاريخ الطبي</p>
         </div>
-        <div class="header-actions">
-            <input type="text" id="searchInput" class="search-box" placeholder="بحث بالاسم أو رقم الموبايل..." onkeyup="filterPatients()">
+        <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 5px; flex: 1; min-width: 250px;">
+                <input type="text" id="searchInput" class="search-box" placeholder="بحث بالاسم أو رقم الموبايل..." style="flex: 1;">
+                <button class="btn-primary" onclick="searchPatients()" id="btn-do-search" style="padding: 10px 15px; border-radius: 8px;">🔍 بحث</button>
+                <button class="btn-danger" onclick="resetPatientSearch()" style="padding: 10px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;" title="إعادة ضبط">🔄</button>
+            </div>
+            
             <button class="btn-add" onclick="openPatientModal()">
                 <span>➕</span> <span id="btn-add-txt">إضافة مريض</span>
             </button>
@@ -49,6 +57,12 @@
                 <tr><td colspan="7" style="text-align: center;">جاري تحميل البيانات...</td></tr>
             </tbody>
         </table>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button id="btn-load-more" class="btn-primary" onclick="loadMorePatients()" style="display: none; padding: 10px 30px; border-radius: 20px; font-size: 14px; margin: 0 auto;">
+                ⬇️ تحميل المزيد...
+            </button>
+        </div>
     </div>
 
     <div id="patientModal" class="modal" style="display: none;">
@@ -101,7 +115,10 @@
         </div>
     </div>
 
-    <script src="js/firebase-config.js"></script>
-    <script src="js/patients.js"></script>
+    <script>
+        var h = Math.floor(Date.now() / 3600000); 
+        document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/patients.js?v=' + h + '"><\/script>');
+    </script>
 </body>
 </html>
