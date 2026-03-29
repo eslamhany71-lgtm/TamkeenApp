@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/finances.css?v=' + currentHour + '">');
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/finances.css">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
@@ -32,11 +35,11 @@
 
     <div class="kpi-grid no-print">
         <div class="kpi-card green">
-            <div class="kpi-info"><h4 id="lbl-total-inc">إجمالي الإيرادات (الشهر الحالي)</h4><h2 id="stat-income">0</h2></div>
+            <div class="kpi-info"><h4 id="lbl-total-inc">إجمالي الإيرادات (للفترة المحددة)</h4><h2 id="stat-income">0</h2></div>
             <div class="kpi-icon green">📈</div>
         </div>
         <div class="kpi-card red">
-            <div class="kpi-info"><h4 id="lbl-total-exp">إجمالي المصروفات (الشهر الحالي)</h4><h2 id="stat-expense">0</h2></div>
+            <div class="kpi-info"><h4 id="lbl-total-exp">إجمالي المصروفات (للفترة المحددة)</h4><h2 id="stat-expense">0</h2></div>
             <div class="kpi-icon red">📉</div>
         </div>
         <div class="kpi-card blue">
@@ -46,12 +49,48 @@
     </div>
 
     <div class="table-container">
-        <div class="table-header no-print">
-            <h3 id="txt-ledger">دفتر الخزنة</h3>
-            <select id="filterMonth" class="search-box" onchange="loadFinances()" style="width: 200px;">
-                <option value="all" id="opt-all">كل الشهور</option>
-            </select>
+        <div class="table-header no-print" style="flex-direction: column; align-items: stretch; gap: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="txt-ledger" style="margin: 0;">دفتر الخزنة</h3>
+            </div>
+            
+            <div class="filters-bar" style="display: flex; gap: 15px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; align-items: flex-end;">
+                
+                <div class="filter-group" style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 13px; color: #64748b; margin-bottom: 5px; display: block;" id="lbl-search">بحث بالبيان أو الملاحظات</label>
+                    <input type="text" id="search_text" class="search-box" placeholder="ابحث عن مريض أو ملاحظة..." style="width: 100%; box-sizing: border-box;">
+                </div>
+
+                <div class="filter-group" style="flex: 1; min-width: 120px;">
+                    <label style="font-size: 13px; color: #64748b; margin-bottom: 5px; display: block;" id="lbl-type">النوع</label>
+                    <select id="filter_type" class="search-box" style="width: 100%; box-sizing: border-box;">
+                        <option value="all" id="opt-all-types">الكل</option>
+                        <option value="income" id="opt-inc">إيرادات</option>
+                        <option value="expense" id="opt-exp">مصروفات</option>
+                    </select>
+                </div>
+
+                <div class="filter-group" style="flex: 1; min-width: 140px;">
+                    <label style="font-size: 13px; color: #64748b; margin-bottom: 5px; display: block;" id="lbl-date-from">من تاريخ</label>
+                    <input type="date" id="date_from" class="search-box" style="width: 100%; box-sizing: border-box;">
+                </div>
+
+                <div class="filter-group" style="flex: 1; min-width: 140px;">
+                    <label style="font-size: 13px; color: #64748b; margin-bottom: 5px; display: block;" id="lbl-date-to">إلى تاريخ</label>
+                    <input type="date" id="date_to" class="search-box" style="width: 100%; box-sizing: border-box;">
+                </div>
+
+                <div class="filter-group" style="display: flex; gap: 10px;">
+                    <button class="btn-primary" onclick="loadFinances()" style="padding: 10px 20px; height: 42px; min-width: 100px; justify-content: center;" id="btn-do-search">
+                        🔍 بحث
+                    </button>
+                    <button class="btn-danger" onclick="resetFilters()" style="padding: 10px; height: 42px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;" title="إعادة ضبط">
+                        🔄
+                    </button>
+                </div>
+            </div>
         </div>
+        
         <table id="financesTable">
             <thead>
                 <tr>
@@ -131,7 +170,10 @@
         </div>
     </div>
 
-    <script src="js/firebase-config.js"></script>
-    <script src="js/finances.js"></script>
+    <script>
+        var h = Math.floor(Date.now() / 3600000); 
+        document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/finances.js?v=' + h + '"><\/script>');
+    </script>
 </body>
 </html>
