@@ -1,3 +1,4 @@
+/* css/finances.css */
 body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; }
 
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
@@ -24,13 +25,17 @@ body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Ta
 .kpi-icon.red { background: #fee2e2; color: #ef4444; }
 .kpi-icon.blue { background: #E0F2FE; color: #0284C7; }
 
-/* الجدول */
+/* الجدول والفلاتر */
 .table-container { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; overflow-x: auto; }
-.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.table-header h3 { margin: 0; color: #1e293b; }
-.search-box { padding: 8px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; outline: none; }
 
-table { width: 100%; border-collapse: collapse; }
+/* شريط الفلاتر الجديد */
+.filters-bar { display: flex; gap: 15px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; align-items: flex-end; width: 100%; box-sizing: border-box;}
+.filter-group { flex: 1; min-width: 150px; }
+.filter-group label { font-size: 13px; color: #64748b; margin-bottom: 5px; display: block; font-weight: bold;}
+.search-box { padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; outline: none; width: 100%; box-sizing: border-box; font-size: 14px;}
+.search-box:focus { border-color: #0284C7; box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2); }
+
+table { width: 100%; border-collapse: collapse; margin-top: 15px;}
 th { background: #f8fafc; color: #475569; padding: 15px; text-align: start; font-weight: 700; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
 td { padding: 15px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: middle; text-align: start; font-weight: 500; }
 tr:hover td { background: #f8fafc; }
@@ -42,10 +47,22 @@ tr:hover td { background: #f8fafc; }
 /* المودال */
 .modal { display: none; position: fixed; z-index: 1000; inset: 0; background-color: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
 .modal-content { background: white; border-radius: 16px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; text-align: start; }
-.close-modal { position: absolute; inset-inline-start: 20px; top: 20px; font-size: 24px; color: #64748b; cursor: pointer; }
+.close-modal { position: absolute; inset-inline-start: 20px; top: 20px; font-size: 24px; color: #64748b; cursor: pointer; transition: 0.2s;}
+.close-modal:hover { color: #ef4444; }
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #334155; font-size: 14px; }
 .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; box-sizing: border-box; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: #0284C7; }
+
+/* الموبايل */
+@media (max-width: 768px) {
+    body { padding: 15px; }
+    .filters-bar { flex-direction: column; align-items: stretch; }
+    .filter-group { width: 100%; }
+    .filter-group[style*="display: flex"] { flex-direction: row; } /* أزرار البحث والريست جنب بعض */
+    .table-container { padding: 10px; }
+    td, th { padding: 10px; font-size: 14px; }
+}
 
 @media print {
     .no-print { display: none !important; }
