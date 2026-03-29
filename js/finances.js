@@ -6,26 +6,32 @@ function updatePageContent(lang) {
         ar: {
             title: "الحسابات والمصروفات", sub: "إدارة الخزنة، الإيرادات اليومية، والمصروفات",
             btnInc: "إضافة إيراد", btnExp: "إضافة مصروف", btnPrint: "طباعة التقرير",
-            totInc: "إجمالي الإيرادات (محدد)", totExp: "إجمالي المصروفات (محدد)", net: "صافي الربح",
-            ledger: "دفتر الخزنة", optAll: "كل الشهور",
+            totInc: "إجمالي الإيرادات (للفترة المحددة)", totExp: "إجمالي المصروفات (للفترة المحددة)", net: "صافي الربح",
+            ledger: "دفتر الخزنة",
             thDate: "التاريخ", thType: "النوع", thCat: "البند", thAmount: "المبلغ", thNotes: "البيان", thAct: "إجراءات",
             mInc: "تسجيل إيراد جديد", mExp: "تسجيل مصروف جديد",
             lAmt: "المبلغ", lDate: "التاريخ", lCat: "البند", lNotes: "البيان / تفاصيل", btnSave: "حفظ العملية",
             catInc1: "كشف / جلسة مريض", catInc2: "دفعة مقدمة", catInc3: "إيرادات أخرى",
             catExp1: "مستلزمات طبية", catExp2: "معمل أسنان", catExp3: "رواتب ومكافآت", catExp4: "فواتير (كهرباء/إيجار)", catExp5: "مصروفات أخرى",
-            bInc: "إيراد", bExp: "مصروف", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مسجلة."
+            bInc: "إيراد", bExp: "مصروف", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مطابقة للبحث.",
+            // ترجمة الفلاتر الجديدة
+            lSearch: "بحث بالبيان أو الملاحظات", lType: "النوع", lDateFrom: "من تاريخ", lDateTo: "إلى تاريخ",
+            optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", btnSearch: "🔍 بحث"
         },
         en: {
             title: "Finances & Expenses", sub: "Manage treasury, daily income, and expenses",
             btnInc: "Add Income", btnExp: "Add Expense", btnPrint: "Print Report",
             totInc: "Total Income (Selected)", totExp: "Total Expenses (Selected)", net: "Net Profit",
-            ledger: "Treasury Ledger", optAll: "All Months",
+            ledger: "Treasury Ledger",
             thDate: "Date", thType: "Type", thCat: "Category", thAmount: "Amount", thNotes: "Notes", thAct: "Actions",
             mInc: "Record New Income", mExp: "Record New Expense",
             lAmt: "Amount", lDate: "Date", lCat: "Category", lNotes: "Details", btnSave: "Save Transaction",
             catInc1: "Patient Session", catInc2: "Advance Payment", catInc3: "Other Income",
             catExp1: "Medical Supplies", catExp2: "Dental Lab", catExp3: "Salaries", catExp4: "Bills (Rent/Utility)", catExp5: "Other Expenses",
-            bInc: "Income", bExp: "Expense", confDel: "Are you sure you want to delete?", empty: "No financial transactions recorded."
+            bInc: "Income", bExp: "Expense", confDel: "Are you sure you want to delete?", empty: "No financial transactions match your search.",
+            // New Filters Translation
+            lSearch: "Search by Details", lType: "Type", lDateFrom: "From Date", lDateTo: "To Date",
+            optAllTypes: "All", optInc: "Income", optExp: "Expense", btnSearch: "🔍 Search"
         }
     };
     const c = t[lang] || t.ar;
@@ -34,31 +40,43 @@ function updatePageContent(lang) {
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub);
     setTxt('btn-add-inc', c.btnInc); setTxt('btn-add-exp', c.btnExp); setTxt('btn-print', c.btnPrint);
     setTxt('lbl-total-inc', c.totInc); setTxt('lbl-total-exp', c.totExp); setTxt('lbl-net', c.net);
-    setTxt('txt-ledger', c.ledger); setTxt('opt-all', c.optAll);
+    setTxt('txt-ledger', c.ledger);
     
     setTxt('th-date', c.thDate); setTxt('th-type', c.thType); setTxt('th-cat', c.thCat); setTxt('th-amount', c.thAmount); setTxt('th-notes', c.thNotes); setTxt('th-action', c.thAct);
     setTxt('lbl-amount', c.lAmt); setTxt('lbl-date', c.lDate); setTxt('lbl-cat', c.lCat); setTxt('lbl-notes', c.lNotes); setTxt('btn-save', c.btnSave);
     
-    window.finLang = c;
-    populateMonthsDropdown(lang);
-}
-
-function populateMonthsDropdown(lang) {
-    const select = document.getElementById('filterMonth');
-    const isAr = lang === 'ar';
-    select.innerHTML = `<option value="all">${isAr ? 'كل الشهور' : 'All Months'}</option>`;
+    // فلاتر البحث
+    setTxt('lbl-search', c.lSearch); setTxt('lbl-type', c.lType); setTxt('lbl-date-from', c.lDateFrom); setTxt('lbl-date-to', c.lDateTo);
+    setTxt('opt-all-types', c.optAllTypes); setTxt('opt-inc', c.optInc); setTxt('opt-exp', c.optExp);
     
-    const today = new Date();
-    for (let i = 0; i < 6; i++) {
-        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        const monthVal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        const monthTxt = d.toLocaleString(isAr ? 'ar-EG' : 'en-US', { month: 'long', year: 'numeric' });
-        select.innerHTML += `<option value="${monthVal}">${monthTxt}</option>`;
-    }
-    select.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const searchInput = document.getElementById('search_text');
+    if(searchInput) searchInput.placeholder = lang === 'ar' ? "ابحث عن مريض أو ملاحظة..." : "Search patient or note...";
+    
+    const searchBtn = document.getElementById('btn-do-search');
+    if(searchBtn) searchBtn.innerHTML = c.btnSearch;
+
+    window.finLang = c;
 }
 
-// 2. التحكم في المودال وتعبئة الفئات
+// 2. إعداد التواريخ الافتراضية للفلاتر (أول الشهر لآخره)
+function setDefaultDates() {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+    
+    document.getElementById('date_from').value = firstDay;
+    document.getElementById('date_to').value = lastDay;
+}
+
+// 3. إعادة ضبط الفلاتر
+function resetFilters() {
+    document.getElementById('search_text').value = '';
+    document.getElementById('filter_type').value = 'all';
+    setDefaultDates();
+    loadFinances();
+}
+
+// 4. التحكم في المودال وتعبئة الفئات
 function openTransactionModal(type) {
     document.getElementById('transactionForm').reset();
     document.getElementById('trans_date').value = new Date().toISOString().split('T')[0];
@@ -91,7 +109,7 @@ function openTransactionModal(type) {
 function closeTransactionModal() { document.getElementById('transactionModal').style.display = 'none'; }
 function closeEditTransactionModal() { document.getElementById('editTransactionModal').style.display = 'none'; }
 
-// 3. حفظ العملية اليدوية
+// 5. حفظ العملية اليدوية
 async function saveTransaction(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -106,23 +124,30 @@ async function saveTransaction(e) {
         date: document.getElementById('trans_date').value,
         category: document.getElementById('trans_category').value,
         notes: document.getElementById('trans_notes').value.trim(),
-        isManual: true, // نميزها إنها يدوية مش من جلسة
+        isManual: true, 
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     try {
         await db.collection("Finances").add(data);
         closeTransactionModal();
+        loadFinances(); // Refresh list after saving
     } catch (error) { console.error(error); }
     finally { btn.disabled = false; btn.innerText = window.finLang.btnSave; }
 }
 
-// 4. جلب الحركات (دمج الحسابات اليدوية مع إيرادات الجلسات)
-let allTransactionsForEdit = []; // عشان نحتفظ بالداتا للتعديل
+// 6. 🔴 الدالة الذكية لجلب الحركات والفلترة 🔴
+let allTransactionsForEdit = []; 
 
 async function loadFinances() {
     if (!clinicId) return;
-    const selectedMonth = document.getElementById('filterMonth').value; 
+    
+    // سحب قيم الفلاتر
+    const searchText = document.getElementById('search_text').value.trim().toLowerCase();
+    const filterType = document.getElementById('filter_type').value;
+    const dateFrom = document.getElementById('date_from').value;
+    const dateTo = document.getElementById('date_to').value;
+
     const tbody = document.getElementById('financesBody');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">جاري تجميع البيانات...</td></tr>';
     
@@ -131,53 +156,66 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
-        // 1. جلب المصروفات والإيرادات اليدوية
-        const finQuery = selectedMonth === 'all' 
-            ? db.collection("Finances").where("clinicId", "==", clinicId) 
-            : db.collection("Finances").where("clinicId", "==", clinicId)
-                .where("date", ">=", selectedMonth + "-01")
-                .where("date", "<=", selectedMonth + "-31");
-                
-        const finSnap = await finQuery.get();
-        finSnap.forEach(doc => {
-            combinedData.push({ id: doc.id, collection: 'Finances', ...doc.data() });
-        });
+        // 1. استعلام الفايربيز المبدئي (بالتاريخ فقط عشان نوفر Reads)
+        let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
+        let sessQuery = db.collection("Sessions").where("clinicId", "==", clinicId);
 
-        // 2. جلب إيرادات الجلسات (اللي الدكاترة سجلوها)
-        const sessQuery = selectedMonth === 'all'
-            ? db.collection("Sessions").where("clinicId", "==", clinicId)
-            : db.collection("Sessions").where("clinicId", "==", clinicId)
-                .where("date", ">=", selectedMonth + "-01")
-                .where("date", "<=", selectedMonth + "-31");
-                
-        const sessSnap = await sessQuery.get();
-        
-        // جلب أسماء المرضى عشان نكتبها في البيان
-        const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
-        let patientsMap = {};
-        patSnap.forEach(p => patientsMap[p.id] = p.data().name);
+        if (dateFrom) {
+            finQuery = finQuery.where("date", ">=", dateFrom);
+            sessQuery = sessQuery.where("date", ">=", dateFrom);
+        }
+        if (dateTo) {
+            finQuery = finQuery.where("date", "<=", dateTo);
+            sessQuery = sessQuery.where("date", "<=", dateTo);
+        }
 
-        sessSnap.forEach(doc => {
-            const s = doc.data();
-            if (s.paid && s.paid > 0) { // لو الجلسة اتدفع فيها فلوس
-                const patName = patientsMap[s.patientId] || "مريض";
-                combinedData.push({
-                    id: doc.id,
-                    collection: 'Sessions', // بنميزها إنها جاية من الجلسات
-                    type: 'income',
-                    amount: s.paid,
-                    date: s.date,
-                    category: 'إيراد جلسة علاجية',
-                    notes: `إجراء: ${s.procedure} - (المريض: ${patName})`
-                });
-            }
-        });
+        // 2. جلب الحركات اليدوية (لو الفلتر مش "مصروفات" بس، هات الإيرادات كمان)
+        if (filterType !== 'income') { // هنجيب مصروفات
+            const finSnap = await finQuery.where("type", "==", "expense").get();
+            finSnap.forEach(doc => combinedData.push({ id: doc.id, collection: 'Finances', ...doc.data() }));
+        }
+        if (filterType !== 'expense') { // هنجيب إيرادات
+            const finSnapInc = await finQuery.where("type", "==", "income").get();
+            finSnapInc.forEach(doc => combinedData.push({ id: doc.id, collection: 'Finances', ...doc.data() }));
+        }
 
-        // 3. ترتيب الكل تنازلياً بالتاريخ
+        // 3. جلب إيرادات الجلسات (لو الفلتر مش "مصروفات")
+        if (filterType !== 'expense') {
+            const sessSnap = await sessQuery.get();
+            const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
+            let patientsMap = {};
+            patSnap.forEach(p => patientsMap[p.id] = p.data().name);
+
+            sessSnap.forEach(doc => {
+                const s = doc.data();
+                if (s.paid && s.paid > 0) { 
+                    const patName = patientsMap[s.patientId] || "مريض";
+                    combinedData.push({
+                        id: doc.id,
+                        collection: 'Sessions', 
+                        type: 'income',
+                        amount: s.paid,
+                        date: s.date,
+                        category: 'إيراد جلسة علاجية',
+                        notes: `إجراء: ${s.procedure} - (المريض: ${patName})`
+                    });
+                }
+            });
+        }
+
+        // 4. الفلترة النصية (Client-Side Filtering) لتقليل استهلاك الفايربيز
+        if (searchText) {
+            combinedData = combinedData.filter(item => 
+                (item.notes && item.notes.toLowerCase().includes(searchText)) || 
+                (item.category && item.category.toLowerCase().includes(searchText))
+            );
+        }
+
+        // 5. ترتيب الكل تنازلياً بالتاريخ
         combinedData.sort((a, b) => new Date(b.date) - new Date(a.date));
         allTransactionsForEdit = combinedData;
 
-        // 4. رسم الجدول
+        // 6. رسم الجدول
         tbody.innerHTML = '';
         if(combinedData.length === 0) {
             tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
@@ -208,7 +246,7 @@ async function loadFinances() {
             tbody.appendChild(tr);
         });
 
-        // تحديث الكروت العلوية
+        // تحديث الكروت العلوية بناءً على الفلترة
         document.getElementById('stat-income').innerText = totalInc.toLocaleString();
         document.getElementById('stat-expense').innerText = totalExp.toLocaleString();
         const netProfit = totalInc - totalExp;
@@ -221,7 +259,7 @@ async function loadFinances() {
     }
 }
 
-// 5. دوال التعديل
+// 7. دوال التعديل والحذف
 function openEditTrans(docId) {
     const trans = allTransactionsForEdit.find(t => t.id === docId);
     if(!trans) return;
@@ -253,11 +291,10 @@ async function updateTransaction(e) {
             notes: newNotes
         });
         closeEditTransactionModal();
-        loadFinances(); // Refresh
+        loadFinances(); 
     } catch(e) { console.error(e); }
 }
 
-// 6. حذف حركة
 async function deleteTransaction(docId, collection) {
     if(collection === 'Sessions') {
         alert("لا يمكن حذف إيراد الجلسة من هنا. يجب حذفه من ملف المريض.");
@@ -267,7 +304,7 @@ async function deleteTransaction(docId, collection) {
     if(confirm(window.finLang.confDel)) {
         try { 
             await db.collection("Finances").doc(docId).delete(); 
-            loadFinances(); // Refresh
+            loadFinances(); 
         } 
         catch (e) { console.error(e); }
     }
@@ -277,6 +314,7 @@ window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
+    setDefaultDates(); // وضع تواريخ الشهر الحالي كافتراضي
     
     firebase.auth().onAuthStateChanged((user) => {
         if (user) { loadFinances(); }
