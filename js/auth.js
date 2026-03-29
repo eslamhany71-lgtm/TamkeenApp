@@ -1,4 +1,4 @@
-// auth.js - نسخة NivaDent السحابية (Multi-Tenant & Dental SaaS)
+// auth.js - نسخة NivaDent السحابية (Multi-Tenant & Dental SaaS) - نسخة السرعة الصاروخية
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -43,7 +43,7 @@ function logout() {
     });
 }
 
-// 2. دالة تسجيل الدخول (مع حماية الطرد الفوري)
+// 2. دالة تسجيل الدخول (صاروخية) 🚀
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -51,7 +51,7 @@ async function loginById() {
 
     if (!codeInput || !passInput) return;
 
-    const rawInput = codeInput.value.trim(); 
+    const rawInput = codeInput.value.trim().toLowerCase(); 
     const pass = passInput.value.trim();
 
     if (!rawInput || !pass) { 
@@ -65,34 +65,30 @@ async function loginById() {
     isLoginInProgress = true; // 🔴 إيقاف التحويل التلقائي للمراقب
 
     try {
-        let loginEmail = rawInput.toLowerCase();
-        let targetClinicId = 'default';
+        let loginEmail = rawInput;
         let usedCode = rawInput;
-        let finalRole = 'doctor';
 
-        // 1. جلب البيانات بناءً على الكود أو الإيميل قبل الدخول
+        // 1. لو كاتب كود مش إيميل، نجيب الإيميل بتاعه بسرعة
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
-            
-            const empData = empDoc.data();
-            loginEmail = empData.email;
-            targetClinicId = empData.clinicId || 'default';
-            finalRole = empData.role;
-        } else {
-            const userDoc = await db.collection("Users").doc(loginEmail).get();
-            if (!userDoc.exists) throw { code: 'custom/user-not-found' };
-            
-            const userData = userDoc.data();
-            targetClinicId = userData.clinicId || 'default';
-            usedCode = userData.empCode || rawInput;
-            finalRole = userData.role;
+            loginEmail = empDoc.data().email;
         }
 
-        // 2. عمل تسجيل الدخول (المراقب هيقف يتفرج ومش هيحول لـ home)
-        await auth.signInWithEmailAndPassword(loginEmail, pass);
+        // 2. تسجيل الدخول الفعلي (بياخد 0.1 ثانية) ⚡
+        const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
+        const actualEmail = userCredential.user.email;
 
-        // 3. الفحص الإجباري لحالة العيادة
+        // 3. جلب داتا اليوزر الخفيفة بعد الدخول
+        const userDoc = await db.collection("Users").doc(actualEmail).get();
+        if (!userDoc.exists) throw { code: 'custom/user-not-found' };
+        
+        const userData = userDoc.data();
+        const targetClinicId = userData.clinicId || 'default';
+        const finalRole = userData.role;
+        if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
+
+        // 4. الفحص الإجباري لحالة العيادة
         if (targetClinicId !== 'default') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -112,29 +108,29 @@ async function loginById() {
                 else if (nextPaymentDate && now > nextPaymentDate) {
                     isSuspended = true;
                     suspendReason = 'subscription-expired';
-                    // تغييرها لموقوف أوتوماتيك
-                    await db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' });
+                    // تحديث الحالة في الخلفية عشان منأخرش الدخول
+                    db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' }).catch(console.error);
                 }
 
                 // لو موقوفة، اطرده فوراً!
                 if (isSuspended) {
-                    await auth.signOut(); // تسجيل خروج فوري
-                    isLoginInProgress = false; // السماح للمراقب بالعمل
+                    await auth.signOut();
                     throw { code: 'custom/' + suspendReason };
                 }
             }
         }
 
-        // 4. لو كل الفحوصات عدت بسلام، نحفظ الجلسة ونحوله يدوي
+        // 5. لو كل الفحوصات عدت بسلام، نحفظ الجلسة ونحوله يدوي
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
         
-        // التحويل هيتم من هنا بعد ما اتأكدنا 100%
         window.location.href = "home.html"; 
 
     } catch (error) {
-        isLoginInProgress = false; // 🔴 فك الفرملة في حالة وجود خطأ
+        // لو حصل خطأ، نتأكد إنه معموله Sign Out عشان ميحصلش تعليق
+        await auth.signOut().catch(()=>{}); 
+        isLoginInProgress = false; 
         
         if (btn) {
             btn.innerText = document.body.dir === 'rtl' ? "تسجيل الدخول" : "Login";
@@ -144,9 +140,9 @@ async function loginById() {
             const isRtl = document.body.dir === 'rtl';
             
             if (error.code === 'custom/suspended-clinic') {
-                errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً. يرجى التواصل مع الإدارة." : "Account suspended. Please contact admin.";
+                errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً." : "Account suspended.";
             } else if (error.code === 'custom/subscription-expired') {
-                errorDiv.innerText = isRtl ? "عفواً، انتهت فترة الاشتراك. يرجى تجديد الاشتراك والتواصل مع الإدارة." : "Subscription expired. Please renew and contact admin.";
+                errorDiv.innerText = isRtl ? "عفواً، انتهت فترة الاشتراك." : "Subscription expired.";
             } else if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
             } else {
@@ -156,7 +152,7 @@ async function loginById() {
     }
 }
 
-// 3. دالة التفعيل
+// باقي الدوال (activateAccount, resetPassword, etc.) تفضل زي ما هي عشان مفيهاش مشاكل
 async function activateAccount() {
     const codeRaw = document.getElementById('reg-code').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -225,7 +221,6 @@ async function activateAccount() {
     }
 }
 
-// 4. استعادة كلمة المرور
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
