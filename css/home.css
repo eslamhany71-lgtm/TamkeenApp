@@ -45,6 +45,7 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 .topbar {
     background: #fff; height: 70px; display: flex; justify-content: space-between; align-items: center;
     padding: 0 25px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 1005; position: relative;
+    box-sizing: border-box;
 }
 
 .topbar-right, .topbar-left { display: flex; align-items: center; gap: 15px; }
@@ -66,7 +67,6 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 
 .content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; }
 
-/* طبقة تظليل تظهر لما القائمة تفتح في الموبايل */
 .mobile-overlay {
     display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1001; backdrop-filter: blur(2px);
 }
@@ -74,11 +74,11 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 /* ================= تظبيط الموبايل (Mobile Responsive) ================= */
 @media (max-width: 992px) {
     .menu-toggle { display: block; }
-    .desktop-toggle { display: none; }
-
-    /* القائمة الجانبية بتفتح تحت الهيدر */
+    /* زرار الطي ظاهر زي ما طلبت بس هنصغره سيكة */
+    .desktop-toggle { display: block; font-size: 20px; padding: 2px; }
+    
     .sidebar {
-        position: fixed; top: 70px; bottom: 0; right: -260px; /* مخفية بالكامل */
+        position: fixed; top: 70px; bottom: 0; right: -260px;
         box-shadow: -5px 0 15px rgba(0,0,0,0.1); z-index: 1002;
     }
     html[dir="ltr"] .sidebar { right: auto; left: -260px; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
@@ -88,7 +88,22 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
     
     .mobile-overlay.active { display: block; top: 70px; }
 
-    .topbar { padding: 0 15px; }
+    /* لمينا المسافات عشان كل الأيقونات تظهر جنب بعضها شيك */
+    .topbar { padding: 0 10px; width: 100%; justify-content: space-between; gap: 5px; }
+    .topbar-right, .topbar-left { gap: 8px; }
+    
+    /* إخفاء كلمة "لوحة التحكم" عشان نوفر مساحة للأيقونات */
     .topbar h2 { display: none; } 
-    .user-email { display: none; } 
+
+    /* تصغير زرار اللغة */
+    .lang-switch { font-size: 12px; }
+    .lang-btn { font-size: 12px; }
+
+    /* إخفاء إيميل المستخدم وترك أيقونة الدكتور (الأفاتار) فقط */
+    .user-email { display: none; }
+    .user-profile { padding: 2px; border: none; background: transparent; }
+    .user-avatar { padding: 4px 6px; font-size: 16px; }
+
+    /* تصغير زرار الخروج */
+    .logout-btn { padding: 6px 10px; font-size: 12px; }
 }
