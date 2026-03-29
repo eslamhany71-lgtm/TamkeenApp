@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">الرئيسية - NivaDent</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/home.css">
+    <link rel="stylesheet" href="css/home.css?v=2.0">
+    <link rel="icon" href="data:,">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
@@ -61,15 +62,15 @@
             <header class="topbar">
                 <div class="topbar-right">
                     <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-                    <button class="desktop-toggle" onclick="toggleSidebarDesktop()">🗜️</button>
+                    <button class="desktop-toggle no-mobile" onclick="toggleSidebarDesktop()">🗜️</button>
                     <h2 id="txt-header">لوحة التحكم</h2>
                 </div>
                 <div class="topbar-left user-controls">
-                    <div class="lang-switch">
+                    <div class="lang-switch no-mobile">
                         <span onclick="switchAppLanguage('ar')" class="lang-btn">عربي</span> | 
                         <span onclick="switchAppLanguage('en')" class="lang-btn">EN</span>
                     </div>
-                    <div class="user-profile">
+                    <div class="user-profile no-mobile">
                         <span class="user-avatar" style="background: #E0F2FE; color: #0284C7; border-radius: 50%; padding: 5px 8px;">👨‍⚕️</span>
                         <span id="userEmail" class="user-email" style="font-weight: bold; color: #0F172A;">...</span>
                     </div>
@@ -81,9 +82,11 @@
         </div>
     </div>
 
-    <script src="js/firebase-config.js"></script>
-    <script src="js/lang-manager.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/home.js"></script>
+    <script>
+        document.write('<script src="js/firebase-config.js?v=' + new Date().getTime() + '"><\/script>');
+        document.write('<script src="js/lang-manager.js?v=' + new Date().getTime() + '"><\/script>');
+        document.write('<script src="js/auth.js?v=' + new Date().getTime() + '"><\/script>');
+        document.write('<script src="js/home.js?v=' + new Date().getTime() + '"><\/script>');
+    </script>
 </body>
 </html>
