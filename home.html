@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="txt-title">الرئيسية - NivaDent</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/home.css?v=2.1">
+    
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/home.css?v=' + currentHour + '">');
+    </script>
+    
     <link rel="icon" href="data:,">
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
@@ -77,10 +82,11 @@
     </div>
 
     <script>
-        document.write('<script src="js/firebase-config.js?v=' + new Date().getTime() + '"><\/script>');
-        document.write('<script src="js/lang-manager.js?v=' + new Date().getTime() + '"><\/script>');
-        document.write('<script src="js/auth.js?v=' + new Date().getTime() + '"><\/script>');
-        document.write('<script src="js/home.js?v=' + new Date().getTime() + '"><\/script>');
+        var h = Math.floor(Date.now() / 3600000); // رقم فريد يتغير كل ساعة فقط
+        document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/lang-manager.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/auth.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/home.js?v=' + h + '"><\/script>');
     </script>
 </body>
 </html>
