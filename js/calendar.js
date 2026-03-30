@@ -38,9 +38,21 @@ function updatePageContent(lang) {
     window.calendarLang = c;
 }
 
+function calcCalRemaining() {
+    const t = Number(document.getElementById('app_total').value) || 0;
+    const p = Number(document.getElementById('app_paid').value) || 0;
+    document.getElementById('app_remaining').value = Math.max(0, t - p);
+}
+
 function openAppointmentModal() {
     currentEditAppId = null; 
     document.getElementById('addAppointmentForm').reset();
+    
+    // تصفير الفلوس
+    document.getElementById('app_total').value = '0';
+    document.getElementById('app_paid').value = '0';
+    document.getElementById('app_remaining').value = '0';
+    
     document.getElementById('modal-title').innerText = window.calendarLang.mTitle;
     document.getElementById('btn-save').innerText = window.calendarLang.btnSave;
     document.getElementById('appointmentModal').style.display = 'flex';
@@ -74,7 +86,6 @@ function initCalendar() {
             const appId = info.event.id;
             
             document.getElementById('appDetailsModal').setAttribute('data-current-id', appId);
-            // حفظ الداتا في المودال عشان نستخدمها وقت الكريت
             document.getElementById('appDetailsModal').setAttribute('data-full-info', JSON.stringify(props));
 
             document.getElementById('det_name').innerText = props.patientName;
@@ -83,6 +94,12 @@ function initCalendar() {
             document.getElementById('det_date').innerText = dateObj.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
             document.getElementById('det_time').innerText = dateObj.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
             document.getElementById('det_type').innerText = props.type;
+            
+            // 🔴 إظهار الفلوس في التفاصيل 🔴
+            const paid = props.paid || 0;
+            const total = props.total || 0;
+            document.getElementById('det_finance').innerText = `${paid} / ${total} ج.م`;
+
             document.getElementById('det_notes').innerText = props.notes || (lang === 'ar' ? 'لا يوجد ملاحظات' : 'No notes');
             
             let statusTxt = lang === 'ar' ? 'في الانتظار' : 'Pending';
@@ -90,7 +107,6 @@ function initCalendar() {
             if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
             document.getElementById('det_status').innerText = statusTxt;
 
-            // إخفاء زرار الاكتمال لو هو أصلاً مكتمل
             if(props.status === 'completed' || props.status === 'cancelled') {
                 document.getElementById('complete-action-box').style.display = 'none';
             } else {
@@ -122,7 +138,6 @@ function initCalendar() {
     loadAppointments(); 
 }
 
-// دالة الحفظ المدمجة مع الداتا الجديدة
 async function saveAppointment(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -148,6 +163,10 @@ async function saveAppointment(e) {
         date: dateVal,
         time: timeVal,
         type: typeVal,
+        // 🔴 حفظ الفلوس 🔴
+        total: Number(document.getElementById('app_total').value) || 0,
+        paid: Number(document.getElementById('app_paid').value) || 0,
+        remaining: Number(document.getElementById('app_remaining').value) || 0,
         notes: document.getElementById('app_notes').value.trim(),
         color: eventColor,
         status: 'pending' 
@@ -169,7 +188,7 @@ async function saveAppointment(e) {
     }
 }
 
-// 🔴 الدالة السحرية: تحويل الحجز لمريض وتحديث الحالة (Lazy Creation)
+// 🔴 الدالة السحرية: تحويل الحجز لمريض وتوريد الفلوس للإيرادات 🔴
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -184,69 +203,102 @@ async function markAppAsCompleted() {
         // 1. تحديث حالة الموعد لـ مكتمل
         await db.collection("Appointments").doc(appId).update({ status: 'completed' });
 
-        // 2. البحث عن المريض برقم الموبايل لمنع التكرار
+        // 2. البحث عن المريض (لمنع التكرار)
         const existingPatientQuery = await db.collection("Patients")
             .where("clinicId", "==", currentClinicId)
             .where("phone", "==", props.phone)
             .get();
 
+        let patientId = null;
+
         if (existingPatientQuery.empty) {
-            // 3. لو المريض مش موجود، نكريتله ملف جديد بالداتا اللي اتسجلت وقت الحجز
             let historyArray = [];
             if(props.history && props.history.length > 0) {
                 historyArray = props.history.split(',').map(item => item.trim()).filter(i => i);
             }
 
-            await db.collection("Patients").add({
+            const newPat = await db.collection("Patients").add({
                 clinicId: currentClinicId,
                 name: props.patientName,
                 phone: props.phone,
                 age: props.age || '',
                 gender: props.gender || '',
                 medicalHistory: historyArray,
-                notes: props.notes || '', // هنحفظ ملاحظات الحجز في ملف المريض
+                notes: props.notes || '', 
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            alert("✅ تم اكتمال الحجز وتم إنشاء ملف دائم للمريض بنجاح!");
+            patientId = newPat.id;
         } else {
-            alert("✅ تم اكتمال الحجز. (ملف المريض موجود بالفعل)");
+            patientId = existingPatientQuery.docs[0].id;
         }
-        
+
+        // 3. تحويل الحجز إلى جلسة في ملف المريض
+        const paidAmount = Number(props.paid) || 0;
+        await db.collection("Sessions").add({
+            clinicId: currentClinicId,
+            patientId: patientId,
+            date: props.date,
+            procedure: props.type || "كشف / إجراء",
+            total: props.total || 0,
+            paid: paidAmount,
+            remaining: props.remaining || 0,
+            notes: props.notes || "",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 4. 🔴 السحر المالي: تسجيل الإيراد في الخزنة 🔴
+        if (paidAmount > 0) {
+            await db.collection("Finances").add({
+                clinicId: currentClinicId,
+                type: 'income',
+                category: 'كشف / جلسة',
+                amount: paidAmount,
+                date: props.date,
+                notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        alert("✅ تم تحويل الحجز لجلسة، وتسجيل الإيراد، وحفظ ملف المريض بنجاح!");
         closeAppDetailsModal();
     } catch (error) {
         console.error("Error completing app:", error);
         alert("حدث خطأ أثناء إتمام العملية.");
     } finally {
-        btn.innerText = "✅ المريض حضر (اكتمال الحجز وإنشاء ملف)";
+        btn.innerText = "✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)";
         btn.disabled = false;
     }
 }
 
 async function openEditModal() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
-    if (!appId) return;
+    const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
+    if (!appId || !rawData) return;
 
     currentEditAppId = appId;
+    const props = JSON.parse(rawData);
+    
     try {
-        const doc = await db.collection("Appointments").doc(appId).get();
-        if (doc.exists) {
-            const data = doc.data();
-            document.getElementById('app_name').value = data.patientName;
-            document.getElementById('app_phone').value = data.phone || '';
-            document.getElementById('app_age').value = data.age || '';
-            document.getElementById('app_gender').value = data.gender || 'ذكر';
-            document.getElementById('app_history').value = data.history || '';
-            document.getElementById('app_date').value = data.date;
-            document.getElementById('app_time').value = data.time;
-            document.getElementById('app_type').value = data.type;
-            document.getElementById('app_notes').value = data.notes || '';
+        document.getElementById('app_name').value = props.patientName;
+        document.getElementById('app_phone').value = props.phone || '';
+        document.getElementById('app_age').value = props.age || '';
+        document.getElementById('app_gender').value = props.gender || 'ذكر';
+        document.getElementById('app_history').value = props.history || '';
+        document.getElementById('app_date').value = props.date;
+        document.getElementById('app_time').value = props.time;
+        document.getElementById('app_type').value = props.type;
+        document.getElementById('app_notes').value = props.notes || '';
+        
+        // جلب الفلوس للتعديل
+        document.getElementById('app_total').value = props.total || '0';
+        document.getElementById('app_paid').value = props.paid || '0';
+        document.getElementById('app_remaining').value = props.remaining || '0';
 
-            document.getElementById('modal-title').innerText = window.calendarLang.mTitleEdit;
-            document.getElementById('btn-save').innerText = window.calendarLang.btnUpdate;
-            
-            closeAppDetailsModal(); 
-            document.getElementById('appointmentModal').style.display = 'flex';
-        }
+        document.getElementById('modal-title').innerText = window.calendarLang.mTitleEdit;
+        document.getElementById('btn-save').innerText = window.calendarLang.btnUpdate;
+        
+        closeAppDetailsModal(); 
+        document.getElementById('appointmentModal').style.display = 'flex';
     } catch (e) { console.error(e); }
 }
 
@@ -273,7 +325,6 @@ function loadAppointments() {
             const data = doc.data();
             const startDateTime = `${data.date}T${data.time}:00`;
 
-            // هنغير لون المواعيد المكتملة لرمادي عشان الدكتور يعرف انها خلصت
             let finalColor = data.color || '#0284C7';
             if(data.status === 'completed') finalColor = '#94a3b8';
             if(data.status === 'cancelled') finalColor = '#ef4444';
@@ -292,7 +343,12 @@ function loadAppointments() {
                     history: data.history,
                     type: data.type,
                     notes: data.notes,
-                    status: data.status
+                    status: data.status,
+                    date: data.date,
+                    time: data.time,
+                    total: data.total,
+                    paid: data.paid,
+                    remaining: data.remaining
                 }
             });
         });
