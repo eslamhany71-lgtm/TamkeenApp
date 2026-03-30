@@ -12,7 +12,7 @@ let todaySessionsRevData = [];
 let todayRevenueData = []; // المجموع الكلي
 
 let currentSelectedPatientId = null; 
-let currentSelectedApp = null; // 🔴 غيرناها عشان نشيل تفاصيل الحجز كلها
+let currentSelectedApp = null;
 
 function updatePageContent(lang) {
     const t = { 
@@ -25,7 +25,7 @@ function updatePageContent(lang) {
             mAppDetTitle: "تفاصيل الحجز", lName: "اسم المريض:", lDate: "التاريخ:", lTime: "الساعة:", lType: "نوع الكشف:", lNotes: "ملاحظات:",
             mPatTitle: "🦷 جميع المرضى", mPatDetTitle: "تفاصيل المريض", lpPhone: "الموبايل:", lpAge: "السن:", lpHist: "أمراض مزمنة:", btnProf: "فتح الملف الطبي الكامل",
             mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الحجوزات المكتملة", empty: "لا يوجد بيانات حالياً.",
-            btnComp: "✅ مكتمل", btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟",
+            btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟",
             mRevDetTitle: "تفاصيل الإيراد", lRevAmt: "المبلغ:", lRevDate: "التاريخ:", lRevCat: "البند:", lRevNotes: "البيان:",
         }, 
         en: { 
@@ -37,7 +37,7 @@ function updatePageContent(lang) {
             mAppDetTitle: "Booking Details", lName: "Patient Name:", lDate: "Date:", lTime: "Time:", lType: "Type:", lNotes: "Notes:",
             mPatTitle: "🦷 All Patients", mPatDetTitle: "Patient Details", lpPhone: "Phone:", lpAge: "Age:", lpHist: "Medical History:", btnProf: "Open Full Profile",
             mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently.",
-            btnComp: "✅ Complete", btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?",
+            btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?",
             mRevDetTitle: "Revenue Details", lRevAmt: "Amount:", lRevDate: "Date:", lRevCat: "Category:", lRevNotes: "Notes:",
         } 
     };
@@ -62,7 +62,7 @@ function updatePageContent(lang) {
     setClassTxt('lbl-rev-cat', c.lRevCat);
     setClassTxt('lbl-rev-notes', c.lRevNotes);
     
-    setTxt('btn-complete-app', c.btnComp); setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
+    setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
     
     window.emptyTxt = c.empty; 
     window.confDelTxt = c.confDel;
@@ -153,7 +153,6 @@ function loadDashboardStats() {
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// ================== 🔴 1. لوجيك نافذة إضافة حجز جديد 🔴 ==================
 function openNewAppModal() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('new_app_name').value = '';
@@ -202,7 +201,6 @@ async function saveNewAppointment(e) {
         alert("حدث خطأ أثناء الحفظ.");
     }
 }
-// =========================================================================
 
 function openWaitingListModal() {
     renderWaitList('todayWaitContainer', todayPendingApps);
@@ -249,7 +247,6 @@ function openAppDetails(app) {
     document.getElementById('det_time').innerText = app.time;
     document.getElementById('det_type').innerText = app.type;
     
-    // إظهار الفلوس في التفاصيل
     const paid = app.paid || 0;
     const total = app.total || 0;
     document.getElementById('det_finance').innerText = `${paid} / ${total} ج.م`;
@@ -263,78 +260,6 @@ function openAppDetails(app) {
 
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
-
-// ================== 🔴 2. لوجيك زرار (مكتمل) السحري 🔴 ==================
-async function completeAppointment() {
-    if(!currentSelectedApp) return;
-    const btn = document.getElementById('btn-complete-app');
-    btn.disabled = true; btn.innerText = "...";
-
-    try {
-        const appId = currentSelectedApp.id;
-        const patName = currentSelectedApp.patientName;
-        const dateStr = currentSelectedApp.date;
-        const paidAmount = Number(currentSelectedApp.paid) || 0;
-
-        // 1. إغلاق الحجز
-        await db.collection("Appointments").doc(appId).update({ status: 'completed' });
-
-        // 2. البحث عن المريض (لو مسجل نضيف ليه جلسة، لو مش مسجل نكريت ليه ملف)
-        const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).where("name", "==", patName).get();
-        let patientId = null;
-
-        if (patSnap.empty) {
-            // مريض جديد: نفتحله ملف
-            const newPat = await db.collection("Patients").add({
-                clinicId: clinicId,
-                name: patName,
-                phone: "غير مسجل",
-                age: "",
-                gender: "غير محدد",
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            patientId = newPat.id;
-        } else {
-            // مريض قديم
-            patientId = patSnap.docs[0].id;
-        }
-
-        // 3. تحويل الحجز إلى (جلسة) في ملف المريض
-        await db.collection("Sessions").add({
-            clinicId: clinicId,
-            patientId: patientId,
-            date: dateStr,
-            procedure: currentSelectedApp.type || "كشف جديد",
-            total: currentSelectedApp.total || 0,
-            paid: paidAmount,
-            remaining: currentSelectedApp.remaining || 0,
-            notes: currentSelectedApp.notes || "",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        // 4. لو دافع فلوس، نرميها في جدول الإيرادات (Finances) عشان تسمع في تقفيل الوردية
-        if (paidAmount > 0) {
-            await db.collection("Finances").add({
-                clinicId: clinicId,
-                type: 'income',
-                category: 'كشف / جلسة',
-                amount: paidAmount,
-                date: dateStr,
-                notes: `إيراد حجز مريض: ${patName} - (${currentSelectedApp.type})`,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-
-        alert("✅ تم تحويل الحجز لجلسة، وتسجيل الإيراد، وحفظ ملف المريض بنجاح!");
-        closeModal('appDetailsModal');
-    } catch(e) {
-        console.error("Error completing app:", e);
-        alert("حدث خطأ أثناء إكمال الحجز.");
-    } finally {
-        btn.disabled = false; btn.innerText = "✅ مكتمل";
-    }
-}
-// =========================================================================
 
 async function updateAppStatus(newStatus) {
     if(!currentSelectedApp) return;
