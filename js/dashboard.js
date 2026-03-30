@@ -6,10 +6,8 @@ let upcomingPendingApps = [];
 let allPatientsData = [];
 let completedSessionsData = [];
 
-// قسمنا الإيرادات لنوعين عشان نجمعهم صح
-let todayFinancesData = []; 
-let todaySessionsRevData = [];
-let todayRevenueData = []; // المجموع الكلي
+// الإيرادات بقت بتيجي من مكان واحد بس (الخزنة / Finances) 🔴
+let todayRevenueData = []; 
 
 let currentSelectedPatientId = null; 
 let currentSelectedApp = null; 
@@ -81,8 +79,8 @@ function updateChart(pending, completed, cancelled) {
     });
 }
 
+// 🔴 تحديث إجمالي الإيرادات (بقت بتقرأ من الحسابات بس) 🔴
 function updateTotalRevenue() {
-    todayRevenueData = [...todayFinancesData, ...todaySessionsRevData];
     const total = todayRevenueData.reduce((sum, item) => sum + Number(item.amount), 0);
     document.getElementById('stat-revenue').innerText = total;
 }
@@ -97,33 +95,19 @@ function loadDashboardStats() {
         document.getElementById('stat-patients').innerText = allPatientsData.length;
     });
 
+    // 🔴 قراءة الإيرادات من الخزنة فقط لمنع التكرار 🔴
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
-        todayFinancesData = []; 
+        todayRevenueData = []; 
         snap.forEach(doc => { 
             const data = doc.data();
             if (data.date === todayStr && data.amount) { 
-                todayFinancesData.push({ id: doc.id, ...data }); 
+                todayRevenueData.push({ id: doc.id, ...data }); 
             }
         });
         updateTotalRevenue();
     });
 
-    db.collection("Sessions").where("clinicId", "==", clinicId).onSnapshot(snap => {
-        todaySessionsRevData = [];
-        snap.forEach(doc => {
-            const data = doc.data();
-            if (data.date === todayStr && data.paid > 0) {
-                todaySessionsRevData.push({
-                    id: doc.id,
-                    amount: data.paid,
-                    date: data.date,
-                    category: "إيراد جلسة",
-                    notes: `إجراء: ${data.procedure || 'جلسة علاجية'}`
-                });
-            }
-        });
-        updateTotalRevenue();
-    });
+    // تم حذف كود (استدعاء فلوس الجلسات) من هنا لتفادي التكرار
 
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         let pending = 0, completed = 0, cancelled = 0;
@@ -153,11 +137,9 @@ function loadDashboardStats() {
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// ================== 🔴 لوجيك نافذة إضافة حجز جديد 🔴 ==================
 function openNewAppModal() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('new_app_name').value = '';
-    // 🔴 تصفير خانة الموبايل 🔴
     document.getElementById('new_app_phone').value = '';
     document.getElementById('new_app_date').value = today;
     document.getElementById('new_app_time').value = '18:00';
@@ -183,7 +165,6 @@ async function saveNewAppointment(e) {
     const data = {
         clinicId: clinicId,
         patientName: document.getElementById('new_app_name').value.trim(),
-        // 🔴 حفظ رقم الموبايل 🔴
         phone: document.getElementById('new_app_phone').value.trim() || 'غير مسجل',
         date: document.getElementById('new_app_date').value,
         time: document.getElementById('new_app_time').value,
@@ -206,7 +187,6 @@ async function saveNewAppointment(e) {
         alert("حدث خطأ أثناء الحفظ.");
     }
 }
-// =========================================================================
 
 function openWaitingListModal() {
     renderWaitList('todayWaitContainer', todayPendingApps);
