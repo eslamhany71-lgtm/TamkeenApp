@@ -1,8 +1,8 @@
 const db = firebase.firestore();
-const auth = firebase.auth(); // 🔴 ضفنا الـ Auth عشان تغيير الباسورد
+const auth = firebase.auth(); 
 const clinicId = sessionStorage.getItem('clinicId');
 
-// 1. نظام الترجمة (مسطرة عربي وإنجليزي)
+// 1. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -11,9 +11,9 @@ function updatePageContent(lang) {
             lName: "اسم العيادة / المركز الطبي", pName: "أدخل اسم العيادة الذي سيظهر في النظام والروشتات",
             lLang: "لغة النظام (System Language)",
             btnSave: "حفظ التعديلات", msgSuccess: "تم حفظ التعديلات بنجاح!", msgError: "حدث خطأ أثناء الحفظ",
-            // ترجمة الباك أب
-            bkpTitle: "النسخ الاحتياطي والبيانات", bkpDesc: "قم بتحميل نسخة احتياطية كاملة من بيانات العيادة (المرضى، المواعيد، الجلسات، الحسابات، والروشتات) للاحتفاظ بها على جهازك.", btnBkp: "تحميل نسخة احتياطية (Backup)", msgBkpWait: "جاري تجميع البيانات... برجاء الانتظار", msgBkpDone: "تم تحميل النسخة الاحتياطية بنجاح!",
-            // ترجمة الأمان والباسورد 🔴
+            // ترجمة الباك أب للإكسل
+            bkpTitle: "النسخ الاحتياطي لـ Excel", bkpDesc: "قم بتحميل نسخة احتياطية كاملة من بيانات العيادة في ملف Excel واحد مقسم لشيتات (مرضى، حجوزات، حسابات، الخ) جاهز للطباعة أو الحفظ على جهازك.", btnBkp: "تحميل البيانات (Excel Backup)", msgBkpWait: "جاري استخراج البيانات لـ Excel...", msgBkpDone: "تم تحميل ملف الـ Excel بنجاح!",
+            // ترجمة الأمان
             secTitle: "الأمان وتسجيل الدخول", secDesc: "يمكنك تغيير كلمة المرور الخاصة بحساب العيادة. ستحتاج إلى إدخال كلمة المرور الحالية للتأكيد.",
             btnPass: "تغيير كلمة المرور", modalPassTitle: "تغيير كلمة المرور", lOldPass: "كلمة المرور الحالية", lNewPass: "كلمة المرور الجديدة", lConfPass: "تأكيد كلمة المرور الجديدة", btnSavePass: "تحديث كلمة المرور"
         },
@@ -23,9 +23,7 @@ function updatePageContent(lang) {
             lName: "Clinic / Center Name", pName: "Enter the clinic name to appear in the system and prescriptions",
             lLang: "System Language",
             btnSave: "Save Changes", msgSuccess: "Changes saved successfully!", msgError: "Error saving changes",
-            // Backup Translation
-            bkpTitle: "Backup & Data", bkpDesc: "Download a full backup of clinic data (Patients, Appointments, Sessions, Finances, and Prescriptions) to keep on your device.", btnBkp: "Download Backup", msgBkpWait: "Gathering data... Please wait", msgBkpDone: "Backup downloaded successfully!",
-            // Security Translation 🔴
+            bkpTitle: "Excel Backup & Data", bkpDesc: "Download a full backup of clinic data in a single Excel file with separated sheets (Patients, Appointments, Finances, etc.) ready for printing or storage.", btnBkp: "Download Excel Backup", msgBkpWait: "Extracting data to Excel...", msgBkpDone: "Excel file downloaded successfully!",
             secTitle: "Security & Login", secDesc: "You can change your clinic account password. You will need to enter your current password to confirm.",
             btnPass: "Change Password", modalPassTitle: "Change Password", lOldPass: "Current Password", lNewPass: "New Password", lConfPass: "Confirm New Password", btnSavePass: "Update Password"
         }
@@ -38,7 +36,6 @@ function updatePageContent(lang) {
     setTxt('lbl-lang', c.lLang);
     setTxt('txt-backup-title', c.bkpTitle); setTxt('txt-backup-desc', c.bkpDesc); setTxt('btn-backup-txt', c.btnBkp);
     
-    // الأمان 🔴
     setTxt('txt-security-title', c.secTitle); setTxt('txt-security-desc', c.secDesc); setTxt('btn-change-pass', c.btnPass);
     setTxt('modal-pass-title', c.modalPassTitle); setTxt('lbl-old-pass', c.lOldPass); setTxt('lbl-new-pass', c.lNewPass); setTxt('lbl-confirm-pass', c.lConfPass); setTxt('btn-save-pass', c.btnSavePass);
     
@@ -53,6 +50,8 @@ function updatePageContent(lang) {
     window.settingsLang = c;
 }
 
+const defaultLogoSVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23e2e8f0'/%3E%3Ctext x='50' y='50' font-family='Arial' font-size='14' fill='%2364748b' text-anchor='middle' dominant-baseline='middle'%3ELogo%3C/text%3E%3C/svg%3E";
+
 async function loadClinicSettings() {
     if (!clinicId || clinicId === 'default') return;
 
@@ -63,9 +62,12 @@ async function loadClinicSettings() {
             if (data.clinicName) {
                 document.getElementById('clinic_name').value = data.clinicName;
             }
-            if (data.logoUrl) {
+            if (data.logoUrl && data.logoUrl !== "") {
                 document.getElementById('logo-preview').src = data.logoUrl;
                 document.getElementById('logo_base64').value = data.logoUrl;
+            } else {
+                document.getElementById('logo-preview').src = defaultLogoSVG;
+                document.getElementById('logo_base64').value = "";
             }
         }
     } catch (error) {
@@ -83,6 +85,13 @@ function encodeLogo(element) {
     if (file) {
         reader.readAsDataURL(file);
     }
+}
+
+// 🔴 دالة حذف اللوجو 🔴
+function deleteLogo() {
+    document.getElementById('logo-preview').src = defaultLogoSVG;
+    document.getElementById('logo_base64').value = "";
+    document.getElementById('clinic_logo').value = ""; // تفريغ حقل الملف
 }
 
 function changeSystemLanguage(newLang) {
@@ -121,7 +130,6 @@ async function saveSettings(e) {
         if (window.parent && typeof window.parent.loadClinicBranding === 'function') {
             window.parent.loadClinicBranding(clinicId);
         }
-
     } catch (error) {
         console.error("Error saving settings:", error);
         alert(window.settingsLang.msgError);
@@ -130,7 +138,6 @@ async function saveSettings(e) {
     }
 }
 
-// 🔴 دوال تغيير كلمة المرور 🔴
 function openPasswordModal() {
     document.getElementById('pass-error-msg').style.display = 'none';
     document.getElementById('old_password').value = '';
@@ -154,7 +161,6 @@ async function changePassword(e) {
     
     errorMsg.style.display = 'none';
 
-    // 1. التأكد من تطابق كلمة المرور الجديدة
     if (newPass !== confirmPass) {
         errorMsg.innerText = "❌ كلمة المرور الجديدة غير متطابقة!";
         errorMsg.style.display = 'block';
@@ -167,23 +173,15 @@ async function changePassword(e) {
     const user = auth.currentUser;
     
     if (user) {
-        // 2. إعادة المصادقة (Re-authenticate) بالباسورد القديم
         const credential = firebase.auth.EmailAuthProvider.credential(user.email, oldPass);
-        
         try {
             await user.reauthenticateWithCredential(credential);
-            
-            // 3. لو الباسورد القديم صح، نحدث للجديد
             await user.updatePassword(newPass);
-            
             alert("✅ تم تغيير كلمة المرور بنجاح!");
             closePasswordModal();
-            
         } catch (error) {
             console.error("Password update error:", error);
             errorMsg.style.display = 'block';
-            
-            // تحديد نوع الخطأ عشان نعرض رسالة واضحة
             if (error.code === 'auth/wrong-password') {
                 errorMsg.innerText = "❌ كلمة المرور الحالية غير صحيحة!";
             } else if (error.code === 'auth/weak-password') {
@@ -200,7 +198,6 @@ async function changePassword(e) {
     btn.innerText = window.settingsLang.btnSavePass || "تحديث كلمة المرور";
 }
 
-// إغلاق المودال عند الضغط في أي مكان فارغ
 window.addEventListener('click', function(event) {
     const modal = document.getElementById('passwordModal');
     if (event.target === modal) {
@@ -208,7 +205,8 @@ window.addEventListener('click', function(event) {
     }
 });
 
-async function exportClinicData() {
+// ================== 🔴 دالة النسخ الاحتياطي لـ Excel السحرية 🔴 ==================
+async function exportClinicDataToExcel() {
     if (!clinicId || clinicId === 'default') {
         alert("لا يوجد بيانات لتصديرها.");
         return;
@@ -218,60 +216,86 @@ async function exportClinicData() {
     const originalText = document.getElementById('btn-backup-txt').innerText;
     
     const safeLang = window.settingsLang || {
-        msgBkpWait: document.body.dir === 'ltr' ? "Gathering data... Please wait" : "جاري تجميع البيانات... برجاء الانتظار",
-        msgBkpDone: document.body.dir === 'ltr' ? "Backup downloaded successfully!" : "تم تحميل النسخة الاحتياطية بنجاح!"
+        msgBkpWait: document.body.dir === 'ltr' ? "Extracting data to Excel..." : "جاري استخراج البيانات لـ Excel...",
+        msgBkpDone: document.body.dir === 'ltr' ? "Excel file downloaded successfully!" : "تم تحميل ملف الـ Excel بنجاح!"
     };
 
     btn.disabled = true; 
     document.getElementById('btn-backup-txt').innerText = safeLang.msgBkpWait;
 
     try {
-        let backupData = {
-            exportDate: new Date().toISOString(),
-            clinicId: clinicId,
-            clinicInfo: {},
-            patients: [],
-            appointments: [],
-            sessions: [],
-            finances: [],
-            prescriptions: []
-        };
+        // 1. إنشاء ملف (Workbook) جديد
+        var wb = XLSX.utils.book_new();
 
-        const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
-        if(clinicDoc.exists) backupData.clinicInfo = clinicDoc.data();
-
+        // 2. سحب وتجهيز شيت "المرضى"
         const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
-        patSnap.forEach(doc => backupData.patients.push({ id: doc.id, ...doc.data() }));
+        let patientsList = [];
+        patSnap.forEach(doc => {
+            const d = doc.data();
+            patientsList.push({
+                "اسم المريض": d.name || '---',
+                "الموبايل": d.phone || '---',
+                "العمر": d.age || '---',
+                "النوع": d.gender || '---',
+                "تاريخ التسجيل": d.createdAt ? d.createdAt.toDate().toLocaleDateString('ar-EG') : '---'
+            });
+        });
+        if (patientsList.length > 0) {
+            var wsPatients = XLSX.utils.json_to_sheet(patientsList);
+            XLSX.utils.book_append_sheet(wb, wsPatients, "قائمة المرضى");
+        }
 
+        // 3. سحب وتجهيز شيت "الحجوزات"
         const appSnap = await db.collection("Appointments").where("clinicId", "==", clinicId).get();
-        appSnap.forEach(doc => backupData.appointments.push({ id: doc.id, ...doc.data() }));
+        let appsList = [];
+        appSnap.forEach(doc => {
+            const d = doc.data();
+            let status = d.status === 'completed' ? 'مكتمل' : (d.status === 'cancelled' ? 'ملغي' : 'في الانتظار');
+            appsList.push({
+                "اسم المريض": d.patientName || '---',
+                "التاريخ": d.date || '---',
+                "الوقت": d.time || '---',
+                "نوع الكشف": d.type || '---',
+                "المدفوع": d.paid || 0,
+                "المتبقي": d.remaining || 0,
+                "الحالة": status
+            });
+        });
+        if (appsList.length > 0) {
+            var wsApps = XLSX.utils.json_to_sheet(appsList);
+            XLSX.utils.book_append_sheet(wb, wsApps, "حجوزات العيادة");
+        }
 
-        const sessSnap = await db.collection("Sessions").where("clinicId", "==", clinicId).get();
-        sessSnap.forEach(doc => backupData.sessions.push({ id: doc.id, ...doc.data() }));
-
+        // 4. سحب وتجهيز شيت "الحسابات والمصروفات"
         const finSnap = await db.collection("Finances").where("clinicId", "==", clinicId).get();
-        finSnap.forEach(doc => backupData.finances.push({ id: doc.id, ...doc.data() }));
+        let finList = [];
+        finSnap.forEach(doc => {
+            const d = doc.data();
+            let type = d.type === 'income' ? 'إيراد (+)' : 'مصروف (-)';
+            finList.push({
+                "نوع الحركة": type,
+                "البند": d.category || '---',
+                "المبلغ": d.amount || 0,
+                "التاريخ": d.date || '---',
+                "ملاحظات": d.notes || '---'
+            });
+        });
+        if (finList.length > 0) {
+            var wsFin = XLSX.utils.json_to_sheet(finList);
+            XLSX.utils.book_append_sheet(wb, wsFin, "الخزنة والحسابات");
+        }
 
-        const rxSnap = await db.collection("Prescriptions").where("clinicId", "==", clinicId).get();
-        rxSnap.forEach(doc => backupData.prescriptions.push({ id: doc.id, ...doc.data() }));
-
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-        const downloadAnchorNode = document.createElement('a');
-        downloadAnchorNode.setAttribute("href", dataStr);
-        
-        const clinicNameStr = backupData.clinicInfo.clinicName ? backupData.clinicInfo.clinicName.replace(/\s+/g, '_') : 'Clinic';
+        // 5. حفظ الملف على جهاز المستخدم
+        const clinicName = document.getElementById('clinic_name').value || "Clinic";
         const dateStr = new Date().toISOString().split('T')[0];
-        downloadAnchorNode.setAttribute("download", `${clinicNameStr}_Backup_${dateStr}.json`);
-        
-        document.body.appendChild(downloadAnchorNode); 
-        downloadAnchorNode.click();
-        downloadAnchorNode.remove();
+        const fileName = `${clinicName}_Backup_${dateStr}.xlsx`;
 
+        XLSX.writeFile(wb, fileName);
         alert(safeLang.msgBkpDone);
 
     } catch (error) {
-        console.error("Backup Error:", error);
-        alert("حدث خطأ أثناء إنشاء النسخة الاحتياطية.");
+        console.error("Excel Backup Error:", error);
+        alert("حدث خطأ أثناء استخراج البيانات.");
     } finally {
         btn.disabled = false; 
         document.getElementById('btn-backup-txt').innerText = originalText;
