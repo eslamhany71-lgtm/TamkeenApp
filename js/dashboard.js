@@ -12,7 +12,7 @@ let todaySessionsRevData = [];
 let todayRevenueData = []; // المجموع الكلي
 
 let currentSelectedPatientId = null; 
-let currentSelectedApp = null;
+let currentSelectedApp = null; 
 
 function updatePageContent(lang) {
     const t = { 
@@ -22,7 +22,7 @@ function updatePageContent(lang) {
             chart: "حالات المواعيد والجلسات", actions: "إجراءات سريعة",
             btnWait: "عرض قائمة الانتظار", btnPat: "إضافة مريض جديد", btnApp: "حجز موعد جديد",
             mWaitTitle: "⏳ قائمة الانتظار", tToday: "مواعيد اليوم", tUpc: "الأيام القادمة",
-            mAppDetTitle: "تفاصيل الحجز", lName: "اسم المريض:", lDate: "التاريخ:", lTime: "الساعة:", lType: "نوع الكشف:", lNotes: "ملاحظات:",
+            mAppDetTitle: "تفاصيل الحجز", lName: "اسم المريض:", lPhone: "الموبايل:", lDate: "التاريخ:", lTime: "الساعة:", lType: "نوع الكشف:", lNotes: "ملاحظات:",
             mPatTitle: "🦷 جميع المرضى", mPatDetTitle: "تفاصيل المريض", lpPhone: "الموبايل:", lpAge: "السن:", lpHist: "أمراض مزمنة:", btnProf: "فتح الملف الطبي الكامل",
             mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الحجوزات المكتملة", empty: "لا يوجد بيانات حالياً.",
             btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟",
@@ -34,7 +34,7 @@ function updatePageContent(lang) {
             chart: "Appointments & Sessions Status", actions: "Quick Actions",
             btnWait: "Show Waiting List", btnPat: "Add New Patient", btnApp: "Book Appointment",
             mWaitTitle: "⏳ Waiting List", tToday: "Today's Apps", tUpc: "Upcoming",
-            mAppDetTitle: "Booking Details", lName: "Patient Name:", lDate: "Date:", lTime: "Time:", lType: "Type:", lNotes: "Notes:",
+            mAppDetTitle: "Booking Details", lName: "Patient Name:", lPhone: "Phone:", lDate: "Date:", lTime: "Time:", lType: "Type:", lNotes: "Notes:",
             mPatTitle: "🦷 All Patients", mPatDetTitle: "Patient Details", lpPhone: "Phone:", lpAge: "Age:", lpHist: "Medical History:", btnProf: "Open Full Profile",
             mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently.",
             btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?",
@@ -51,7 +51,7 @@ function updatePageContent(lang) {
     setTxt('btn-wait-list', c.btnWait); setTxt('btn-add-patient', c.btnPat); setTxt('btn-book-app', c.btnApp);
     
     setTxt('mod-wait-title', c.mWaitTitle); setTxt('tab-today-wait', c.tToday); setTxt('tab-upcoming-wait', c.tUpc);
-    setTxt('mod-app-det-title', c.mAppDetTitle); setClassTxt('lbl-det-name', c.lName); setClassTxt('lbl-det-date', c.lDate); setClassTxt('lbl-det-time', c.lTime); setClassTxt('lbl-det-type', c.lType); setClassTxt('lbl-det-notes', c.lNotes);
+    setTxt('mod-app-det-title', c.mAppDetTitle); setClassTxt('lbl-det-name', c.lName); setClassTxt('lbl-det-phone', c.lPhone); setClassTxt('lbl-det-date', c.lDate); setClassTxt('lbl-det-time', c.lTime); setClassTxt('lbl-det-type', c.lType); setClassTxt('lbl-det-notes', c.lNotes);
     
     setTxt('mod-pat-title', c.mPatTitle); setTxt('mod-pat-det-title', c.mPatDetTitle); setClassTxt('lbl-p-name', c.lName); setClassTxt('lbl-p-phone', c.lpPhone); setClassTxt('lbl-p-age', c.lpAge); setClassTxt('lbl-p-history', c.lpHist); setTxt('btn-go-profile', c.btnProf);
     
@@ -153,9 +153,12 @@ function loadDashboardStats() {
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
+// ================== 🔴 لوجيك نافذة إضافة حجز جديد 🔴 ==================
 function openNewAppModal() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('new_app_name').value = '';
+    // 🔴 تصفير خانة الموبايل 🔴
+    document.getElementById('new_app_phone').value = '';
     document.getElementById('new_app_date').value = today;
     document.getElementById('new_app_time').value = '18:00';
     document.getElementById('new_app_type').value = '';
@@ -180,6 +183,8 @@ async function saveNewAppointment(e) {
     const data = {
         clinicId: clinicId,
         patientName: document.getElementById('new_app_name').value.trim(),
+        // 🔴 حفظ رقم الموبايل 🔴
+        phone: document.getElementById('new_app_phone').value.trim() || 'غير مسجل',
         date: document.getElementById('new_app_date').value,
         time: document.getElementById('new_app_time').value,
         type: document.getElementById('new_app_type').value.trim(),
@@ -201,6 +206,7 @@ async function saveNewAppointment(e) {
         alert("حدث خطأ أثناء الحفظ.");
     }
 }
+// =========================================================================
 
 function openWaitingListModal() {
     renderWaitList('todayWaitContainer', todayPendingApps);
@@ -243,6 +249,7 @@ function renderWaitList(containerId, dataArray) {
 function openAppDetails(app) {
     currentSelectedApp = app; 
     document.getElementById('det_name').innerText = app.patientName;
+    document.getElementById('det_phone').innerText = app.phone || '---';
     document.getElementById('det_date').innerText = app.date;
     document.getElementById('det_time').innerText = app.time;
     document.getElementById('det_type').innerText = app.type;
