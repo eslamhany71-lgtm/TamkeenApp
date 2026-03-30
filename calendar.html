@@ -11,6 +11,13 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <style>
+        /* ستايلات حقول الحسابات */
+        .finance-box-modal { display: flex; gap: 10px; background: #f0fdf4; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #bbf7d0; flex-wrap: wrap;}
+        .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
+        .finance-box-modal input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold;}
+        .finance-box-modal input[readonly] { background: #e2e8f0; color: #ef4444; }
+    </style>
 </head>
 <body>
 
@@ -85,11 +92,22 @@
 
                 <div class="form-group">
                     <label id="lbl-app-type">نوع الكشف / الجلسة</label>
-                    <select id="app_type">
-                        <option value="كشف جديد" id="opt-new">كشف جديد</option>
-                        <option value="استشارة" id="opt-follow">استشارة / متابعة</option>
-                        <option value="جلسة علاج" id="opt-session">جلسة علاجية</option>
-                    </select>
+                    <input type="text" id="app_type" placeholder="مثال: كشف جديد، حشو عصب..." required>
+                </div>
+
+                <div class="finance-box-modal">
+                    <div class="form-group">
+                        <label style="font-size: 13px;">الإجمالي</label>
+                        <input type="number" id="app_total" value="0" required oninput="calcCalRemaining()">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 13px;">المدفوع</label>
+                        <input type="number" id="app_paid" value="0" required oninput="calcCalRemaining()">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 13px;">المتبقي</label>
+                        <input type="number" id="app_remaining" value="0" readonly>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -115,17 +133,17 @@
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📅 التاريخ:</strong> <span id="det_date"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>⏰ الساعة:</strong> <span id="det_time"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🩺 نوع الكشف:</strong> <span id="det_type"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>💰 الحساب (مدفوع / إجمالي):</strong> <span id="det_finance" style="color: #10b981; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📝 ملاحظات:</strong> <span id="det_notes"></span></p>
                 <p style="margin: 0; font-size: 16px;"><strong>📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
             </div>
 
             <div id="complete-action-box" style="margin-bottom: 15px;">
-                <button class="btn-success" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وإنشاء ملف)</button>
+                <button class="btn-success" id="btn-complete-app" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)</button>
             </div>
 
             <div style="display: flex; gap: 10px;">
-                <button class="btn-action-primary" onclick="openEditModal()" style="flex: 1;">✏️ تعديل</button>
-                <button class="btn-action-danger" onclick="deleteAppointment()" style="flex: 1;">🗑️ حذف</button>
+                <button class="btn-action-danger" onclick="deleteAppointment()" style="flex: 1; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">🗑️ حذف الحجز</button>
             </div>
         </div>
     </div>
