@@ -10,7 +10,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <link rel="stylesheet" href="css/dashboard.css">
     <style>
-        /* ستايلات سريعة לחقول الحسابات جوه المودال */
         .finance-box-modal { display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
         .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
         .finance-box-modal input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold;}
@@ -143,7 +142,6 @@
                 <p><strong>📝 <span class="lbl-det-notes">ملاحظات:</span></strong> <span id="det_notes"></span></p>
             </div>
             <div class="app-actions" id="app-actions-container">
-                <button class="btn-app-action btn-success" onclick="completeAppointment()" id="btn-complete-app">✅ مكتمل</button>
                 <button class="btn-app-action btn-warning" onclick="updateAppStatus('cancelled')" id="btn-cancel-app">❌ إلغاء</button>
                 <button class="btn-app-action btn-danger" onclick="deleteAppointment()" id="btn-delete-app">🗑️ حذف</button>
             </div>
