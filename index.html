@@ -32,10 +32,10 @@
                 <p class="sub-text" id="sub-login">قم بتسجيل الدخول لإدارة عيادتك</p>
                 
                 <div class="input-group">
-                    <label id="lbl-code">كود الدخول أو البريد الإلكتروني</label>
+                    <label id="lbl-code">البريد الإلكتروني أو كود العيادة</label>
                     <div class="input-wrapper">
                         <span class="input-icon">👤</span>
-                        <input type="text" id="empCode" placeholder="أدخل الكود الخاص بك" required>
+                        <input type="text" id="empCode" placeholder="أدخل البريد أو الكود الخاص بك" required>
                     </div>
                 </div>
 
@@ -56,9 +56,15 @@
 
                 <div id="errorMessage" class="error-msg"></div>
 
-                <div class="register-link">
-                    <span id="txt-new">حساب جديد؟</span> 
-                    <a href="activate.html" id="link-activate">تفعيل حساب العيادة من هنا</a>
+                <div class="register-link" style="display: flex; flex-direction: column; gap: 10px; margin-top: 25px;">
+                    <div>
+                        <span id="txt-new">حساب جديد؟</span> 
+                        <a href="activate.html" id="link-activate">تفعيل حساب العيادة من هنا</a>
+                    </div>
+                    
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 5px;">
+                        <a href="#" onclick="openStaffModal()" style="color: #10b981; text-decoration: none; font-size: 15px; font-weight: bold;">🔑 لدي كود دعوة (تفعيل حساب موظف)</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -97,6 +103,30 @@
             <form onsubmit="sendResetLink(event)">
                 <input type="email" id="resetEmailInput" placeholder="أدخل البريد الإلكتروني" required style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; margin-bottom: 15px; box-sizing: border-box; outline: none; font-family: inherit;">
                 <button type="submit" id="btn-send-reset" style="width: 100%; background: #0284C7; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; font-family: inherit;">إرسال رابط الاستعادة</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="staffModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.7); align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div class="modal-content" style="background: white; border-radius: 16px; width: 90%; max-width: 400px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; animation: animatetop 0.3s; text-align: start;">
+            <span onclick="closeStaffModal()" style="position: absolute; left: 20px; top: 15px; font-size: 24px; color: #64748b; cursor: pointer;">&times;</span>
+            <h2 id="txt-staff-title" style="margin-top: 0; color: #1e293b; font-size: 20px; font-weight: 800;">تفعيل حساب موظف</h2>
+            <p id="txt-staff-sub" style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.5;">أدخل كود الدعوة الذي استلمته من إدارة العيادة، وقم بإنشاء بريد وكلمة مرور للدخول.</p>
+            
+            <form onsubmit="activateStaffAccount(event)">
+                <div style="margin-bottom: 15px;">
+                    <label id="lbl-staff-code" style="display:block; margin-bottom:5px; font-size:14px; font-weight:bold; color: #334155;">كود الدعوة</label>
+                    <input type="text" id="staffInviteCode" placeholder="مثال: NURSE-1234" required style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box; outline: none; font-family: inherit; direction: ltr; text-align: left;">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label id="lbl-staff-email" style="display:block; margin-bottom:5px; font-size:14px; font-weight:bold; color: #334155;">البريد الإلكتروني الجديد</label>
+                    <input type="email" id="staffEmail" placeholder="أدخل بريدك الإلكتروني" required style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box; outline: none; font-family: inherit; direction: ltr; text-align: left;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label id="lbl-staff-pass" style="display:block; margin-bottom:5px; font-size:14px; font-weight:bold; color: #334155;">كلمة المرور</label>
+                    <input type="password" id="staffPassword" placeholder="********" required minlength="6" style="width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box; outline: none; font-family: inherit; direction: ltr; text-align: left;">
+                </div>
+                <button type="submit" id="btn-activate-staff" style="width: 100%; background: #10b981; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; font-family: inherit;">تفعيل الحساب والدخول</button>
             </form>
         </div>
     </div>
