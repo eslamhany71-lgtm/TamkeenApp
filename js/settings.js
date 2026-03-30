@@ -1,4 +1,5 @@
 const db = firebase.firestore();
+const auth = firebase.auth(); // 🔴 ضفنا الـ Auth عشان تغيير الباسورد
 const clinicId = sessionStorage.getItem('clinicId');
 
 // 1. نظام الترجمة (مسطرة عربي وإنجليزي)
@@ -11,7 +12,10 @@ function updatePageContent(lang) {
             lLang: "لغة النظام (System Language)",
             btnSave: "حفظ التعديلات", msgSuccess: "تم حفظ التعديلات بنجاح!", msgError: "حدث خطأ أثناء الحفظ",
             // ترجمة الباك أب
-            bkpTitle: "النسخ الاحتياطي والأمان", bkpDesc: "قم بتحميل نسخة احتياطية كاملة من بيانات العيادة (المرضى، المواعيد، الجلسات، الحسابات، والروشتات) للاحتفاظ بها على جهازك أو رفعها على مساحتك السحابية.", btnBkp: "تحميل نسخة احتياطية (Backup)", msgBkpWait: "جاري تجميع البيانات... برجاء الانتظار", msgBkpDone: "تم تحميل النسخة الاحتياطية بنجاح!"
+            bkpTitle: "النسخ الاحتياطي والبيانات", bkpDesc: "قم بتحميل نسخة احتياطية كاملة من بيانات العيادة (المرضى، المواعيد، الجلسات، الحسابات، والروشتات) للاحتفاظ بها على جهازك.", btnBkp: "تحميل نسخة احتياطية (Backup)", msgBkpWait: "جاري تجميع البيانات... برجاء الانتظار", msgBkpDone: "تم تحميل النسخة الاحتياطية بنجاح!",
+            // ترجمة الأمان والباسورد 🔴
+            secTitle: "الأمان وتسجيل الدخول", secDesc: "يمكنك تغيير كلمة المرور الخاصة بحساب العيادة. ستحتاج إلى إدخال كلمة المرور الحالية للتأكيد.",
+            btnPass: "تغيير كلمة المرور", modalPassTitle: "تغيير كلمة المرور", lOldPass: "كلمة المرور الحالية", lNewPass: "كلمة المرور الجديدة", lConfPass: "تأكيد كلمة المرور الجديدة", btnSavePass: "تحديث كلمة المرور"
         },
         en: {
             title: "Clinic Settings", sub: "Customize clinic data and logo", cardTitle: "Basic Information",
@@ -20,7 +24,10 @@ function updatePageContent(lang) {
             lLang: "System Language",
             btnSave: "Save Changes", msgSuccess: "Changes saved successfully!", msgError: "Error saving changes",
             // Backup Translation
-            bkpTitle: "Backup & Security", bkpDesc: "Download a full backup of clinic data (Patients, Appointments, Sessions, Finances, and Prescriptions) to keep on your device or upload to your cloud storage.", btnBkp: "Download Backup", msgBkpWait: "Gathering data... Please wait", msgBkpDone: "Backup downloaded successfully!"
+            bkpTitle: "Backup & Data", bkpDesc: "Download a full backup of clinic data (Patients, Appointments, Sessions, Finances, and Prescriptions) to keep on your device.", btnBkp: "Download Backup", msgBkpWait: "Gathering data... Please wait", msgBkpDone: "Backup downloaded successfully!",
+            // Security Translation 🔴
+            secTitle: "Security & Login", secDesc: "You can change your clinic account password. You will need to enter your current password to confirm.",
+            btnPass: "Change Password", modalPassTitle: "Change Password", lOldPass: "Current Password", lNewPass: "New Password", lConfPass: "Confirm New Password", btnSavePass: "Update Password"
         }
     };
     const c = t[lang] || t.ar;
@@ -30,6 +37,10 @@ function updatePageContent(lang) {
     setTxt('lbl-logo', c.lLogo); setTxt('lbl-logo-hint', c.lHint); setTxt('lbl-name', c.lName);
     setTxt('lbl-lang', c.lLang);
     setTxt('txt-backup-title', c.bkpTitle); setTxt('txt-backup-desc', c.bkpDesc); setTxt('btn-backup-txt', c.btnBkp);
+    
+    // الأمان 🔴
+    setTxt('txt-security-title', c.secTitle); setTxt('txt-security-desc', c.secDesc); setTxt('btn-change-pass', c.btnPass);
+    setTxt('modal-pass-title', c.modalPassTitle); setTxt('lbl-old-pass', c.lOldPass); setTxt('lbl-new-pass', c.lNewPass); setTxt('lbl-confirm-pass', c.lConfPass); setTxt('btn-save-pass', c.btnSavePass);
     
     const nameInput = document.getElementById('clinic_name');
     if(nameInput) nameInput.placeholder = c.pName;
@@ -42,7 +53,6 @@ function updatePageContent(lang) {
     window.settingsLang = c;
 }
 
-// 2. تحميل البيانات الحالية للعيادة
 async function loadClinicSettings() {
     if (!clinicId || clinicId === 'default') return;
 
@@ -63,7 +73,6 @@ async function loadClinicSettings() {
     }
 }
 
-// 3. تحويل الصورة لـ Base64
 function encodeLogo(element) {
     const file = element.files[0];
     const reader = new FileReader();
@@ -76,7 +85,6 @@ function encodeLogo(element) {
     }
 }
 
-// 4. دالة تغيير اللغة فوراً
 function changeSystemLanguage(newLang) {
     localStorage.setItem('preferredLang', newLang);
     
@@ -88,7 +96,6 @@ function changeSystemLanguage(newLang) {
     }
 }
 
-// 5. حفظ التعديلات
 async function saveSettings(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -123,7 +130,84 @@ async function saveSettings(e) {
     }
 }
 
-// 🔴 6. السحر الخالص: دالة التصدير الشامل (Full Backup) 🔴
+// 🔴 دوال تغيير كلمة المرور 🔴
+function openPasswordModal() {
+    document.getElementById('pass-error-msg').style.display = 'none';
+    document.getElementById('old_password').value = '';
+    document.getElementById('new_password').value = '';
+    document.getElementById('confirm_password').value = '';
+    document.getElementById('passwordModal').style.display = 'flex';
+}
+
+function closePasswordModal() {
+    document.getElementById('passwordModal').style.display = 'none';
+}
+
+async function changePassword(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-pass');
+    const errorMsg = document.getElementById('pass-error-msg');
+    
+    const oldPass = document.getElementById('old_password').value;
+    const newPass = document.getElementById('new_password').value;
+    const confirmPass = document.getElementById('confirm_password').value;
+    
+    errorMsg.style.display = 'none';
+
+    // 1. التأكد من تطابق كلمة المرور الجديدة
+    if (newPass !== confirmPass) {
+        errorMsg.innerText = "❌ كلمة المرور الجديدة غير متطابقة!";
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "جاري التحديث...";
+
+    const user = auth.currentUser;
+    
+    if (user) {
+        // 2. إعادة المصادقة (Re-authenticate) بالباسورد القديم
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, oldPass);
+        
+        try {
+            await user.reauthenticateWithCredential(credential);
+            
+            // 3. لو الباسورد القديم صح، نحدث للجديد
+            await user.updatePassword(newPass);
+            
+            alert("✅ تم تغيير كلمة المرور بنجاح!");
+            closePasswordModal();
+            
+        } catch (error) {
+            console.error("Password update error:", error);
+            errorMsg.style.display = 'block';
+            
+            // تحديد نوع الخطأ عشان نعرض رسالة واضحة
+            if (error.code === 'auth/wrong-password') {
+                errorMsg.innerText = "❌ كلمة المرور الحالية غير صحيحة!";
+            } else if (error.code === 'auth/weak-password') {
+                errorMsg.innerText = "❌ كلمة المرور الجديدة ضعيفة (يجب أن تكون 6 أحرف على الأقل).";
+            } else {
+                errorMsg.innerText = "❌ حدث خطأ، يرجى المحاولة مرة أخرى.";
+            }
+        }
+    } else {
+        alert("يرجى تسجيل الدخول أولاً.");
+    }
+    
+    btn.disabled = false;
+    btn.innerText = window.settingsLang.btnSavePass || "تحديث كلمة المرور";
+}
+
+// إغلاق المودال عند الضغط في أي مكان فارغ
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('passwordModal');
+    if (event.target === modal) {
+        closePasswordModal();
+    }
+});
+
 async function exportClinicData() {
     if (!clinicId || clinicId === 'default') {
         alert("لا يوجد بيانات لتصديرها.");
@@ -133,7 +217,6 @@ async function exportClinicData() {
     const btn = document.getElementById('btn-backup');
     const originalText = document.getElementById('btn-backup-txt').innerText;
     
-    // بديل آمن للترجمة لو المتغير الأساسي مش موجود
     const safeLang = window.settingsLang || {
         msgBkpWait: document.body.dir === 'ltr' ? "Gathering data... Please wait" : "جاري تجميع البيانات... برجاء الانتظار",
         msgBkpDone: document.body.dir === 'ltr' ? "Backup downloaded successfully!" : "تم تحميل النسخة الاحتياطية بنجاح!"
@@ -195,7 +278,6 @@ async function exportClinicData() {
     }
 }
 
-// تشغيل الشاشة
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
