@@ -188,7 +188,7 @@ async function saveAppointment(e) {
     }
 }
 
-// 🔴 الدالة السحرية: تحويل الحجز لمريض وتوريد الفلوس للإيرادات 🔴
+// 🔴 الدالة السحرية المعدلة (لتفادي مشكلة الحجوزات القديمة)
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -200,13 +200,15 @@ async function markAppAsCompleted() {
     btn.disabled = true;
 
     try {
-        // 1. تحديث حالة الموعد لـ مكتمل
         await db.collection("Appointments").doc(appId).update({ status: 'completed' });
 
-        // 2. البحث عن المريض (لمنع التكرار)
+        // 🔴 الحل هنا: لو الموعد قديم ومفيش موبايل، هنحط قيمة افتراضية
+        const patientPhone = props.phone || "غير مسجل";
+
+        // البحث عن المريض (لمنع التكرار)
         const existingPatientQuery = await db.collection("Patients")
             .where("clinicId", "==", currentClinicId)
-            .where("phone", "==", props.phone)
+            .where("phone", "==", patientPhone)
             .get();
 
         let patientId = null;
@@ -220,7 +222,7 @@ async function markAppAsCompleted() {
             const newPat = await db.collection("Patients").add({
                 clinicId: currentClinicId,
                 name: props.patientName,
-                phone: props.phone,
+                phone: patientPhone,
                 age: props.age || '',
                 gender: props.gender || '',
                 medicalHistory: historyArray,
@@ -232,7 +234,6 @@ async function markAppAsCompleted() {
             patientId = existingPatientQuery.docs[0].id;
         }
 
-        // 3. تحويل الحجز إلى جلسة في ملف المريض
         const paidAmount = Number(props.paid) || 0;
         await db.collection("Sessions").add({
             clinicId: currentClinicId,
@@ -246,7 +247,6 @@ async function markAppAsCompleted() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 4. 🔴 السحر المالي: تسجيل الإيراد في الخزنة 🔴
         if (paidAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: currentClinicId,
