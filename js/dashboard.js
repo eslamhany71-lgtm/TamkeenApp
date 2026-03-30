@@ -12,7 +12,7 @@ let todaySessionsRevData = [];
 let todayRevenueData = []; // المجموع الكلي
 
 let currentSelectedPatientId = null; 
-let currentSelectedAppId = null; 
+let currentSelectedApp = null; // 🔴 غيرناها عشان نشيل تفاصيل الحجز كلها
 
 function updatePageContent(lang) {
     const t = { 
@@ -81,7 +81,6 @@ function updateChart(pending, completed, cancelled) {
     });
 }
 
-// دالة تجميع الإيرادات من الحسابات والجلسات مع بعض
 function updateTotalRevenue() {
     todayRevenueData = [...todayFinancesData, ...todaySessionsRevData];
     const total = todayRevenueData.reduce((sum, item) => sum + Number(item.amount), 0);
@@ -92,14 +91,12 @@ function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. جلب المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         allPatientsData = [];
         snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
         document.getElementById('stat-patients').innerText = allPatientsData.length;
     });
 
-    // 2. جلب الدخل من الحسابات العامة (Finances)
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
         todayFinancesData = []; 
         snap.forEach(doc => { 
@@ -111,12 +108,10 @@ function loadDashboardStats() {
         updateTotalRevenue();
     });
 
-    // 3. جلب الدخل من الجلسات اللي تمت النهاردة (Sessions)
     db.collection("Sessions").where("clinicId", "==", clinicId).onSnapshot(snap => {
         todaySessionsRevData = [];
         snap.forEach(doc => {
             const data = doc.data();
-            // لو الجلسة اتعملت النهاردة وفيها فلوس مدفوعة، نحسبها في الإيراد
             if (data.date === todayStr && data.paid > 0) {
                 todaySessionsRevData.push({
                     id: doc.id,
@@ -130,7 +125,6 @@ function loadDashboardStats() {
         updateTotalRevenue();
     });
 
-    // 4. جلب المواعيد وحالتها
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         let pending = 0, completed = 0, cancelled = 0;
         todayPendingApps = []; upcomingPendingApps = []; completedSessionsData = [];
@@ -158,6 +152,57 @@ function loadDashboardStats() {
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// ================== 🔴 1. لوجيك نافذة إضافة حجز جديد 🔴 ==================
+function openNewAppModal() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('new_app_name').value = '';
+    document.getElementById('new_app_date').value = today;
+    document.getElementById('new_app_time').value = '18:00';
+    document.getElementById('new_app_type').value = '';
+    document.getElementById('new_app_total').value = '0';
+    document.getElementById('new_app_paid').value = '0';
+    document.getElementById('new_app_remaining').value = '0';
+    document.getElementById('new_app_notes').value = '';
+    
+    document.getElementById('newAppModal').style.display = 'flex';
+}
+
+function calcNewAppRemaining() {
+    const t = Number(document.getElementById('new_app_total').value) || 0;
+    const p = Number(document.getElementById('new_app_paid').value) || 0;
+    document.getElementById('new_app_remaining').value = Math.max(0, t - p);
+}
+
+async function saveNewAppointment(e) {
+    e.preventDefault();
+    if(!clinicId) return;
+
+    const data = {
+        clinicId: clinicId,
+        patientName: document.getElementById('new_app_name').value.trim(),
+        date: document.getElementById('new_app_date').value,
+        time: document.getElementById('new_app_time').value,
+        type: document.getElementById('new_app_type').value.trim(),
+        total: Number(document.getElementById('new_app_total').value) || 0,
+        paid: Number(document.getElementById('new_app_paid').value) || 0,
+        remaining: Number(document.getElementById('new_app_remaining').value) || 0,
+        notes: document.getElementById('new_app_notes').value.trim(),
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+        const btn = e.target.querySelector('button');
+        btn.disabled = true; btn.innerText = "...";
+        await db.collection("Appointments").add(data);
+        closeModal('newAppModal');
+    } catch(err) {
+        console.error(err);
+        alert("حدث خطأ أثناء الحفظ.");
+    }
+}
+// =========================================================================
 
 function openWaitingListModal() {
     renderWaitList('todayWaitContainer', todayPendingApps);
@@ -198,11 +243,17 @@ function renderWaitList(containerId, dataArray) {
 }
 
 function openAppDetails(app) {
-    currentSelectedAppId = app.id; 
+    currentSelectedApp = app; 
     document.getElementById('det_name').innerText = app.patientName;
     document.getElementById('det_date').innerText = app.date;
     document.getElementById('det_time').innerText = app.time;
     document.getElementById('det_type').innerText = app.type;
+    
+    // إظهار الفلوس في التفاصيل
+    const paid = app.paid || 0;
+    const total = app.total || 0;
+    document.getElementById('det_finance').innerText = `${paid} / ${total} ج.م`;
+    
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.getElementById('det_notes').innerText = app.notes || (lang === 'ar' ? 'لا يوجد' : 'None');
     
@@ -213,19 +264,91 @@ function openAppDetails(app) {
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
 
-async function updateAppStatus(newStatus) {
-    if(!currentSelectedAppId) return;
+// ================== 🔴 2. لوجيك زرار (مكتمل) السحري 🔴 ==================
+async function completeAppointment() {
+    if(!currentSelectedApp) return;
+    const btn = document.getElementById('btn-complete-app');
+    btn.disabled = true; btn.innerText = "...";
+
     try {
-        await db.collection("Appointments").doc(currentSelectedAppId).update({ status: newStatus });
+        const appId = currentSelectedApp.id;
+        const patName = currentSelectedApp.patientName;
+        const dateStr = currentSelectedApp.date;
+        const paidAmount = Number(currentSelectedApp.paid) || 0;
+
+        // 1. إغلاق الحجز
+        await db.collection("Appointments").doc(appId).update({ status: 'completed' });
+
+        // 2. البحث عن المريض (لو مسجل نضيف ليه جلسة، لو مش مسجل نكريت ليه ملف)
+        const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).where("name", "==", patName).get();
+        let patientId = null;
+
+        if (patSnap.empty) {
+            // مريض جديد: نفتحله ملف
+            const newPat = await db.collection("Patients").add({
+                clinicId: clinicId,
+                name: patName,
+                phone: "غير مسجل",
+                age: "",
+                gender: "غير محدد",
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            patientId = newPat.id;
+        } else {
+            // مريض قديم
+            patientId = patSnap.docs[0].id;
+        }
+
+        // 3. تحويل الحجز إلى (جلسة) في ملف المريض
+        await db.collection("Sessions").add({
+            clinicId: clinicId,
+            patientId: patientId,
+            date: dateStr,
+            procedure: currentSelectedApp.type || "كشف جديد",
+            total: currentSelectedApp.total || 0,
+            paid: paidAmount,
+            remaining: currentSelectedApp.remaining || 0,
+            notes: currentSelectedApp.notes || "",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 4. لو دافع فلوس، نرميها في جدول الإيرادات (Finances) عشان تسمع في تقفيل الوردية
+        if (paidAmount > 0) {
+            await db.collection("Finances").add({
+                clinicId: clinicId,
+                type: 'income',
+                category: 'كشف / جلسة',
+                amount: paidAmount,
+                date: dateStr,
+                notes: `إيراد حجز مريض: ${patName} - (${currentSelectedApp.type})`,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        alert("✅ تم تحويل الحجز لجلسة، وتسجيل الإيراد، وحفظ ملف المريض بنجاح!");
+        closeModal('appDetailsModal');
+    } catch(e) {
+        console.error("Error completing app:", e);
+        alert("حدث خطأ أثناء إكمال الحجز.");
+    } finally {
+        btn.disabled = false; btn.innerText = "✅ مكتمل";
+    }
+}
+// =========================================================================
+
+async function updateAppStatus(newStatus) {
+    if(!currentSelectedApp) return;
+    try {
+        await db.collection("Appointments").doc(currentSelectedApp.id).update({ status: newStatus });
         closeModal('appDetailsModal');
     } catch(e) { console.error("Error updating status:", e); }
 }
 
 async function deleteAppointment() {
-    if(!currentSelectedAppId) return;
+    if(!currentSelectedApp) return;
     if(confirm(window.confDelTxt)) {
         try {
-            await db.collection("Appointments").doc(currentSelectedAppId).delete();
+            await db.collection("Appointments").doc(currentSelectedApp.id).delete();
             closeModal('appDetailsModal');
         } catch(e) { console.error("Error deleting:", e); }
     }
@@ -280,7 +403,7 @@ function openRevenueModal() {
             li.className = 'data-list-li';
             li.onclick = () => openRevDetails(rev); 
             const lang = localStorage.getItem('preferredLang') || 'ar';
-            li.innerHTML = `<span style="font-weight: bold; font-size: 15px;">📝 ${rev.notes || (lang==='ar'?'دفعة نقدية':'Cash Payment')}</span><span class="data-badge green">💰 ${rev.amount}</span>`;
+            li.innerHTML = `<span style="font-weight: bold; font-size: 15px;">📝 ${rev.notes || (lang==='ar'?'إيراد عيادة':'Clinic Revenue')}</span><span class="data-badge green">💰 ${rev.amount}</span>`;
             container.appendChild(li);
         });
     }
@@ -303,6 +426,7 @@ function openSessionsModal() {
     }
     document.getElementById('sessionsModal').style.display = 'flex';
 }
+
 function openRevDetails(rev) {
     document.getElementById('rdet_amount').innerText = rev.amount;
     document.getElementById('rdet_date').innerText = rev.date;
@@ -324,7 +448,6 @@ window.onload = () => {
     });
 };
 
-// 🔴 الحل النهائي للموبايل والكمبيوتر (إغلاق المودال بالضغط خارجه)
 document.addEventListener('DOMContentLoaded', () => {
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
