@@ -76,7 +76,7 @@ function closeClinicModal() {
     document.getElementById('clinicModal').style.display = 'none';
 }
 
-// === دوال إضافة المستخدمين (الممرضة) السحرية ===
+// === 🔴 دالة توليد كود الممرضة السحرية (التحديث الجديد) 🔴 ===
 async function openUserModal() {
     document.getElementById('userForm').reset();
     const clinicSelect = document.getElementById('user_clinic');
@@ -84,7 +84,6 @@ async function openUserModal() {
     document.getElementById('userModal').style.display = 'flex';
 
     try {
-        // بنسحب العيادات عشان نملى القائمة المنسدلة
         const snap = await db.collection("Clinics").where("status", "==", "active").get();
         clinicSelect.innerHTML = '<option value="" disabled selected>اختر العيادة...</option>';
         snap.forEach(doc => {
@@ -105,38 +104,41 @@ async function saveNewUser(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button');
     btn.disabled = true;
-    btn.innerText = "جاري الحفظ والربط...";
+    btn.innerText = "جاري توليد الكود...";
 
     const userName = document.getElementById('user_name').value.trim();
-    const userEmail = document.getElementById('user_email').value.trim().toLowerCase();
     const clinicId = document.getElementById('user_clinic').value;
     const role = "nurse";
 
     if (!clinicId) {
-        alert("برجاء اختيار العيادة التي ستعمل بها الممرضة أولاً.");
+        alert("برجاء اختيار العيادة أولاً.");
         btn.disabled = false;
-        btn.innerText = "تسجيل وربط الصلاحية";
+        btn.innerText = "توليد كود الدعوة";
         return;
     }
 
     try {
-        // حجز الإيميل كممرضة في الداتا بيز (Whitelist)
-        await db.collection("Users").doc(userEmail).set({
+        // 1. توليد كود سري للممرضة (مثال: NURSE-9482)
+        const randomCode = Math.floor(1000 + Math.random() * 9000);
+        const inviteCode = `NURSE-${randomCode}`;
+
+        // 2. حفظ الكود في جدول (InviteCodes) عشان الممرضة تفعله
+        await db.collection("InviteCodes").doc(inviteCode).set({
             name: userName,
-            email: userEmail,
             role: role,
             clinicId: clinicId,
+            activated: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        alert(`تم إضافة الممرضة بنجاح! 🎉\n\nالعيادة تم ربطها، ويمكن للممرضة الآن إنشاء حساب جديد باستخدام الإيميل:\n${userEmail}\nوسيتم توجيهها لعيادتها مباشرة كـ "ممرضة".`);
+        alert(`✅ تم توليد كود الدعوة بنجاح!\n\nكود الممرضة: ${inviteCode}\nاسم الممرضة: ${userName}\n\nيرجى إعطاء هذا الكود للممرضة لتفعيل حسابها من شاشة تسجيل الدخول.`);
         closeUserModal();
     } catch (error) {
-        console.error("Error adding user:", error);
-        alert("حدث خطأ أثناء إضافة الممرضة!");
+        console.error("Error generating code:", error);
+        alert("حدث خطأ أثناء توليد الكود!");
     } finally {
         btn.disabled = false;
-        btn.innerText = "تسجيل وربط الصلاحية";
+        btn.innerText = "توليد كود الدعوة";
     }
 }
 // ===============================================
@@ -152,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 4. الحفظ وتوليد التاريخ بناءً على الباقة المختارة
 async function saveNewClinic(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -212,7 +213,6 @@ async function saveNewClinic(e) {
     }
 }
 
-// 5. عرض العيادات 
 function loadClinics() {
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
         const tbody = document.getElementById('clinicsBody');
