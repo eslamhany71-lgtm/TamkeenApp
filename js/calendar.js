@@ -31,7 +31,6 @@ function updatePageContent(lang) {
     setTxt('opt-new', c.optNew); setTxt('opt-follow', c.optFollow); setTxt('opt-session', c.optSess); setTxt('btn-save', c.btnSave);
     
     if(document.getElementById('det-modal-title')) setTxt('det-modal-title', c.detTitle);
-    setTxt('btn-edit-app', c.btnEdit); setTxt('btn-del-app', c.btnDel);
     setClassTxt('lbl-det-name', c.lblDetName); setClassTxt('lbl-det-date', c.lblDetDate); setClassTxt('lbl-det-time', c.lblDetTime); 
     setClassTxt('lbl-det-type', c.lblDetType); setClassTxt('lbl-det-notes', c.lblDetNotes); setClassTxt('lbl-det-status', c.lblDetStatus);
 
@@ -48,7 +47,6 @@ function openAppointmentModal() {
     currentEditAppId = null; 
     document.getElementById('addAppointmentForm').reset();
     
-    // تصفير الفلوس
     document.getElementById('app_total').value = '0';
     document.getElementById('app_paid').value = '0';
     document.getElementById('app_remaining').value = '0';
@@ -95,7 +93,6 @@ function initCalendar() {
             document.getElementById('det_time').innerText = dateObj.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
             document.getElementById('det_type').innerText = props.type;
             
-            // 🔴 إظهار الفلوس في التفاصيل 🔴
             const paid = props.paid || 0;
             const total = props.total || 0;
             document.getElementById('det_finance').innerText = `${paid} / ${total} ج.م`;
@@ -107,10 +104,13 @@ function initCalendar() {
             if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
             document.getElementById('det_status').innerText = statusTxt;
 
+            // إخفاء زراير التعديل والاكتمال لو الموعد خلصان
             if(props.status === 'completed' || props.status === 'cancelled') {
                 document.getElementById('complete-action-box').style.display = 'none';
+                document.getElementById('edit-delete-actions').style.display = 'none';
             } else {
                 document.getElementById('complete-action-box').style.display = 'block';
+                document.getElementById('edit-delete-actions').style.display = 'flex';
             }
 
             document.getElementById('appDetailsModal').style.display = 'flex';
@@ -163,7 +163,6 @@ async function saveAppointment(e) {
         date: dateVal,
         time: timeVal,
         type: typeVal,
-        // 🔴 حفظ الفلوس 🔴
         total: Number(document.getElementById('app_total').value) || 0,
         paid: Number(document.getElementById('app_paid').value) || 0,
         remaining: Number(document.getElementById('app_remaining').value) || 0,
@@ -188,7 +187,6 @@ async function saveAppointment(e) {
     }
 }
 
-// 🔴 الدالة السحرية المعدلة (لتفادي مشكلة الحجوزات القديمة)
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -202,10 +200,8 @@ async function markAppAsCompleted() {
     try {
         await db.collection("Appointments").doc(appId).update({ status: 'completed' });
 
-        // 🔴 الحل هنا: لو الموعد قديم ومفيش موبايل، هنحط قيمة افتراضية
         const patientPhone = props.phone || "غير مسجل";
 
-        // البحث عن المريض (لمنع التكرار)
         const existingPatientQuery = await db.collection("Patients")
             .where("clinicId", "==", currentClinicId)
             .where("phone", "==", patientPhone)
@@ -270,6 +266,7 @@ async function markAppAsCompleted() {
     }
 }
 
+// 🔴 دالة التعديل (فتح المودال بالبيانات الحالية) 🔴
 async function openEditModal() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -289,7 +286,6 @@ async function openEditModal() {
         document.getElementById('app_type').value = props.type;
         document.getElementById('app_notes').value = props.notes || '';
         
-        // جلب الفلوس للتعديل
         document.getElementById('app_total').value = props.total || '0';
         document.getElementById('app_paid').value = props.paid || '0';
         document.getElementById('app_remaining').value = props.remaining || '0';
