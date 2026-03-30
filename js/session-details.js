@@ -10,7 +10,6 @@ let clinicPharmacy = [];
 let currentPrescriptionDrugs = []; 
 let activePrescriptionDocId = null; 
 
-// 🔴 متغير لتعقب حالة تعديل الدواء في قاعدة البيانات 🔴
 let editDrugId = null; 
 
 function goBackToPatient() {
@@ -61,17 +60,44 @@ async function loadSessionDetails() {
     loadClinicPharmacy();
 }
 
+// ================== 🔴 السداد وتوريد المديونية للخزنة 🔴 ==================
 async function markPaymentComplete() {
-    if(confirm("هل أنت متأكد من اكتمال الدفع؟ سيتم تصفير المتبقي وإضافته للمدفوع.")) {
-        const total = Number(sessionData.total);
+    if(!sessionData) return;
+    
+    const remainingAmount = Number(sessionData.remaining) || 0;
+    if (remainingAmount <= 0) return;
+
+    if(confirm(`هل المريض قام بسداد المتبقي (${remainingAmount} ج.م)؟\nسيتم توريد المبلغ لإيرادات اليوم.`)) {
+        
+        const totalAmount = Number(sessionData.total);
+        const todayStr = new Date().toISOString().split('T')[0];
+
         try {
+            // 1. تصفير الحساب المتبقي في تفاصيل الجلسة
             await db.collection("Sessions").doc(sessionId).update({
-                paid: total,
+                paid: totalAmount,
                 remaining: 0
             });
-        } catch(e) { console.error(e); }
+
+            // 2. تسجيل حركة إيراد جديدة بقيمة (المتبقي اللي اندفع دلوقتي) في الخزنة
+            await db.collection("Finances").add({
+                clinicId: clinicId,
+                type: 'income',
+                category: 'سداد مديونية / باقي كشف',
+                amount: remainingAmount,
+                date: todayStr, // بتاريخ اليوم عشان يظهر في إيراد النهاردة
+                notes: `سداد باقي جلسة (${sessionData.procedure}) للمريض: ${patientName}`,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            alert("✅ تم سداد المبلغ وتوريده للخزنة بنجاح!");
+        } catch(e) { 
+            console.error("Error completing payment:", e); 
+            alert("حدث خطأ أثناء السداد.");
+        }
     }
 }
+// =========================================================================
 
 function openEditSessionModal() {
     if(!sessionData) return;
@@ -90,6 +116,7 @@ function calcEditRemaining() {
     document.getElementById('es_remaining').value = Math.max(0, t - p);
 }
 
+// 🔴 تعديل الجلسة (بنحفظ بس ومش بنرمي في الخزنة عشان التعديل ممكن يكون تصحيح غلطة) 🔴
 async function updateSession(e) {
     e.preventDefault();
     const data = {
@@ -148,22 +175,18 @@ function loadSessionXRays() {
     });
 }
 
-// ================= 4. قاعدة الأدوية (إضافة، تعديل، حذف، بحث) =================
-
 function loadClinicPharmacy() {
     db.collection("Pharmacy").where("clinicId", "==", clinicId).onSnapshot(snap => {
         clinicPharmacy = [];
         snap.forEach(doc => clinicPharmacy.push({ id: doc.id, ...doc.data() }));
-        // لو فاتح البحث، نعمله تحديث عشان يشوف التغيير فوراً
         if(document.getElementById('drug-search').value.length > 0) {
             searchDrugs();
         }
     });
 }
 
-// 🔴 دالة فتح الإضافة 🔴
 function openAddDrugModal() {
-    editDrugId = null; // تصفير الـ ID يعني إحنا بنضيف جديد
+    editDrugId = null; 
     document.getElementById('new_drug_category').value = '';
     document.getElementById('new_drug_name').value = '';
     document.getElementById('new_drug_dose').value = '';
@@ -172,13 +195,12 @@ function openAddDrugModal() {
     openModal('addDrugModal');
 }
 
-// 🔴 دالة فتح التعديل 🔴
 function openEditDrugModal(drugId, event) {
-    event.stopPropagation(); // عشان منضغطش على الصف بالغلط ونضيف الدواء للروشتة
+    event.stopPropagation(); 
     const drug = clinicPharmacy.find(d => d.id === drugId);
     if(!drug) return;
 
-    editDrugId = drugId; // كده عرفنا إننا في وضع التعديل
+    editDrugId = drugId; 
     document.getElementById('new_drug_category').value = drug.category;
     document.getElementById('new_drug_name').value = drug.name;
     document.getElementById('new_drug_dose').value = drug.defaultDose;
@@ -187,26 +209,21 @@ function openEditDrugModal(drugId, event) {
     openModal('addDrugModal');
 }
 
-// 🔴 دالة الحذف من قاعدة العيادة 🔴
 async function deleteDrugFromPharmacy(drugId, event) {
-    event.stopPropagation(); // منع الإضافة للروشتة
+    event.stopPropagation(); 
     if(confirm("هل أنت متأكد من حذف هذا الدواء نهائياً من قاعدة بيانات العيادة؟")) {
         try {
             await db.collection("Pharmacy").doc(drugId).delete();
-            // المصفوفة المحلية clinicPharmacy هتتحدث لوحدها عن طريق onSnapshot
-            // بس محتاجين نقفل مربع البحث لو مفتوح
             document.getElementById('search-results-box').style.display = 'none';
             document.getElementById('drug-search').value = '';
         } catch(e) { console.error(e); }
     }
 }
 
-// 🔴 دالة الحفظ (تضيف أو تعدل، وتمنع التكرار) 🔴
 async function saveNewDrugToPharmacy(e) {
     e.preventDefault();
     const nameInput = document.getElementById('new_drug_name').value.trim();
     
-    // فحص التكرار (فقط لو بنضيف دواء جديد)
     if (!editDrugId) {
         const isDuplicate = clinicPharmacy.some(d => d.name.toLowerCase() === nameInput.toLowerCase());
         if (isDuplicate) {
@@ -224,17 +241,16 @@ async function saveNewDrugToPharmacy(e) {
 
     try {
         if (editDrugId) {
-            await db.collection("Pharmacy").doc(editDrugId).update(data); // تعديل
+            await db.collection("Pharmacy").doc(editDrugId).update(data); 
         } else {
-            await db.collection("Pharmacy").add(data); // إضافة
+            await db.collection("Pharmacy").add(data); 
         }
         closeModal('addDrugModal');
         document.getElementById('drug-search').value = data.name;
-        searchDrugs(); // عشان نفتحله الليเพ ضافه فوراً
+        searchDrugs(); 
     } catch(e) { console.error(e); }
 }
 
-// 🔴 البحث وعرض النتائج (مع زراير التحكم) 🔴
 function searchDrugs() {
     const input = document.getElementById('drug-search').value.toLowerCase();
     const resultBox = document.getElementById('search-results-box');
@@ -255,13 +271,11 @@ function searchDrugs() {
             div.style.alignItems = 'center';
             div.style.cursor = 'pointer';
 
-            // الجزء اللي لو داس عليه يضيف للروشتة
             const infoDiv = document.createElement('div');
             infoDiv.style.flex = '1';
             infoDiv.innerHTML = `<strong style="color: #0f172a; font-size: 15px;" dir="ltr">${d.name}</strong> <small style="color:#64748b; margin-right: 5px;">(${d.category})</small>`;
             infoDiv.onclick = () => addDrugToPrescriptionList(d);
 
-            // زراير التحكم في الدواء نفسه
             const actionsDiv = document.createElement('div');
             actionsDiv.style.display = 'flex';
             actionsDiv.style.gap = '5px';
