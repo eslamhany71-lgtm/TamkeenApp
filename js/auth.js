@@ -3,7 +3,6 @@
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// 🔴 متغير الفرملة لمنع التحويل التلقائي قبل فحص حالة العيادة
 let isLoginInProgress = false; 
 
 // 1. مراقب الحالة
@@ -16,7 +15,6 @@ auth.onAuthStateChanged((user) => {
     const isLoginPage = fileName === "index.html" || fileName === "";
 
     if (user) {
-        // لو في صفحة الدخول، متحولوش إلا لو الفحص خلص
         if (isLoginPage && !isLoginInProgress) {
             window.location.href = "home.html";
         }
@@ -62,24 +60,24 @@ async function loginById() {
     const btn = document.getElementById('btn-login');
     if (btn) { btn.innerText = "..."; btn.disabled = true; }
 
-    isLoginInProgress = true; // 🔴 إيقاف التحويل التلقائي للمراقب
+    isLoginInProgress = true; 
 
     try {
         let loginEmail = rawInput;
         let usedCode = rawInput;
 
-        // 1. لو كاتب كود مش إيميل، نجيب الإيميل بتاعه بسرعة
+        // 1. لو كاتب كود مش إيميل (زي الدكتور)
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
             loginEmail = empDoc.data().email;
         }
 
-        // 2. تسجيل الدخول الفعلي (بياخد 0.1 ثانية) ⚡
+        // 2. تسجيل الدخول الفعلي
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
         const actualEmail = userCredential.user.email;
 
-        // 3. جلب داتا اليوزر الخفيفة بعد الدخول
+        // 3. جلب داتا اليوزر
         const userDoc = await db.collection("Users").doc(actualEmail).get();
         if (!userDoc.exists) throw { code: 'custom/user-not-found' };
         
@@ -89,7 +87,7 @@ async function loginById() {
         if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
 
         // 4. الفحص الإجباري لحالة العيادة
-        if (targetClinicId !== 'default') {
+        if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
                 const clinicStatus = clinicDoc.data().status;
@@ -99,20 +97,16 @@ async function loginById() {
                 let isSuspended = false;
                 let suspendReason = '';
 
-                // فحص الإيقاف اليدوي
                 if (clinicStatus === 'suspended') {
                     isSuspended = true;
                     suspendReason = 'suspended-clinic';
                 } 
-                // فحص انتهاء الاشتراك التلقائي
                 else if (nextPaymentDate && now > nextPaymentDate) {
                     isSuspended = true;
                     suspendReason = 'subscription-expired';
-                    // تحديث الحالة في الخلفية عشان منأخرش الدخول
                     db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' }).catch(console.error);
                 }
 
-                // لو موقوفة، اطرده فوراً!
                 if (isSuspended) {
                     await auth.signOut();
                     throw { code: 'custom/' + suspendReason };
@@ -120,7 +114,7 @@ async function loginById() {
             }
         }
 
-        // 5. لو كل الفحوصات عدت بسلام، نحفظ الجلسة ونحوله يدوي
+        // 5. الحفظ والتحويل
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
@@ -128,7 +122,6 @@ async function loginById() {
         window.location.href = "home.html"; 
 
     } catch (error) {
-        // لو حصل خطأ، نتأكد إنه معموله Sign Out عشان ميحصلش تعليق
         await auth.signOut().catch(()=>{}); 
         isLoginInProgress = false; 
         
@@ -144,7 +137,7 @@ async function loginById() {
             } else if (error.code === 'custom/subscription-expired') {
                 errorDiv.innerText = isRtl ? "عفواً، انتهت فترة الاشتراك." : "Subscription expired.";
             } else if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
-                errorDiv.innerText = isRtl ? "خطأ في الكود أو كلمة المرور" : "Error in ID or Password";
+                errorDiv.innerText = isRtl ? "خطأ في البريد/الكود أو كلمة المرور" : "Error in Email/Code or Password";
             } else {
                 errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
             }
@@ -152,75 +145,96 @@ async function loginById() {
     }
 }
 
-// باقي الدوال (activateAccount, resetPassword, etc.) تفضل زي ما هي عشان مفيهاش مشاكل
-async function activateAccount() {
-    const codeRaw = document.getElementById('reg-code').value.trim();
-    const phone = document.getElementById('reg-phone').value.trim();
-    const realEmail = document.getElementById('reg-email').value.trim().toLowerCase();
-    const pass = document.getElementById('reg-pass').value.trim();
-    const msg = document.getElementById('reg-msg');
+// ==========================================
+// 🔴 3. دوال تفعيل حساب الموظف (الممرضة) 🔴
+// ==========================================
 
-    if(!codeRaw || !phone || !realEmail || !pass) { 
-        if(msg) msg.innerText = document.body.dir === 'rtl' ? "برجاء إكمال كافة البيانات" : "Please complete all fields"; 
-        return; 
-    }
+function openStaffModal() {
+    document.getElementById('staffInviteCode').value = '';
+    document.getElementById('staffEmail').value = '';
+    document.getElementById('staffPassword').value = '';
+    document.getElementById('staffModal').style.display = 'flex';
+}
+
+function closeStaffModal() {
+    document.getElementById('staffModal').style.display = 'none';
+}
+
+async function activateStaffAccount(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-activate-staff');
+    btn.disabled = true;
+    btn.innerText = "جاري فحص الكود والتفعيل...";
+
+    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); // NURSE-XXXX
+    const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
+    const newPassword = document.getElementById('staffPassword').value.trim();
 
     try {
-        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...";
+        // 1. البحث عن كود الدعوة في الداتا بيز
+        const inviteDoc = await db.collection("InviteCodes").doc(inviteCode).get();
 
-        const empDoc = await db.collection("clinicId").doc(codeRaw).get();
-
-        if (!empDoc.exists) {
-            if(msg) msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع إدارة النظام" : "Code not registered, contact admin"; 
+        if (!inviteDoc.exists) {
+            alert("❌ كود الدعوة غير صحيح أو غير مسجل في النظام.");
+            btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
             return;
         }
 
-        const empData = empDoc.data();
-        if (empData.phone !== phone) {
-            if(msg) msg.innerText = document.body.dir === 'rtl' ? "رقم الموبايل غير مطابق للسجلات" : "Phone number does not match records"; 
+        const inviteData = inviteDoc.data();
+
+        if (inviteData.activated) {
+            alert("❌ هذا الكود تم استخدامه وتفعيله مسبقاً.");
+            btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
             return;
         }
 
-        if (empData.activated === true) {
-            if(msg) msg.innerText = document.body.dir === 'rtl' ? "هذا الحساب مفعل بالفعل" : "Account already activated"; 
-            return;
-        }
+        isLoginInProgress = true;
 
-        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
+        // 2. إنشاء حساب في الفايربيز Auth
+        await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
-        await auth.createUserWithEmailAndPassword(realEmail, pass);
-        
-        await db.collection("Users").doc(realEmail).set({
-            role: (empData.role || "doctor").toLowerCase().trim(),
-            name: empData.name,
-            empCode: codeRaw, 
-            email: realEmail,
-            clinicId: empData.clinicId || 'default'
+        // 3. تسجيل بيانات الممرضة في جدول Users وربطها بالعيادة
+        await db.collection("Users").doc(newEmail).set({
+            name: inviteData.name,
+            email: newEmail,
+            role: inviteData.role, // "nurse"
+            clinicId: inviteData.clinicId,
+            empCode: inviteCode,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        await db.collection("clinicId").doc(codeRaw).update({ 
+        // 4. حرق (إبطال) كود الدعوة عشان ميستخدمش تاني
+        await db.collection("InviteCodes").doc(inviteCode).update({
             activated: true,
-            email: realEmail 
+            activatedByEmail: newEmail,
+            activatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        if(msg) msg.innerText = document.body.dir === 'rtl' ? "تم التفعيل بنجاح! جاري تحويلك..." : "Activation successful! Redirecting...";
-        
-        setTimeout(() => { window.location.href = "index.html"; }, 1500);
+        // 5. حفظ الجلسة محلياً وتوجيهها للبرنامج فوراً
+        sessionStorage.setItem('userRole', inviteData.role);
+        sessionStorage.setItem('empCode', inviteCode);
+        sessionStorage.setItem('clinicId', inviteData.clinicId);
+
+        alert(`✅ تم تفعيل الحساب بنجاح يا ${inviteData.name}!\nجاري تحويلك للعيادة...`);
+        window.location.href = "home.html";
 
     } catch (error) {
-        if(msg) {
-            const isRtl = document.body.dir === 'rtl';
-            if (error.code === 'auth/email-already-in-use') {
-                msg.innerText = isRtl ? "هذا البريد الإلكتروني مستخدم بالفعل" : "Email already in use";
-            } else if (error.code === 'auth/invalid-email') {
-                msg.innerText = isRtl ? "صيغة البريد الإلكتروني غير صحيحة" : "Invalid email format";
-            } else {
-                msg.innerText = (isRtl ? "خطأ: " : "Error: ") + error.message;
-            }
+        console.error("Staff Activation Error:", error);
+        isLoginInProgress = false;
+        btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
+        
+        if (error.code === 'auth/email-already-in-use') {
+            alert("❌ هذا البريد الإلكتروني مستخدم بالفعل في حساب آخر.");
+        } else if (error.code === 'auth/weak-password') {
+            alert("❌ كلمة المرور ضعيفة، يجب أن تكون 6 أحرف على الأقل.");
+        } else {
+            alert("❌ حدث خطأ أثناء التفعيل: " + error.message);
         }
     }
 }
+// ==========================================
 
+// 4. باقي دوال استعادة الباسورد وتفعيل العيادة (Doctor)
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
@@ -262,12 +276,79 @@ async function sendResetLink(e) {
     }
 }
 
-// 5. نظام الترجمة 
+async function activateAccount() {
+    const codeRaw = document.getElementById('reg-code').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const realEmail = document.getElementById('reg-email').value.trim().toLowerCase();
+    const pass = document.getElementById('reg-pass').value.trim();
+    const msg = document.getElementById('reg-msg');
+
+    if(!codeRaw || !phone || !realEmail || !pass) { 
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "برجاء إكمال كافة البيانات" : "Please complete all fields"; 
+        return; 
+    }
+
+    try {
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...";
+
+        const empDoc = await db.collection("clinicId").doc(codeRaw).get();
+
+        if (!empDoc.exists) {
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع إدارة النظام" : "Code not registered, contact admin"; 
+            return;
+        }
+
+        const empData = empDoc.data();
+        if (empData.phone !== phone) {
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "رقم الموبايل غير مطابق للسجلات" : "Phone number does not match records"; 
+            return;
+        }
+
+        if (empData.activated === true) {
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "هذا الحساب مفعل بالفعل" : "Account already activated"; 
+            return;
+        }
+
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
+
+        await auth.createUserWithEmailAndPassword(realEmail, pass);
+        
+        await db.collection("Users").doc(realEmail).set({
+            role: (empData.role || "admin").toLowerCase().trim(),
+            name: empData.name,
+            empCode: codeRaw, 
+            email: realEmail,
+            clinicId: empData.clinicId || 'default'
+        });
+
+        await db.collection("clinicId").doc(codeRaw).update({ 
+            activated: true,
+            email: realEmail 
+        });
+
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "تم التفعيل بنجاح! جاري تحويلك..." : "Activation successful! Redirecting...";
+        
+        setTimeout(() => { window.location.href = "index.html"; }, 1500);
+
+    } catch (error) {
+        if(msg) {
+            const isRtl = document.body.dir === 'rtl';
+            if (error.code === 'auth/email-already-in-use') {
+                msg.innerText = isRtl ? "هذا البريد الإلكتروني مستخدم بالفعل" : "Email already in use";
+            } else if (error.code === 'auth/invalid-email') {
+                msg.innerText = isRtl ? "صيغة البريد الإلكتروني غير صحيحة" : "Invalid email format";
+            } else {
+                msg.innerText = (isRtl ? "خطأ: " : "Error: ") + error.message;
+            }
+        }
+    }
+}
+
 function updatePageContent(lang) {
     const translations = {
         ar: {
             title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
-            code: "كود الدخول أو البريد الإلكتروني", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "حساب جديد؟", actLink: "تفعيل حساب العيادة من هنا",
+            code: "البريد الإلكتروني أو كود العيادة", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "حساب جديد؟", actLink: "تفعيل حساب العيادة من هنا",
             brandTitle: "NivaDent", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
             feat1: "✔️ ملف طبي ذكي وأشعة", feat2: "✔️ إدارة الجلسات والمواعيد", feat3: "✔️ روشتات وحسابات دقيقة",
             forgotPass: "نسيت كلمة المرور؟", resetTitle: "استعادة كلمة المرور", resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
@@ -279,7 +360,7 @@ function updatePageContent(lang) {
         },
         en: {
             title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
-            code: "Access Code or Email", pass: "Password", btn: "Login", newEmp: "New Account?", actLink: "Activate clinic account here",
+            code: "Email or Access Code", pass: "Password", btn: "Login", newEmp: "New Account?", actLink: "Activate clinic account here",
             brandTitle: "NivaDent", brandDesc: "The smartest cloud system for dental practice management. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
             feat1: "✔️ Smart Medical Records & X-Rays", feat2: "✔️ Appointments & Sessions Management", feat3: "✔️ E-Prescriptions & Accurate Billing",
             forgotPass: "Forgot Password?", resetTitle: "Reset Password", resetSub: "Enter your registered email, and we will send you a link to set a new password.",
