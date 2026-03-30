@@ -70,9 +70,15 @@
             <h2 id="mod-new-app-title" class="modal-title" style="margin-top: 0; margin-bottom: 20px;">حجز موعد جديد</h2>
             
             <form onsubmit="saveNewAppointment(event)">
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label>اسم المريض (أو رقمه)</label>
-                    <input type="text" id="new_app_name" required placeholder="مثال: أحمد محمد" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label>اسم المريض</label>
+                        <input type="text" id="new_app_name" required placeholder="مثال: أحمد محمد" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الموبايل</label>
+                        <input type="tel" id="new_app_phone" required placeholder="01xxxxxxxxx" dir="ltr" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; text-align: left;">
+                    </div>
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
@@ -135,6 +141,7 @@
             <h2 id="mod-app-det-title" class="modal-title">تفاصيل الحجز</h2>
             <div class="details-box">
                 <p><strong>👤 <span class="lbl-det-name">اسم المريض:</span></strong> <span id="det_name" style="color: #0284C7; font-weight: bold;"></span></p>
+                <p><strong>📱 <span class="lbl-det-phone">الموبايل:</span></strong> <span id="det_phone" dir="ltr" style="display:inline-block;"></span></p>
                 <p><strong>📅 <span class="lbl-det-date">التاريخ:</span></strong> <span id="det_date"></span></p>
                 <p><strong>⏰ <span class="lbl-det-time">الساعة:</span></strong> <span id="det_time"></span></p>
                 <p><strong>🩺 <span class="lbl-det-type">نوع الكشف:</span></strong> <span id="det_type"></span></p>
