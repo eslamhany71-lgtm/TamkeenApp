@@ -1,4 +1,4 @@
-// firebase-config.js - التهيئة النظيفة + الاستعادة الذكية وحارس الاشتراكات
+// firebase-config.js - التهيئة النظيفة 
 
 const firebaseConfig = {
   apiKey: "AIzaSyCFVu8FHYq2leGA1F9SQEAXmn1agv1V1cM",
@@ -18,7 +18,7 @@ if (!firebase.apps.length) {
 const currentPath = window.location.pathname;
 const isLoginScreen = currentPath.endsWith("index.html") || currentPath === "/" || currentPath.endsWith("activate.html");
 
-// تفعيل الكاش (السرعة الصاروخية) فقط داخل النظام
+// تفعيل الكاش (السرعة الصاروخية) فقط داخل النظام، وإيقافه في شاشة الدخول لضمان سرعة الـ Login
 if (!isLoginScreen) {
     firebase.firestore().enablePersistence({ synchronizeTabs: true })
       .catch((err) => {
@@ -31,35 +31,15 @@ if (!isLoginScreen) {
 }
 
 // =======================================================
-// 🔴 حارس الاشتراكات السحابي واستعادة الصلاحيات 🔴
+// 🔴 التعديل الثاني: حارس الاشتراكات السحابي 🔴
 // =======================================================
 if (!isLoginScreen) {
-    firebase.auth().onAuthStateChanged(async (user) => {
+    firebase.auth().onAuthStateChanged((user) => {
         if (user) {
-            let clinicId = sessionStorage.getItem('clinicId');
-            let userRole = sessionStorage.getItem('userRole');
+            const clinicId = sessionStorage.getItem('clinicId');
+            const userRole = sessionStorage.getItem('userRole');
 
-            // 🔴 الحل السحري لمشكلة اختفاء صلاحية السوبر أدمن (لو المتصفح مسحها) 🔴
-            if (!userRole) {
-                try {
-                    const userDoc = await firebase.firestore().collection("Users").doc(user.email).get();
-                    if (userDoc.exists) {
-                        const data = userDoc.data();
-                        userRole = data.role;
-                        clinicId = data.clinicId || 'default';
-                        
-                        sessionStorage.setItem('userRole', userRole);
-                        sessionStorage.setItem('clinicId', clinicId);
-                        sessionStorage.setItem('empCode', data.empCode || user.email);
-                        
-                        // نعمل ريفريش سريع عشان قوائم السوبر أدمن تظهر تاني
-                        window.location.reload();
-                        return; 
-                    }
-                } catch (e) { console.error("Error restoring session:", e); }
-            }
-
-            // 🔴 حارس الاشتراك (يُطبق على العيادات فقط، السوبر أدمن مش بيتقفل عليه) 🔴
+            // مراقبة العيادات فقط وتجاهل الإدمن (superadmin)
             if (clinicId && clinicId !== 'default' && userRole !== 'superadmin') {
                 firebase.firestore().collection("Clinics").doc(clinicId).onSnapshot((doc) => {
                     if (doc.exists) {
@@ -67,7 +47,7 @@ if (!isLoginScreen) {
                         const nextPaymentDate = clinicData.nextPaymentDate ? clinicData.nextPaymentDate.toDate() : null;
                         const now = new Date();
 
-                        // لو الاشتراك خلص يتم إظهار شاشة الحظر
+                        // لو الاشتراك انتهى تظهر شاشة الحظر
                         if (clinicData.status === 'suspended' || (nextPaymentDate && now > nextPaymentDate)) {
                             showPaywallBlocker();
                         } else {
@@ -80,7 +60,7 @@ if (!isLoginScreen) {
     });
 }
 
-// دالة إظهار شاشة الحظر الإجبارية للعيادة
+// إنشاء الشاشة الحمراء الخاصة بالحظر (تغطي السيستم ولا تزول إلا بالتجديد أو تسجيل الخروج)
 function showPaywallBlocker() {
     let blocker = document.getElementById('paywall-blocker');
     if (!blocker) {
@@ -93,7 +73,7 @@ function showPaywallBlocker() {
                 <div style="font-size: 50px; margin-bottom: 15px;">⚠️</div>
                 <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #dc2626; font-weight: 900;">تم إيقاف النظام</h2>
                 <p style="margin: 0 0 25px 0; color: #475569; line-height: 1.6; font-size: 16px;">
-                    عفواً، لقد انتهت فترة اشتراكك في نظام NivaDent أو تم إيقاف الحساب. برجاء التواصل مع الدعم الفني لتجديد الباقة واستعادة الوصول للنظام.
+                    عفواً، لقد انتهت فترة اشتراك عيادتك في نظام NivaDent. برجاء التواصل مع الدعم الفني لتجديد الباقة لاستعادة الوصول لبيانات العيادة.
                 </p>
                 <button onclick="firebase.auth().signOut().then(() => { sessionStorage.clear(); window.location.href = 'index.html'; })" style="background: #dc2626; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">
                     تسجيل الخروج
