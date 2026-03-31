@@ -73,9 +73,6 @@ async function loginById() {
             loginEmail = empDoc.data().email;
         }
 
-        // 🔴 التعديل الأول: تأمين المتصفح (خروج تلقائي عند إغلاق الشاشة) 🔴
-        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-
         // 2. تسجيل الدخول الفعلي
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
         const actualEmail = userCredential.user.email;
@@ -169,11 +166,12 @@ async function activateStaffAccount(e) {
     btn.disabled = true;
     btn.innerText = "جاري فحص الكود والتفعيل...";
 
-    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); 
+    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); // NURSE-XXXX
     const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
     const newPassword = document.getElementById('staffPassword').value.trim();
 
     try {
+        // 1. البحث عن كود الدعوة في الداتا بيز
         const inviteDoc = await db.collection("InviteCodes").doc(inviteCode).get();
 
         if (!inviteDoc.exists) {
@@ -192,25 +190,27 @@ async function activateStaffAccount(e) {
 
         isLoginInProgress = true;
 
-        // 🔴 تأمين المتصفح للممرضة 🔴
-        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        // 2. إنشاء حساب في الفايربيز Auth
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
+        // 3. تسجيل بيانات الممرضة في جدول Users وربطها بالعيادة
         await db.collection("Users").doc(newEmail).set({
             name: inviteData.name,
             email: newEmail,
-            role: inviteData.role, 
+            role: inviteData.role, // "nurse"
             clinicId: inviteData.clinicId,
             empCode: inviteCode,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 4. حرق (إبطال) كود الدعوة عشان ميستخدمش تاني
         await db.collection("InviteCodes").doc(inviteCode).update({
             activated: true,
             activatedByEmail: newEmail,
             activatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 5. حفظ الجلسة محلياً وتوجيهها للبرنامج فوراً
         sessionStorage.setItem('userRole', inviteData.role);
         sessionStorage.setItem('empCode', inviteCode);
         sessionStorage.setItem('clinicId', inviteData.clinicId);
@@ -311,8 +311,6 @@ async function activateAccount() {
 
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
 
-        // 🔴 تأمين المتصفح للطبيب 🔴
-        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(realEmail, pass);
         
         await db.collection("Users").doc(realEmail).set({
