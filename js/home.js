@@ -272,3 +272,56 @@ window.onload = () => {
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
 };
+// =========================================================================
+// 🔴 نظام الأمان المتقدم: الخروج التلقائي عند الخمول (حماية من الهيستوري) 🔴
+// =========================================================================
+
+const IDLE_TIMEOUT_MINUTES = 30; // تقدر تخليها 15 أو 30 دقيقة براحتك
+let idleTime = 0;
+
+// 1. تصفير العداد لما المستخدم يتحرك أو يكتب
+function resetIdleTime() {
+    idleTime = 0;
+    localStorage.setItem('lastActiveNiva', Date.now());
+}
+
+// مراقبة أي حركة على الشاشة (ماوس، كيبورد، تاتش)
+window.onload = resetIdleTime;
+document.onmousemove = resetIdleTime;
+document.onkeypress = resetIdleTime;
+document.ontouchstart = resetIdleTime; // عشان الموبايل والتابلت
+
+// 2. فحص كل دقيقة وهو فاتح الشاشة
+setInterval(() => {
+    idleTime++;
+    if (idleTime >= IDLE_TIMEOUT_MINUTES) {
+        forceSecurityLogout("تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
+    }
+}, 60000); // 60000 ملي ثانية = دقيقة
+
+// 3. الفحص الفوري أول ما يفتح (عشان لو جابها من الهيستوري أو الـ Restore)
+function checkHistoryRestore() {
+    const lastActive = localStorage.getItem('lastActiveNiva');
+    if (lastActive) {
+        const diffMinutes = (Date.now() - lastActive) / (1000 * 60);
+        // لو فتحها من الهيستوري بعد ما الوقت عدى، هنطرده
+        if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
+            forceSecurityLogout("انتهت الجلسة للأمان. يرجى تسجيل الدخول مرة أخرى.");
+        }
+    }
+}
+
+// 4. دالة الطرد (تسجيل الخروج الإجباري)
+function forceSecurityLogout(msg) {
+    if(firebase.auth().currentUser) {
+        firebase.auth().signOut().then(() => {
+            sessionStorage.clear();
+            localStorage.removeItem('lastActiveNiva');
+            alert("🔒 " + msg);
+            window.top.location.href = 'index.html';
+        });
+    }
+}
+
+// استدعاء فحص الهيستوري فوراً مع تحميل الصفحة
+checkHistoryRestore();
