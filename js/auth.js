@@ -5,6 +5,11 @@ const db = firebase.firestore();
 
 let isLoginInProgress = false; 
 
+// 🔴 تأمين القفلة: إجبار الفايربيز على مسح الجلسة عند إغلاق المتصفح (لزيادة الأمان) 🔴
+auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch((error) => {
+    console.error("Error setting persistence:", error);
+});
+
 // 1. مراقب الحالة
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
@@ -146,7 +151,7 @@ async function loginById() {
 }
 
 // ==========================================
-// 🔴 3. دوال تفعيل حساب الموظف (الممرضة) 🔴
+// 3. دوال تفعيل حساب الموظف (الممرضة)
 // ==========================================
 
 function openStaffModal() {
