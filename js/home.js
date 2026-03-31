@@ -5,22 +5,18 @@ const SMART_VERSION = Math.floor(Date.now() / 3600000);
 
 // 1. دالة التنقل بين الصفحات في الـ Iframe (تم تصليح مشكلة الـ ID 🛠️)
 function loadPage(pageUrl, clickedLi) {
-    // لو اللينك مبعوت فيه داتا أصلاً (زي id المريض)، هنزود الإصدار بعلامة &
-    // لو لينك صافي، هنزوده بعلامة ?
     let finalUrl = pageUrl.includes('?') 
         ? `${pageUrl}&v=${SMART_VERSION}` 
         : `${pageUrl}?v=${SMART_VERSION}`;
 
     document.getElementById('content-frame').src = finalUrl;
     
-    // تأمين لو مفيش عنصر clickedLi مبعوت (عشان التحويل من جوه الصفحات)
     if (clickedLi) {
         const allLinks = document.querySelectorAll('#nav-links li');
         allLinks.forEach(li => li.classList.remove('active'));
         clickedLi.classList.add('active');
     }
 
-    // إغلاق القائمة الجانبية في الموبايل بعد الاختيار
     if (window.innerWidth <= 992) {
         document.getElementById('sidebar').classList.remove('active');
         const overlay = document.getElementById('mobile-overlay');
@@ -86,7 +82,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 applyRoles(role);
                 loadClinicBranding(clinicId);
                 
-                // تشغيل فحص التنبيهات للعيادة
+                // تشغيل فحص التنبيهات والاشتراكات للعيادة فقط
                 if(role !== 'superadmin' && clinicId !== 'default') {
                     checkSubscriptionAlert(clinicId);
                 }
@@ -99,36 +95,87 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// 5. دالة فحص التنبيهات (Billing Alerts)
+// 5. دالة فحص التنبيهات والحظر الإجباري (Billing Alerts & Paywall)
 async function checkSubscriptionAlert(clinicId) {
     try {
-        const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
-        if (clinicDoc.exists) {
-            const cData = clinicDoc.data();
-            
-            if (cData.status === 'suspended') {
-                firebase.auth().signOut();
-                return;
-            }
-
-            if (cData.nextPaymentDate) {
-                const nextPayDate = cData.nextPaymentDate.toDate();
+        // نستخدم onSnapshot عشان لو الادمن جددله وهو فاتح الشاشة تروح فوراً
+        db.collection("Clinics").doc(clinicId).onSnapshot((clinicDoc) => {
+            if (clinicDoc.exists) {
+                const cData = clinicDoc.data();
                 const now = new Date();
                 
-                const diffTime = nextPayDate - now;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                // 1. لو الحساب موقوف من الأدمن
+                if (cData.status === 'suspended') {
+                    showPaywallBlocker();
+                    return;
+                }
 
-                if (diffDays >= 0 && diffDays <= 3) {
-                    showBillingAlert(diffDays);
+                if (cData.nextPaymentDate) {
+                    const nextPayDate = cData.nextPaymentDate.toDate();
+                    
+                    // 2. لو الاشتراك خلص (نظهر شاشة الحظر)
+                    if (now > nextPayDate) {
+                        showPaywallBlocker();
+                    } 
+                    // 3. لو لسه مخلصش (نخفي شاشة الحظر لو موجودة، ونشغل التحذير بتاعك لو قرب يخلص)
+                    else {
+                        hidePaywallBlocker();
+
+                        const diffTime = nextPayDate - now;
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+                        if (diffDays >= 0 && diffDays <= 3) {
+                            showBillingAlert(diffDays);
+                        } else {
+                            hideBillingAlert(); // إخفاء التحذير لو جدد لأكتر من 3 أيام
+                        }
+                    }
                 }
             }
-        }
+        });
     } catch (error) {
         console.error("خطأ في فحص الاشتراك:", error);
     }
 }
 
+// =============================================================
+// 🔴 دوال إظهار شاشة الحظر الإجبارية (عند انتهاء الاشتراك) 🔴
+// =============================================================
+function showPaywallBlocker() {
+    let blocker = document.getElementById('paywall-blocker');
+    if (!blocker) {
+        blocker = document.createElement('div');
+        blocker.id = 'paywall-blocker';
+        blocker.style.cssText = "position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); color: white; text-align: center; direction: rtl; padding: 20px;";
+        
+        blocker.innerHTML = `
+            <div style="background: white; color: #0f172a; padding: 40px; border-radius: 20px; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+                <div style="font-size: 50px; margin-bottom: 15px;">⚠️</div>
+                <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #dc2626; font-weight: 900;">تم إيقاف النظام</h2>
+                <p style="margin: 0 0 25px 0; color: #475569; line-height: 1.6; font-size: 16px;">
+                    عفواً، لقد انتهت فترة اشتراك عيادتك في نظام NivaDent أو تم إيقاف الحساب. برجاء التواصل مع الدعم الفني لتجديد الباقة لاستعادة الوصول لبيانات العيادة.
+                </p>
+                <button onclick="firebase.auth().signOut().then(() => { sessionStorage.clear(); window.location.href = 'index.html'; })" style="background: #dc2626; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                    تسجيل الخروج
+                </button>
+            </div>
+        `;
+        document.body.appendChild(blocker);
+    }
+}
+
+function hidePaywallBlocker() {
+    const blocker = document.getElementById('paywall-blocker');
+    if (blocker) blocker.remove();
+}
+
+// =============================================================
+// دوال التحذير المبكر (بتاعتك كما هي)
+// =============================================================
 function showBillingAlert(daysLeft) {
+    // منع تكرار التحذير لو موجود
+    if(document.getElementById('billing-alert-banner')) return;
+
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const t = window.homeLang || updatePageContent(lang); 
     
@@ -136,11 +183,17 @@ function showBillingAlert(daysLeft) {
 
     const alertDiv = document.createElement('div');
     alertDiv.id = "billing-alert-banner";
-    alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);";
+    alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: slideDown 0.3s ease-out;";
     alertDiv.innerHTML = `<span>${alertMsg}</span>`;
 
     document.body.insertBefore(alertDiv, document.body.firstChild);
 }
+
+function hideBillingAlert() {
+    const alertDiv = document.getElementById('billing-alert-banner');
+    if(alertDiv) alertDiv.remove();
+}
+
 
 // 6. دالة جلب لوجو واسم العيادة
 async function loadClinicBranding(clinicId) {
