@@ -5,11 +5,6 @@ const db = firebase.firestore();
 
 let isLoginInProgress = false; 
 
-// 🔴 تأمين القفلة: إجبار الفايربيز على مسح الجلسة عند إغلاق المتصفح (لزيادة الأمان) 🔴
-auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch((error) => {
-    console.error("Error setting persistence:", error);
-});
-
 // 1. مراقب الحالة
 auth.onAuthStateChanged((user) => {
     const path = window.location.pathname;
@@ -71,18 +66,17 @@ async function loginById() {
         let loginEmail = rawInput;
         let usedCode = rawInput;
 
-        // 1. لو كاتب كود مش إيميل (زي الدكتور)
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
             loginEmail = empDoc.data().email;
         }
 
-        // 2. تسجيل الدخول الفعلي
+        // 🔴 تأمين القفلة (يخرج أوتوماتيك لو قفل المتصفح) 🔴
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
         const actualEmail = userCredential.user.email;
 
-        // 3. جلب داتا اليوزر
         const userDoc = await db.collection("Users").doc(actualEmail).get();
         if (!userDoc.exists) throw { code: 'custom/user-not-found' };
         
@@ -91,7 +85,6 @@ async function loginById() {
         const finalRole = userData.role;
         if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
 
-        // 4. الفحص الإجباري لحالة العيادة
         if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -119,7 +112,6 @@ async function loginById() {
             }
         }
 
-        // 5. الحفظ والتحويل
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
@@ -136,7 +128,6 @@ async function loginById() {
         }
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
-            
             if (error.code === 'custom/suspended-clinic') {
                 errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً." : "Account suspended.";
             } else if (error.code === 'custom/subscription-expired') {
@@ -153,7 +144,6 @@ async function loginById() {
 // ==========================================
 // 3. دوال تفعيل حساب الموظف (الممرضة)
 // ==========================================
-
 function openStaffModal() {
     document.getElementById('staffInviteCode').value = '';
     document.getElementById('staffEmail').value = '';
@@ -171,12 +161,11 @@ async function activateStaffAccount(e) {
     btn.disabled = true;
     btn.innerText = "جاري فحص الكود والتفعيل...";
 
-    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); // NURSE-XXXX
+    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); 
     const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
     const newPassword = document.getElementById('staffPassword').value.trim();
 
     try {
-        // 1. البحث عن كود الدعوة في الداتا بيز
         const inviteDoc = await db.collection("InviteCodes").doc(inviteCode).get();
 
         if (!inviteDoc.exists) {
@@ -195,27 +184,25 @@ async function activateStaffAccount(e) {
 
         isLoginInProgress = true;
 
-        // 2. إنشاء حساب في الفايربيز Auth
+        // 🔴 تأمين القفلة للممرضة الجديدة
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
-        // 3. تسجيل بيانات الممرضة في جدول Users وربطها بالعيادة
         await db.collection("Users").doc(newEmail).set({
             name: inviteData.name,
             email: newEmail,
-            role: inviteData.role, // "nurse"
+            role: inviteData.role,
             clinicId: inviteData.clinicId,
             empCode: inviteCode,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 4. حرق (إبطال) كود الدعوة عشان ميستخدمش تاني
         await db.collection("InviteCodes").doc(inviteCode).update({
             activated: true,
             activatedByEmail: newEmail,
             activatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 5. حفظ الجلسة محلياً وتوجيهها للبرنامج فوراً
         sessionStorage.setItem('userRole', inviteData.role);
         sessionStorage.setItem('empCode', inviteCode);
         sessionStorage.setItem('clinicId', inviteData.clinicId);
@@ -237,9 +224,10 @@ async function activateStaffAccount(e) {
         }
     }
 }
-// ==========================================
 
-// 4. باقي دوال استعادة الباسورد وتفعيل العيادة (Doctor)
+// ==========================================
+// 4. باقي دوال استعادة الباسورد وتفعيل العيادة
+// ==========================================
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
@@ -316,6 +304,8 @@ async function activateAccount() {
 
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
 
+        // 🔴 تأمين القفلة للعيادة الجديدة
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(realEmail, pass);
         
         await db.collection("Users").doc(realEmail).set({
