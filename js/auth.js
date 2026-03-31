@@ -73,6 +73,9 @@ async function loginById() {
             loginEmail = empDoc.data().email;
         }
 
+        // 🔴 التعديل: إجبار المتصفح على الخروج عند الإغلاق 🔴
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+
         // 2. تسجيل الدخول الفعلي
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
         const actualEmail = userCredential.user.email;
@@ -166,7 +169,7 @@ async function activateStaffAccount(e) {
     btn.disabled = true;
     btn.innerText = "جاري فحص الكود والتفعيل...";
 
-    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); // NURSE-XXXX
+    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); 
     const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
     const newPassword = document.getElementById('staffPassword').value.trim();
 
@@ -189,6 +192,9 @@ async function activateStaffAccount(e) {
         }
 
         isLoginInProgress = true;
+
+        // 🔴 التعديل: تأمين المتصفح للممرضة 🔴
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
         // 2. إنشاء حساب في الفايربيز Auth
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
@@ -310,6 +316,9 @@ async function activateAccount() {
         }
 
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
+
+        // 🔴 التعديل: تأمين المتصفح للدكتور الجديد 🔴
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
         await auth.createUserWithEmailAndPassword(realEmail, pass);
         
