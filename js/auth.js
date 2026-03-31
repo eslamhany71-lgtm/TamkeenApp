@@ -66,17 +66,21 @@ async function loginById() {
         let loginEmail = rawInput;
         let usedCode = rawInput;
 
+        // 1. لو كاتب كود مش إيميل (زي الدكتور)
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
             loginEmail = empDoc.data().email;
         }
 
-        // 🔴 تأمين القفلة (يخرج أوتوماتيك لو قفل المتصفح) 🔴
+        // 🔴 التعديل الأول: تأمين المتصفح (خروج تلقائي عند إغلاق الشاشة) 🔴
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+
+        // 2. تسجيل الدخول الفعلي
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
         const actualEmail = userCredential.user.email;
 
+        // 3. جلب داتا اليوزر
         const userDoc = await db.collection("Users").doc(actualEmail).get();
         if (!userDoc.exists) throw { code: 'custom/user-not-found' };
         
@@ -85,6 +89,7 @@ async function loginById() {
         const finalRole = userData.role;
         if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
 
+        // 4. الفحص الإجباري لحالة العيادة
         if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -112,6 +117,7 @@ async function loginById() {
             }
         }
 
+        // 5. الحفظ والتحويل
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
@@ -128,6 +134,7 @@ async function loginById() {
         }
         if (errorDiv) {
             const isRtl = document.body.dir === 'rtl';
+            
             if (error.code === 'custom/suspended-clinic') {
                 errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً." : "Account suspended.";
             } else if (error.code === 'custom/subscription-expired') {
@@ -142,8 +149,9 @@ async function loginById() {
 }
 
 // ==========================================
-// 3. دوال تفعيل حساب الموظف (الممرضة)
+// 🔴 3. دوال تفعيل حساب الموظف (الممرضة) 🔴
 // ==========================================
+
 function openStaffModal() {
     document.getElementById('staffInviteCode').value = '';
     document.getElementById('staffEmail').value = '';
@@ -184,14 +192,14 @@ async function activateStaffAccount(e) {
 
         isLoginInProgress = true;
 
-        // 🔴 تأمين القفلة للممرضة الجديدة
+        // 🔴 تأمين المتصفح للممرضة 🔴
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
         await db.collection("Users").doc(newEmail).set({
             name: inviteData.name,
             email: newEmail,
-            role: inviteData.role,
+            role: inviteData.role, 
             clinicId: inviteData.clinicId,
             empCode: inviteCode,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -224,10 +232,9 @@ async function activateStaffAccount(e) {
         }
     }
 }
+// ==========================================
 
-// ==========================================
-// 4. باقي دوال استعادة الباسورد وتفعيل العيادة
-// ==========================================
+// 4. باقي دوال استعادة الباسورد وتفعيل العيادة (Doctor)
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
@@ -304,7 +311,7 @@ async function activateAccount() {
 
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
 
-        // 🔴 تأمين القفلة للعيادة الجديدة
+        // 🔴 تأمين المتصفح للطبيب 🔴
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(realEmail, pass);
         
