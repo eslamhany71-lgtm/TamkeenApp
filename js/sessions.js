@@ -159,7 +159,7 @@ function renderSessions(dataToRender = loadedSessions) {
             <td>
                 <div style="display: flex; flex-direction: column; align-items: center;">
                     <span class="data-badge">${s.date}</span>
-                    <span style="font-size: 11px; color: #64748b; margin-top: 4px;">${timeStr}</span>
+                    <span style="font-size: 16px; color: #000; margin-top: 4px;">${timeStr}</span>
                 </div>
             </td>
             <td style="font-weight:bold; color:#0f172a;">${patName}</td>
