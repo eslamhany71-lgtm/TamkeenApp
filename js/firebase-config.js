@@ -43,3 +43,18 @@ if (!isLoginScreen) {
       });
 
 }
+// =========================================================================
+// 🔴 إضافة ميزة عالمية للسيستم: إغلاق أي مودال بزرار (Esc) في الكيبورد 🔴
+// =========================================================================
+document.addEventListener('keydown', function(event) {
+    if (event.key === "Escape" || event.keyCode === 27) {
+        // هنجيب كل المودالز اللي في الصفحة
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            // لو المودال مفتوح وظاهر، هنقفله
+            if (modal.style.display === 'flex' || modal.style.display === 'block') {
+                modal.style.display = 'none';
+            }
+        });
+    }
+});
