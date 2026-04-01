@@ -1,35 +1,37 @@
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId'); 
+let allTransactionsForEdit = []; 
+let currentDisplayedData = []; 
 
 function updatePageContent(lang) {
     const t = {
         ar: {
-            title: "الحسابات والمصروفات", sub: "إدارة الخزنة، الإيرادات اليومية، والمصروفات",
+            title: "الحسابات والمصروفات", sub: "إدارة الخزنة، الإيرادات اليومية، المصروفات، والمديونيات",
             btnInc: "إضافة إيراد", btnExp: "إضافة مصروف", btnPrint: "طباعة التقرير",
-            totInc: "إجمالي الإيرادات (للفترة المحددة)", totExp: "إجمالي المصروفات (للفترة المحددة)", net: "صافي الربح",
-            ledger: "دفتر الخزنة",
-            thDate: "التاريخ", thType: "النوع", thCat: "البند", thAmount: "المبلغ", thNotes: "البيان", thAct: "إجراءات",
+            totInc: "إجمالي الإيرادات", totExp: "إجمالي المصروفات", net: "صافي الربح", debt: "إجمالي الديون الخارجية",
+            ledger: "دفتر الخزنة وحركات الديون",
+            thDate: "التاريخ والوقت", thType: "النوع", thCat: "البند", thAmount: "المبلغ", thNotes: "البيان", thAct: "إجراءات",
             mInc: "تسجيل إيراد جديد", mExp: "تسجيل مصروف جديد",
             lAmt: "المبلغ", lDate: "التاريخ", lCat: "البند", lNotes: "البيان / تفاصيل", btnSave: "حفظ العملية",
             catInc1: "كشف / جلسة مريض", catInc2: "دفعة مقدمة", catInc3: "إيرادات أخرى",
             catExp1: "مستلزمات طبية", catExp2: "معمل أسنان", catExp3: "رواتب ومكافآت", catExp4: "فواتير (كهرباء/إيجار)", catExp5: "مصروفات أخرى",
-            bInc: "إيراد", bExp: "مصروف", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مطابقة للبحث.",
+            bInc: "إيراد", bExp: "مصروف", bDebt: "مديونية", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مطابقة للبحث.",
             lSearch: "بحث بالبيان أو الملاحظات", lType: "النوع", lDateFrom: "من تاريخ", lDateTo: "إلى تاريخ",
-            optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", btnSearch: "🔍 بحث"
+            optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", optDebt: "مديونيات", btnSearch: "🔍 بحث"
         },
         en: {
-            title: "Finances & Expenses", sub: "Manage treasury, daily income, and expenses",
+            title: "Finances & Expenses", sub: "Manage treasury, daily income, expenses, and debts",
             btnInc: "Add Income", btnExp: "Add Expense", btnPrint: "Print Report",
-            totInc: "Total Income (Selected)", totExp: "Total Expenses (Selected)", net: "Net Profit",
-            ledger: "Treasury Ledger",
-            thDate: "Date", thType: "Type", thCat: "Category", thAmount: "Amount", thNotes: "Notes", thAct: "Actions",
+            totInc: "Total Income", totExp: "Total Expenses", net: "Net Profit", debt: "Total Debts",
+            ledger: "Treasury & Debts Ledger",
+            thDate: "Date & Time", thType: "Type", thCat: "Category", thAmount: "Amount", thNotes: "Notes", thAct: "Actions",
             mInc: "Record New Income", mExp: "Record New Expense",
             lAmt: "Amount", lDate: "Date", lCat: "Category", lNotes: "Details", btnSave: "Save Transaction",
             catInc1: "Patient Session", catInc2: "Advance Payment", catInc3: "Other Income",
             catExp1: "Medical Supplies", catExp2: "Dental Lab", catExp3: "Salaries", catExp4: "Bills (Rent/Utility)", catExp5: "Other Expenses",
-            bInc: "Income", bExp: "Expense", confDel: "Are you sure you want to delete?", empty: "No financial transactions match your search.",
+            bInc: "Income", bExp: "Expense", bDebt: "Debt", confDel: "Are you sure you want to delete?", empty: "No financial transactions match your search.",
             lSearch: "Search by Details", lType: "Type", lDateFrom: "From Date", lDateTo: "To Date",
-            optAllTypes: "All", optInc: "Income", optExp: "Expense", btnSearch: "🔍 Search"
+            optAllTypes: "All", optInc: "Income", optExp: "Expense", optDebt: "Debts", btnSearch: "🔍 Search"
         }
     };
     const c = t[lang] || t.ar;
@@ -37,14 +39,15 @@ function updatePageContent(lang) {
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub);
     setTxt('btn-add-inc', c.btnInc); setTxt('btn-add-exp', c.btnExp); setTxt('btn-print', c.btnPrint);
-    setTxt('lbl-total-inc', c.totInc); setTxt('lbl-total-exp', c.totExp); setTxt('lbl-net', c.net);
+    setTxt('lbl-total-inc', c.totInc); setTxt('lbl-total-exp', c.totExp); setTxt('lbl-net', c.net); setTxt('lbl-debt', c.debt);
     setTxt('txt-ledger', c.ledger);
     
     setTxt('th-date', c.thDate); setTxt('th-type', c.thType); setTxt('th-cat', c.thCat); setTxt('th-amount', c.thAmount); setTxt('th-notes', c.thNotes); setTxt('th-action', c.thAct);
     setTxt('lbl-amount', c.lAmt); setTxt('lbl-date', c.lDate); setTxt('lbl-cat', c.lCat); setTxt('lbl-notes', c.lNotes); setTxt('btn-save', c.btnSave);
     
     setTxt('lbl-search', c.lSearch); setTxt('lbl-type', c.lType); setTxt('lbl-date-from', c.lDateFrom); setTxt('lbl-date-to', c.lDateTo);
-    setTxt('opt-all-types', c.optAllTypes); setTxt('opt-inc', c.optInc); setTxt('opt-exp', c.optExp);
+    setTxt('opt-all-types', c.optAllTypes); setTxt('opt-inc', c.optInc); setTxt('opt-exp', c.optExp); 
+    if(document.getElementById('opt-debt')) document.getElementById('opt-debt').innerText = c.optDebt;
     
     const searchInput = document.getElementById('search_text');
     if(searchInput) searchInput.placeholder = lang === 'ar' ? "ابحث عن مريض أو ملاحظة..." : "Search patient or note...";
@@ -62,6 +65,12 @@ function setDefaultDates() {
     
     document.getElementById('date_from').value = firstDay;
     document.getElementById('date_to').value = lastDay;
+}
+
+// 🔴 دالة الفلترة السريعة (تشتغل لما تدوس على الكروت اللي فوق)
+function setQuickFilter(type) {
+    document.getElementById('filter_type').value = type;
+    loadFinances();
 }
 
 function resetFilters() {
@@ -129,13 +138,9 @@ async function saveTransaction(e) {
     finally { btn.disabled = false; btn.innerText = window.finLang.btnSave; }
 }
 
-let allTransactionsForEdit = []; 
-
-// 🔴 دالة جلب البيانات معتمدة فقط على جدول Finances لتفادي التكرار 🔴
 async function loadFinances() {
     if (!clinicId) return;
     
-    const searchText = document.getElementById('search_text').value.trim().toLowerCase();
     const filterType = document.getElementById('filter_type').value;
     const dateFrom = document.getElementById('date_from').value;
     const dateTo = document.getElementById('date_to').value;
@@ -143,82 +148,138 @@ async function loadFinances() {
     const tbody = document.getElementById('financesBody');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">جاري تجميع البيانات...</td></tr>';
     
-    let totalInc = 0;
-    let totalExp = 0;
     let combinedData = [];
 
     try {
         let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
 
-        if (dateFrom) {
-            finQuery = finQuery.where("date", ">=", dateFrom);
-        }
-        if (dateTo) {
-            finQuery = finQuery.where("date", "<=", dateTo);
-        }
+        if (dateFrom) { finQuery = finQuery.where("date", ">=", dateFrom); }
+        if (dateTo) { finQuery = finQuery.where("date", "<=", dateTo); }
 
-        // جلب المصروفات (لو الفلتر مش إيرادات بس)
-        if (filterType !== 'income') { 
-            const finSnap = await finQuery.where("type", "==", "expense").get();
-            finSnap.forEach(doc => combinedData.push({ id: doc.id, collection: 'Finances', ...doc.data() }));
-        }
-        // جلب الإيرادات (لو الفلتر مش مصروفات بس)
-        if (filterType !== 'expense') { 
-            const finSnapInc = await finQuery.where("type", "==", "income").get();
-            finSnapInc.forEach(doc => combinedData.push({ id: doc.id, collection: 'Finances', ...doc.data() }));
+        // 🔴 الإصلاح الجذري: لو الفلتر مش "الكل"، بنجيب النوع المطلوب بس، لو "الكل" بيجيب كله (بما فيهم الديون)
+        if (filterType !== 'all') {
+            finQuery = finQuery.where("type", "==", filterType);
         }
 
-        // تم حذف استعلام الـ Sessions بالكامل من هنا لعدم تكرار الإيرادات
+        const finSnap = await finQuery.get();
+        finSnap.forEach(doc => combinedData.push({ id: doc.id, ...doc.data() }));
 
-        if (searchText) {
-            combinedData = combinedData.filter(item => 
-                (item.notes && item.notes.toLowerCase().includes(searchText)) || 
-                (item.category && item.category.toLowerCase().includes(searchText))
-            );
-        }
-
-        combinedData.sort((a, b) => new Date(b.date) - new Date(a.date));
-        allTransactionsForEdit = combinedData;
-
-        tbody.innerHTML = '';
-        if(combinedData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
-        }
-
-        combinedData.forEach(f => {
-            if (f.type === 'income') totalInc += Number(f.amount);
-            else totalExp += Number(f.amount);
-
-            const isInc = f.type === 'income';
-            const badgeClass = isInc ? 'badge-inc' : 'badge-exp';
-            const typeTxt = isInc ? window.finLang.bInc : window.finLang.bExp;
-            const amountColor = isInc ? '#059669' : '#dc2626';
-            const amountSign = isInc ? '+' : '-';
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="font-weight: bold; color: #475569;">${f.date}</td>
-                <td><span class="${badgeClass}">${typeTxt}</span></td>
-                <td>${f.category}</td>
-                <td class="amount-text" style="color: ${amountColor};" dir="ltr">${amountSign} ${f.amount}</td>
-                <td>${f.notes}</td>
-                <td class="no-print" style="text-align: center;">
-                    <button class="btn-primary" style="background:#f59e0b; padding: 5px 10px; font-size:12px; margin-right:5px;" onclick="openEditTrans('${f.id}')">✏️</button>
-                    <button class="btn-danger" style="padding: 5px 10px; font-size:12px;" onclick="deleteTransaction('${f.id}', '${f.collection}')">🗑️</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
+        // ترتيب تنازلي (الأحدث أولاً) وتأمين الحركات القديمة اللي معندهاش Timestamp
+        combinedData.sort((a, b) => {
+            let dateA = new Date(0);
+            let dateB = new Date(0);
+            
+            if (a.createdAt) dateA = typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate() : new Date(a.createdAt);
+            else if (a.date) dateA = new Date(a.date);
+            
+            if (b.createdAt) dateB = typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate() : new Date(b.createdAt);
+            else if (b.date) dateB = new Date(b.date);
+            
+            return dateB - dateA;
         });
 
-        document.getElementById('stat-income').innerText = totalInc.toLocaleString();
-        document.getElementById('stat-expense').innerText = totalExp.toLocaleString();
-        const netProfit = totalInc - totalExp;
-        document.getElementById('stat-net').innerText = netProfit.toLocaleString();
-        document.getElementById('stat-net').style.color = netProfit >= 0 ? '#0284C7' : '#ef4444';
+        allTransactionsForEdit = combinedData;
+        currentDisplayedData = combinedData;
+        
+        filterTransactionsLocally();
 
     } catch (error) {
         console.error("Error loading finances:", error);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل البيانات. برجاء إضافة (Index) من الكونسول إن لزم الأمر.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل البيانات.</td></tr>';
+    }
+}
+
+// الفلترة اللحظية ورسم الجدول
+function filterTransactionsLocally() {
+    const searchText = document.getElementById('search_text').value.trim().toLowerCase();
+    
+    let dataToRender = allTransactionsForEdit;
+    if (searchText) {
+        dataToRender = allTransactionsForEdit.filter(item => 
+            (item.notes && item.notes.toLowerCase().includes(searchText)) || 
+            (item.category && item.category.toLowerCase().includes(searchText))
+        );
+    }
+    
+    renderFinancesTable(dataToRender);
+}
+
+function renderFinancesTable(dataArray) {
+    const tbody = document.getElementById('financesBody');
+    tbody.innerHTML = '';
+    
+    let totalInc = 0;
+    let totalExp = 0;
+    let totalDebt = 0;
+
+    if(dataArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
+    }
+
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+
+    dataArray.forEach(f => {
+        // حساب التجميعات
+        if (f.type === 'income') totalInc += Number(f.amount);
+        else if (f.type === 'expense') totalExp += Number(f.amount);
+        else if (f.type === 'debt') totalDebt += Number(f.amount);
+
+        // 🔴 تأمين عرض التوقيت للحركات القديمة 🔴
+        let timeStr = '---';
+        if (f.createdAt) {
+            try {
+                const d = typeof f.createdAt.toDate === 'function' ? f.createdAt.toDate() : new Date(f.createdAt);
+                timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            } catch(e) { timeStr = '---'; }
+        }
+
+        let badgeClass = 'badge-exp';
+        let typeTxt = window.finLang.bExp;
+        let amountColor = '#dc2626';
+        let amountSign = '-';
+
+        if (f.type === 'income') {
+            badgeClass = 'badge-inc';
+            typeTxt = window.finLang.bInc;
+            amountColor = '#059669';
+            amountSign = '+';
+        } else if (f.type === 'debt') {
+            badgeClass = ''; 
+            typeTxt = window.finLang.bDebt || "مديونية";
+            amountColor = '#d97706'; 
+            amountSign = ''; 
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-weight: bold; color: #475569;">${f.date}</span>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: bold;">${timeStr}</span>
+                </div>
+            </td>
+            <td><span class="${badgeClass}" style="${f.type === 'debt' ? 'background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 12px;' : ''}">${typeTxt}</span></td>
+            <td>${f.category}</td>
+            <td class="amount-text" style="color: ${amountColor}; font-weight: bold;" dir="ltr">${amountSign} ${f.amount}</td>
+            <td>${f.notes || '---'}</td>
+            <td class="no-print" style="text-align: center;">
+                <button class="btn-primary" style="background:#f59e0b; padding: 5px 10px; font-size:12px; margin-right:5px;" onclick="openEditTrans('${f.id}')">✏️</button>
+                <button class="btn-danger" style="padding: 5px 10px; font-size:12px;" onclick="deleteTransaction('${f.id}')">🗑️</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // تحديث الكروت العلوية
+    document.getElementById('stat-income').innerText = totalInc.toLocaleString();
+    document.getElementById('stat-expense').innerText = totalExp.toLocaleString();
+    
+    const netProfit = totalInc - totalExp;
+    document.getElementById('stat-net').innerText = netProfit.toLocaleString();
+    document.getElementById('stat-net').style.color = netProfit >= 0 ? '#0284C7' : '#ef4444';
+    
+    if(document.getElementById('stat-debt')) {
+        document.getElementById('stat-debt').innerText = totalDebt.toLocaleString();
     }
 }
 
@@ -226,7 +287,6 @@ function openEditTrans(docId) {
     const trans = allTransactionsForEdit.find(t => t.id === docId);
     if(!trans) return;
 
-    // تم حذف المنع الخاص بالـ Sessions لأن كل الداتا دلوقتي جاية من Finances
     document.getElementById('edit_trans_id').value = trans.id;
     document.getElementById('edit_trans_amount').value = trans.amount;
     document.getElementById('edit_trans_date').value = trans.date;
@@ -253,7 +313,7 @@ async function updateTransaction(e) {
     } catch(e) { console.error(e); }
 }
 
-async function deleteTransaction(docId, collection) {
+async function deleteTransaction(docId) {
     if(confirm(window.finLang.confDel)) {
         try { 
             await db.collection("Finances").doc(docId).delete(); 
