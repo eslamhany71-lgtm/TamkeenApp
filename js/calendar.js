@@ -104,13 +104,13 @@ function initCalendar() {
             if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
             document.getElementById('det_status').innerText = statusTxt;
 
-            // إخفاء زراير التعديل والاكتمال لو الموعد خلصان
+            // إخفاء زراير الاكتمال والتعديل لو الموعد خلصان، مع ترك زرار الحذف متاح دائماً
             if(props.status === 'completed' || props.status === 'cancelled') {
                 document.getElementById('complete-action-box').style.display = 'none';
-                document.getElementById('edit-delete-actions').style.display = 'none';
+                document.getElementById('edit-action-box').style.display = 'none';
             } else {
                 document.getElementById('complete-action-box').style.display = 'block';
-                document.getElementById('edit-delete-actions').style.display = 'flex';
+                document.getElementById('edit-action-box').style.display = 'block';
             }
 
             document.getElementById('appDetailsModal').style.display = 'flex';
@@ -187,6 +187,7 @@ async function saveAppointment(e) {
     }
 }
 
+// 🔴 دالة الاكتمال وتسجيل الإيرادات والمديونيات 🔴
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -198,10 +199,14 @@ async function markAppAsCompleted() {
     btn.disabled = true;
 
     try {
+        // 1. تحويل حالة الحجز لمكتمل
         await db.collection("Appointments").doc(appId).update({ status: 'completed' });
 
         const patientPhone = props.phone || "غير مسجل";
+        const paidAmount = Number(props.paid) || 0;
+        const remainingAmount = Number(props.remaining) || 0;
 
+        // 2. معالجة ملف المريض (إضافة مديونية لو عليه فلوس)
         const existingPatientQuery = await db.collection("Patients")
             .where("clinicId", "==", currentClinicId)
             .where("phone", "==", patientPhone)
@@ -210,6 +215,7 @@ async function markAppAsCompleted() {
         let patientId = null;
 
         if (existingPatientQuery.empty) {
+            // مريض جديد: ننشئ الملف ونحط فيه المديونية فوراً
             let historyArray = [];
             if(props.history && props.history.length > 0) {
                 historyArray = props.history.split(',').map(item => item.trim()).filter(i => i);
@@ -223,14 +229,21 @@ async function markAppAsCompleted() {
                 gender: props.gender || '',
                 medicalHistory: historyArray,
                 notes: props.notes || '', 
+                totalDebt: remainingAmount, // إضافة المديونية
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             patientId = newPat.id;
         } else {
+            // مريض موجود: نزود على مديونيته القديمة
             patientId = existingPatientQuery.docs[0].id;
+            if (remainingAmount > 0) {
+                await db.collection("Patients").doc(patientId).update({
+                    totalDebt: firebase.firestore.FieldValue.increment(remainingAmount)
+                });
+            }
         }
 
-        const paidAmount = Number(props.paid) || 0;
+        // 3. إنشاء الجلسة في ملف المريض
         await db.collection("Sessions").add({
             clinicId: currentClinicId,
             patientId: patientId,
@@ -238,14 +251,18 @@ async function markAppAsCompleted() {
             procedure: props.type || "كشف / إجراء",
             total: props.total || 0,
             paid: paidAmount,
-            remaining: props.remaining || 0,
+            remaining: remainingAmount,
             notes: props.notes || "",
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 4. تسجيل الحركات في جدول الحسابات (Finances)
+        
+        // أ. تسجيل الإيراد الفعلي (المدفوع)
         if (paidAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: currentClinicId,
+                patientId: patientId,
                 type: 'income',
                 category: 'كشف / جلسة',
                 amount: paidAmount,
@@ -255,7 +272,21 @@ async function markAppAsCompleted() {
             });
         }
 
-        alert("✅ تم تحويل الحجز لجلسة، وتسجيل الإيراد، وحفظ ملف المريض بنجاح!");
+        // ب. تسجيل المديونية (المتبقي)
+        if (remainingAmount > 0) {
+            await db.collection("Finances").add({
+                clinicId: currentClinicId,
+                patientId: patientId,
+                type: 'debt', // نوع جديد لتمييز الديون في الداش بورد
+                category: 'متبقي كشف / جلسة',
+                amount: remainingAmount,
+                date: props.date,
+                notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        alert("✅ تم إتمام الحجز، وتسجيل الإيراد والمديونية (إن وجدت) بنجاح!");
         closeAppDetailsModal();
     } catch (error) {
         console.error("Error completing app:", error);
