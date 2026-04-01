@@ -1,11 +1,10 @@
 const db = firebase.firestore();
+const storage = firebase.storage(); // تفعيل مكتبة التخزين
 const clinicId = sessionStorage.getItem('clinicId');
-let patientsMap = {}; // ID -> Name
+let patientsMap = {}; 
 let currentTab = 'sessions'; 
 let currentSessionIdForUpload = null; 
-let prescriptionsData = {}; 
 
-// 🔴 متغيرات الـ Pagination لمنع إهدار القراءات 🔴
 const ITEMS_PER_PAGE = 50;
 let lastVisibleSession = null;
 let lastVisibleRx = null;
@@ -19,19 +18,19 @@ function updatePageContent(lang) {
             title: "سجل العيادة الشامل", sub: "متابعة أحدث الجلسات والروشتات الصادرة للمرضى",
             search: "بحث باسم المريض...",
             tSess: "🦷 أحدث الجلسات", tPresc: "💊 أحدث الروشتات",
-            thDate: "التاريخ", thPat: "اسم المريض", thProc: "الإجراء الطبي", thTooth: "رقم السن", thNotes: "ملاحظات", thAct: "إجراءات", thMeds: "الأدوية والجرعات",
-            thPaid: "المدفوع", thRemaining: "المتبقي",
-            btnProf: "ملف المريض", btnPrint: "🖨️ طباعة", btnComplete: "✅ مكتمل", btnUpload: "📎 رفع روشتة", btnViewDoc: "👁️ عرض",
-            empty: "لا يوجد بيانات حالياً.", loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد بيانات أخرى"
+            thDate: "التاريخ والوقت", thPat: "اسم المريض", thProc: "الإجراء الطبي", thTooth: "رقم السن", 
+            thTotal: "الإجمالي", thPaid: "المدفوع", thRemaining: "المتبقي", thNotes: "ملاحظات", thAct: "إجراءات", thMeds: "الأدوية والجرعات",
+            btnProf: "ملف المريض", btnPrint: "🖨️ طباعة", btnUpload: "📎 رفع", btnViewDoc: "👁️ عرض", btnDel: "🗑️ حذف",
+            empty: "لا يوجد بيانات حالياً.", loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد بيانات أخرى", confDel: "هل أنت متأكد من حذف هذه الجلسة نهائياً؟"
         },
         en: {
             title: "Clinic Global Log", sub: "Monitor latest sessions and prescriptions",
             search: "Search by patient name...",
             tSess: "🦷 Latest Sessions", tPresc: "💊 Latest Prescriptions",
-            thDate: "Date", thPat: "Patient Name", thProc: "Procedure", thTooth: "Tooth", thNotes: "Notes", thAct: "Actions", thMeds: "Medications",
-            thPaid: "Paid", thRemaining: "Remaining",
-            btnProf: "Profile", btnPrint: "🖨️ Print", btnComplete: "✅ Complete", btnUpload: "📎 Upload Rx", btnViewDoc: "👁️ View",
-            empty: "No data available.", loadMore: "⬇️ Load More...", noMore: "No more data"
+            thDate: "Date & Time", thPat: "Patient Name", thProc: "Procedure", thTooth: "Tooth", 
+            thTotal: "Total", thPaid: "Paid", thRemaining: "Remaining", thNotes: "Notes", thAct: "Actions", thMeds: "Medications",
+            btnProf: "Profile", btnPrint: "🖨️ Print", btnUpload: "📎 Upload", btnViewDoc: "👁️ View", btnDel: "🗑️ Delete",
+            empty: "No data available.", loadMore: "⬇️ Load More...", noMore: "No more data", confDel: "Are you sure you want to delete this session?"
         }
     };
     const c = t[lang] || t.ar;
@@ -41,13 +40,13 @@ function updatePageContent(lang) {
     document.getElementById('searchInput').placeholder = c.search;
     setTxt('tab-all-sessions', c.tSess); setTxt('tab-all-prescriptions', c.tPresc);
     
-    setTxt('th-s-date', c.thDate); setTxt('th-s-patient', c.thPat); setTxt('th-s-proc', c.thProc); setTxt('th-s-tooth', c.thTooth); setTxt('th-s-paid', c.thPaid); setTxt('th-s-remaining', c.thRemaining); setTxt('th-s-action', c.thAct);
+    setTxt('th-s-date', c.thDate); setTxt('th-s-patient', c.thPat); setTxt('th-s-proc', c.thProc); setTxt('th-s-tooth', c.thTooth); 
+    setTxt('th-s-total', c.thTotal); setTxt('th-s-paid', c.thPaid); setTxt('th-s-remaining', c.thRemaining); setTxt('th-s-action', c.thAct);
     setTxt('th-p-date', c.thDate); setTxt('th-p-patient', c.thPat); setTxt('th-p-meds', c.thMeds); setTxt('th-p-action', c.thAct);
 
     window.globalStrings = c;
 }
 
-// 2. التبديل بين التابات
 function switchTab(tabId, element) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -55,21 +54,16 @@ function switchTab(tabId, element) {
     document.getElementById(`content-${tabId}`).classList.add('active');
     currentTab = tabId === 'all-sessions' ? 'sessions' : 'prescriptions';
     
-    // تحميل الداتا لو مكنتش متحملة
     if (currentTab === 'sessions' && loadedSessions.length === 0) loadSessions();
     if (currentTab === 'prescriptions' && loadedPrescriptions.length === 0) loadPrescriptions();
 }
 
-// 🔴 3. جلب أسماء المرضى المطلوبة فقط (Read-Saver) 🔴
 async function fetchMissingPatients(patientIds) {
     const missingIds = patientIds.filter(id => !patientsMap[id]);
     if (missingIds.length === 0) return;
     
-    // الفايربيز بيسمح بـ 10 أيديهات كحد أقصى في استعلام (in)، فهنقسمهم مجموعات
     const chunks = [];
-    for (let i = 0; i < missingIds.length; i += 10) {
-        chunks.push(missingIds.slice(i, i + 10));
-    }
+    for (let i = 0; i < missingIds.length; i += 10) { chunks.push(missingIds.slice(i, i + 10)); }
     
     for (const chunk of chunks) {
         try {
@@ -79,14 +73,16 @@ async function fetchMissingPatients(patientIds) {
     }
 }
 
-// 🔴 4. جلب الجلسات بالـ Pagination ومنع التكرار 🔴
+// ==========================================
+// 🔴 قسم الجلسات 🔴
+// ==========================================
 async function loadSessions(isLoadMore = false) {
     if (!clinicId) return;
     const tbody = document.getElementById('sessionsBody');
     const btnMore = document.getElementById('btn-load-more-sessions');
 
     if (!isLoadMore) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري التحميل...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">جاري التحميل...</td></tr>';
         loadedSessions = [];
         lastVisibleSession = null;
     } else {
@@ -101,7 +97,6 @@ async function loadSessions(isLoadMore = false) {
         if (!snap.empty) {
             lastVisibleSession = snap.docs[snap.docs.length - 1];
             
-            // استخراج الأيديهات لطلب أساميهم
             const pIds = [];
             snap.forEach(doc => {
                 const s = doc.data();
@@ -120,55 +115,63 @@ async function loadSessions(isLoadMore = false) {
             
             if (snap.docs.length === ITEMS_PER_PAGE) {
                 btnMore.style.display = 'block';
-                btnMore.innerText = window.globalStrings.loadMore || "⬇️ تحميل المزيد...";
+                btnMore.innerText = window.globalStrings.loadMore;
             } else { btnMore.style.display = 'none'; }
         } else {
-            if (!isLoadMore) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">${window.globalStrings.empty}</td></tr>`;
-            else { btnMore.innerText = window.globalStrings.noMore || "لا يوجد المزيد"; setTimeout(() => btnMore.style.display = 'none', 2000); }
+            if (!isLoadMore) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b;">${window.globalStrings.empty}</td></tr>`;
+            else { btnMore.innerText = window.globalStrings.noMore; setTimeout(() => btnMore.style.display = 'none', 2000); }
         }
     } catch(e) { console.error(e); } finally { if(isLoadMore) btnMore.disabled = false; }
 }
 
-// 🔴 دالة رسم الجلسات (مع فلتر منع التكرار للمريض) 🔴
 function renderSessions(dataToRender = loadedSessions) {
     const tbody = document.getElementById('sessionsBody');
     tbody.innerHTML = '';
     
     if(dataToRender.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">${window.globalStrings.empty}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b;">${window.globalStrings.empty}</td></tr>`;
         return;
     }
 
-    const seenPatients = new Set(); // مصفاة منع التكرار
+    const seenPatients = new Set();
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
     dataToRender.forEach(s => {
-        // لو المريض ده اتعرضله جلسة قبل كده في اللستة دي، نتجاهل الجلسات القديمة بتاعته
         if (seenPatients.has(s.patientId)) return; 
         seenPatients.add(s.patientId);
 
         const patName = patientsMap[s.patientId] || "مريض غير معروف"; 
+        
+        // استخراج التوقيت
+        let timeStr = '';
+        if (s.createdAt) {
+            const d = s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
+            timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+        }
+
+        const total = s.total || 0;
         const paid = s.paid || 0;
         const remaining = s.remaining || 0;
         
         const tr = document.createElement('tr');
         
-        // هنا حلينا مشكلة الـ Routing وبنبعت s.patientId
-        let actionButtons = `<button class="btn-action btn-open" onclick="goToPatientProfile('${s.patientId}')">${window.globalStrings.btnProf}</button>`;
-        
-        if(remaining > 0) {
-            actionButtons += `<button class="btn-action" style="background:#10b981; color:white; border:none;" onclick="markSessionComplete('${s.id}', ${paid}, ${remaining})">${window.globalStrings.btnComplete}</button>`;
-        }
-
         tr.innerHTML = `
-            <td><span class="data-badge">${s.date}</span></td>
+            <td>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <span class="data-badge">${s.date}</span>
+                    <span style="font-size: 11px; color: #64748b; margin-top: 4px;">${timeStr}</span>
+                </div>
+            </td>
             <td style="font-weight:bold; color:#0f172a;">${patName}</td>
             <td>${s.procedure}</td>
-            <td dir="ltr" style="text-align:start;">${s.tooth || '-'}</td>
+            <td dir="ltr" style="text-align: center; font-weight: bold; color: #0284c7;">${s.tooth || '-'}</td>
+            <td style="font-weight:bold;">${total}</td>
             <td style="color:#10b981; font-weight:bold;">${paid}</td>
             <td style="color:${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight:bold;">${remaining}</td>
             <td>
-                <div class="action-group">
-                    ${actionButtons}
+                <div class="action-group" style="justify-content: center;">
+                    <button class="btn-action btn-open" onclick="goToPatientProfile('${s.patientId}')" title="ملف المريض">📂</button>
+                    <button class="btn-action btn-delete" onclick="deleteSession('${s.id}')" title="حذف الجلسة">🗑️</button>
                 </div>
             </td>
         `;
@@ -176,26 +179,19 @@ function renderSessions(dataToRender = loadedSessions) {
     });
 }
 
-// دالة زرار "مكتمل"
-function markSessionComplete(sessionId, currentPaid, currentRemaining) {
-    if(confirm("هل أنت متأكد من إنهاء الجلسة وتصفير المتبقي؟ (سيتم إضافة المتبقي للمدفوع)")) {
-        const totalPaid = Number(currentPaid) + Number(currentRemaining);
-        db.collection("Sessions").doc(sessionId).update({
-            paid: totalPaid,
-            remaining: 0
-        }).then(() => {
-            // تحديث محلي سريع بدون ريفرش
-            const sessionIndex = loadedSessions.findIndex(s => s.id === sessionId);
-            if (sessionIndex > -1) {
-                loadedSessions[sessionIndex].paid = totalPaid;
-                loadedSessions[sessionIndex].remaining = 0;
-                renderSessions();
-            }
-        }).catch(err => { alert("حدث خطأ أثناء التحديث."); });
+async function deleteSession(sessionId) {
+    if(confirm(window.globalStrings.confDel || "هل أنت متأكد من حذف هذه الجلسة؟")) {
+        try {
+            await db.collection("Sessions").doc(sessionId).delete();
+            loadedSessions = loadedSessions.filter(s => s.id !== sessionId);
+            renderSessions();
+        } catch(e) { console.error(e); }
     }
 }
 
-// 🔴 5. جلب الروشتات بالـ Pagination ومنع التكرار 🔴
+// ==========================================
+// 🔴 قسم الروشتات ورفع الملفات 🔴
+// ==========================================
 async function loadPrescriptions(isLoadMore = false) {
     if (!clinicId) return;
     const tbody = document.getElementById('prescriptionsBody');
@@ -235,11 +231,11 @@ async function loadPrescriptions(isLoadMore = false) {
             
             if (snap.docs.length === ITEMS_PER_PAGE) {
                 btnMore.style.display = 'block';
-                btnMore.innerText = window.globalStrings.loadMore || "⬇️ تحميل المزيد...";
+                btnMore.innerText = window.globalStrings.loadMore;
             } else { btnMore.style.display = 'none'; }
         } else {
             if (!isLoadMore) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b;">${window.globalStrings.empty}</td></tr>`;
-            else { btnMore.innerText = window.globalStrings.noMore || "لا يوجد المزيد"; setTimeout(() => btnMore.style.display = 'none', 2000); }
+            else { btnMore.innerText = window.globalStrings.noMore; setTimeout(() => btnMore.style.display = 'none', 2000); }
         }
     } catch(e) { console.error(e); } finally { if(isLoadMore) btnMore.disabled = false; }
 }
@@ -254,21 +250,41 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
     }
 
     const seenPatients = new Set(); 
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
     dataToRender.forEach(p => {
         if (seenPatients.has(p.patientId)) return; 
         seenPatients.add(p.patientId);
 
+        let timeStr = '';
+        if (p.createdAt) {
+            const d = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+            timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+        }
+
         const patName = patientsMap[p.patientId] || "مريض غير معروف";
         const tr = document.createElement('tr');
+        
+        // زراير الروشتة (رفع وعرض)
+        let rxButtons = `<button class="btn-action" style="background:#f59e0b; color:white; border:none;" onclick="triggerUploadRx('${p.id}')" title="رفع صورة/ملف للروشتة">📎</button>`;
+        if(p.imageUrl) {
+            rxButtons += `<button class="btn-action" style="background:#3b82f6; color:white; border:none;" onclick="window.open('${p.imageUrl}', '_blank')" title="عرض الروشتة المرفوعة">👁️</button>`;
+        }
+
         tr.innerHTML = `
-            <td><span class="data-badge">${p.date}</span></td>
+            <td>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <span class="data-badge">${p.date}</span>
+                    <span style="font-size: 11px; color: #64748b; margin-top: 4px;">${timeStr}</span>
+                </div>
+            </td>
             <td style="font-weight:bold; color:#0f172a;">${patName}</td>
             <td><div class="presc-text">${p.medications}</div></td>
             <td>
-                <div class="action-group">
-                    <button class="btn-action btn-print" onclick="printGlobalPrescription('${p.id}', '${patName}')">${window.globalStrings.btnPrint}</button>
-                    <button class="btn-action btn-open" onclick="goToPatientProfile('${p.patientId}')">${window.globalStrings.btnProf}</button>
+                <div class="action-group" style="justify-content: center;">
+                    ${rxButtons}
+                    <button class="btn-action btn-print" onclick="printGlobalPrescription('${p.id}', '${patName}')" title="طباعة">🖨️</button>
+                    <button class="btn-action btn-open" onclick="goToPatientProfile('${p.patientId}')" title="ملف المريض">📂</button>
                 </div>
             </td>
         `;
@@ -276,11 +292,58 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
     });
 }
 
-// 6. البحث الذكي (بحث محلي لتوفير القراءات)
+// دوال رفع الروشتة
+function triggerUploadRx(rxId) {
+    currentSessionIdForUpload = rxId;
+    document.getElementById('uploadPrescriptionInput').click();
+}
+
+document.getElementById('uploadPrescriptionInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file || !currentSessionIdForUpload) return;
+    
+    alert(window.globalStrings.uploading || "جاري رفع الروشتة... يرجى الانتظار.");
+    
+    try {
+        const storageRef = storage.ref(`prescriptions/${clinicId}/${currentSessionIdForUpload}_${file.name}`);
+        await storageRef.put(file);
+        const url = await storageRef.getDownloadURL();
+        
+        await db.collection("Prescriptions").doc(currentSessionIdForUpload).update({ imageUrl: url });
+        
+        // تحديث محلي سريع
+        const rxIndex = loadedPrescriptions.findIndex(p => p.id === currentSessionIdForUpload);
+        if(rxIndex > -1) {
+            loadedPrescriptions[rxIndex].imageUrl = url;
+            renderPrescriptions();
+        }
+        
+        alert("✅ تم رفع الروشتة بنجاح!");
+    } catch (error) {
+        console.error("Upload error:", error);
+        alert("❌ حدث خطأ أثناء الرفع.");
+    } finally {
+        e.target.value = ''; // تصفير الحقل
+    }
+});
+
+// 🔴 6. البحث الذكي (بحث محلي لتوفير القراءات + لايف) 🔴
 function searchActivity() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
-    if(!input) { resetSearch(); return; }
     
+    if(!input) {
+        // لو مسح البحث، نرجع نعرض المصفوفة الأصلية
+        if(currentTab === 'sessions') {
+            renderSessions(loadedSessions);
+            document.getElementById('btn-load-more-sessions').style.display = loadedSessions.length >= ITEMS_PER_PAGE ? 'block' : 'none';
+        } else {
+            renderPrescriptions(loadedPrescriptions);
+            document.getElementById('btn-load-more-rx').style.display = loadedPrescriptions.length >= ITEMS_PER_PAGE ? 'block' : 'none';
+        }
+        return; 
+    }
+    
+    // فلترة لايف سريعة جداً
     if(currentTab === 'sessions') {
         const filtered = loadedSessions.filter(s => {
             const pName = (patientsMap[s.patientId] || "").toLowerCase();
@@ -300,14 +363,7 @@ function searchActivity() {
 
 function resetSearch() {
     document.getElementById('searchInput').value = '';
-    if(currentTab === 'sessions') { 
-        renderSessions(); 
-        if (loadedSessions.length >= ITEMS_PER_PAGE) document.getElementById('btn-load-more-sessions').style.display = 'block'; 
-    }
-    else { 
-        renderPrescriptions(); 
-        if (loadedPrescriptions.length >= ITEMS_PER_PAGE) document.getElementById('btn-load-more-rx').style.display = 'block'; 
-    }
+    searchActivity(); // نشغل دالة البحث وهي فاضية هترجع كل حاجة لأصلها
 }
 
 // 7. دالة الطباعة وتوجيه البروفايل
