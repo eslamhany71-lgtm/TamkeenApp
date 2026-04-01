@@ -12,6 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 
@@ -23,7 +24,7 @@
         
         <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <div style="display: flex; gap: 5px; flex: 1; min-width: 250px;">
-                <input type="text" id="searchInput" class="search-box" placeholder="بحث باسم المريض..." style="flex: 1;">
+                <input type="text" id="searchInput" class="search-box" oninput="searchActivity()" placeholder="بحث باسم المريض..." style="flex: 1;">
                 <button class="btn-primary" onclick="searchActivity()" id="btn-do-search" style="padding: 10px 15px; border-radius: 8px;">🔍 بحث</button>
                 <button class="btn-danger" onclick="resetSearch()" style="padding: 10px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;" title="إعادة ضبط">🔄</button>
             </div>
@@ -40,17 +41,16 @@
             <table id="sessionsTable">
                 <thead>
                     <tr>
-                        <th id="th-s-date">التاريخ</th>
+                        <th id="th-s-date">التاريخ والوقت</th>
                         <th id="th-s-patient">اسم المريض</th>
                         <th id="th-s-proc">الإجراء الطبي</th>
-                        <th id="th-s-tooth">رقم السن</th>
-                        <th id="th-s-paid">المدفوع</th>
+                        <th id="th-s-tooth" style="text-align: center;">رقم السن</th> <th id="th-s-total">الإجمالي</th> <th id="th-s-paid">المدفوع</th>
                         <th id="th-s-remaining">المتبقي</th>
                         <th id="th-s-action" style="text-align: center;">إجراءات</th>
                     </tr>
                 </thead>
                 <tbody id="sessionsBody">
-                    <tr><td colspan="7" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+                    <tr><td colspan="8" style="text-align: center;">جاري تحميل البيانات...</td></tr>
                 </tbody>
             </table>
             
@@ -67,7 +67,7 @@
             <table id="prescriptionsTable">
                 <thead>
                     <tr>
-                        <th id="th-p-date">التاريخ</th>
+                        <th id="th-p-date">التاريخ والوقت</th>
                         <th id="th-p-patient">اسم المريض</th>
                         <th id="th-p-meds">الأدوية والجرعات</th>
                         <th id="th-p-action" style="text-align: center;">إجراءات</th>
