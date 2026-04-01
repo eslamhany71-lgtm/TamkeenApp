@@ -2,6 +2,7 @@ const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
 let currentEditPatientId = null;
 let patientsDataArray = []; 
+let filteredPatientsArray = []; // مصفوفة جديدة للفلترة الذكية
 
 // 🔴 متغيرات الـ Pagination للتحكم في قراءات الفايربيز
 const PATIENTS_PER_PAGE = 50;
@@ -14,7 +15,7 @@ function updatePageContent(lang) {
         ar: {
             title: "إدارة المرضى", sub: "قائمة المرضى المسجلين بالعيادة والتاريخ الطبي",
             search: "بحث بالاسم أو رقم الموبايل...", btnAdd: "إضافة مريض",
-            thName: "اسم المريض", thPhone: "رقم الموبايل", thAge: "السن", thHistory: "تنبيهات طبية", thNotes: "الملاحظات", thAction: "إجراءات",
+            thDate: "التاريخ والوقت", thName: "اسم المريض", thPhone: "رقم الموبايل", thDebt: "المديونية", thAge: "السن", thHistory: "تنبيهات طبية", thNotes: "الملاحظات", thAction: "إجراءات",
             mTitleAdd: "تسجيل مريض جديد", mTitleEdit: "تعديل بيانات المريض", lName: "اسم المريض بالكامل", lPhone: "رقم الموبايل", lAge: "السن", lGender: "النوع",
             optM: "ذكر", optF: "أنثى", lHistory: "التاريخ الطبي والأمراض المزمنة (إن وجد)", 
             cDiab: "مرض السكر", cBp: "ضغط الدم", cBleed: "سيولة بالدم", cAllg: "حساسية بنج",
@@ -25,7 +26,7 @@ function updatePageContent(lang) {
         en: {
             title: "Patients Management", sub: "List of registered clinic patients and medical history",
             search: "Search by name or phone...", btnAdd: "Add Patient",
-            thName: "Patient Name", thPhone: "Phone Number", thAge: "Age", thHistory: "Medical Alerts", thNotes: "Notes", thAction: "Actions",
+            thDate: "Date & Time", thName: "Patient Name", thPhone: "Phone Number", thDebt: "Debt", thAge: "Age", thHistory: "Medical Alerts", thNotes: "Notes", thAction: "Actions",
             mTitleAdd: "Register New Patient", mTitleEdit: "Edit Patient Data", lName: "Full Name", lPhone: "Phone Number", lAge: "Age", lGender: "Gender",
             optM: "Male", optF: "Female", lHistory: "Medical History & Chronic Diseases", 
             cDiab: "Diabetes", cBp: "Blood Pressure", cBleed: "Bleeding", cAllg: "Anesthesia Allergy",
@@ -39,7 +40,11 @@ function updatePageContent(lang) {
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('btn-add-txt', c.btnAdd);
     document.getElementById('searchInput').placeholder = c.search;
-    setTxt('th-name', c.thName); setTxt('th-phone', c.thPhone); setTxt('th-age', c.thAge); setTxt('th-history', c.thHistory); setTxt('th-notes', c.thNotes); setTxt('th-action', c.thAction);
+    
+    // ربط عناوين الجدول بالترجمة
+    setTxt('th-date', c.thDate); setTxt('th-name', c.thName); setTxt('th-phone', c.thPhone); setTxt('th-debt', c.thDebt); 
+    setTxt('th-age', c.thAge); setTxt('th-history', c.thHistory); setTxt('th-notes', c.thNotes); setTxt('th-action', c.thAction);
+    
     setTxt('lbl-p-name', c.lName); setTxt('lbl-p-phone', c.lPhone); setTxt('lbl-p-age', c.lAge); setTxt('lbl-p-gender', c.lGender);
     setTxt('opt-male', c.optM); setTxt('opt-female', c.optF); setTxt('lbl-p-history', c.lHistory);
     setTxt('chk-diab', c.cDiab); setTxt('chk-bp', c.cBp); setTxt('chk-bleed', c.cBleed); setTxt('chk-allg', c.cAllg);
@@ -109,17 +114,21 @@ async function savePatient(e) {
     try {
         if (currentEditPatientId) {
             await db.collection("Patients").doc(currentEditPatientId).update(patientData);
-            // تعديل في المصفوفة المحلية وعمل ريفرش خفيف
             const index = patientsDataArray.findIndex(p => p.id === currentEditPatientId);
-            if(index !== -1) patientsDataArray[index] = { ...patientsDataArray[index], ...patientData };
+            if(index !== -1) {
+                // دمج البيانات الجديدة مع القديمة (عشان نحافظ على المديونية والتاريخ)
+                patientsDataArray[index] = { ...patientsDataArray[index], ...patientData };
+            }
         } else {
+            patientData.totalDebt = 0; // مريض جديد مفيش عليه ديون
             patientData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             const docRef = await db.collection("Patients").add(patientData);
-            // إضافة للمصفوفة المحلية في الأول
-            patientsDataArray.unshift({ id: docRef.id, ...patientData });
+            // نضيفه للمصفوفة بتاريخ وهمي (الآن) عشان يظهر فوراً في الجدول
+            patientsDataArray.unshift({ id: docRef.id, ...patientData, createdAt: { toDate: () => new Date() } });
         }
         closePatientModal();
-        renderPatientsTable(); // إعادة رسم الجدول بدون ما نسحب من الفايربيز تاني
+        filteredPatientsArray = [...patientsDataArray];
+        renderPatientsTable(); 
     } catch (error) { console.error(error); } 
     finally { btn.disabled = false; btn.innerText = window.langVars.btnSave; }
 }
@@ -129,13 +138,14 @@ async function deletePatient(patientId) {
         try { 
             await db.collection("Patients").doc(patientId).delete(); 
             patientsDataArray = patientsDataArray.filter(p => p.id !== patientId);
+            filteredPatientsArray = [...patientsDataArray];
             renderPatientsTable();
         } 
         catch (error) { console.error(error); }
     }
 }
 
-// 🔴 6. جلب المرضى بالتقسيم (Pagination) لتوفير القراءات 🔴
+// 6. جلب المرضى بالتقسيم
 async function loadPatients(isLoadMore = false) {
     if (!currentClinicId) return;
     isSearchMode = false;
@@ -144,7 +154,7 @@ async function loadPatients(isLoadMore = false) {
     const loadMoreBtn = document.getElementById('btn-load-more');
 
     if (!isLoadMore) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري تحميل البيانات...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">جاري تحميل البيانات...</td></tr>';
         patientsDataArray = [];
         lastVisibleDoc = null;
     } else {
@@ -173,9 +183,9 @@ async function loadPatients(isLoadMore = false) {
                 patientsDataArray.push(p);
             });
             
+            filteredPatientsArray = [...patientsDataArray];
             renderPatientsTable();
             
-            // لو اللي رجعوا 50 بالظبط، يبقى احتمال فيه لسه مرضى تانيين
             if(snap.docs.length === PATIENTS_PER_PAGE) {
                 loadMoreBtn.style.display = 'block';
                 loadMoreBtn.innerText = window.langVars.loadMore;
@@ -184,7 +194,7 @@ async function loadPatients(isLoadMore = false) {
             }
         } else {
             if (!isLoadMore) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">${window.langVars.empty}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color:#64748b;">${window.langVars.empty}</td></tr>`;
             } else {
                 loadMoreBtn.innerText = window.langVars.noMore;
                 setTimeout(() => loadMoreBtn.style.display = 'none', 2000);
@@ -197,73 +207,93 @@ async function loadPatients(isLoadMore = false) {
     }
 }
 
-function loadMorePatients() {
-    loadPatients(true);
+function loadMorePatients() { loadPatients(true); }
+
+// 🔴 7. الفلترة الذكية (Local Filter) للسرعة الصاروخية 🔴
+function filterPatientsLocally() {
+    const input = document.getElementById('searchInput').value.trim().toLowerCase();
+    
+    if (!input) {
+        filteredPatientsArray = [...patientsDataArray];
+    } else {
+        filteredPatientsArray = patientsDataArray.filter(p => {
+            return (p.name && p.name.toLowerCase().includes(input)) || 
+                   (p.phone && p.phone.includes(input));
+        });
+    }
+    renderPatientsTable();
 }
 
-// 🔴 7. البحث الذكي (يجمع بين البحث المحلي وبحث الفايربيز) 🔴
+// البحث الدقيق (في كل الداتا بيز لو المريض مش في الـ 50 اللي اتسحبوا)
 async function searchPatients() {
-    const input = document.getElementById('searchInput').value.trim();
+    const input = document.getElementById('searchInput').value.trim().toLowerCase();
     const loadMoreBtn = document.getElementById('btn-load-more');
     const tbody = document.getElementById('patientsBody');
 
-    if (!input) {
-        resetPatientSearch();
-        return;
-    }
+    if (!input) { resetPatientSearch(); return; }
 
     isSearchMode = true;
-    loadMoreBtn.style.display = 'none'; // نخفي زرار التحميل لأننا في بحث
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري البحث...</td></tr>';
+    loadMoreBtn.style.display = 'none'; 
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">جاري البحث...</td></tr>';
 
     try {
-        // بما إن الفايربيز مفيهوش Full-text search مجاني، إحنا هنجيب كل مرضى العيادة (مرة واحدة بس وتتكيش) 
-        // عشان نقدر نبحث بأي جزء من الاسم أو الرقم.
         const snap = await db.collection("Patients").where("clinicId", "==", currentClinicId).get();
         let searchResults = [];
 
         snap.forEach(doc => {
             const p = doc.data();
-            const lowerInput = input.toLowerCase();
-            if ((p.name && p.name.toLowerCase().includes(lowerInput)) || (p.phone && p.phone.includes(lowerInput))) {
+            if ((p.name && p.name.toLowerCase().includes(input)) || (p.phone && p.phone.includes(input))) {
                 p.id = doc.id;
                 searchResults.push(p);
             }
         });
 
-        // ترتيب النتائج المبحوث عنها بالتاريخ
         searchResults.sort((a, b) => {
             let d1 = a.createdAt ? a.createdAt.toDate() : new Date(0);
             let d2 = b.createdAt ? b.createdAt.toDate() : new Date(0);
             return d2 - d1;
         });
 
-        patientsDataArray = searchResults; // نعرض نتايج البحث
+        filteredPatientsArray = searchResults;
         renderPatientsTable();
 
-    } catch (error) {
-        console.error("Search Error:", error);
-    }
+    } catch (error) { console.error("Search Error:", error); }
 }
 
 function resetPatientSearch() {
     document.getElementById('searchInput').value = '';
-    loadPatients(); // نرجع نحمل أول 50 مريض تاني
+    loadPatients(); 
 }
 
-// دالة رسم الجدول (فصلناها عشان نستخدمها بعد الإضافة أو البحث بدون تحميل من الفايربيز)
+// دالة رسم الجدول المحدثة (بتعرض التاريخ والمديونية)
 function renderPatientsTable() {
     const tbody = document.getElementById('patientsBody');
     tbody.innerHTML = '';
     
-    if(patientsDataArray.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">لا توجد نتائج مطابقة</td></tr>`;
+    if(filteredPatientsArray.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color:#64748b;">لا توجد نتائج مطابقة</td></tr>`;
         return;
     }
 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
-    patientsDataArray.forEach(p => {
+    filteredPatientsArray.forEach(p => {
+        // 1. تظبيط التاريخ والوقت
+        let dateStr = '---';
+        let timeStr = '';
+        if (p.createdAt) {
+            const dateObj = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+            dateStr = dateObj.toLocaleDateString(isAr ? 'ar-EG' : 'en-US');
+            timeStr = dateObj.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+        }
+
+        // 2. تظبيط المديونية
+        let debtAmount = p.totalDebt || 0;
+        let debtHtml = debtAmount > 0 
+            ? `<span style="color: #ef4444; font-weight: bold; background: #fee2e2; padding: 4px 8px; border-radius: 6px;">${debtAmount} ج.م</span>`
+            : `<span style="color: #10b981;">0 ج.م</span>`;
+
+        // 3. تظبيط الأمراض المزمنة
         let historyTags = '';
         if (p.medicalHistory && p.medicalHistory.length > 0) {
             p.medicalHistory.forEach(disease => {
@@ -278,14 +308,21 @@ function renderPatientsTable() {
             <td style="text-align: center;">
                 <input type="checkbox" class="custom-checkbox row-checkbox" value="${p.id}" onclick="updateBulkActionBar()">
             </td>
-            <td style="font-weight: 600;">${p.name}</td>
-            <td dir="ltr" style="text-align: start;">${p.phone}</td>
-            <td>${p.age}</td>
-            <td>${historyTags}</td>
-            <td style="color: #64748b; font-size: 14px;">${p.notes || '---'}</td>
             <td>
-                <div class="action-group">
-                    <button class="btn-action btn-open" onclick="openMedicalProfile('${p.id}')" title="فتح الملف">📂</button>
+                <div style="display: flex; flex-direction: column;">
+                    <span style="font-weight: 600;">${dateStr}</span>
+                    <span style="color: #64748b; font-size: 12px;">${timeStr}</span>
+                </div>
+            </td>
+            <td style="font-weight: 600; color: #0f172a;">${p.name}</td>
+            <td dir="ltr" style="text-align: start;">${p.phone}</td>
+            <td style="text-align: center;">${debtHtml}</td>
+            <td style="text-align: center;">${p.age}</td>
+            <td>${historyTags}</td>
+            <td style="color: #64748b; font-size: 14px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.notes || ''}">${p.notes || '---'}</td>
+            <td>
+                <div class="action-group" style="justify-content: center;">
+                    <button class="btn-action btn-open" onclick="openMedicalProfile('${p.id}')" title="فتح الملف الطبي">📂</button>
                     <button class="btn-action btn-edit" onclick="openPatientModal('${p.id}')" title="تعديل">✏️</button>
                     <button class="btn-action btn-delete" onclick="deletePatient('${p.id}')" title="حذف">🗑️</button>
                 </div>
@@ -340,8 +377,8 @@ async function deleteSelectedPatients() {
             });
             await batch.commit();
             
-            // حذفهم من المصفوفة المحلية ورسم الجدول
             patientsDataArray = patientsDataArray.filter(p => !idsToDelete.includes(p.id));
+            filteredPatientsArray = [...patientsDataArray];
             renderPatientsTable();
         } catch (error) {
             console.error(error);
