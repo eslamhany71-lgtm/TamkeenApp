@@ -255,7 +255,7 @@ function renderFinancesTable(dataArray) {
             <td>
                 <div style="display: flex; flex-direction: column;">
                     <span style="font-weight: bold; color: #475569;">${f.date}</span>
-                    <span style="font-size: 11px; color: #94a3b8; font-weight: bold;">${timeStr}</span>
+                    <span style="font-size: 14px; color: #94a3b8; font-weight: bold;">${timeStr}</span>
                 </div>
             </td>
             <td><span class="${badgeClass}" style="${f.type === 'debt' ? 'background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 12px;' : ''}">${typeTxt}</span></td>
