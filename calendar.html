@@ -138,13 +138,16 @@
                 <p style="margin: 0; font-size: 16px;"><strong>📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
             </div>
 
-            <div id="complete-action-box" style="margin-bottom: 15px;">
+            <div id="complete-action-box" style="margin-bottom: 10px;">
                 <button class="btn-success" id="btn-complete-app" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)</button>
             </div>
 
-            <div id="edit-delete-actions" style="display: flex; gap: 10px;">
-                <button class="btn-action-primary" onclick="openEditModal()" style="flex: 1; padding: 10px; background: #0284C7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✏️ تعديل الحجز</button>
-                <button class="btn-action-danger" onclick="deleteAppointment()" style="flex: 1; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ حذف الحجز</button>
+            <div id="edit-action-box" style="margin-bottom: 15px;">
+                <button class="btn-action-primary" onclick="openEditModal()" style="width: 100%; padding: 10px; background: #0284C7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✏️ تعديل الحجز</button>
+            </div>
+
+            <div id="delete-action-box">
+                <button class="btn-action-danger" onclick="deleteAppointment()" style="width: 100%; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ حذف الحجز</button>
             </div>
         </div>
     </div>
