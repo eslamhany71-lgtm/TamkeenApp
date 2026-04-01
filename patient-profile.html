@@ -39,7 +39,7 @@
                 <div class="patient-info">
                     <div class="patient-avatar">👤</div>
                     <div>
-                        <h1 id="prof-name">جاري التحميل...</h1>
+                        <h1 id="prof-name" style="display: flex; align-items: center; flex-wrap: wrap;">جاري التحميل...</h1>
                         <div class="patient-meta">
                             <span id="prof-phone" dir="ltr">📞 ---</span>
                             <span id="prof-age">🎂 --- سنة</span>
@@ -54,8 +54,7 @@
                 <h3 id="txt-sess-title" style="margin: 0;">سجل الجلسات العلاجية</h3>
                 
                 <div style="display: flex; gap: 5px; flex: 1; justify-content: flex-end; align-items: center; min-width: 300px;">
-                    <input type="text" id="searchSessionInput" class="search-box" placeholder="بحث بالتاريخ، الإجراء، أو الملاحظة..." style="max-width: 250px;">
-                    <button class="btn-primary" onclick="searchSessions()" id="btn-do-search" style="padding: 10px 15px; border-radius: 8px;">🔍 بحث</button>
+                    <input type="text" id="searchSessionInput" class="search-box" oninput="searchSessions()" placeholder="بحث بالتاريخ، الإجراء..." style="max-width: 250px;">
                     <button class="btn-danger" onclick="resetSessionSearch()" style="padding: 10px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;" title="إعادة ضبط">🔄</button>
                     <button class="btn-primary" onclick="openModal('sessionModal')" id="btn-add-sess" style="white-space: nowrap; margin-right: 10px;">➕ إضافة جلسة</button>
                 </div>
