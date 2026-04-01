@@ -45,13 +45,6 @@ async function loadSessionDetails() {
             document.getElementById('sd-paid').innerText = sessionData.paid || 0;
             document.getElementById('sd-remaining').innerText = sessionData.remaining || 0;
             document.getElementById('sd-notes').innerText = sessionData.notes || 'لا يوجد';
-
-            const btnComplete = document.getElementById('btn-complete-pay-container');
-            if(Number(sessionData.remaining) > 0) {
-                btnComplete.style.display = 'block';
-            } else {
-                btnComplete.style.display = 'none';
-            }
         }
     });
 
@@ -59,45 +52,6 @@ async function loadSessionDetails() {
     loadSessionPrescription();
     loadClinicPharmacy();
 }
-
-// ================== 🔴 السداد وتوريد المديونية للخزنة 🔴 ==================
-async function markPaymentComplete() {
-    if(!sessionData) return;
-    
-    const remainingAmount = Number(sessionData.remaining) || 0;
-    if (remainingAmount <= 0) return;
-
-    if(confirm(`هل المريض قام بسداد المتبقي (${remainingAmount} ج.م)؟\nسيتم توريد المبلغ لإيرادات اليوم.`)) {
-        
-        const totalAmount = Number(sessionData.total);
-        const todayStr = new Date().toISOString().split('T')[0];
-
-        try {
-            // 1. تصفير الحساب المتبقي في تفاصيل الجلسة
-            await db.collection("Sessions").doc(sessionId).update({
-                paid: totalAmount,
-                remaining: 0
-            });
-
-            // 2. تسجيل حركة إيراد جديدة بقيمة (المتبقي اللي اندفع دلوقتي) في الخزنة
-            await db.collection("Finances").add({
-                clinicId: clinicId,
-                type: 'income',
-                category: 'سداد مديونية / باقي كشف',
-                amount: remainingAmount,
-                date: todayStr, // بتاريخ اليوم عشان يظهر في إيراد النهاردة
-                notes: `سداد باقي جلسة (${sessionData.procedure}) للمريض: ${patientName}`,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            alert("✅ تم سداد المبلغ وتوريده للخزنة بنجاح!");
-        } catch(e) { 
-            console.error("Error completing payment:", e); 
-            alert("حدث خطأ أثناء السداد.");
-        }
-    }
-}
-// =========================================================================
 
 function openEditSessionModal() {
     if(!sessionData) return;
@@ -116,7 +70,7 @@ function calcEditRemaining() {
     document.getElementById('es_remaining').value = Math.max(0, t - p);
 }
 
-// 🔴 تعديل الجلسة (بنحفظ بس ومش بنرمي في الخزنة عشان التعديل ممكن يكون تصحيح غلطة) 🔴
+// تعديل الجلسة
 async function updateSession(e) {
     e.preventDefault();
     const data = {
