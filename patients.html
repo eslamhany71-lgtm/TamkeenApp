@@ -22,8 +22,8 @@
         </div>
         <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <div style="display: flex; gap: 5px; flex: 1; min-width: 250px;">
-                <input type="text" id="searchInput" class="search-box" placeholder="بحث بالاسم أو رقم الموبايل..." style="flex: 1;">
-                <button class="btn-primary" onclick="searchPatients()" id="btn-do-search" style="padding: 10px 15px; border-radius: 8px;">🔍 بحث</button>
+                <input type="text" id="searchInput" class="search-box" oninput="filterPatientsLocally()" placeholder="بحث بالاسم أو رقم الموبايل..." style="flex: 1;">
+                <button class="btn-primary" onclick="searchPatients()" id="btn-do-search" style="padding: 10px 15px; border-radius: 8px;">🔍 بحث دقيق</button>
                 <button class="btn-danger" onclick="resetPatientSearch()" style="padding: 10px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;" title="إعادة ضبط">🔄</button>
             </div>
             
@@ -45,16 +45,16 @@
                     <th style="width: 40px; text-align: center;">
                         <input type="checkbox" id="selectAll" class="custom-checkbox" onclick="toggleSelectAll(this)">
                     </th>
-                    <th id="th-name">اسم المريض</th>
+                    <th id="th-date">التاريخ والوقت</th> <th id="th-name">اسم المريض</th>
                     <th id="th-phone">رقم الموبايل</th>
-                    <th id="th-age">السن</th>
+                    <th id="th-debt">المديونية</th> <th id="th-age">السن</th>
                     <th id="th-history">تنبيهات طبية</th>
                     <th id="th-notes">الملاحظات</th>
                     <th id="th-action" style="text-align: center;">إجراءات</th>
                 </tr>
             </thead>
             <tbody id="patientsBody">
-                <tr><td colspan="7" style="text-align: center;">جاري تحميل البيانات...</td></tr>
+                <tr><td colspan="9" style="text-align: center;">جاري تحميل البيانات...</td></tr>
             </tbody>
         </table>
         
