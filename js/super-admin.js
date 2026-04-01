@@ -1,4 +1,5 @@
 const db = firebase.firestore();
+let allClinicsList = []; // مصفوفة لتخزين بيانات العيادات عشان نستخدمها في المودال التفصيلي
 
 // 1. نظام الترجمة
 function updatePageContent(lang) {
@@ -67,6 +68,98 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
+// === 🔴 مودال تفاصيل العيادة والمستخدمين (التحديث الجديد) 🔴 ===
+async function openClinicDetailsModal(clinicId) {
+    const clinic = allClinicsList.find(c => c.id === clinicId);
+    if (!clinic) return;
+
+    let pkgLabel = '';
+    if(clinic.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
+    else if(clinic.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
+    else if(clinic.package === 'yearly') pkgLabel = 'اشتراك سنوي';
+    else pkgLabel = 'اشتراك شهري';
+
+    // تعبئة البيانات الأساسية
+    document.getElementById('det-clinic-name').innerText = clinic.clinicName;
+    document.getElementById('det-clinic-code').innerText = clinic.accessCode || '---';
+    document.getElementById('det-clinic-email').innerText = clinic.adminEmail || '---';
+    document.getElementById('det-clinic-pkg').innerText = pkgLabel;
+
+    document.getElementById('clinicDetailsModal').style.display = 'flex';
+    
+    const tbody = document.getElementById('det-users-body');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">جاري تجميع بيانات المستخدمين...</td></tr>';
+
+    try {
+        // جلب المستخدمين بثلاث طرق (مفعلين، كود أدمن معلق، دعوات تمريض معلقة)
+        const [usersSnap, adminCodesSnap, invitesSnap] = await Promise.all([
+            db.collection("Users").where("clinicId", "==", clinicId).get(),
+            db.collection("clinicId").where("clinicId", "==", clinicId).get(),
+            db.collection("InviteCodes").where("clinicId", "==", clinicId).get()
+        ]);
+
+        let staffList = [];
+
+        // 1. الحسابات المفعلة فعلياً
+        usersSnap.forEach(doc => {
+            const u = doc.data();
+            staffList.push({ name: u.name || '---', identifier: u.email || doc.id, role: u.role, status: 'active' });
+        });
+
+        // 2. كود الأدمن (لو لسه متفعلش)
+        adminCodesSnap.forEach(doc => {
+            const a = doc.data();
+            if (!a.activated) {
+                staffList.push({ name: 'مدير العيادة (الأدمن)', identifier: `كود التفعيل: ${doc.id}`, role: 'admin', status: 'pending' });
+            }
+        });
+
+        // 3. دعوات التمريض (لو لسه متفعلتش)
+        invitesSnap.forEach(doc => {
+            const inv = doc.data();
+            if (!inv.activated) {
+                staffList.push({ name: inv.name || 'ممرضة', identifier: `كود الدعوة: ${doc.id}`, role: inv.role, status: 'pending' });
+            }
+        });
+
+        tbody.innerHTML = '';
+        
+        if (staffList.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #64748b;">لا يوجد مستخدمين مسجلين أو أكواد معلقة.</td></tr>';
+        } else {
+            staffList.forEach(u => {
+                let roleAr = u.role === 'admin' ? 'أدمن (طبيب)' : (u.role === 'nurse' ? 'ممرضة' : u.role);
+                let roleColor = u.role === 'admin' ? '#0284c7' : '#7c3aed';
+                let roleBg = u.role === 'admin' ? '#e0f2fe' : '#ede9fe';
+                
+                let statusHtml = u.status === 'active' 
+                    ? '<span style="color: #10b981; font-weight: bold;">✅ مفعل</span>' 
+                    : '<span style="color: #d97706; font-weight: bold; background: #fef3c7; padding: 2px 8px; border-radius: 4px;">⏳ لم يسجل الدخول</span>';
+
+                let identHtml = u.status === 'pending' 
+                    ? `<strong style="color: #dc2626;">${u.identifier}</strong>` 
+                    : `<span dir="ltr">${u.identifier}</span>`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: bold; color: #334155;">${u.name}</td>
+                        <td style="text-align: right;">${identHtml}</td>
+                        <td><span style="background: ${roleBg}; color: ${roleColor}; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: bold;">${roleAr}</span></td>
+                        <td>${statusHtml}</td>
+                    </tr>
+                `;
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">حدث خطأ في تحميل المستخدمين.</td></tr>';
+    }
+}
+
+function closeClinicDetailsModal() { document.getElementById('clinicDetailsModal').style.display = 'none'; }
+// ===========================================================================
+
+
 function openClinicModal() {
     document.getElementById('clinicForm').reset();
     document.getElementById('clinicModal').style.display = 'flex';
@@ -76,7 +169,6 @@ function closeClinicModal() {
     document.getElementById('clinicModal').style.display = 'none';
 }
 
-// === 🔴 دالة توليد كود الممرضة السحرية (التحديث الجديد) 🔴 ===
 async function openUserModal() {
     document.getElementById('userForm').reset();
     const clinicSelect = document.getElementById('user_clinic');
@@ -96,9 +188,7 @@ async function openUserModal() {
     }
 }
 
-function closeUserModal() {
-    document.getElementById('userModal').style.display = 'none';
-}
+function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
 
 async function saveNewUser(e) {
     e.preventDefault();
@@ -110,19 +200,12 @@ async function saveNewUser(e) {
     const clinicId = document.getElementById('user_clinic').value;
     const role = "nurse";
 
-    if (!clinicId) {
-        alert("برجاء اختيار العيادة أولاً.");
-        btn.disabled = false;
-        btn.innerText = "توليد كود الدعوة";
-        return;
-    }
+    if (!clinicId) { alert("برجاء اختيار العيادة أولاً."); btn.disabled = false; btn.innerText = "توليد كود الدعوة"; return; }
 
     try {
-        // 1. توليد كود سري للممرضة (مثال: NURSE-9482)
         const randomCode = Math.floor(1000 + Math.random() * 9000);
         const inviteCode = `NURSE-${randomCode}`;
 
-        // 2. حفظ الكود في جدول (InviteCodes) عشان الممرضة تفعله
         await db.collection("InviteCodes").doc(inviteCode).set({
             name: userName,
             role: role,
@@ -141,7 +224,6 @@ async function saveNewUser(e) {
         btn.innerText = "توليد كود الدعوة";
     }
 }
-// ===============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     const modals = document.querySelectorAll('.modal');
@@ -172,15 +254,10 @@ async function saveNewClinic(e) {
         const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
 
         const nextPayDate = new Date();
-        if (packageType === 'monthly') {
-            nextPayDate.setMonth(nextPayDate.getMonth() + 1);
-        } else if (packageType === 'yearly') {
-            nextPayDate.setFullYear(nextPayDate.getFullYear() + 1);
-        } else if (packageType === 'trial_7') {
-            nextPayDate.setDate(nextPayDate.getDate() + 7);
-        } else if (packageType === 'trial_14') {
-            nextPayDate.setDate(nextPayDate.getDate() + 14);
-        }
+        if (packageType === 'monthly') { nextPayDate.setMonth(nextPayDate.getMonth() + 1); } 
+        else if (packageType === 'yearly') { nextPayDate.setFullYear(nextPayDate.getFullYear() + 1); } 
+        else if (packageType === 'trial_7') { nextPayDate.setDate(nextPayDate.getDate() + 7); } 
+        else if (packageType === 'trial_14') { nextPayDate.setDate(nextPayDate.getDate() + 14); }
 
         await db.collection("Clinics").doc(uniqueClinicId).set({
             clinicName: clinicName,
@@ -217,6 +294,7 @@ function loadClinics() {
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
         const tbody = document.getElementById('clinicsBody');
         tbody.innerHTML = '';
+        allClinicsList = []; // حفظ العيادات للمودال
         
         let activeCount = 0;
         let suspendedCount = 0;
@@ -233,6 +311,9 @@ function loadClinics() {
 
         for (const doc of snap.docs) {
             const c = doc.data();
+            c.id = doc.id;
+            allClinicsList.push(c); // إضافة للمصفوفة
+
             const dateStr = c.createdAt ? c.createdAt.toDate().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US') : '---';
             
             let nextPayStr = "---";
@@ -284,7 +365,10 @@ function loadClinics() {
             tr.innerHTML = `
                 <td>${dateStr}</td>
                 <td style="${payStyle}" dir="ltr">${nextPayStr} ${alertBadge}</td>
-                <td style="font-weight:bold;">${c.clinicName}<br><small style="color:gray;">الكود: ${accessCode} | الباقة: <span style="color:#3b82f6;">${pkgLabel}</span></small></td>
+                <td>
+                    <a class="clinic-link" onclick="openClinicDetailsModal('${c.id}')">🏢 ${c.clinicName}</a><br>
+                    <small style="color:gray;">الكود: ${accessCode} | الباقة: <span style="color:#3b82f6;">${pkgLabel}</span></small>
+                </td>
                 <td dir="ltr" style="text-align:start;">${adminEmail}</td>
                 <td>${statusHtml}</td>
                 <td style="text-align: center; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
