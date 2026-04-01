@@ -311,7 +311,7 @@ function renderPatientsTable() {
             <td>
                 <div style="display: flex; flex-direction: column;">
                     <span style="font-weight: 600;">${dateStr}</span>
-                    <span style="color: #64748b; font-size: 12px;">${timeStr}</span>
+                    <span style="color: #000; font-size: 16px;">${timeStr}</span>
                 </div>
             </td>
             <td style="font-weight: 600; color: #0f172a;">${p.name}</td>
