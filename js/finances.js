@@ -3,7 +3,6 @@ const clinicId = sessionStorage.getItem('clinicId');
 let allTransactionsForEdit = []; 
 let currentDisplayedData = []; 
 
-// 🔴 متغير لتخزين اسم المستخدم الحالي 🔴
 let currentUserDisplayName = "مستخدم غير معروف";
 
 function updatePageContent(lang) {
@@ -154,29 +153,21 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
-        // 🔴 التعديل السحري للأوفلاين: هنجيب كل الداتا بدون فلترة في الكويري عشان الكاش ميضربش، ونفلتر بالـ JS 🔴
-        const finSnap = await db.collection("Finances").where("clinicId", "==", clinicId).get();
+        // 🔴 حماية الباقة: بنخلي الفايربيز يجيب حركات التاريخ ده بس، ويرتبها بالـ date لضمان الأوفلاين 🔴
+        let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
+        
+        if (dateFrom) finQuery = finQuery.where("date", ">=", dateFrom);
+        if (dateTo) finQuery = finQuery.where("date", "<=", dateTo);
+        
+        finQuery = finQuery.orderBy("date", "desc");
+
+        const finSnap = await finQuery.get();
         
         finSnap.forEach(doc => {
             const d = doc.data();
-            // الفلترة هنا في المتصفح لضمان ظهور البيانات وإنت أوفلاين
+            // الفلترة بالنوع تتم محلياً لتجنب الـ Indexes المعقدة
             if (filterType !== 'all' && d.type !== filterType) return;
-            if (dateFrom && d.date < dateFrom) return;
-            if (dateTo && d.date > dateTo) return;
-            
             combinedData.push({ id: doc.id, ...d });
-        });
-
-        // ترتيب الحركات
-        combinedData.sort((a, b) => {
-            let dateA = new Date(a.date);
-            let dateB = new Date(b.date);
-            if (dateA.getTime() === dateB.getTime()) {
-                let timeA = a.createdAt ? (typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
-                let timeB = b.createdAt ? (typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
-                return timeB - timeA;
-            }
-            return dateB - dateA;
         });
 
         allTransactionsForEdit = combinedData;
