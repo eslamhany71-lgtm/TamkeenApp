@@ -39,6 +39,10 @@ async function loadPatientData() {
         document.getElementById('prof-name').innerText = "خطأ: لم يتم العثور على المريض";
         return;
     }
+
+    // 🔴 إظهار اللودر
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل ملف المريض..." : "Loading patient profile...");
+
     try {
         const doc = await db.collection("Patients").doc(patientId).get();
         if (doc.exists) {
@@ -63,9 +67,14 @@ async function loadPatientData() {
                 alerts.innerHTML = `<span style="color: #10b981; font-weight: bold;">✅ سليم / لا يوجد أمراض مزمنة</span>`;
             }
 
-            loadPatientSessions(); 
+            await loadPatientSessions(); 
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+        console.error(e); 
+    } finally {
+        // 🔴 إخفاء اللودر
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function calculateRemaining(mode = 'add') {
@@ -86,6 +95,9 @@ async function saveSession(e, isEditMode) {
     const btn = document.getElementById(btnId);
     btn.disabled = true;
     btn.innerText = "جاري الحفظ...";
+
+    // 🔴 إظهار اللودر عند حفظ أو تعديل الجلسة
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? (isEditMode ? "جاري التحديث..." : "جاري حفظ الجلسة...") : "Saving session...");
     
     const totalAmount = Number(document.getElementById(`${prefix}total`).value) || 0;
     const paidAmount = Number(document.getElementById(`${prefix}paid`).value) || 0;
@@ -164,20 +176,22 @@ async function saveSession(e, isEditMode) {
                 });
             }
 
-            // نضيف التوقيت المحلي مؤقتاً عشان يظهر في الجدول فوراً
+            // نضيف التوقيت المحلي مؤقتاً عشان يظهر في الجدول فوراً في حالة الأوفلاين
             data.createdAt = new Date();
             loadedPatientSessions.unshift({ id: docRef.id, ...data });
         }
         
         closeModal(modalId); 
         document.getElementById(isEditMode ? 'editSessionForm' : 'addSessionForm').reset();
-        loadPatientData(); 
+        await loadPatientData(); 
     } catch (error) { 
         console.error(error); 
         alert("حدث خطأ أثناء الحفظ.");
     } finally {
         btn.disabled = false;
         btn.innerText = isEditMode ? "حفظ التعديلات" : "حفظ الجلسة";
+        // 🔴 إخفاء اللودر
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -190,6 +204,9 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
         alert("❌ يرجى إدخال مبلغ صحيح لا يتجاوز المتبقي.");
         return;
     }
+
+    // 🔴 إظهار اللودر
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تسجيل السداد..." : "Processing payment...");
 
     try {
         const newPaid = currentPaid + amountToPay;
@@ -230,17 +247,19 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
             loadedPatientSessions[idx].paid = newPaid;
             loadedPatientSessions[idx].remaining = newRemaining;
         }
-        loadPatientData(); 
+        await loadPatientData(); 
 
     } catch (error) {
         console.error(error);
         alert("حدث خطأ أثناء السداد.");
+    } finally {
+        // 🔴 إخفاء اللودر
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
-// استخراج التوقيت الدقيق باستخدام التخمين المحلي للفايربيز
 function getAccurateTime(timestamp) {
-    if (!timestamp) return Date.now(); 
+    if (!timestamp) return Infinity; 
     if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
     if (timestamp.seconds) return timestamp.seconds * 1000;
     return new Date(timestamp).getTime();
@@ -261,6 +280,9 @@ async function loadPatientSessions(isLoadMore = false) {
     if (!patientId) return;
     const tbody = document.getElementById('sessions-list');
     const btnMore = document.getElementById('btn-load-more-sessions');
+
+    // إظهار اللودر لو دي أول ضغطة تحميل
+    if (!isLoadMore && window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري جلب الجلسات..." : "Loading sessions...");
 
     if (!isLoadMore) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري التحميل...</td></tr>';
@@ -283,7 +305,6 @@ async function loadPatientSessions(isLoadMore = false) {
             lastVisibleProfileSession = snap.docs[snap.docs.length - 1];
             
             snap.forEach(doc => {
-                // 🔴 السحر هنا: estimate بيدي التوقيت وهمي أوفلاين يظبط الترتيب 🔴
                 const s = doc.data({ serverTimestamps: 'estimate' });
                 s.id = doc.id;
                 if (!loadedPatientSessions.some(locSess => locSess.id === s.id)) {
@@ -303,8 +324,12 @@ async function loadPatientSessions(isLoadMore = false) {
                 tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">لا توجد جلسات مسجلة حتى الآن.</td></tr>`;
             } else { btnMore.innerText = "لا يوجد جلسات أخرى"; setTimeout(() => btnMore.style.display = 'none', 2000); }
         }
-    } catch (error) { console.error("Error loading profile sessions:", error); } 
-    finally { if(isLoadMore) btnMore.disabled = false; }
+    } catch (error) { 
+        console.error("Error loading profile sessions:", error); 
+    } finally { 
+        if(isLoadMore) btnMore.disabled = false; 
+        if (!isLoadMore && window.hideLoader) window.hideLoader();
+    }
 }
 
 function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
@@ -405,12 +430,19 @@ function viewSessionDetails(sessionId) {
 
 async function deleteDoc(collectionName, docId) {
     if(confirm("هل أنت متأكد من حذف هذه الجلسة بالكامل؟ سيتم حذف جميع المرفقات المرتبطة بها.")) {
+        // 🔴 إظهار اللودر عند الحذف
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+
         try { 
             await db.collection(collectionName).doc(docId).delete(); 
             loadedPatientSessions = loadedPatientSessions.filter(s => s.id !== docId);
             renderPatientSessionsTable();
         } 
         catch (e) { console.error(e); }
+        finally {
+            // 🔴 إخفاء اللودر
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
