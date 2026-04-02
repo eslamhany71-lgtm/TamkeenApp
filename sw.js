@@ -1,6 +1,5 @@
-const CACHE_NAME = 'aldokan-erp-cache-v2'; // غيرنا الإصدار عشان يجبر المتصفح يحدثه
+const CACHE_NAME = 'aldokan-erp-cache-v3'; 
 
-// 1. دي لستة بكل ملفات السيستم الأساسية (الـ App Shell) اللي لازم تنزل في الكاش أول ما السيستم يفتح
 const ASSETS_TO_CACHE = [
     '/',
     '/dashboard.html',
@@ -22,26 +21,22 @@ const ASSETS_TO_CACHE = [
     '/js/super-admin.js'
 ];
 
-// حدث التثبيت (Install): أول ما يشتغل، يفتح الكاش ويحمل كل الملفات اللي فوق دي
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('✅ جاري تخزين ملفات النظام للعمل أوفلاين...');
-            // بنحملهم، ولو في ملف مساره غلط بنطبع خطأ بس مش بنوقف السيستم
-            return cache.addAll(ASSETS_TO_CACHE).catch(err => console.log("خطأ في تحميل بعض الملفات للكاش: ", err));
+            return cache.addAll(ASSETS_TO_CACHE).catch(err => console.log("خطأ في الكاش (لا تقلق): ", err));
         })
     );
-    self.skipWaiting(); // تفعيل فوري للنسخة الجديدة
+    self.skipWaiting(); 
 });
 
-// حدث التفعيل (Activate): بيمسح الكاش القديم لو عملنا تحديث للسيستم
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log('🧹 مسح الكاش القديم:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -51,37 +46,39 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// حدث الجلب (Fetch): لما المتصفح يطلب أي صفحة أو ملف
 self.addEventListener('fetch', (event) => {
-    // 1. تجاهل طلبات قاعدة البيانات (الفايربيز بيهندل الأوفلاين بتاعه لوحده)
+    // 1. تأمين: تجاهل أي طلبات غير الـ HTTP/HTTPS (زي إضافات المتصفح)
+    if (!event.request.url.startsWith('http')) return;
+
+    // 2. تجاهل الفايربيز وصور التتبع عشان ميعملوش زحمة في الكونسول
     if (event.request.url.includes('firestore.googleapis.com') || 
         event.request.url.includes('firebasestorage.googleapis.com') ||
-        event.request.url.includes('identitytoolkit.googleapis.com')) {
+        event.request.url.includes('identitytoolkit.googleapis.com') ||
+        event.request.url.includes('cleardot.gif')) {
         return;
     }
 
-    // 2. معالجة طلبات الصفحات والصور والسكريبتات (GET requests only)
     if (event.request.method === 'GET') {
         event.respondWith(
             fetch(event.request)
                 .then((networkResponse) => {
-                    // لو النت شغال، نجيب الملف من النت ونحدث بيه الكاش عشان يبقى عندنا أحدث نسخة دايماً
+                    // النت شغال: خد نسخة حديثة للكاش
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
+                        // هنخزن الطلب الأصلي بدون الـ Query String عشان ميملاش الكاش ع الفاضي
+                        const urlWithoutQuery = event.request.url.split('?')[0];
+                        cache.put(urlWithoutQuery, responseToCache);
                     });
                     return networkResponse;
                 })
                 .catch(() => {
-                    // لو النت فاصل (Catch Block)، ندور على الملف في الكاش
-                    return caches.match(event.request).then((cachedResponse) => {
+                    // 🔴 النت فاصل: هات من الكاش مع تجاهل أي ?v=12345 🔴
+                    return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                         if (cachedResponse) {
-                            return cachedResponse; // لقيناه في الكاش، اعرضه فوراً
+                            return cachedResponse;
                         }
-                        // لو ملقيناهوش خالص، بنرجع رد وهمي عشان نمنع إيرور (Failed to convert value to Response)
-                        return new Response("عفواً، أنت تعمل في وضع عدم الاتصال (Offline) وهذه الصفحة لم يتم تحميلها مسبقاً.", {
+                        return new Response("عفواً، أنت تعمل في وضع الأوفلاين وهذه الصفحة غير متاحة.", {
                             status: 503,
-                            statusText: "Service Unavailable",
                             headers: new Headers({ 'Content-Type': 'text/html; charset=utf-8' })
                         });
                     });
