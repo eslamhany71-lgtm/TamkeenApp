@@ -95,6 +95,9 @@ async function savePatient(e) {
 
     if (!currentClinicId) return;
 
+    // --- إضافة اللودر هنا ---
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ البيانات..." : "Saving data...");
+
     let diseases = [];
     if(document.getElementById('med_diabetes').checked) diseases.push('سكر');
     if(document.getElementById('med_bp').checked) diseases.push('ضغط');
@@ -129,12 +132,20 @@ async function savePatient(e) {
         closePatientModal();
         filteredPatientsArray = [...patientsDataArray];
         renderPatientsTable(); 
-    } catch (error) { console.error(error); } 
-    finally { btn.disabled = false; btn.innerText = window.langVars.btnSave; }
+    } catch (error) { 
+        console.error(error); 
+    } finally { 
+        btn.disabled = false; btn.innerText = window.langVars.btnSave; 
+        // --- إخفاء اللودر هنا ---
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 async function deletePatient(patientId) {
     if(confirm(window.langVars.confDel)) {
+        // --- إضافة اللودر هنا ---
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+
         try { 
             await db.collection("Patients").doc(patientId).delete(); 
             patientsDataArray = patientsDataArray.filter(p => p.id !== patientId);
@@ -142,6 +153,10 @@ async function deletePatient(patientId) {
             renderPatientsTable();
         } 
         catch (error) { console.error(error); }
+        finally {
+            // --- إخفاء اللودر هنا ---
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
@@ -152,6 +167,9 @@ async function loadPatients(isLoadMore = false) {
 
     const tbody = document.getElementById('patientsBody');
     const loadMoreBtn = document.getElementById('btn-load-more');
+
+    // --- إضافة اللودر هنا للتحميل الأولي ---
+    if (!isLoadMore && window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل بيانات المرضى..." : "Loading patients...");
 
     if (!isLoadMore) {
         tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">جاري تحميل البيانات...</td></tr>';
@@ -204,6 +222,8 @@ async function loadPatients(isLoadMore = false) {
         console.error("Error loading patients:", error);
     } finally {
         if(isLoadMore) loadMoreBtn.disabled = false;
+        // --- إخفاء اللودر هنا ---
+        if (!isLoadMore && window.hideLoader) window.hideLoader();
     }
 }
 
@@ -236,6 +256,9 @@ async function searchPatients() {
     loadMoreBtn.style.display = 'none'; 
     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">جاري البحث...</td></tr>';
 
+    // --- إضافة اللودر هنا للبحث ---
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري البحث في السجلات..." : "Searching...");
+
     try {
         const snap = await db.collection("Patients").where("clinicId", "==", currentClinicId).get();
         let searchResults = [];
@@ -257,7 +280,12 @@ async function searchPatients() {
         filteredPatientsArray = searchResults;
         renderPatientsTable();
 
-    } catch (error) { console.error("Search Error:", error); }
+    } catch (error) { 
+        console.error("Search Error:", error); 
+    } finally {
+        // --- إخفاء اللودر هنا ---
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function resetPatientSearch() {
@@ -366,6 +394,9 @@ async function deleteSelectedPatients() {
     if(confirm(window.langVars.confBulkDel)) {
         const btn = document.getElementById('btn-bulk-delete');
         btn.disabled = true; btn.innerText = "...";
+
+        // --- إضافة اللودر هنا للحذف الجماعي ---
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
         
         try {
             const batch = db.batch();
@@ -384,6 +415,8 @@ async function deleteSelectedPatients() {
             console.error(error);
         } finally {
             btn.disabled = false; btn.innerText = window.langVars.bulkDel;
+            // --- إخفاء اللودر هنا ---
+            if (window.hideLoader) window.hideLoader();
         }
     }
 }
