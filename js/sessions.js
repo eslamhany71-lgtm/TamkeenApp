@@ -7,7 +7,6 @@ let currentSessionIdForUpload = null;
 
 let currentUserDisplayName = "مستخدم غير معروف";
 
-// 🔴 متغيرات الـ Pagination رجعت 🔴
 const ITEMS_PER_PAGE = 50;
 let lastVisibleSession = null;
 let lastVisibleRx = null;
@@ -75,7 +74,26 @@ async function fetchMissingPatients(patientIds) {
     }
 }
 
-// 🔴 حماية الباقة مع الأوفلاين للجلسات 🔴
+// 🔴 الدالة السحرية للترتيب الصارم (بتعالج المهلبية) 🔴
+function getAccurateTime(timestamp) {
+    if (!timestamp) return Infinity; // اللي ملوش توقيت (الجديد أوفلاين) يطلع فوق
+    if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
+    if (timestamp.seconds) return timestamp.seconds * 1000;
+    return new Date(timestamp).getTime();
+}
+
+function sortDataLocally(dataArray) {
+    dataArray.sort((a, b) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        if (dateA !== dateB) {
+            return dateB - dateA; // الأحدث في التاريخ أولاً
+        }
+        // لو نفس اليوم، رتب بالثانية
+        return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
+    });
+}
+
 async function loadSessions(isLoadMore = false) {
     if (!clinicId) return;
     const tbody = document.getElementById('sessionsBody');
@@ -92,7 +110,7 @@ async function loadSessions(isLoadMore = false) {
     try {
         let queryRef = db.collection("Sessions")
                          .where("clinicId", "==", clinicId)
-                         .orderBy("date", "desc") // الترتيب بالتاريخ لضمان الأوفلاين
+                         .orderBy("date", "desc")
                          .limit(ITEMS_PER_PAGE);
 
         if (isLoadMore && lastVisibleSession) queryRef = queryRef.startAfter(lastVisibleSession);
@@ -115,6 +133,8 @@ async function loadSessions(isLoadMore = false) {
                 loadedSessions.push(s);
             });
             
+            // ترتيب صارم بعد الجلب
+            sortDataLocally(loadedSessions);
             renderSessions();
             
             if (snap.docs.length === ITEMS_PER_PAGE) {
@@ -144,7 +164,7 @@ function renderSessions(dataToRender = loadedSessions) {
         if (seenPatients.has(s.patientId)) return; 
         seenPatients.add(s.patientId);
 
-        const patName = patientsMap[s.patientId] || "مريض (يرجى الاتصال بالإنترنت)"; 
+        const patName = patientsMap[s.patientId] || "مريض غير معروف"; 
         
         let timeStr = '---';
         if (s.createdAt) {
@@ -202,7 +222,6 @@ async function deleteSession(sessionId) {
     }
 }
 
-// 🔴 حماية الباقة مع الأوفلاين للروشتات 🔴
 async function loadPrescriptions(isLoadMore = false) {
     if (!clinicId) return;
     const tbody = document.getElementById('prescriptionsBody');
@@ -219,7 +238,7 @@ async function loadPrescriptions(isLoadMore = false) {
     try {
         let queryRef = db.collection("Prescriptions")
                          .where("clinicId", "==", clinicId)
-                         .orderBy("date", "desc") // الترتيب بالتاريخ لضمان الأوفلاين
+                         .orderBy("date", "desc")
                          .limit(ITEMS_PER_PAGE);
 
         if (isLoadMore && lastVisibleRx) queryRef = queryRef.startAfter(lastVisibleRx);
@@ -242,6 +261,8 @@ async function loadPrescriptions(isLoadMore = false) {
                 loadedPrescriptions.push(p);
             });
             
+            // ترتيب صارم للروشتات
+            sortDataLocally(loadedPrescriptions);
             renderPrescriptions();
             
             if (snap.docs.length === ITEMS_PER_PAGE) {
@@ -279,7 +300,7 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
             } catch(e) { timeStr = '---'; }
         }
 
-        const patName = patientsMap[p.patientId] || "مريض (يرجى الاتصال بالإنترنت)";
+        const patName = patientsMap[p.patientId] || "مريض غير معروف";
         const tr = document.createElement('tr');
         
         let rxButtons = `<button class="btn-action" style="background:#f59e0b; color:white; border:none;" onclick="triggerUploadRx('${p.id}')" title="رفع صورة/ملف للروشتة">📎</button>`;
