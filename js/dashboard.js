@@ -5,8 +5,6 @@ let todayPendingApps = [];
 let upcomingPendingApps = [];
 let allPatientsData = [];
 let completedSessionsData = [];
-
-// الإيرادات بقت بتيجي من مكان واحد بس (الخزنة / Finances) 🔴
 let todayRevenueData = []; 
 
 let currentSelectedPatientId = null; 
@@ -68,15 +66,23 @@ function updatePageContent(lang) {
 
 let dashChart = null;
 function updateChart(pending, completed, cancelled) {
-    const ctx = document.getElementById('dashboardChart').getContext('2d');
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    const labels = lang === 'ar' ? ['في الانتظار', 'مكتملة', 'ملغاة'] : ['Pending', 'Completed', 'Cancelled'];
-    if (dashChart) dashChart.destroy();
-    dashChart = new Chart(ctx, {
-        type: 'bar',
-        data: { labels: labels, datasets: [{ label: lang==='ar'?'العدد':'Count', data: [pending, completed, cancelled], backgroundColor: ['#f59e0b', '#10b981', '#ef4444'], borderRadius: 6 }] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-    });
+    try {
+        const chartCanvas = document.getElementById('dashboardChart');
+        if (!chartCanvas) return; // 🔴 منع الانهيار لو الرسم مش موجود 🔴
+
+        const ctx = chartCanvas.getContext('2d');
+        const lang = localStorage.getItem('preferredLang') || 'ar';
+        const labels = lang === 'ar' ? ['في الانتظار', 'مكتملة', 'ملغاة'] : ['Pending', 'Completed', 'Cancelled'];
+        
+        if (dashChart) dashChart.destroy();
+        dashChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ label: lang==='ar'?'العدد':'Count', data: [pending, completed, cancelled], backgroundColor: ['#f59e0b', '#10b981', '#ef4444'], borderRadius: 6 }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+        });
+    } catch (err) {
+        console.warn("Chart loading skipped:", err); // تجاهل لو مكتبة الشارت متأخرة
+    }
 }
 
 function updateTotalRevenue() {
@@ -88,55 +94,66 @@ function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 🔴 إظهار اللودر عند التحميل 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
 
+    let loadersFinished = 0;
+    const checkHideLoader = () => {
+        loadersFinished++;
+        if (loadersFinished >= 3 && window.hideLoader) window.hideLoader(); // نفصل اللودر لما التلات عمليات يخلصوا
+    };
+
+    // 1. استدعاء المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
-        allPatientsData = [];
-        snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
-        document.getElementById('stat-patients').innerText = allPatientsData.length;
-    });
+        try {
+            allPatientsData = [];
+            snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
+            document.getElementById('stat-patients').innerText = allPatientsData.length;
+        } catch(e) {}
+        checkHideLoader();
+    }, () => checkHideLoader());
 
+    // 2. استدعاء الخزنة
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
-        todayRevenueData = []; 
-        snap.forEach(doc => { 
-            const data = doc.data();
-            if (data.date === todayStr && data.amount) { 
-                todayRevenueData.push({ id: doc.id, ...data }); 
-            }
-        });
-        updateTotalRevenue();
-    });
+        try {
+            todayRevenueData = []; 
+            snap.forEach(doc => { 
+                const data = doc.data();
+                if (data.date === todayStr && data.amount) todayRevenueData.push({ id: doc.id, ...data }); 
+            });
+            updateTotalRevenue();
+        } catch(e) {}
+        checkHideLoader();
+    }, () => checkHideLoader());
 
+    // 3. استدعاء المواعيد
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
-        let pending = 0, completed = 0, cancelled = 0;
-        todayPendingApps = []; upcomingPendingApps = []; completedSessionsData = [];
+        try {
+            let pending = 0, completed = 0, cancelled = 0;
+            todayPendingApps = []; upcomingPendingApps = []; completedSessionsData = [];
 
-        snap.forEach(doc => {
-            const data = doc.data();
-            if (data.status === 'completed') { completed++; completedSessionsData.push({ id: doc.id, ...data }); }
-            if (data.status === 'cancelled') cancelled++;
-            if (data.status === 'pending') {
-                pending++;
-                if (data.date === todayStr) todayPendingApps.push({ id: doc.id, ...data });
-                else if (data.date > todayStr) upcomingPendingApps.push({ id: doc.id, ...data });
+            snap.forEach(doc => {
+                const data = doc.data();
+                if (data.status === 'completed') { completed++; completedSessionsData.push({ id: doc.id, ...data }); }
+                if (data.status === 'cancelled') cancelled++;
+                if (data.status === 'pending') {
+                    pending++;
+                    if (data.date === todayStr) todayPendingApps.push({ id: doc.id, ...data });
+                    else if (data.date > todayStr) upcomingPendingApps.push({ id: doc.id, ...data });
+                }
+            });
+
+            document.getElementById('stat-appointments').innerText = todayPendingApps.length;
+            document.getElementById('stat-sessions').innerText = completed;
+            
+            updateChart(pending, completed, cancelled);
+            
+            if(document.getElementById('waitingListModal').style.display === 'flex'){
+                renderWaitList('todayWaitContainer', todayPendingApps);
+                renderWaitList('upcomingWaitContainer', upcomingPendingApps);
             }
-        });
-
-        document.getElementById('stat-appointments').innerText = todayPendingApps.length;
-        document.getElementById('stat-sessions').innerText = completed;
-        updateChart(pending, completed, cancelled);
-        
-        if(document.getElementById('waitingListModal').style.display === 'flex'){
-            renderWaitList('todayWaitContainer', todayPendingApps);
-            renderWaitList('upcomingWaitContainer', upcomingPendingApps);
-        }
-        
-        // 🔴 إخفاء اللودر عشان ده آخر Snapshot بيرد 🔴
-        if (window.hideLoader) window.hideLoader();
-    }, error => {
-        if (window.hideLoader) window.hideLoader();
-    });
+        } catch(e) {}
+        checkHideLoader();
+    }, () => checkHideLoader());
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -166,7 +183,6 @@ async function saveNewAppointment(e) {
     e.preventDefault();
     if(!clinicId) return;
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حجز الموعد..." : "Booking...");
 
     const data = {
@@ -193,7 +209,6 @@ async function saveNewAppointment(e) {
         console.error(err);
         alert("حدث خطأ أثناء الحفظ.");
     } finally {
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -260,17 +275,13 @@ function openAppDetails(app) {
 
 async function updateAppStatus(newStatus) {
     if(!currentSelectedApp) return;
-    
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
-
     try {
         await db.collection("Appointments").doc(currentSelectedApp.id).update({ status: newStatus });
         closeModal('appDetailsModal');
     } catch(e) { 
         console.error("Error updating status:", e); 
     } finally {
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -278,16 +289,13 @@ async function updateAppStatus(newStatus) {
 async function deleteAppointment() {
     if(!currentSelectedApp) return;
     if(confirm(window.confDelTxt)) {
-        // 🔴 إظهار اللودر 🔴
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
-
         try {
             await db.collection("Appointments").doc(currentSelectedApp.id).delete();
             closeModal('appDetailsModal');
         } catch(e) { 
             console.error("Error deleting:", e); 
         } finally {
-            // 🔴 إخفاء اللودر 🔴
             if (window.hideLoader) window.hideLoader();
         }
     }
