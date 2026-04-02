@@ -74,9 +74,8 @@ async function fetchMissingPatients(patientIds) {
     }
 }
 
-// 🔴 الدالة السحرية للترتيب الصارم (بتعالج المهلبية) 🔴
 function getAccurateTime(timestamp) {
-    if (!timestamp) return Infinity; // اللي ملوش توقيت (الجديد أوفلاين) يطلع فوق
+    if (!timestamp) return Date.now();
     if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
     if (timestamp.seconds) return timestamp.seconds * 1000;
     return new Date(timestamp).getTime();
@@ -87,9 +86,8 @@ function sortDataLocally(dataArray) {
         const dateA = new Date(a.date || 0).getTime();
         const dateB = new Date(b.date || 0).getTime();
         if (dateA !== dateB) {
-            return dateB - dateA; // الأحدث في التاريخ أولاً
+            return dateB - dateA; 
         }
-        // لو نفس اليوم، رتب بالثانية
         return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
     });
 }
@@ -128,12 +126,12 @@ async function loadSessions(isLoadMore = false) {
             await fetchMissingPatients(pIds);
             
             snap.forEach(doc => {
-                const s = doc.data();
+                // 🔴 السحر بتاع التخمين 🔴
+                const s = doc.data({ serverTimestamps: 'estimate' });
                 s.id = doc.id;
                 loadedSessions.push(s);
             });
             
-            // ترتيب صارم بعد الجلب
             sortDataLocally(loadedSessions);
             renderSessions();
             
@@ -256,12 +254,12 @@ async function loadPrescriptions(isLoadMore = false) {
             await fetchMissingPatients(pIds);
             
             snap.forEach(doc => {
-                const p = doc.data();
+                // 🔴 تقدير التوقيت هنا كمان 🔴
+                const p = doc.data({ serverTimestamps: 'estimate' });
                 p.id = doc.id;
                 loadedPrescriptions.push(p);
             });
             
-            // ترتيب صارم للروشتات
             sortDataLocally(loadedPrescriptions);
             renderPrescriptions();
             
