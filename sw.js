@@ -1,7 +1,8 @@
-const CACHE_NAME = 'aldokan-erp-cache-v4'; // غيرنا الإصدار لـ 4 عشان يجبر المتصفح يحمل اللستة الجديدة دي كلها
+const CACHE_NAME = 'aldokan-erp-cache-v5'; // التحديث الأخير
 
-// 🔴 خريطة ملفات السيستم بالكامل (App Shell) 🔴
+// 🔴 خريطة ملفات السيستم (المحلية + الخارجية اللي السيستم بيعتمد عليها) 🔴
 const ASSETS_TO_CACHE = [
+    // الملفات المحلية
     '/',
     '/index.html',
     '/activate.html',
@@ -16,10 +17,10 @@ const ASSETS_TO_CACHE = [
     '/super-admin.html',
     '/404.html',
     
-    // فولدر الصور
+    // الصور
     '/assets/logo.png',
     
-    // فولدر الـ CSS
+    // ملفات التصميم
     '/css/style.css',
     '/css/home.css',
     '/css/dashboard.css',
@@ -31,7 +32,7 @@ const ASSETS_TO_CACHE = [
     '/css/settings.css',
     '/css/super-admin.css',
     
-    // فولدر الـ JS
+    // ملفات السكريبت المحلية
     '/js/firebase-config.js',
     '/js/auth.js',
     '/js/lang-manager.js',
@@ -45,14 +46,25 @@ const ASSETS_TO_CACHE = [
     '/js/calendar.js',
     '/js/settings.js',
     '/js/super-admin.js',
-    '/js/backup.js'
+    '/js/backup.js',
+
+    // 🔴 المكتبات والروابط الخارجية الأساسية 🔴
+    'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap', // الخطوط
+    'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js', // مكتبة التقويم
+    'https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js', // مكتبة التصدير لإكسيل
+    'https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js',
+    'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js',
+    'https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js' // مكتبة رفع الصور اللي كانت ناقصة
 ];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('✅ جاري تخزين جميع ملفات النظام الشاملة للعمل أوفلاين...');
-            return cache.addAll(ASSETS_TO_CACHE).catch(err => console.log("خطأ في الكاش (لا تقلق): ", err));
+            return cache.addAll(ASSETS_TO_CACHE).catch(err => {
+                console.warn("⚠️ لم يتمكن من تحميل بعض الروابط الخارجية، سيستمر النظام بالعمل: ", err);
+            });
         })
     );
     self.skipWaiting(); 
@@ -75,10 +87,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // 1. تأمين: تجاهل أي طلبات غير الـ HTTP/HTTPS
     if (!event.request.url.startsWith('http')) return;
 
-    // 2. تجاهل الفايربيز وصور التتبع عشان ميعملوش زحمة في الكونسول
+    // تجاهل اتصالات الفايربيز الحية عشان الكونسول ميتزحمش
     if (event.request.url.includes('firestore.googleapis.com') || 
         event.request.url.includes('firebasestorage.googleapis.com') ||
         event.request.url.includes('identitytoolkit.googleapis.com') ||
@@ -90,7 +101,7 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             fetch(event.request)
                 .then((networkResponse) => {
-                    // النت شغال: خد نسخة حديثة للكاش
+                    // لو شغال، نحدث الكاش
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         const urlWithoutQuery = event.request.url.split('?')[0];
@@ -99,7 +110,7 @@ self.addEventListener('fetch', (event) => {
                     return networkResponse;
                 })
                 .catch(() => {
-                    // 🔴 النت فاصل: هات من الكاش مع تجاهل أي ?v=12345 🔴
+                    // 🔴 لو النت فاصل، جيب من الكاش بدون الـ (Version Tags) 🔴
                     return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                         if (cachedResponse) {
                             return cachedResponse;
