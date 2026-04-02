@@ -46,6 +46,7 @@ async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
     const errorDiv = document.getElementById('errorMessage');
+    const loader = document.getElementById('global-loader'); // 🔴 سحبنا الـ Loader
 
     if (!codeInput || !passInput) return;
 
@@ -61,6 +62,9 @@ async function loginById() {
     if (btn) { btn.innerText = "..."; btn.disabled = true; }
 
     isLoginInProgress = true; 
+    
+    // 🔴 إظهار الـ Loader الأنيق 🔴
+    if (loader) loader.classList.add('active');
 
     try {
         let loginEmail = rawInput;
@@ -122,9 +126,13 @@ async function loginById() {
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
         
+        // 🔴 مش بنقفل الـ Loader هنا عشان يفضل شغال بانسيابية لحد ما ينقله لصفحة الداشبورد 🔴
         window.location.href = "home.html"; 
 
     } catch (error) {
+        // 🔴 إخفاء الـ Loader في حالة حدوث خطأ عشان المستخدم يشوف الرسالة 🔴
+        if (loader) loader.classList.remove('active');
+        
         await auth.signOut().catch(()=>{}); 
         isLoginInProgress = false; 
         
@@ -166,6 +174,8 @@ function closeStaffModal() {
 async function activateStaffAccount(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-activate-staff');
+    const loader = document.getElementById('global-loader'); // 🔴 سحبنا الـ Loader
+    
     btn.disabled = true;
     btn.innerText = "جاري فحص الكود والتفعيل...";
 
@@ -173,11 +183,15 @@ async function activateStaffAccount(e) {
     const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
     const newPassword = document.getElementById('staffPassword').value.trim();
 
+    // 🔴 إظهار الـ Loader 🔴
+    if (loader) loader.classList.add('active');
+
     try {
         // 1. البحث عن كود الدعوة في الداتا بيز
         const inviteDoc = await db.collection("InviteCodes").doc(inviteCode).get();
 
         if (!inviteDoc.exists) {
+            if (loader) loader.classList.remove('active'); // إخفاء لو في غلط
             alert("❌ كود الدعوة غير صحيح أو غير مسجل في النظام.");
             btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
             return;
@@ -186,6 +200,7 @@ async function activateStaffAccount(e) {
         const inviteData = inviteDoc.data();
 
         if (inviteData.activated) {
+            if (loader) loader.classList.remove('active'); // إخفاء لو في غلط
             alert("❌ هذا الكود تم استخدامه وتفعيله مسبقاً.");
             btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
             return;
@@ -221,10 +236,17 @@ async function activateStaffAccount(e) {
         sessionStorage.setItem('empCode', inviteCode);
         sessionStorage.setItem('clinicId', inviteData.clinicId);
 
+        // هخفي الـ Loader لحظة بس عشان الـ Alert تظهر براحتها
+        if (loader) loader.classList.remove('active');
+        
         alert(`✅ تم تفعيل الحساب بنجاح يا ${inviteData.name}!\nجاري تحويلك للعيادة...`);
+        
+        // أظهره تاني وقت التحويل
+        if (loader) loader.classList.add('active');
         window.location.href = "home.html";
 
     } catch (error) {
+        if (loader) loader.classList.remove('active'); // 🔴 إخفاء لو في مشكلة
         console.error("Staff Activation Error:", error);
         isLoginInProgress = false;
         btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
@@ -288,11 +310,15 @@ async function activateAccount() {
     const realEmail = document.getElementById('reg-email').value.trim().toLowerCase();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
+    const loader = document.getElementById('global-loader'); // 🔴 سحب الـ Loader هنا كمان
 
     if(!codeRaw || !phone || !realEmail || !pass) { 
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "برجاء إكمال كافة البيانات" : "Please complete all fields"; 
         return; 
     }
+
+    // 🔴 إظهار الـ Loader 🔴
+    if (loader) loader.classList.add('active');
 
     try {
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...";
@@ -300,17 +326,20 @@ async function activateAccount() {
         const empDoc = await db.collection("clinicId").doc(codeRaw).get();
 
         if (!empDoc.exists) {
+            if(loader) loader.classList.remove('active');
             if(msg) msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع إدارة النظام" : "Code not registered, contact admin"; 
             return;
         }
 
         const empData = empDoc.data();
         if (empData.phone !== phone) {
+            if(loader) loader.classList.remove('active');
             if(msg) msg.innerText = document.body.dir === 'rtl' ? "رقم الموبايل غير مطابق للسجلات" : "Phone number does not match records"; 
             return;
         }
 
         if (empData.activated === true) {
+            if(loader) loader.classList.remove('active');
             if(msg) msg.innerText = document.body.dir === 'rtl' ? "هذا الحساب مفعل بالفعل" : "Account already activated"; 
             return;
         }
@@ -335,11 +364,16 @@ async function activateAccount() {
             email: realEmail 
         });
 
+        if(loader) loader.classList.remove('active'); // إخفاء عشان يشوف رسالة التفعيل
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "تم التفعيل بنجاح! جاري تحويلك..." : "Activation successful! Redirecting...";
         
-        setTimeout(() => { window.location.href = "index.html"; }, 1500);
+        setTimeout(() => { 
+            if(loader) loader.classList.add('active'); // نظهره تاني وقت التحويل
+            window.location.href = "index.html"; 
+        }, 1500);
 
     } catch (error) {
+        if(loader) loader.classList.remove('active'); // 🔴 إخفاء لو في إيرور
         if(msg) {
             const isRtl = document.body.dir === 'rtl';
             if (error.code === 'auth/email-already-in-use') {
