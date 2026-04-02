@@ -202,6 +202,9 @@ async function saveNewUser(e) {
 
     if (!clinicId) { alert("برجاء اختيار العيادة أولاً."); btn.disabled = false; btn.innerText = "توليد كود الدعوة"; return; }
 
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء كود الدعوة..." : "Generating invite code...");
+
     try {
         const randomCode = Math.floor(1000 + Math.random() * 9000);
         const inviteCode = `NURSE-${randomCode}`;
@@ -222,6 +225,8 @@ async function saveNewUser(e) {
     } finally {
         btn.disabled = false;
         btn.innerText = "توليد كود الدعوة";
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -240,6 +245,9 @@ async function saveNewClinic(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
     btn.disabled = true; btn.innerText = window.superLang.btnSaving;
+
+    // 🔴 إظهار اللودر عند إضافة عيادة جديدة 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تجهيز مساحة العيادة على السيرفر..." : "Setting up new clinic...");
 
     const clinicName = document.getElementById('clinic_name').value.trim();
     const adminEmail = document.getElementById('clinic_admin_email').value.trim().toLowerCase();
@@ -287,6 +295,8 @@ async function saveNewClinic(e) {
         alert(window.superLang.msgError);
     } finally {
         btn.disabled = false; btn.innerText = window.superLang.btnSave;
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -387,31 +397,55 @@ function loadClinics() {
 
 async function markAsPaid(clinicId) {
     if(confirm(window.superLang.msgConfirmPaid)) {
-        const newNextPay = new Date();
-        newNextPay.setMonth(newNextPay.getMonth() + 1); 
-        
-        await db.collection("Clinics").doc(clinicId).update({ 
-            status: 'active',
-            nextPaymentDate: newNextPay,
-            package: 'monthly' 
-        });
+        // 🔴 إظهار اللودر 🔴
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التجديد..." : "Renewing...");
+        try {
+            const newNextPay = new Date();
+            newNextPay.setMonth(newNextPay.getMonth() + 1); 
+            
+            await db.collection("Clinics").doc(clinicId).update({ 
+                status: 'active',
+                nextPaymentDate: newNextPay,
+                package: 'monthly' 
+            });
+        } catch (e) {
+            console.error(e);
+        } finally {
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
 async function toggleSubscription(clinicId, newStatus) {
     if(confirm(window.superLang.msgConfirmToggle)) {
-        await db.collection("Clinics").doc(clinicId).update({ status: newStatus });
+        // 🔴 إظهار اللودر 🔴
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تغيير الحالة..." : "Updating status...");
+        try {
+            await db.collection("Clinics").doc(clinicId).update({ status: newStatus });
+        } catch (e) {
+            console.error(e);
+        } finally {
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
 async function deleteClinic(clinicId, accessCode) {
     const code = prompt(window.superLang.msgWarnDel);
     if (code === '1234') {
-        await db.collection("Clinics").doc(clinicId).delete();
-        if(accessCode && accessCode !== "") {
-            await db.collection("clinicId").doc(accessCode).delete();
+        // 🔴 إظهار اللودر 🔴
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري مسح العيادة نهائياً..." : "Deleting clinic...");
+        try {
+            await db.collection("Clinics").doc(clinicId).delete();
+            if(accessCode && accessCode !== "") {
+                await db.collection("clinicId").doc(accessCode).delete();
+            }
+            alert(window.superLang.msgDelSuccess);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            if (window.hideLoader) window.hideLoader();
         }
-        alert(window.superLang.msgDelSuccess);
     }
 }
 
