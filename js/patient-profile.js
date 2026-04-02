@@ -7,7 +7,7 @@ let currentPatientName = "مريض";
 let loadedPatientSessions = []; 
 let currentUserDisplayName = "مستخدم غير معروف";
 
-// 🔴 متغيرات الـ Pagination رجعت 🔴
+// متغيرات الـ Pagination رجعت
 const SESSIONS_PER_PAGE = 50;
 let lastVisibleProfileSession = null;
 
@@ -237,7 +237,14 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
     }
 }
 
-// 🔴 حماية الباقة مع الأوفلاين: بنستعلم بـ limit وبنرتب بالتاريخ 🔴
+// 🔴 دالة استخراج التوقيت الدقيق حتى في وضع الأوفلاين 🔴
+function getAccurateTime(timestamp) {
+    if (!timestamp) return Date.now(); // لو النت فاصل والتوقيت null، اعتبره حصل دلوقتي حالا
+    if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
+    if (timestamp.seconds) return timestamp.seconds * 1000;
+    return new Date(timestamp).getTime();
+}
+
 async function loadPatientSessions(isLoadMore = false) {
     if (!patientId) return;
     const tbody = document.getElementById('sessions-list');
@@ -254,7 +261,7 @@ async function loadPatientSessions(isLoadMore = false) {
     try {
         let queryRef = db.collection("Sessions")
                          .where("patientId", "==", patientId)
-                         .orderBy("date", "desc") // الترتيب بالـ date يضمن الأوفلاين
+                         .orderBy("date", "desc") // الفايربيز يجيبهم مترتبين بالتاريخ
                          .limit(SESSIONS_PER_PAGE);
 
         if (isLoadMore && lastVisibleProfileSession) queryRef = queryRef.startAfter(lastVisibleProfileSession);
@@ -266,7 +273,19 @@ async function loadPatientSessions(isLoadMore = false) {
             snap.forEach(doc => {
                 const s = doc.data();
                 s.id = doc.id;
-                loadedPatientSessions.push(s);
+                // منع التكرار لو الجلسة مضافة محلياً
+                if (!loadedPatientSessions.some(locSess => locSess.id === s.id)) {
+                    loadedPatientSessions.push(s);
+                }
+            });
+            
+            // 🔴 ترتيب ذكي محلي يمنع المهلبية 🔴
+            loadedPatientSessions.sort((a, b) => {
+                if (a.date !== b.date) {
+                    return new Date(b.date) - new Date(a.date); // الأحدث في التاريخ أولاً
+                }
+                // لو نفس اليوم، نرتب بالتوقيت
+                return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
             });
             
             renderPatientSessionsTable();
@@ -276,8 +295,9 @@ async function loadPatientSessions(isLoadMore = false) {
                 btnMore.innerText = "⬇️ تحميل المزيد من الجلسات...";
             } else { btnMore.style.display = 'none'; }
         } else {
-            if (!isLoadMore) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">لا توجد جلسات مسجلة حتى الآن.</td></tr>`;
-            else { btnMore.innerText = "لا يوجد جلسات أخرى"; setTimeout(() => btnMore.style.display = 'none', 2000); }
+            if (!isLoadMore && loadedPatientSessions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">لا توجد جلسات مسجلة حتى الآن.</td></tr>`;
+            } else { btnMore.innerText = "لا يوجد جلسات أخرى"; setTimeout(() => btnMore.style.display = 'none', 2000); }
         }
     } catch (error) { console.error("Error loading profile sessions:", error); } 
     finally { if(isLoadMore) btnMore.disabled = false; }
@@ -292,11 +312,22 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
         return;
     }
 
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+
     dataToRender.forEach(s => {
         const total = s.total || 0;
         const paid = s.paid || 0;
         const remaining = s.remaining || 0;
         const nextApp = s.nextAppointment ? `<span style="color:#d97706; font-weight:bold;">${s.nextAppointment}</span>` : '---';
+
+        // 🔴 حساب التوقيت بدقة 🔴
+        let timeStr = '---';
+        if (s.createdAt) {
+            try {
+                const d = typeof s.createdAt.toDate === 'function' ? s.createdAt.toDate() : new Date(s.createdAt);
+                timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            } catch(e) { timeStr = '---'; }
+        }
 
         let payBtnHtml = '';
         if (remaining > 0) {
@@ -305,7 +336,12 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><span class="data-badge">${s.date}</span></td>
+            <td>
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <span class="data-badge">${s.date}</span>
+                    <span style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: bold;">${timeStr}</span>
+                </div>
+            </td>
             <td style="font-weight:bold; color:#0f172a;">${s.procedure} <br> <small style="color:gray;">السن: ${s.tooth || '---'}</small></td>
             <td style="font-weight:bold;">${total}</td>
             <td style="color: #10b981; font-weight: bold;">${paid}</td>
