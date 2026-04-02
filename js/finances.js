@@ -140,6 +140,14 @@ async function saveTransaction(e) {
     finally { btn.disabled = false; btn.innerText = window.finLang.btnSave; }
 }
 
+// 🔴 دالة استخراج التوقيت الدقيق 🔴
+function getAccurateTime(timestamp) {
+    if (!timestamp) return Date.now();
+    if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
+    if (timestamp.seconds) return timestamp.seconds * 1000;
+    return new Date(timestamp).getTime();
+}
+
 async function loadFinances() {
     if (!clinicId) return;
     
@@ -153,7 +161,6 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
-        // 🔴 حماية الباقة: بنخلي الفايربيز يجيب حركات التاريخ ده بس، ويرتبها بالـ date لضمان الأوفلاين 🔴
         let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
         
         if (dateFrom) finQuery = finQuery.where("date", ">=", dateFrom);
@@ -165,9 +172,16 @@ async function loadFinances() {
         
         finSnap.forEach(doc => {
             const d = doc.data();
-            // الفلترة بالنوع تتم محلياً لتجنب الـ Indexes المعقدة
             if (filterType !== 'all' && d.type !== filterType) return;
             combinedData.push({ id: doc.id, ...d });
+        });
+
+        // 🔴 الترتيب الذكي لمحاربة المهلبية 🔴
+        combinedData.sort((a, b) => {
+            if (a.date !== b.date) {
+                return new Date(b.date) - new Date(a.date);
+            }
+            return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
         });
 
         allTransactionsForEdit = combinedData;
