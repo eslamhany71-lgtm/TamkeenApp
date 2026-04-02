@@ -104,7 +104,6 @@ function initCalendar() {
             if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
             document.getElementById('det_status').innerText = statusTxt;
 
-            // إخفاء زراير الاكتمال والتعديل لو الموعد خلصان، مع ترك زرار الحذف متاح دائماً
             if(props.status === 'completed' || props.status === 'cancelled') {
                 document.getElementById('complete-action-box').style.display = 'none';
                 document.getElementById('edit-action-box').style.display = 'none';
@@ -119,6 +118,8 @@ function initCalendar() {
         eventDrop: async function(info) {
             const newDate = info.event.startStr.split('T')[0];
             const newTime = info.event.startStr.split('T')[1].substring(0, 5);
+            // 🔴 إضافة اللودر 🔴
+            if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الموعد..." : "Updating...");
             try {
                 await db.collection("Appointments").doc(info.event.id).update({
                     date: newDate,
@@ -127,6 +128,9 @@ function initCalendar() {
             } catch (error) {
                 console.error("Error moving event:", error);
                 info.revert(); 
+            } finally {
+                // 🔴 إخفاء اللودر 🔴
+                if (window.hideLoader) window.hideLoader();
             }
         },
         windowResize: function(arg) {
@@ -144,6 +148,9 @@ async function saveAppointment(e) {
     btn.disabled = true; btn.innerText = "...";
 
     if (!currentClinicId) { alert("حدث خطأ!"); return; }
+
+    // 🔴 إضافة اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحفظ..." : "Saving...");
 
     const dateVal = document.getElementById('app_date').value;
     const timeVal = document.getElementById('app_time').value;
@@ -184,6 +191,8 @@ async function saveAppointment(e) {
         alert(window.calendarLang.errSave);
     } finally {
         btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave;
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -197,6 +206,9 @@ async function markAppAsCompleted() {
     const btn = document.querySelector('#complete-action-box button');
     btn.innerText = "جاري الحفظ والإنشاء...";
     btn.disabled = true;
+
+    // 🔴 إضافة اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إتمام الحجز..." : "Completing...");
 
     try {
         // 1. تحويل حالة الحجز لمكتمل
@@ -294,6 +306,8 @@ async function markAppAsCompleted() {
     } finally {
         btn.innerText = "✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)";
         btn.disabled = false;
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -334,15 +348,25 @@ async function deleteAppointment() {
     if (!appId) return;
 
     if (confirm(window.calendarLang.confDel)) {
+        // 🔴 إضافة اللودر 🔴
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
         try {
             await db.collection("Appointments").doc(appId).delete();
             closeAppDetailsModal();
-        } catch (error) { console.error("Error deleting:", error); }
+        } catch (error) { 
+            console.error("Error deleting:", error); 
+        } finally {
+            // 🔴 إخفاء اللودر 🔴
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
 function loadAppointments() {
     if (!currentClinicId || !calendar) return;
+
+    // 🔴 إظهار اللودر عند التحميل الأولي فقط
+    if (window.showLoader && calendar.getEvents().length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة المواعيد..." : "Syncing appointments...");
 
     db.collection("Appointments")
       .where("clinicId", "==", currentClinicId)
@@ -379,6 +403,10 @@ function loadAppointments() {
                 }
             });
         });
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
+    }, error => {
+        if (window.hideLoader) window.hideLoader();
     });
 }
 
