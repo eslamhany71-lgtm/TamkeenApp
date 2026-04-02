@@ -7,7 +7,6 @@ let currentPatientName = "مريض";
 let loadedPatientSessions = []; 
 let currentUserDisplayName = "مستخدم غير معروف";
 
-// متغيرات الـ Pagination رجعت
 const SESSIONS_PER_PAGE = 50;
 let lastVisibleProfileSession = null;
 
@@ -237,12 +236,23 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
     }
 }
 
-// 🔴 دالة استخراج التوقيت الدقيق حتى في وضع الأوفلاين 🔴
+// 🔴 الدالة السحرية للترتيب الصارم (بتعالج المهلبية) 🔴
 function getAccurateTime(timestamp) {
-    if (!timestamp) return Date.now(); // لو النت فاصل والتوقيت null، اعتبره حصل دلوقتي حالا
+    if (!timestamp) return Infinity; 
     if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
     if (timestamp.seconds) return timestamp.seconds * 1000;
     return new Date(timestamp).getTime();
+}
+
+function sortDataLocally(dataArray) {
+    dataArray.sort((a, b) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        if (dateA !== dateB) {
+            return dateB - dateA; 
+        }
+        return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
+    });
 }
 
 async function loadPatientSessions(isLoadMore = false) {
@@ -261,7 +271,7 @@ async function loadPatientSessions(isLoadMore = false) {
     try {
         let queryRef = db.collection("Sessions")
                          .where("patientId", "==", patientId)
-                         .orderBy("date", "desc") // الفايربيز يجيبهم مترتبين بالتاريخ
+                         .orderBy("date", "desc")
                          .limit(SESSIONS_PER_PAGE);
 
         if (isLoadMore && lastVisibleProfileSession) queryRef = queryRef.startAfter(lastVisibleProfileSession);
@@ -273,21 +283,13 @@ async function loadPatientSessions(isLoadMore = false) {
             snap.forEach(doc => {
                 const s = doc.data();
                 s.id = doc.id;
-                // منع التكرار لو الجلسة مضافة محلياً
                 if (!loadedPatientSessions.some(locSess => locSess.id === s.id)) {
                     loadedPatientSessions.push(s);
                 }
             });
             
-            // 🔴 ترتيب ذكي محلي يمنع المهلبية 🔴
-            loadedPatientSessions.sort((a, b) => {
-                if (a.date !== b.date) {
-                    return new Date(b.date) - new Date(a.date); // الأحدث في التاريخ أولاً
-                }
-                // لو نفس اليوم، نرتب بالتوقيت
-                return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
-            });
-            
+            // ترتيب صارم بعد الجلب
+            sortDataLocally(loadedPatientSessions);
             renderPatientSessionsTable();
             
             if (snap.docs.length === SESSIONS_PER_PAGE) {
@@ -320,7 +322,6 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
         const remaining = s.remaining || 0;
         const nextApp = s.nextAppointment ? `<span style="color:#d97706; font-weight:bold;">${s.nextAppointment}</span>` : '---';
 
-        // 🔴 حساب التوقيت بدقة 🔴
         let timeStr = '---';
         if (s.createdAt) {
             try {
