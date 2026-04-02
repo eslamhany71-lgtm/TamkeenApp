@@ -73,6 +73,10 @@ function calcEditRemaining() {
 // تعديل الجلسة
 async function updateSession(e) {
     e.preventDefault();
+
+    // 🔴 إضافة اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
+
     const data = {
         date: document.getElementById('es_date').value,
         nextAppointment: document.getElementById('es_next_date').value || null,
@@ -84,7 +88,12 @@ async function updateSession(e) {
     try {
         await db.collection("Sessions").doc(sessionId).update(data);
         closeModal('editSessionModal');
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e); 
+    } finally {
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function encodeSessionImage(element) {
@@ -98,6 +107,10 @@ async function saveSessionXRay(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save-sx');
     btn.disabled = true; btn.innerText = "جاري الرفع...";
+
+    // 🔴 إضافة اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري رفع المرفق..." : "Uploading...");
+
     const data = {
         clinicId: clinicId, patientId: patientId, sessionId: sessionId,
         type: document.getElementById('sx_type').value,
@@ -107,8 +120,13 @@ async function saveSessionXRay(e) {
     try {
         await db.collection("XRays").add(data);
         closeModal('xrayModal'); document.querySelector('#xrayModal form').reset();
-    } catch (e) { alert("حجم الصورة كبير جداً! برجاء استخدام صورة أصغر."); }
-    finally { btn.disabled = false; btn.innerText = "رفع المرفق"; }
+    } catch (e) { 
+        alert("حجم الصورة كبير جداً! برجاء استخدام صورة أصغر."); 
+    } finally { 
+        btn.disabled = false; btn.innerText = "رفع المرفق"; 
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function loadSessionXRays() {
@@ -166,11 +184,19 @@ function openEditDrugModal(drugId, event) {
 async function deleteDrugFromPharmacy(drugId, event) {
     event.stopPropagation(); 
     if(confirm("هل أنت متأكد من حذف هذا الدواء نهائياً من قاعدة بيانات العيادة؟")) {
+        // 🔴 إضافة اللودر 🔴
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+
         try {
             await db.collection("Pharmacy").doc(drugId).delete();
             document.getElementById('search-results-box').style.display = 'none';
             document.getElementById('drug-search').value = '';
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+            console.error(e); 
+        } finally {
+            // 🔴 إخفاء اللودر 🔴
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
@@ -185,6 +211,9 @@ async function saveNewDrugToPharmacy(e) {
             return;
         }
     }
+
+    // 🔴 إضافة اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحفظ..." : "Saving...");
 
     const data = {
         clinicId: clinicId,
@@ -202,7 +231,12 @@ async function saveNewDrugToPharmacy(e) {
         closeModal('addDrugModal');
         document.getElementById('drug-search').value = data.name;
         searchDrugs(); 
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e); 
+    } finally {
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function searchDrugs() {
@@ -301,6 +335,9 @@ function openSmartRxModal() {
 async function saveSmartPrescription() {
     if(currentPrescriptionDrugs.length === 0) { alert("برجاء اختيار دواء واحد على الأقل لإصدار الروشتة."); return; }
     
+    // 🔴 إضافة اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إصدار الروشتة..." : "Creating prescription...");
+
     let medsText = "";
     currentPrescriptionDrugs.forEach((d, i) => {
         medsText += `${i+1}. ${d.name}\n   ${d.dose}\n\n`;
@@ -325,7 +362,12 @@ async function saveSmartPrescription() {
             await db.collection("Prescriptions").add(data);
         }
         closeModal('smartRxModal');
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e); 
+    } finally {
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function loadSessionPrescription() {
@@ -363,6 +405,9 @@ function loadSessionPrescription() {
 }
 
 function printSessionRx(docId) {
+    // 🔴 إضافة اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "تجهيز للطباعة..." : "Preparing print...");
+
     db.collection("Prescriptions").doc(docId).get().then(doc => {
         if(doc.exists) {
             const p = doc.data();
@@ -373,16 +418,33 @@ function printSessionRx(docId) {
                 if(cDoc.exists && cDoc.data().clinicName) {
                     document.getElementById('print-clinic-name').innerText = cDoc.data().clinicName;
                 }
+                // 🔴 إخفاء اللودر 🔴
+                if (window.hideLoader) window.hideLoader();
                 window.print();
+            }).catch(() => {
+                if (window.hideLoader) window.hideLoader();
             });
+        } else {
+            if (window.hideLoader) window.hideLoader();
         }
+    }).catch(() => {
+        if (window.hideLoader) window.hideLoader();
     });
 }
 
 async function deleteDoc(collectionName, docId) {
     if(confirm("هل أنت متأكد من الحذف النهائي؟")) {
-        try { await db.collection(collectionName).doc(docId).delete(); } 
-        catch (e) { console.error(e); }
+        // 🔴 إضافة اللودر 🔴
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+
+        try { 
+            await db.collection(collectionName).doc(docId).delete(); 
+        } catch (e) { 
+            console.error(e); 
+        } finally {
+            // 🔴 إخفاء اللودر 🔴
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
