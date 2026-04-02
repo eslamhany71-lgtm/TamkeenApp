@@ -3,6 +3,9 @@ const clinicId = sessionStorage.getItem('clinicId');
 let allTransactionsForEdit = []; 
 let currentDisplayedData = []; 
 
+// 🔴 متغير لتخزين اسم المستخدم الحالي 🔴
+let currentUserDisplayName = "مستخدم غير معروف";
+
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -67,7 +70,6 @@ function setDefaultDates() {
     document.getElementById('date_to').value = lastDay;
 }
 
-// 🔴 دالة الفلترة السريعة (تشتغل لما تدوس على الكروت اللي فوق)
 function setQuickFilter(type) {
     document.getElementById('filter_type').value = type;
     loadFinances();
@@ -127,6 +129,7 @@ async function saveTransaction(e) {
         category: document.getElementById('trans_category').value,
         notes: document.getElementById('trans_notes').value.trim(),
         isManual: true, 
+        createdBy: currentUserDisplayName, // 🔴 إضافة اسم الموظف 🔴
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -156,7 +159,6 @@ async function loadFinances() {
         if (dateFrom) { finQuery = finQuery.where("date", ">=", dateFrom); }
         if (dateTo) { finQuery = finQuery.where("date", "<=", dateTo); }
 
-        // 🔴 الإصلاح الجذري: لو الفلتر مش "الكل"، بنجيب النوع المطلوب بس، لو "الكل" بيجيب كله (بما فيهم الديون)
         if (filterType !== 'all') {
             finQuery = finQuery.where("type", "==", filterType);
         }
@@ -164,7 +166,6 @@ async function loadFinances() {
         const finSnap = await finQuery.get();
         finSnap.forEach(doc => combinedData.push({ id: doc.id, ...doc.data() }));
 
-        // ترتيب تنازلي (الأحدث أولاً) وتأمين الحركات القديمة اللي معندهاش Timestamp
         combinedData.sort((a, b) => {
             let dateA = new Date(0);
             let dateB = new Date(0);
@@ -189,7 +190,6 @@ async function loadFinances() {
     }
 }
 
-// الفلترة اللحظية ورسم الجدول
 function filterTransactionsLocally() {
     const searchText = document.getElementById('search_text').value.trim().toLowerCase();
     
@@ -197,7 +197,8 @@ function filterTransactionsLocally() {
     if (searchText) {
         dataToRender = allTransactionsForEdit.filter(item => 
             (item.notes && item.notes.toLowerCase().includes(searchText)) || 
-            (item.category && item.category.toLowerCase().includes(searchText))
+            (item.category && item.category.toLowerCase().includes(searchText)) ||
+            (item.createdBy && item.createdBy.toLowerCase().includes(searchText)) // البحث باسم الموظف كمان
         );
     }
     
@@ -219,12 +220,10 @@ function renderFinancesTable(dataArray) {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
     dataArray.forEach(f => {
-        // حساب التجميعات
         if (f.type === 'income') totalInc += Number(f.amount);
         else if (f.type === 'expense') totalExp += Number(f.amount);
         else if (f.type === 'debt') totalDebt += Number(f.amount);
 
-        // 🔴 تأمين عرض التوقيت للحركات القديمة 🔴
         let timeStr = '---';
         if (f.createdAt) {
             try {
@@ -250,6 +249,12 @@ function renderFinancesTable(dataArray) {
             amountSign = ''; 
         }
 
+        // 🔴 عرض اسم الموظف اللي عمل الإجراء 🔴
+        let createdByHtml = '';
+        if (f.createdBy) {
+            createdByHtml = `<div style="margin-top: 5px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${f.createdBy}</span></div>`;
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
@@ -259,7 +264,10 @@ function renderFinancesTable(dataArray) {
                 </div>
             </td>
             <td><span class="${badgeClass}" style="${f.type === 'debt' ? 'background: #fef3c7; color: #b45309; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 12px;' : ''}">${typeTxt}</span></td>
-            <td>${f.category}</td>
+            <td>
+                <div style="font-weight: bold; color: #0f172a;">${f.category}</div>
+                ${createdByHtml}
+            </td>
             <td class="amount-text" style="color: ${amountColor}; font-weight: bold;" dir="ltr">${amountSign} ${f.amount}</td>
             <td>${f.notes || '---'}</td>
             <td class="no-print" style="text-align: center;">
@@ -270,7 +278,6 @@ function renderFinancesTable(dataArray) {
         tbody.appendChild(tr);
     });
 
-    // تحديث الكروت العلوية
     document.getElementById('stat-income').innerText = totalInc.toLocaleString();
     document.getElementById('stat-expense').innerText = totalExp.toLocaleString();
     
@@ -303,6 +310,7 @@ async function updateTransaction(e) {
     const newNotes = document.getElementById('edit_trans_notes').value;
 
     try {
+        // 🔴 بنحدث الحركة وبنسيب اسم اللي سجلها زي ما هو
         await db.collection("Finances").doc(docId).update({
             amount: newAmount,
             date: newDate,
@@ -329,8 +337,18 @@ window.onload = () => {
     updatePageContent(lang);
     setDefaultDates(); 
     
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) { loadFinances(); }
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) { 
+            // 🔴 جلب اسم اليوزر الحالي من قاعدة البيانات أول ما يفتح الصفحة
+            try {
+                const userDoc = await db.collection("Users").doc(user.email).get();
+                if (userDoc.exists) {
+                    currentUserDisplayName = userDoc.data().name || "مدير النظام";
+                }
+            } catch(e) { console.error("Error fetching user name"); }
+            
+            loadFinances(); 
+        }
     });
 };
 
