@@ -120,7 +120,6 @@ async function saveTransaction(e) {
 
     if (!clinicId) return;
 
-    // 🔴 إظهار اللودر عند الحفظ
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ العملية..." : "Saving transaction...");
 
     const data = {
@@ -144,7 +143,6 @@ async function saveTransaction(e) {
     } finally { 
         btn.disabled = false; 
         btn.innerText = window.finLang.btnSave;
-        // 🔴 إخفاء اللودر
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -156,13 +154,14 @@ function getAccurateTime(timestamp) {
     return new Date(timestamp).getTime();
 }
 
+// 🔴 التحديث الجذري هنا لفرز التواريخ 🔴
 function sortDataLocally(dataArray) {
     dataArray.sort((a, b) => {
-        const dateA = new Date(a.date || 0).getTime();
-        const dateB = new Date(b.date || 0).getTime();
-        if (dateA !== dateB) {
-            return dateB - dateA; 
-        }
+        const dateA = a.date || "";
+        const dateB = b.date || "";
+        // يقارن التاريخ المكتوب الأول عشان يخلي الجديد فوق
+        if (dateA !== dateB) return dateB.localeCompare(dateA); 
+        // لو نفس اليوم، يرتب باللي دخل الأول
         return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
     });
 }
@@ -177,7 +176,6 @@ async function loadFinances() {
     const tbody = document.getElementById('financesBody');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">جاري تجميع البيانات...</td></tr>';
     
-    // 🔴 إظهار اللودر عند السحب
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري سحب دفتر الحسابات..." : "Loading finances...");
 
     let combinedData = [];
@@ -207,7 +205,6 @@ async function loadFinances() {
         console.error("Error loading finances:", error);
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل البيانات.</td></tr>';
     } finally {
-        // 🔴 إخفاء اللودر
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -330,7 +327,6 @@ async function updateTransaction(e) {
     const newDate = document.getElementById('edit_trans_date').value;
     const newNotes = document.getElementById('edit_trans_notes').value;
 
-    // 🔴 إظهار اللودر عند التعديل
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
 
     try {
@@ -350,7 +346,6 @@ async function updateTransaction(e) {
 
 async function deleteTransaction(docId) {
     if(confirm(window.finLang.confDel)) {
-        // 🔴 إظهار اللودر عند الحذف
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
 
         try { 
