@@ -140,9 +140,8 @@ async function saveTransaction(e) {
     finally { btn.disabled = false; btn.innerText = window.finLang.btnSave; }
 }
 
-// 🔴 الدالة السحرية للترتيب الصارم (بتعالج المهلبية) 🔴
 function getAccurateTime(timestamp) {
-    if (!timestamp) return Infinity; // اللي ملوش توقيت (الجديد أوفلاين) يطلع فوق
+    if (!timestamp) return Date.now();
     if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
     if (timestamp.seconds) return timestamp.seconds * 1000;
     return new Date(timestamp).getTime();
@@ -182,12 +181,12 @@ async function loadFinances() {
         const finSnap = await finQuery.get();
         
         finSnap.forEach(doc => {
-            const d = doc.data();
+            // 🔴 السحر بتاع estimate 🔴
+            const d = doc.data({ serverTimestamps: 'estimate' });
             if (filterType !== 'all' && d.type !== filterType) return;
             combinedData.push({ id: doc.id, ...d });
         });
 
-        // ترتيب صارم بعد الجلب
         sortDataLocally(combinedData);
 
         allTransactionsForEdit = combinedData;
