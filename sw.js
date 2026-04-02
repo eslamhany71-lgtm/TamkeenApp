@@ -1,30 +1,57 @@
-const CACHE_NAME = 'aldokan-erp-cache-v3'; 
+const CACHE_NAME = 'aldokan-erp-cache-v4'; // غيرنا الإصدار لـ 4 عشان يجبر المتصفح يحمل اللستة الجديدة دي كلها
 
+// 🔴 خريطة ملفات السيستم بالكامل (App Shell) 🔴
 const ASSETS_TO_CACHE = [
     '/',
+    '/index.html',
+    '/activate.html',
     '/dashboard.html',
     '/patients.html',
     '/patient-profile.html',
     '/sessions.html',
+    '/session-details.html',
     '/finances.html',
+    '/calendar.html',
+    '/settings.html',
     '/super-admin.html',
+    '/404.html',
+    
+    // فولدر الصور
+    '/assets/logo.png',
+    
+    // فولدر الـ CSS
+    '/css/style.css',
+    '/css/home.css',
+    '/css/dashboard.css',
     '/css/patients.css',
     '/css/patient-profile.css',
     '/css/sessions.css',
     '/css/finances.css',
+    '/css/calendar.css',
+    '/css/settings.css',
     '/css/super-admin.css',
+    
+    // فولدر الـ JS
     '/js/firebase-config.js',
+    '/js/auth.js',
+    '/js/lang-manager.js',
+    '/js/home.js',
+    '/js/dashboard.js',
     '/js/patients.js',
     '/js/patient-profile.js',
     '/js/sessions.js',
+    '/js/session-details.js',
     '/js/finances.js',
-    '/js/super-admin.js'
+    '/js/calendar.js',
+    '/js/settings.js',
+    '/js/super-admin.js',
+    '/js/backup.js'
 ];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log('✅ جاري تخزين ملفات النظام للعمل أوفلاين...');
+            console.log('✅ جاري تخزين جميع ملفات النظام الشاملة للعمل أوفلاين...');
             return cache.addAll(ASSETS_TO_CACHE).catch(err => console.log("خطأ في الكاش (لا تقلق): ", err));
         })
     );
@@ -37,6 +64,7 @@ self.addEventListener('activate', (event) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
+                        console.log('🧹 مسح الكاش القديم:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -47,7 +75,7 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // 1. تأمين: تجاهل أي طلبات غير الـ HTTP/HTTPS (زي إضافات المتصفح)
+    // 1. تأمين: تجاهل أي طلبات غير الـ HTTP/HTTPS
     if (!event.request.url.startsWith('http')) return;
 
     // 2. تجاهل الفايربيز وصور التتبع عشان ميعملوش زحمة في الكونسول
@@ -65,7 +93,6 @@ self.addEventListener('fetch', (event) => {
                     // النت شغال: خد نسخة حديثة للكاش
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
-                        // هنخزن الطلب الأصلي بدون الـ Query String عشان ميملاش الكاش ع الفاضي
                         const urlWithoutQuery = event.request.url.split('?')[0];
                         cache.put(urlWithoutQuery, responseToCache);
                     });
