@@ -120,6 +120,9 @@ async function saveTransaction(e) {
 
     if (!clinicId) return;
 
+    // 🔴 إظهار اللودر عند الحفظ
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ العملية..." : "Saving transaction...");
+
     const data = {
         clinicId: clinicId,
         type: document.getElementById('trans_type').value,
@@ -135,9 +138,15 @@ async function saveTransaction(e) {
     try {
         await db.collection("Finances").add(data);
         closeTransactionModal();
-        loadFinances();
-    } catch (error) { console.error(error); }
-    finally { btn.disabled = false; btn.innerText = window.finLang.btnSave; }
+        await loadFinances();
+    } catch (error) { 
+        console.error(error); 
+    } finally { 
+        btn.disabled = false; 
+        btn.innerText = window.finLang.btnSave;
+        // 🔴 إخفاء اللودر
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function getAccurateTime(timestamp) {
@@ -168,10 +177,12 @@ async function loadFinances() {
     const tbody = document.getElementById('financesBody');
     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">جاري تجميع البيانات...</td></tr>';
     
+    // 🔴 إظهار اللودر عند السحب
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري سحب دفتر الحسابات..." : "Loading finances...");
+
     let combinedData = [];
 
     try {
-        // 🔴 السر هنا: شلنا الـ orderBy من الكويري عشان الفايربيز ميضربش أوفلاين 🔴
         let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
         
         if (dateFrom) finQuery = finQuery.where("date", ">=", dateFrom);
@@ -185,7 +196,6 @@ async function loadFinances() {
             combinedData.push({ id: doc.id, ...d });
         });
 
-        // هنرتب احنا براحتنا في الجافاسكريبت
         sortDataLocally(combinedData);
 
         allTransactionsForEdit = combinedData;
@@ -196,6 +206,9 @@ async function loadFinances() {
     } catch (error) {
         console.error("Error loading finances:", error);
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل البيانات.</td></tr>';
+    } finally {
+        // 🔴 إخفاء اللودر
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -317,6 +330,9 @@ async function updateTransaction(e) {
     const newDate = document.getElementById('edit_trans_date').value;
     const newNotes = document.getElementById('edit_trans_notes').value;
 
+    // 🔴 إظهار اللودر عند التعديل
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
+
     try {
         await db.collection("Finances").doc(docId).update({
             amount: newAmount,
@@ -324,17 +340,27 @@ async function updateTransaction(e) {
             notes: newNotes
         });
         closeEditTransactionModal();
-        loadFinances(); 
-    } catch(e) { console.error(e); }
+        await loadFinances(); 
+    } catch(e) { 
+        console.error(e); 
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 async function deleteTransaction(docId) {
     if(confirm(window.finLang.confDel)) {
+        // 🔴 إظهار اللودر عند الحذف
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+
         try { 
             await db.collection("Finances").doc(docId).delete(); 
-            loadFinances(); 
-        } 
-        catch (e) { console.error(e); }
+            await loadFinances(); 
+        } catch (e) { 
+            console.error(e); 
+        } finally {
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
