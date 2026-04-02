@@ -97,6 +97,9 @@ async function loadSessions(isLoadMore = false) {
     const tbody = document.getElementById('sessionsBody');
     const btnMore = document.getElementById('btn-load-more-sessions');
 
+    // 🔴 إظهار اللودر عند التحميل لأول مرة
+    if (!isLoadMore && window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل الجلسات..." : "Loading sessions...");
+
     if (!isLoadMore) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">جاري التحميل...</td></tr>';
         loadedSessions = [];
@@ -126,7 +129,6 @@ async function loadSessions(isLoadMore = false) {
             await fetchMissingPatients(pIds);
             
             snap.forEach(doc => {
-                // 🔴 السحر بتاع التخمين 🔴
                 const s = doc.data({ serverTimestamps: 'estimate' });
                 s.id = doc.id;
                 loadedSessions.push(s);
@@ -143,7 +145,13 @@ async function loadSessions(isLoadMore = false) {
             if (!isLoadMore) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: #64748b;">${window.globalStrings.empty}</td></tr>`;
             else { btnMore.innerText = window.globalStrings.noMore; setTimeout(() => btnMore.style.display = 'none', 2000); }
         }
-    } catch(e) { console.error(e); } finally { if(isLoadMore) btnMore.disabled = false; }
+    } catch(e) { 
+        console.error(e); 
+    } finally { 
+        if(isLoadMore) btnMore.disabled = false; 
+        // 🔴 إخفاء اللودر
+        if (!isLoadMore && window.hideLoader) window.hideLoader();
+    }
 }
 
 function renderSessions(dataToRender = loadedSessions) {
@@ -212,11 +220,19 @@ function renderSessions(dataToRender = loadedSessions) {
 
 async function deleteSession(sessionId) {
     if(confirm(window.globalStrings.confDel || "هل أنت متأكد من حذف هذه الجلسة؟")) {
+        // 🔴 إظهار اللودر عند الحذف
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+
         try {
             await db.collection("Sessions").doc(sessionId).delete();
             loadedSessions = loadedSessions.filter(s => s.id !== sessionId);
             renderSessions();
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+            console.error(e); 
+        } finally {
+            // 🔴 إخفاء اللودر
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
@@ -224,6 +240,9 @@ async function loadPrescriptions(isLoadMore = false) {
     if (!clinicId) return;
     const tbody = document.getElementById('prescriptionsBody');
     const btnMore = document.getElementById('btn-load-more-rx');
+
+    // 🔴 إظهار اللودر
+    if (!isLoadMore && window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل الروشتات..." : "Loading prescriptions...");
 
     if (!isLoadMore) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">جاري التحميل...</td></tr>';
@@ -254,7 +273,6 @@ async function loadPrescriptions(isLoadMore = false) {
             await fetchMissingPatients(pIds);
             
             snap.forEach(doc => {
-                // 🔴 تقدير التوقيت هنا كمان 🔴
                 const p = doc.data({ serverTimestamps: 'estimate' });
                 p.id = doc.id;
                 loadedPrescriptions.push(p);
@@ -271,7 +289,13 @@ async function loadPrescriptions(isLoadMore = false) {
             if (!isLoadMore) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b;">${window.globalStrings.empty}</td></tr>`;
             else { btnMore.innerText = window.globalStrings.noMore; setTimeout(() => btnMore.style.display = 'none', 2000); }
         }
-    } catch(e) { console.error(e); } finally { if(isLoadMore) btnMore.disabled = false; }
+    } catch(e) { 
+        console.error(e); 
+    } finally { 
+        if(isLoadMore) btnMore.disabled = false; 
+        // 🔴 إخفاء اللودر
+        if (!isLoadMore && window.hideLoader) window.hideLoader();
+    }
 }
 
 function renderPrescriptions(dataToRender = loadedPrescriptions) {
@@ -293,7 +317,7 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
         let timeStr = '---';
         if (p.createdAt) {
             try {
-                const d = typeof p.createdAt.toDate === 'function' ? p.createdAt.toDate() : new Date(p.createdAt);
+                const d = typeof p.createdAt.toDate === 'function' ? p.createdAt.toDate() : new Date(s.createdAt);
                 timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
             } catch(e) { timeStr = '---'; }
         }
@@ -344,7 +368,8 @@ document.getElementById('uploadPrescriptionInput').addEventListener('change', as
     const file = e.target.files[0];
     if (!file || !currentSessionIdForUpload) return;
     
-    alert(window.globalStrings.uploading || "جاري رفع الروشتة... يرجى الانتظار.");
+    // 🔴 إظهار اللودر عند رفع الروشتة
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري رفع الروشتة..." : "Uploading prescription...");
     
     try {
         const storageRef = storage.ref(`prescriptions/${clinicId}/${currentSessionIdForUpload}_${file.name}`);
@@ -365,6 +390,8 @@ document.getElementById('uploadPrescriptionInput').addEventListener('change', as
         alert("❌ حدث خطأ أثناء الرفع.");
     } finally {
         e.target.value = ''; 
+        // 🔴 إخفاء اللودر
+        if (window.hideLoader) window.hideLoader();
     }
 });
 
