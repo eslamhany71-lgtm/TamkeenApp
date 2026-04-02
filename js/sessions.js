@@ -5,6 +5,9 @@ let patientsMap = {};
 let currentTab = 'sessions'; 
 let currentSessionIdForUpload = null; 
 
+// 🔴 متغير لتخزين اسم المستخدم الحالي 🔴
+let currentUserDisplayName = "مستخدم غير معروف";
+
 const ITEMS_PER_PAGE = 50;
 let lastVisibleSession = null;
 let lastVisibleRx = null;
@@ -142,7 +145,6 @@ function renderSessions(dataToRender = loadedSessions) {
 
         const patName = patientsMap[s.patientId] || "مريض غير معروف"; 
         
-        // استخراج التوقيت
         let timeStr = '';
         if (s.createdAt) {
             const d = s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
@@ -152,6 +154,13 @@ function renderSessions(dataToRender = loadedSessions) {
         const total = s.total || 0;
         const paid = s.paid || 0;
         const remaining = s.remaining || 0;
+
+        // 🔴 عرض اسم الموظف اللي سجل الجلسة 🔴
+        // بما إن حقل createdBy لسه ضايفينه جديد في ملف المريض، ممكن ميكونش موجود في الجلسات القديمة
+        let createdByHtml = '';
+        if (s.createdBy) {
+            createdByHtml = `<div style="margin-top: 5px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${s.createdBy}</span></div>`;
+        }
         
         const tr = document.createElement('tr');
         
@@ -159,11 +168,14 @@ function renderSessions(dataToRender = loadedSessions) {
             <td>
                 <div style="display: flex; flex-direction: column; align-items: center;">
                     <span class="data-badge">${s.date}</span>
-                    <span style="font-size: 16px; color: #000; margin-top: 4px;">${timeStr}</span>
+                    <span style="font-size: 16px; color: #000; margin-top: 4px; font-weight: bold;">${timeStr}</span>
                 </div>
             </td>
             <td style="font-weight:bold; color:#0f172a;">${patName}</td>
-            <td>${s.procedure}</td>
+            <td>
+                <div style="font-weight: bold; color: #0f172a;">${s.procedure}</div>
+                ${createdByHtml}
+            </td>
             <td dir="ltr" style="text-align: center; font-weight: bold; color: #0284c7;">${s.tooth || '-'}</td>
             <td style="font-weight:bold;">${total}</td>
             <td style="color:#10b981; font-weight:bold;">${paid}</td>
@@ -265,21 +277,29 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
         const patName = patientsMap[p.patientId] || "مريض غير معروف";
         const tr = document.createElement('tr');
         
-        // زراير الروشتة (رفع وعرض)
         let rxButtons = `<button class="btn-action" style="background:#f59e0b; color:white; border:none;" onclick="triggerUploadRx('${p.id}')" title="رفع صورة/ملف للروشتة">📎</button>`;
         if(p.imageUrl) {
             rxButtons += `<button class="btn-action" style="background:#3b82f6; color:white; border:none;" onclick="window.open('${p.imageUrl}', '_blank')" title="عرض الروشتة المرفوعة">👁️</button>`;
+        }
+
+        // 🔴 عرض اسم الموظف اللي أصدر الروشتة 🔴
+        let createdByHtml = '';
+        if (p.createdBy) {
+            createdByHtml = `<div style="margin-top: 8px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${p.createdBy}</span></div>`;
         }
 
         tr.innerHTML = `
             <td>
                 <div style="display: flex; flex-direction: column; align-items: center;">
                     <span class="data-badge">${p.date}</span>
-                    <span style="font-size: 11px; color: #64748b; margin-top: 4px;">${timeStr}</span>
+                    <span style="font-size: 16px; color: #000; margin-top: 4px; font-weight: bold;">${timeStr}</span>
                 </div>
             </td>
             <td style="font-weight:bold; color:#0f172a;">${patName}</td>
-            <td><div class="presc-text">${p.medications}</div></td>
+            <td>
+                <div class="presc-text">${p.medications}</div>
+                ${createdByHtml}
+            </td>
             <td>
                 <div class="action-group" style="justify-content: center;">
                     ${rxButtons}
@@ -311,7 +331,6 @@ document.getElementById('uploadPrescriptionInput').addEventListener('change', as
         
         await db.collection("Prescriptions").doc(currentSessionIdForUpload).update({ imageUrl: url });
         
-        // تحديث محلي سريع
         const rxIndex = loadedPrescriptions.findIndex(p => p.id === currentSessionIdForUpload);
         if(rxIndex > -1) {
             loadedPrescriptions[rxIndex].imageUrl = url;
@@ -323,16 +342,15 @@ document.getElementById('uploadPrescriptionInput').addEventListener('change', as
         console.error("Upload error:", error);
         alert("❌ حدث خطأ أثناء الرفع.");
     } finally {
-        e.target.value = ''; // تصفير الحقل
+        e.target.value = ''; 
     }
 });
 
-// 🔴 6. البحث الذكي (بحث محلي لتوفير القراءات + لايف) 🔴
+// 6. البحث الذكي 
 function searchActivity() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
     
     if(!input) {
-        // لو مسح البحث، نرجع نعرض المصفوفة الأصلية
         if(currentTab === 'sessions') {
             renderSessions(loadedSessions);
             document.getElementById('btn-load-more-sessions').style.display = loadedSessions.length >= ITEMS_PER_PAGE ? 'block' : 'none';
@@ -343,18 +361,17 @@ function searchActivity() {
         return; 
     }
     
-    // فلترة لايف سريعة جداً
     if(currentTab === 'sessions') {
         const filtered = loadedSessions.filter(s => {
             const pName = (patientsMap[s.patientId] || "").toLowerCase();
-            return pName.includes(input);
+            return pName.includes(input) || (s.createdBy && s.createdBy.toLowerCase().includes(input));
         });
         renderSessions(filtered);
         document.getElementById('btn-load-more-sessions').style.display = 'none';
     } else {
         const filtered = loadedPrescriptions.filter(p => {
             const pName = (patientsMap[p.patientId] || "").toLowerCase();
-            return pName.includes(input);
+            return pName.includes(input) || (p.createdBy && p.createdBy.toLowerCase().includes(input));
         });
         renderPrescriptions(filtered);
         document.getElementById('btn-load-more-rx').style.display = 'none';
@@ -363,7 +380,7 @@ function searchActivity() {
 
 function resetSearch() {
     document.getElementById('searchInput').value = '';
-    searchActivity(); // نشغل دالة البحث وهي فاضية هترجع كل حاجة لأصلها
+    searchActivity(); 
 }
 
 // 7. دالة الطباعة وتوجيه البروفايل
@@ -397,7 +414,17 @@ window.onload = () => {
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
     
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) { loadSessions(); }
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) { 
+            // 🔴 التقاط اسم المستخدم الحالي 🔴
+            try {
+                const userDoc = await db.collection("Users").doc(user.email).get();
+                if (userDoc.exists) {
+                    currentUserDisplayName = userDoc.data().name || "مدير النظام";
+                }
+            } catch(e) { console.error("Error fetching user name"); }
+            
+            loadSessions(); 
+        }
     });
 };
