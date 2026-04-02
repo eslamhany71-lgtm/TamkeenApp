@@ -79,7 +79,6 @@ function updateChart(pending, completed, cancelled) {
     });
 }
 
-// 🔴 تحديث إجمالي الإيرادات (بقت بتقرأ من الحسابات بس) 🔴
 function updateTotalRevenue() {
     const total = todayRevenueData.reduce((sum, item) => sum + Number(item.amount), 0);
     document.getElementById('stat-revenue').innerText = total;
@@ -89,13 +88,15 @@ function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = new Date().toISOString().split('T')[0];
 
+    // 🔴 إظهار اللودر عند التحميل 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
+
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         allPatientsData = [];
         snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
         document.getElementById('stat-patients').innerText = allPatientsData.length;
     });
 
-    // 🔴 قراءة الإيرادات من الخزنة فقط لمنع التكرار 🔴
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
         todayRevenueData = []; 
         snap.forEach(doc => { 
@@ -106,8 +107,6 @@ function loadDashboardStats() {
         });
         updateTotalRevenue();
     });
-
-    // تم حذف كود (استدعاء فلوس الجلسات) من هنا لتفادي التكرار
 
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         let pending = 0, completed = 0, cancelled = 0;
@@ -132,6 +131,11 @@ function loadDashboardStats() {
             renderWaitList('todayWaitContainer', todayPendingApps);
             renderWaitList('upcomingWaitContainer', upcomingPendingApps);
         }
+        
+        // 🔴 إخفاء اللودر عشان ده آخر Snapshot بيرد 🔴
+        if (window.hideLoader) window.hideLoader();
+    }, error => {
+        if (window.hideLoader) window.hideLoader();
     });
 }
 
@@ -162,6 +166,9 @@ async function saveNewAppointment(e) {
     e.preventDefault();
     if(!clinicId) return;
 
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حجز الموعد..." : "Booking...");
+
     const data = {
         clinicId: clinicId,
         patientName: document.getElementById('new_app_name').value.trim(),
@@ -185,6 +192,9 @@ async function saveNewAppointment(e) {
     } catch(err) {
         console.error(err);
         alert("حدث خطأ أثناء الحفظ.");
+    } finally {
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -250,19 +260,36 @@ function openAppDetails(app) {
 
 async function updateAppStatus(newStatus) {
     if(!currentSelectedApp) return;
+    
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
+
     try {
         await db.collection("Appointments").doc(currentSelectedApp.id).update({ status: newStatus });
         closeModal('appDetailsModal');
-    } catch(e) { console.error("Error updating status:", e); }
+    } catch(e) { 
+        console.error("Error updating status:", e); 
+    } finally {
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 async function deleteAppointment() {
     if(!currentSelectedApp) return;
     if(confirm(window.confDelTxt)) {
+        // 🔴 إظهار اللودر 🔴
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+
         try {
             await db.collection("Appointments").doc(currentSelectedApp.id).delete();
             closeModal('appDetailsModal');
-        } catch(e) { console.error("Error deleting:", e); }
+        } catch(e) { 
+            console.error("Error deleting:", e); 
+        } finally {
+            // 🔴 إخفاء اللودر 🔴
+            if (window.hideLoader) window.hideLoader();
+        }
     }
 }
 
