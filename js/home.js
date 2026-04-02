@@ -70,6 +70,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
 
+        // --- إضافة اللودر هنا ---
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تهيئة النظام..." : "Initializing...");
+
         try {
             const userDoc = await db.collection("Users").doc(user.email).get();
             if (userDoc.exists) {
@@ -89,6 +92,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
             }
         } catch (error) {
             console.error("خطأ في جلب بيانات المستخدم:", error);
+        } finally {
+            // --- إخفاء اللودر هنا ---
+            if (window.hideLoader) window.hideLoader();
         }
     } else {
         window.location.href = "index.html";
