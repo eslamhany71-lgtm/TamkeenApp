@@ -55,6 +55,9 @@ const defaultLogoSVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/
 async function loadClinicSettings() {
     if (!clinicId || clinicId === 'default') return;
 
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل الإعدادات..." : "Loading settings...");
+
     try {
         const doc = await db.collection("Clinics").doc(clinicId).get();
         if (doc.exists) {
@@ -72,6 +75,9 @@ async function loadClinicSettings() {
         }
     } catch (error) {
         console.error("Error loading settings:", error);
+    } finally {
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -87,21 +93,24 @@ function encodeLogo(element) {
     }
 }
 
-// 🔴 دالة حذف اللوجو 🔴
 function deleteLogo() {
     document.getElementById('logo-preview').src = defaultLogoSVG;
     document.getElementById('logo_base64').value = "";
-    document.getElementById('clinic_logo').value = ""; // تفريغ حقل الملف
+    document.getElementById('clinic_logo').value = ""; 
 }
 
 function changeSystemLanguage(newLang) {
     localStorage.setItem('preferredLang', newLang);
     
+    // 🔴 إظهار اللودر عند تغيير اللغة 🔴
+    if (window.showLoader) window.showLoader("...");
+
     if (window.parent && typeof window.parent.switchAppLanguage === 'function') {
         window.parent.switchAppLanguage(newLang);
     } else {
         document.body.dir = newLang === 'en' ? 'ltr' : 'rtl';
         updatePageContent(newLang);
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -115,6 +124,9 @@ async function saveSettings(e) {
         btn.disabled = false; btn.innerText = window.settingsLang.btnSave;
         return;
     }
+
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ التعديلات..." : "Saving changes...");
 
     const newName = document.getElementById('clinic_name').value.trim();
     const newLogo = document.getElementById('logo_base64').value;
@@ -135,6 +147,8 @@ async function saveSettings(e) {
         alert(window.settingsLang.msgError);
     } finally {
         btn.disabled = false; btn.innerText = window.settingsLang.btnSave;
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
@@ -170,6 +184,9 @@ async function changePassword(e) {
     btn.disabled = true;
     btn.innerText = "جاري التحديث...";
 
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تغيير كلمة المرور..." : "Changing password...");
+
     const user = auth.currentUser;
     
     if (user) {
@@ -196,6 +213,8 @@ async function changePassword(e) {
     
     btn.disabled = false;
     btn.innerText = window.settingsLang.btnSavePass || "تحديث كلمة المرور";
+    // 🔴 إخفاء اللودر 🔴
+    if (window.hideLoader) window.hideLoader();
 }
 
 window.addEventListener('click', function(event) {
@@ -223,11 +242,12 @@ async function exportClinicDataToExcel() {
     btn.disabled = true; 
     document.getElementById('btn-backup-txt').innerText = safeLang.msgBkpWait;
 
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تجميع البيانات لملف Excel..." : "Generating Excel backup...");
+
     try {
-        // 1. إنشاء ملف (Workbook) جديد
         var wb = XLSX.utils.book_new();
 
-        // 2. سحب وتجهيز شيت "المرضى"
         const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
         let patientsList = [];
         patSnap.forEach(doc => {
@@ -245,7 +265,6 @@ async function exportClinicDataToExcel() {
             XLSX.utils.book_append_sheet(wb, wsPatients, "قائمة المرضى");
         }
 
-        // 3. سحب وتجهيز شيت "الحجوزات"
         const appSnap = await db.collection("Appointments").where("clinicId", "==", clinicId).get();
         let appsList = [];
         appSnap.forEach(doc => {
@@ -266,7 +285,6 @@ async function exportClinicDataToExcel() {
             XLSX.utils.book_append_sheet(wb, wsApps, "حجوزات العيادة");
         }
 
-        // 4. سحب وتجهيز شيت "الحسابات والمصروفات"
         const finSnap = await db.collection("Finances").where("clinicId", "==", clinicId).get();
         let finList = [];
         finSnap.forEach(doc => {
@@ -285,7 +303,6 @@ async function exportClinicDataToExcel() {
             XLSX.utils.book_append_sheet(wb, wsFin, "الخزنة والحسابات");
         }
 
-        // 5. حفظ الملف على جهاز المستخدم
         const clinicName = document.getElementById('clinic_name').value || "Clinic";
         const dateStr = new Date().toISOString().split('T')[0];
         const fileName = `${clinicName}_Backup_${dateStr}.xlsx`;
@@ -299,6 +316,8 @@ async function exportClinicDataToExcel() {
     } finally {
         btn.disabled = false; 
         document.getElementById('btn-backup-txt').innerText = originalText;
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
