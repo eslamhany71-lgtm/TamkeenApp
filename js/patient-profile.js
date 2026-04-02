@@ -6,7 +6,10 @@ const clinicId = sessionStorage.getItem('clinicId');
 let currentPatientName = "مريض";
 let loadedPatientSessions = []; 
 
-// 🔴 متغيرات الـ Pagination 🔴
+// 🔴 متغير لتخزين اسم المستخدم الحالي 🔴
+let currentUserDisplayName = "مستخدم غير معروف";
+
+// متغيرات الـ Pagination
 const SESSIONS_PER_PAGE = 50;
 let lastVisibleProfileSession = null;
 
@@ -48,7 +51,6 @@ async function loadPatientData() {
             const p = doc.data();
             currentPatientName = p.name;
             
-            // 🔴 عرض بادج الديون لو عليه فلوس 🔴
             let debtHtml = '';
             if (p.totalDebt && p.totalDebt > 0) {
                 debtHtml = `<span style="color: #ef4444; font-size: 14px; font-weight: bold; background: #fee2e2; padding: 4px 10px; border-radius: 8px; margin-right: 15px; border: 1px solid #fca5a5;">الديون: ${p.totalDebt} ج.م</span>`;
@@ -81,7 +83,7 @@ function calculateRemaining(mode = 'add') {
     document.getElementById(`${prefix}remaining`).value = remaining;
 }
 
-// 🔴 5. إضافة وتعديل الجلسة (مع ربط الخزنة والمديونية) 🔴
+// 🔴 5. إضافة وتعديل الجلسة (مع ربط الخزنة والمديونية واسم المستخدم) 🔴
 async function saveSession(e, isEditMode) {
     e.preventDefault();
     const prefix = isEditMode ? 'edit_sess_' : 'sess_';
@@ -115,25 +117,23 @@ async function saveSession(e, isEditMode) {
     try {
         if (isEditMode) {
             const docId = document.getElementById('edit_sess_id').value;
-            // عشان نعدل فلوس الجلسة صح، لازم نحسب الفرق في المديونية
             const oldSession = loadedPatientSessions.find(s => s.id === docId);
             const oldRemaining = oldSession ? (oldSession.remaining || 0) : 0;
             const debtDiff = remainingAmount - oldRemaining;
 
             await db.collection("Sessions").doc(docId).update(data);
             
-            // لو زود أو نقص المديونية أثناء التعديل
             if (debtDiff !== 0) {
                 await db.collection("Patients").doc(patientId).update({
                     totalDebt: firebase.firestore.FieldValue.increment(debtDiff)
                 });
                 
-                // إضافة حركة دين لتعديل الميزان
                 await db.collection("Finances").add({
                     clinicId: clinicId, patientId: patientId,
                     type: 'debt', category: 'تعديل مديونية جلسة',
                     amount: debtDiff, date: sessionDate,
                     notes: `تسوية ديون بناءً على تعديل جلسة: ${procedureName}`,
+                    createdBy: currentUserDisplayName, // 👤 تسجيل اسم المستخدم
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
@@ -142,28 +142,30 @@ async function saveSession(e, isEditMode) {
             if(index !== -1) loadedPatientSessions[index] = { ...loadedPatientSessions[index], ...data };
             
         } else {
-            // 🔴 حالة إضافة جلسة جديدة 🔴
+            // حالة إضافة جلسة جديدة
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             const docRef = await db.collection("Sessions").add(data);
             
-            // 1. تسجيل الإيراد المدفوع في الخزنة
+            // 1. تسجيل الإيراد المدفوع
             if (paidAmount > 0) {
                 await db.collection("Finances").add({
                     clinicId: clinicId, patientId: patientId,
                     type: 'income', category: 'كشف / جلسة',
                     amount: paidAmount, date: sessionDate,
                     notes: `إيراد جلسة: ${procedureName} - مريض: ${currentPatientName}`,
+                    createdBy: currentUserDisplayName, // 👤 تسجيل اسم المستخدم
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
 
-            // 2. تسجيل المديونية وتزويد حساب المريض
+            // 2. تسجيل المديونية
             if (remainingAmount > 0) {
                 await db.collection("Finances").add({
                     clinicId: clinicId, patientId: patientId,
                     type: 'debt', category: 'متبقي جلسة',
                     amount: remainingAmount, date: sessionDate,
                     notes: `مديونية جلسة: ${procedureName} - مريض: ${currentPatientName}`,
+                    createdBy: currentUserDisplayName, // 👤 تسجيل اسم المستخدم
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
@@ -177,7 +179,7 @@ async function saveSession(e, isEditMode) {
         
         closeModal(modalId); 
         document.getElementById(isEditMode ? 'editSessionForm' : 'addSessionForm').reset();
-        loadPatientData(); // ريفرش عشان البادج الأحمر يتحدث
+        loadPatientData(); 
     } catch (error) { 
         console.error(error); 
         alert("حدث خطأ أثناء الحفظ.");
@@ -187,10 +189,10 @@ async function saveSession(e, isEditMode) {
     }
 }
 
-// 🔴 دالة سداد المديونية (الدورة العكسية) 🔴
+// 🔴 دالة سداد المديونية (الدورة العكسية مع اسم المستخدم) 🔴
 async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
     const amountStr = prompt(`المبلغ المتبقي: ${currentRemaining} ج.م\nأدخل المبلغ المراد سداده الآن:`, currentRemaining);
-    if (amountStr === null) return; // تم الإلغاء
+    if (amountStr === null) return; 
     
     const amountToPay = Number(amountStr);
     if (isNaN(amountToPay) || amountToPay <= 0 || amountToPay > currentRemaining) {
@@ -220,15 +222,17 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
             type: 'income', category: 'سداد مديونية',
             amount: amountToPay, date: today,
             notes: `سداد جزء من مديونية سابقة للمريض: ${currentPatientName}`,
+            createdBy: currentUserDisplayName, // 👤 تسجيل اسم المستخدم
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 4. خصم المديونية من الداش بورد (بحركة دين سالبة)
+        // 4. خصم المديونية من الداش بورد
         await db.collection("Finances").add({
             clinicId: clinicId, patientId: patientId,
             type: 'debt', category: 'سداد مديونية',
             amount: -amountToPay, date: today,
             notes: `خصم مديونية مسددة للمريض: ${currentPatientName}`,
+            createdBy: currentUserDisplayName, // 👤 تسجيل اسم المستخدم
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -240,7 +244,7 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
             loadedPatientSessions[idx].paid = newPaid;
             loadedPatientSessions[idx].remaining = newRemaining;
         }
-        loadPatientData(); // تحديث عشان البادج الأحمر يتغير
+        loadPatientData(); 
 
     } catch (error) {
         console.error(error);
@@ -309,7 +313,6 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
         const remaining = s.remaining || 0;
         const nextApp = s.nextAppointment ? `<span style="color:#d97706; font-weight:bold;">${s.nextAppointment}</span>` : '---';
 
-        // 🔴 زرار السداد بيظهر بس لو الجلسة عليها باقي
         let payBtnHtml = '';
         if (remaining > 0) {
             payBtnHtml = `<button class="btn-action" style="background:#10b981; color:white; border-color:#059669;" onclick="paySessionDebt('${s.id}', ${paid}, ${remaining})" title="سداد جزء أو كل المديونية">💰 سداد</button>`;
@@ -395,5 +398,18 @@ async function deleteDoc(collectionName, docId) {
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     updatePageContent(lang);
-    firebase.auth().onAuthStateChanged((user) => { if (user) loadPatientData(); });
+    
+    firebase.auth().onAuthStateChanged(async (user) => { 
+        if (user) { 
+            // 🔴 جلب اسم اليوزر الحالي 🔴
+            try {
+                const userDoc = await db.collection("Users").doc(user.email).get();
+                if (userDoc.exists) {
+                    currentUserDisplayName = userDoc.data().name || "مدير النظام";
+                }
+            } catch(e) { console.error("Error fetching user name"); }
+
+            loadPatientData(); 
+        } 
+    });
 };
