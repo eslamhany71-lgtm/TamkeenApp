@@ -1,4 +1,4 @@
-// firebase-config.js - التهيئة النظيفة 
+// firebase-config.js - التهيئة النظيفة للـ SaaS (النسخة الخارقة للـ iFrames)
 
 const firebaseConfig = {
   apiKey: "AIzaSyCFVu8FHYq2leGA1F9SQEAXmn1agv1V1cM",
@@ -86,17 +86,23 @@ if ('serviceWorker' in navigator) {
 }
 
 // =========================================================================
-// 🌟 اللودر العالمي (Global Smart Loader) المزروع في كل الصفحات 🌟
+// 🌟 اللودر العالمي (يُزرع في الشاشة الرئيسية Top Window لضمان تغطية السيستم) 🌟
 // =========================================================================
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. توليد الـ CSS ورميه في الـ Head
-    const style = document.createElement('style');
+function createGlobalLoader() {
+    // استهداف الشاشة الأب (حتى لو إحنا جوه iFrame)
+    const targetWindow = window.top || window;
+    const targetDoc = targetWindow.document;
+
+    // لو اللودر موجود أصلاً ميكرروش
+    if (targetDoc.getElementById('global-erp-loader')) return;
+
+    const style = targetDoc.createElement('style');
     style.innerHTML = `
         #global-erp-loader {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 9999999; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
+            z-index: 99999999; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
         }
         #global-erp-loader.active { opacity: 1; visibility: visible; }
         .loader-logo-container { position: relative; width: 100px; height: 100px; display: flex; justify-content: center; align-items: center; }
@@ -107,10 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
         @keyframes pulse { 0% { transform: scale(0.9); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 10px rgba(2, 132, 199, 0.4)); } 100% { transform: scale(0.9); opacity: 0.8; } }
         @keyframes pulse-text { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
     `;
-    document.head.appendChild(style);
+    targetDoc.head.appendChild(style);
 
-    // 2. توليد الـ HTML ورميه في الـ Body
-    const loaderDiv = document.createElement('div');
+    const loaderDiv = targetDoc.createElement('div');
     loaderDiv.id = 'global-erp-loader';
     loaderDiv.innerHTML = `
         <div class="loader-logo-container">
@@ -124,22 +129,37 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="loader-text" id="global-loader-msg">جاري التحميل...</div>
     `;
-    document.body.appendChild(loaderDiv);
-});
+    targetDoc.body.appendChild(loaderDiv);
 
-// 3. دوال الاستدعاء من أي مكان في السيستم
-window.showLoader = function(msg = "جاري التحميل...") {
-    const loader = document.getElementById('global-erp-loader');
-    const msgEl = document.getElementById('global-loader-msg');
-    if (loader) {
-        if(msgEl) msgEl.innerText = msg;
-        loader.classList.add('active');
+    // ربط دوال التشغيل بالشاشة الرئيسية
+    targetWindow.executeShowLoader = function(msg = "جاري التحميل...") {
+        const l = targetDoc.getElementById('global-erp-loader');
+        const m = targetDoc.getElementById('global-loader-msg');
+        if (l) { if(m) m.innerText = msg; l.classList.add('active'); }
+    };
+
+    targetWindow.executeHideLoader = function() {
+        const l = targetDoc.getElementById('global-erp-loader');
+        if (l) l.classList.remove('active');
+    };
+}
+
+// تنفيذ الحقن فوراً
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createGlobalLoader);
+} else {
+    createGlobalLoader();
+}
+
+// 🔴 دوال الاستدعاء المباشرة من أي ملف JS (بتخترق الـ iFrame) 🔴
+window.showLoader = function(msg) {
+    if (window.top && window.top.executeShowLoader) {
+        window.top.executeShowLoader(msg);
     }
 };
 
 window.hideLoader = function() {
-    const loader = document.getElementById('global-erp-loader');
-    if (loader) {
-        loader.classList.remove('active');
+    if (window.top && window.top.executeHideLoader) {
+        window.top.executeHideLoader();
     }
 };
