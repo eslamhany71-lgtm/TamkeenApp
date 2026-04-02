@@ -171,22 +171,21 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
+        // 🔴 السر هنا: شلنا الـ orderBy من الكويري عشان الفايربيز ميضربش أوفلاين 🔴
         let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
         
         if (dateFrom) finQuery = finQuery.where("date", ">=", dateFrom);
         if (dateTo) finQuery = finQuery.where("date", "<=", dateTo);
-        
-        finQuery = finQuery.orderBy("date", "desc");
 
         const finSnap = await finQuery.get();
         
         finSnap.forEach(doc => {
-            // 🔴 السحر بتاع estimate 🔴
             const d = doc.data({ serverTimestamps: 'estimate' });
             if (filterType !== 'all' && d.type !== filterType) return;
             combinedData.push({ id: doc.id, ...d });
         });
 
+        // هنرتب احنا براحتنا في الجافاسكريبت
         sortDataLocally(combinedData);
 
         allTransactionsForEdit = combinedData;
