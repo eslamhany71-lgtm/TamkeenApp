@@ -1,4 +1,4 @@
-// firebase-config.js - التهيئة النظيفة للـ SaaS (النسخة الخارقة للـ iFrames)
+// firebase-config.js - التهيئة النظيفة للـ SaaS (باللودر المضاد للتعليق)
 
 const firebaseConfig = {
   apiKey: "AIzaSyCFVu8FHYq2leGA1F9SQEAXmn1agv1V1cM",
@@ -30,9 +30,7 @@ if (!isLoginScreen) {
       });
 }
 
-// =========================================================================
-// 🔴 إضافة ميزة عالمية للسيستم: إغلاق أي مودال بزرار (Esc) في الكيبورد 🔴
-// =========================================================================
+// إغلاق المودال بـ Escape
 document.addEventListener('keydown', function(event) {
     if (event.key === "Escape" || event.keyCode === 27) {
         const modals = document.querySelectorAll('.modal');
@@ -44,9 +42,7 @@ document.addEventListener('keydown', function(event) {
     }
 });
 
-// =========================================================================
-// 🔴 رادار الاتصال بالإنترنت (Offline/Online Monitor) 🔴
-// =========================================================================
+// رادار الاتصال بالإنترنت
 window.addEventListener('load', () => {
     const networkBadge = document.createElement('div');
     networkBadge.id = 'offline-badge';
@@ -74,9 +70,7 @@ window.addEventListener('load', () => {
     });
 });
 
-// =========================================================================
-// 🔴 تفعيل الـ Service Worker لتشغيل السيستم بالكامل أوفلاين (PWA) 🔴
-// =========================================================================
+// تفعيل الـ Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
@@ -86,14 +80,12 @@ if ('serviceWorker' in navigator) {
 }
 
 // =========================================================================
-// 🌟 اللودر العالمي (يُزرع في الشاشة الرئيسية Top Window لضمان تغطية السيستم) 🌟
+// 🌟 اللودر العالمي المُحصن (مُضاد للتعليق اللانهائي على الموبايل) 🌟
 // =========================================================================
 function createGlobalLoader() {
-    // استهداف الشاشة الأب (حتى لو إحنا جوه iFrame)
     const targetWindow = window.top || window;
     const targetDoc = targetWindow.document;
 
-    // لو اللودر موجود أصلاً ميكرروش
     if (targetDoc.getElementById('global-erp-loader')) return;
 
     const style = targetDoc.createElement('style');
@@ -131,16 +123,31 @@ function createGlobalLoader() {
     `;
     targetDoc.body.appendChild(loaderDiv);
 
-    // ربط دوال التشغيل بالشاشة الرئيسية
+    let failsafeTimer; // 🔴 العداد السحري
+
+    // دوال التشغيل مع الحماية
     targetWindow.executeShowLoader = function(msg = "جاري التحميل...") {
         const l = targetDoc.getElementById('global-erp-loader');
         const m = targetDoc.getElementById('global-loader-msg');
-        if (l) { if(m) m.innerText = msg; l.classList.add('active'); }
+        if (l) { 
+            if(m) m.innerText = msg; 
+            l.classList.add('active'); 
+            
+            // 🔴 التدمير الذاتي: لو اللودر كمل 10 ثواني، يفصل إجباري عشان الموبايل ميعلقش
+            clearTimeout(failsafeTimer);
+            failsafeTimer = setTimeout(() => {
+                l.classList.remove('active');
+                console.warn("تم إخفاء اللودر إجبارياً لحماية النظام من التعليق.");
+            }, 10000); 
+        }
     };
 
     targetWindow.executeHideLoader = function() {
         const l = targetDoc.getElementById('global-erp-loader');
-        if (l) l.classList.remove('active');
+        if (l) {
+            l.classList.remove('active');
+            clearTimeout(failsafeTimer); // نلغي التدمير الذاتي لو العملية خلصت بسرعة بسلام
+        }
     };
 }
 
@@ -151,7 +158,7 @@ if (document.readyState === 'loading') {
     createGlobalLoader();
 }
 
-// 🔴 دوال الاستدعاء المباشرة من أي ملف JS (بتخترق الـ iFrame) 🔴
+// 🔴 دوال الاستدعاء المباشرة 🔴
 window.showLoader = function(msg) {
     if (window.top && window.top.executeShowLoader) {
         window.top.executeShowLoader(msg);
