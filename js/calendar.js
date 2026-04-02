@@ -74,8 +74,9 @@ function initCalendar() {
             center: 'title',
             right: isMobile ? 'timeGridDay,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay'
         },
-        slotMinTime: '09:00:00', 
-        slotMaxTime: '22:00:00',
+        // 🔴 التعديل هنا: وسعنا الوقت عشان مفيش حجز يختفي بره الشاشة 🔴
+        slotMinTime: '00:00:00', 
+        slotMaxTime: '24:00:00',
         allDaySlot: false,
         events: [],
         
@@ -118,7 +119,6 @@ function initCalendar() {
         eventDrop: async function(info) {
             const newDate = info.event.startStr.split('T')[0];
             const newTime = info.event.startStr.split('T')[1].substring(0, 5);
-            // 🔴 إضافة اللودر 🔴
             if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الموعد..." : "Updating...");
             try {
                 await db.collection("Appointments").doc(info.event.id).update({
@@ -129,7 +129,6 @@ function initCalendar() {
                 console.error("Error moving event:", error);
                 info.revert(); 
             } finally {
-                // 🔴 إخفاء اللودر 🔴
                 if (window.hideLoader) window.hideLoader();
             }
         },
@@ -149,11 +148,10 @@ async function saveAppointment(e) {
 
     if (!currentClinicId) { alert("حدث خطأ!"); return; }
 
-    // 🔴 إضافة اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحفظ..." : "Saving...");
 
     const dateVal = document.getElementById('app_date').value;
-    const timeVal = document.getElementById('app_time').value;
+    const timeVal = document.getElementById('app_time').value || '12:00'; // 🔴 تأمين الوقت عشان ميضربش
     const typeVal = document.getElementById('app_type').value;
 
     let eventColor = '#0284C7'; 
@@ -191,12 +189,10 @@ async function saveAppointment(e) {
         alert(window.calendarLang.errSave);
     } finally {
         btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave;
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
 
-// 🔴 دالة الاكتمال وتسجيل الإيرادات والمديونيات 🔴
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -207,18 +203,15 @@ async function markAppAsCompleted() {
     btn.innerText = "جاري الحفظ والإنشاء...";
     btn.disabled = true;
 
-    // 🔴 إضافة اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إتمام الحجز..." : "Completing...");
 
     try {
-        // 1. تحويل حالة الحجز لمكتمل
         await db.collection("Appointments").doc(appId).update({ status: 'completed' });
 
         const patientPhone = props.phone || "غير مسجل";
         const paidAmount = Number(props.paid) || 0;
         const remainingAmount = Number(props.remaining) || 0;
 
-        // 2. معالجة ملف المريض (إضافة مديونية لو عليه فلوس)
         const existingPatientQuery = await db.collection("Patients")
             .where("clinicId", "==", currentClinicId)
             .where("phone", "==", patientPhone)
@@ -227,7 +220,6 @@ async function markAppAsCompleted() {
         let patientId = null;
 
         if (existingPatientQuery.empty) {
-            // مريض جديد: ننشئ الملف ونحط فيه المديونية فوراً
             let historyArray = [];
             if(props.history && props.history.length > 0) {
                 historyArray = props.history.split(',').map(item => item.trim()).filter(i => i);
@@ -241,12 +233,11 @@ async function markAppAsCompleted() {
                 gender: props.gender || '',
                 medicalHistory: historyArray,
                 notes: props.notes || '', 
-                totalDebt: remainingAmount, // إضافة المديونية
+                totalDebt: remainingAmount,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             patientId = newPat.id;
         } else {
-            // مريض موجود: نزود على مديونيته القديمة
             patientId = existingPatientQuery.docs[0].id;
             if (remainingAmount > 0) {
                 await db.collection("Patients").doc(patientId).update({
@@ -255,7 +246,6 @@ async function markAppAsCompleted() {
             }
         }
 
-        // 3. إنشاء الجلسة في ملف المريض
         await db.collection("Sessions").add({
             clinicId: currentClinicId,
             patientId: patientId,
@@ -268,9 +258,6 @@ async function markAppAsCompleted() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 4. تسجيل الحركات في جدول الحسابات (Finances)
-        
-        // أ. تسجيل الإيراد الفعلي (المدفوع)
         if (paidAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: currentClinicId,
@@ -284,12 +271,11 @@ async function markAppAsCompleted() {
             });
         }
 
-        // ب. تسجيل المديونية (المتبقي)
         if (remainingAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: currentClinicId,
                 patientId: patientId,
-                type: 'debt', // نوع جديد لتمييز الديون في الداش بورد
+                type: 'debt', 
                 category: 'متبقي كشف / جلسة',
                 amount: remainingAmount,
                 date: props.date,
@@ -306,12 +292,10 @@ async function markAppAsCompleted() {
     } finally {
         btn.innerText = "✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)";
         btn.disabled = false;
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
 
-// 🔴 دالة التعديل (فتح المودال بالبيانات الحالية) 🔴
 async function openEditModal() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -348,7 +332,6 @@ async function deleteAppointment() {
     if (!appId) return;
 
     if (confirm(window.calendarLang.confDel)) {
-        // 🔴 إضافة اللودر 🔴
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
         try {
             await db.collection("Appointments").doc(appId).delete();
@@ -356,7 +339,6 @@ async function deleteAppointment() {
         } catch (error) { 
             console.error("Error deleting:", error); 
         } finally {
-            // 🔴 إخفاء اللودر 🔴
             if (window.hideLoader) window.hideLoader();
         }
     }
@@ -365,7 +347,6 @@ async function deleteAppointment() {
 function loadAppointments() {
     if (!currentClinicId || !calendar) return;
 
-    // 🔴 إظهار اللودر عند التحميل الأولي فقط
     if (window.showLoader && calendar.getEvents().length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة المواعيد..." : "Syncing appointments...");
 
     db.collection("Appointments")
@@ -374,7 +355,8 @@ function loadAppointments() {
         calendar.removeAllEvents();
         snap.forEach(doc => {
             const data = doc.data();
-            const startDateTime = `${data.date}T${data.time}:00`;
+            const safeTime = data.time || "12:00"; // 🔴 تأمين الحجوزات القديمة
+            const startDateTime = `${data.date}T${safeTime}:00`;
 
             let finalColor = data.color || '#0284C7';
             if(data.status === 'completed') finalColor = '#94a3b8';
@@ -396,14 +378,13 @@ function loadAppointments() {
                     notes: data.notes,
                     status: data.status,
                     date: data.date,
-                    time: data.time,
+                    time: safeTime,
                     total: data.total,
                     paid: data.paid,
                     remaining: data.remaining
                 }
             });
         });
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }, error => {
         if (window.hideLoader) window.hideLoader();
