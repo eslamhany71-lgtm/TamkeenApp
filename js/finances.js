@@ -140,12 +140,23 @@ async function saveTransaction(e) {
     finally { btn.disabled = false; btn.innerText = window.finLang.btnSave; }
 }
 
-// 🔴 دالة استخراج التوقيت الدقيق 🔴
+// 🔴 الدالة السحرية للترتيب الصارم (بتعالج المهلبية) 🔴
 function getAccurateTime(timestamp) {
-    if (!timestamp) return Date.now();
+    if (!timestamp) return Infinity; // اللي ملوش توقيت (الجديد أوفلاين) يطلع فوق
     if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
     if (timestamp.seconds) return timestamp.seconds * 1000;
     return new Date(timestamp).getTime();
+}
+
+function sortDataLocally(dataArray) {
+    dataArray.sort((a, b) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        if (dateA !== dateB) {
+            return dateB - dateA; 
+        }
+        return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
+    });
 }
 
 async function loadFinances() {
@@ -176,13 +187,8 @@ async function loadFinances() {
             combinedData.push({ id: doc.id, ...d });
         });
 
-        // 🔴 الترتيب الذكي لمحاربة المهلبية 🔴
-        combinedData.sort((a, b) => {
-            if (a.date !== b.date) {
-                return new Date(b.date) - new Date(a.date);
-            }
-            return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
-        });
+        // ترتيب صارم بعد الجلب
+        sortDataLocally(combinedData);
 
         allTransactionsForEdit = combinedData;
         currentDisplayedData = combinedData;
