@@ -46,7 +46,6 @@ async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
     const errorDiv = document.getElementById('errorMessage');
-    const loader = document.getElementById('global-loader'); // 🔴 سحبنا الـ Loader
 
     if (!codeInput || !passInput) return;
 
@@ -63,8 +62,8 @@ async function loginById() {
 
     isLoginInProgress = true; 
     
-    // 🔴 إظهار الـ Loader الأنيق 🔴
-    if (loader) loader.classList.add('active');
+    // 🔴 إظهار اللودر الذكي 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحقق من البيانات..." : "Checking credentials...");
 
     try {
         let loginEmail = rawInput;
@@ -77,7 +76,7 @@ async function loginById() {
             loginEmail = empDoc.data().email;
         }
 
-        // 🔴 التعديل: إجبار المتصفح على الخروج عند الإغلاق 🔴
+        // إجبار المتصفح على الخروج عند الإغلاق
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
         // 2. تسجيل الدخول الفعلي
@@ -126,12 +125,11 @@ async function loginById() {
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
         
-        // 🔴 مش بنقفل الـ Loader هنا عشان يفضل شغال بانسيابية لحد ما ينقله لصفحة الداشبورد 🔴
         window.location.href = "home.html"; 
 
     } catch (error) {
-        // 🔴 إخفاء الـ Loader في حالة حدوث خطأ عشان المستخدم يشوف الرسالة 🔴
-        if (loader) loader.classList.remove('active');
+        // 🔴 إخفاء اللودر في حالة حدوث خطأ 🔴
+        if (window.hideLoader) window.hideLoader();
         
         await auth.signOut().catch(()=>{}); 
         isLoginInProgress = false; 
@@ -174,7 +172,6 @@ function closeStaffModal() {
 async function activateStaffAccount(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-activate-staff');
-    const loader = document.getElementById('global-loader'); // 🔴 سحبنا الـ Loader
     
     btn.disabled = true;
     btn.innerText = "جاري فحص الكود والتفعيل...";
@@ -183,15 +180,14 @@ async function activateStaffAccount(e) {
     const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
     const newPassword = document.getElementById('staffPassword').value.trim();
 
-    // 🔴 إظهار الـ Loader 🔴
-    if (loader) loader.classList.add('active');
+    // 🔴 إظهار اللودر الذكي 🔴
+    if (window.showLoader) window.showLoader("جاري فحص الكود...");
 
     try {
-        // 1. البحث عن كود الدعوة في الداتا بيز
         const inviteDoc = await db.collection("InviteCodes").doc(inviteCode).get();
 
         if (!inviteDoc.exists) {
-            if (loader) loader.classList.remove('active'); // إخفاء لو في غلط
+            if (window.hideLoader) window.hideLoader();
             alert("❌ كود الدعوة غير صحيح أو غير مسجل في النظام.");
             btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
             return;
@@ -200,53 +196,45 @@ async function activateStaffAccount(e) {
         const inviteData = inviteDoc.data();
 
         if (inviteData.activated) {
-            if (loader) loader.classList.remove('active'); // إخفاء لو في غلط
+            if (window.hideLoader) window.hideLoader();
             alert("❌ هذا الكود تم استخدامه وتفعيله مسبقاً.");
             btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
             return;
         }
 
         isLoginInProgress = true;
+        if (window.showLoader) window.showLoader("جاري تفعيل الحساب...");
 
-        // 🔴 التعديل: تأمين المتصفح للممرضة 🔴
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-
-        // 2. إنشاء حساب في الفايربيز Auth
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
-        // 3. تسجيل بيانات الممرضة في جدول Users وربطها بالعيادة
         await db.collection("Users").doc(newEmail).set({
             name: inviteData.name,
             email: newEmail,
-            role: inviteData.role, // "nurse"
+            role: inviteData.role, 
             clinicId: inviteData.clinicId,
             empCode: inviteCode,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 4. حرق (إبطال) كود الدعوة عشان ميستخدمش تاني
         await db.collection("InviteCodes").doc(inviteCode).update({
             activated: true,
             activatedByEmail: newEmail,
             activatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 5. حفظ الجلسة محلياً وتوجيهها للبرنامج فوراً
         sessionStorage.setItem('userRole', inviteData.role);
         sessionStorage.setItem('empCode', inviteCode);
         sessionStorage.setItem('clinicId', inviteData.clinicId);
 
-        // هخفي الـ Loader لحظة بس عشان الـ Alert تظهر براحتها
-        if (loader) loader.classList.remove('active');
-        
+        if (window.hideLoader) window.hideLoader();
         alert(`✅ تم تفعيل الحساب بنجاح يا ${inviteData.name}!\nجاري تحويلك للعيادة...`);
         
-        // أظهره تاني وقت التحويل
-        if (loader) loader.classList.add('active');
+        if (window.showLoader) window.showLoader("جاري التحويل...");
         window.location.href = "home.html";
 
     } catch (error) {
-        if (loader) loader.classList.remove('active'); // 🔴 إخفاء لو في مشكلة
+        if (window.hideLoader) window.hideLoader();
         console.error("Staff Activation Error:", error);
         isLoginInProgress = false;
         btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
@@ -260,9 +248,10 @@ async function activateStaffAccount(e) {
         }
     }
 }
-// ==========================================
 
+// ==========================================
 // 4. باقي دوال استعادة الباسورد وتفعيل العيادة (Doctor)
+// ==========================================
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
@@ -310,15 +299,14 @@ async function activateAccount() {
     const realEmail = document.getElementById('reg-email').value.trim().toLowerCase();
     const pass = document.getElementById('reg-pass').value.trim();
     const msg = document.getElementById('reg-msg');
-    const loader = document.getElementById('global-loader'); // 🔴 سحب الـ Loader هنا كمان
 
     if(!codeRaw || !phone || !realEmail || !pass) { 
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "برجاء إكمال كافة البيانات" : "Please complete all fields"; 
         return; 
     }
 
-    // 🔴 إظهار الـ Loader 🔴
-    if (loader) loader.classList.add('active');
+    // 🔴 إظهار اللودر الذكي 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...");
 
     try {
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...";
@@ -326,27 +314,27 @@ async function activateAccount() {
         const empDoc = await db.collection("clinicId").doc(codeRaw).get();
 
         if (!empDoc.exists) {
-            if(loader) loader.classList.remove('active');
+            if(window.hideLoader) window.hideLoader();
             if(msg) msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع إدارة النظام" : "Code not registered, contact admin"; 
             return;
         }
 
         const empData = empDoc.data();
         if (empData.phone !== phone) {
-            if(loader) loader.classList.remove('active');
+            if(window.hideLoader) window.hideLoader();
             if(msg) msg.innerText = document.body.dir === 'rtl' ? "رقم الموبايل غير مطابق للسجلات" : "Phone number does not match records"; 
             return;
         }
 
         if (empData.activated === true) {
-            if(loader) loader.classList.remove('active');
+            if(window.hideLoader) window.hideLoader();
             if(msg) msg.innerText = document.body.dir === 'rtl' ? "هذا الحساب مفعل بالفعل" : "Account already activated"; 
             return;
         }
 
+        if(window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء الحساب..." : "Creating account...");
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
 
-        // 🔴 التعديل: تأمين المتصفح للدكتور الجديد 🔴
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
         await auth.createUserWithEmailAndPassword(realEmail, pass);
@@ -364,16 +352,16 @@ async function activateAccount() {
             email: realEmail 
         });
 
-        if(loader) loader.classList.remove('active'); // إخفاء عشان يشوف رسالة التفعيل
+        if(window.hideLoader) window.hideLoader();
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "تم التفعيل بنجاح! جاري تحويلك..." : "Activation successful! Redirecting...";
         
         setTimeout(() => { 
-            if(loader) loader.classList.add('active'); // نظهره تاني وقت التحويل
+            if(window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحويل..." : "Redirecting...");
             window.location.href = "index.html"; 
         }, 1500);
 
     } catch (error) {
-        if(loader) loader.classList.remove('active'); // 🔴 إخفاء لو في إيرور
+        if(window.hideLoader) window.hideLoader();
         if(msg) {
             const isRtl = document.body.dir === 'rtl';
             if (error.code === 'auth/email-already-in-use') {
