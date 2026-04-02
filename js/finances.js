@@ -129,7 +129,7 @@ async function saveTransaction(e) {
         category: document.getElementById('trans_category').value,
         notes: document.getElementById('trans_notes').value.trim(),
         isManual: true, 
-        createdBy: currentUserDisplayName, // 🔴 إضافة اسم الموظف 🔴
+        createdBy: currentUserDisplayName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -154,28 +154,28 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
-        let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
+        // 🔴 التعديل السحري للأوفلاين: هنجيب كل الداتا بدون فلترة في الكويري عشان الكاش ميضربش، ونفلتر بالـ JS 🔴
+        const finSnap = await db.collection("Finances").where("clinicId", "==", clinicId).get();
+        
+        finSnap.forEach(doc => {
+            const d = doc.data();
+            // الفلترة هنا في المتصفح لضمان ظهور البيانات وإنت أوفلاين
+            if (filterType !== 'all' && d.type !== filterType) return;
+            if (dateFrom && d.date < dateFrom) return;
+            if (dateTo && d.date > dateTo) return;
+            
+            combinedData.push({ id: doc.id, ...d });
+        });
 
-        if (dateFrom) { finQuery = finQuery.where("date", ">=", dateFrom); }
-        if (dateTo) { finQuery = finQuery.where("date", "<=", dateTo); }
-
-        if (filterType !== 'all') {
-            finQuery = finQuery.where("type", "==", filterType);
-        }
-
-        const finSnap = await finQuery.get();
-        finSnap.forEach(doc => combinedData.push({ id: doc.id, ...doc.data() }));
-
+        // ترتيب الحركات
         combinedData.sort((a, b) => {
-            let dateA = new Date(0);
-            let dateB = new Date(0);
-            
-            if (a.createdAt) dateA = typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate() : new Date(a.createdAt);
-            else if (a.date) dateA = new Date(a.date);
-            
-            if (b.createdAt) dateB = typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate() : new Date(b.createdAt);
-            else if (b.date) dateB = new Date(b.date);
-            
+            let dateA = new Date(a.date);
+            let dateB = new Date(b.date);
+            if (dateA.getTime() === dateB.getTime()) {
+                let timeA = a.createdAt ? (typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate() : new Date(a.createdAt)) : new Date(0);
+                let timeB = b.createdAt ? (typeof b.createdAt.toDate === 'function' ? b.createdAt.toDate() : new Date(b.createdAt)) : new Date(0);
+                return timeB - timeA;
+            }
             return dateB - dateA;
         });
 
@@ -198,7 +198,7 @@ function filterTransactionsLocally() {
         dataToRender = allTransactionsForEdit.filter(item => 
             (item.notes && item.notes.toLowerCase().includes(searchText)) || 
             (item.category && item.category.toLowerCase().includes(searchText)) ||
-            (item.createdBy && item.createdBy.toLowerCase().includes(searchText)) // البحث باسم الموظف كمان
+            (item.createdBy && item.createdBy.toLowerCase().includes(searchText))
         );
     }
     
@@ -249,7 +249,6 @@ function renderFinancesTable(dataArray) {
             amountSign = ''; 
         }
 
-        // 🔴 عرض اسم الموظف اللي عمل الإجراء 🔴
         let createdByHtml = '';
         if (f.createdBy) {
             createdByHtml = `<div style="margin-top: 5px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${f.createdBy}</span></div>`;
@@ -310,7 +309,6 @@ async function updateTransaction(e) {
     const newNotes = document.getElementById('edit_trans_notes').value;
 
     try {
-        // 🔴 بنحدث الحركة وبنسيب اسم اللي سجلها زي ما هو
         await db.collection("Finances").doc(docId).update({
             amount: newAmount,
             date: newDate,
@@ -339,7 +337,6 @@ window.onload = () => {
     
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) { 
-            // 🔴 جلب اسم اليوزر الحالي من قاعدة البيانات أول ما يفتح الصفحة
             try {
                 const userDoc = await db.collection("Users").doc(user.email).get();
                 if (userDoc.exists) {
