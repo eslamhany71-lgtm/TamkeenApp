@@ -164,6 +164,8 @@ async function saveSession(e, isEditMode) {
                 });
             }
 
+            // نضيف التوقيت المحلي مؤقتاً عشان يظهر في الجدول فوراً
+            data.createdAt = new Date();
             loadedPatientSessions.unshift({ id: docRef.id, ...data });
         }
         
@@ -236,9 +238,9 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
     }
 }
 
-// 🔴 الدالة السحرية للترتيب الصارم (بتعالج المهلبية) 🔴
+// استخراج التوقيت الدقيق باستخدام التخمين المحلي للفايربيز
 function getAccurateTime(timestamp) {
-    if (!timestamp) return Infinity; 
+    if (!timestamp) return Date.now(); 
     if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
     if (timestamp.seconds) return timestamp.seconds * 1000;
     return new Date(timestamp).getTime();
@@ -281,14 +283,14 @@ async function loadPatientSessions(isLoadMore = false) {
             lastVisibleProfileSession = snap.docs[snap.docs.length - 1];
             
             snap.forEach(doc => {
-                const s = doc.data();
+                // 🔴 السحر هنا: estimate بيدي التوقيت وهمي أوفلاين يظبط الترتيب 🔴
+                const s = doc.data({ serverTimestamps: 'estimate' });
                 s.id = doc.id;
                 if (!loadedPatientSessions.some(locSess => locSess.id === s.id)) {
                     loadedPatientSessions.push(s);
                 }
             });
             
-            // ترتيب صارم بعد الجلب
             sortDataLocally(loadedPatientSessions);
             renderPatientSessionsTable();
             
