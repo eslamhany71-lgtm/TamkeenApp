@@ -1,20 +1,19 @@
 const db = firebase.firestore();
-const storage = firebase.storage(); // تفعيل مكتبة التخزين
+const storage = firebase.storage(); 
 const clinicId = sessionStorage.getItem('clinicId');
 let patientsMap = {}; 
 let currentTab = 'sessions'; 
 let currentSessionIdForUpload = null; 
 
-// 🔴 متغير لتخزين اسم المستخدم الحالي 🔴
 let currentUserDisplayName = "مستخدم غير معروف";
 
+// 🔴 متغيرات الـ Pagination رجعت 🔴
 const ITEMS_PER_PAGE = 50;
 let lastVisibleSession = null;
 let lastVisibleRx = null;
 let loadedSessions = [];
 let loadedPrescriptions = [];
 
-// 1. الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -76,9 +75,7 @@ async function fetchMissingPatients(patientIds) {
     }
 }
 
-// ==========================================
-// 🔴 قسم الجلسات 🔴
-// ==========================================
+// 🔴 حماية الباقة مع الأوفلاين للجلسات 🔴
 async function loadSessions(isLoadMore = false) {
     if (!clinicId) return;
     const tbody = document.getElementById('sessionsBody');
@@ -93,7 +90,11 @@ async function loadSessions(isLoadMore = false) {
     }
 
     try {
-        let queryRef = db.collection("Sessions").where("clinicId", "==", clinicId).orderBy("createdAt", "desc").limit(ITEMS_PER_PAGE);
+        let queryRef = db.collection("Sessions")
+                         .where("clinicId", "==", clinicId)
+                         .orderBy("date", "desc") // الترتيب بالتاريخ لضمان الأوفلاين
+                         .limit(ITEMS_PER_PAGE);
+
         if (isLoadMore && lastVisibleSession) queryRef = queryRef.startAfter(lastVisibleSession);
 
         const snap = await queryRef.get();
@@ -143,20 +144,20 @@ function renderSessions(dataToRender = loadedSessions) {
         if (seenPatients.has(s.patientId)) return; 
         seenPatients.add(s.patientId);
 
-        const patName = patientsMap[s.patientId] || "مريض غير معروف"; 
+        const patName = patientsMap[s.patientId] || "مريض (يرجى الاتصال بالإنترنت)"; 
         
-        let timeStr = '';
+        let timeStr = '---';
         if (s.createdAt) {
-            const d = s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
-            timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            try {
+                const d = typeof s.createdAt.toDate === 'function' ? s.createdAt.toDate() : new Date(s.createdAt);
+                timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            } catch(e) { timeStr = '---'; }
         }
 
         const total = s.total || 0;
         const paid = s.paid || 0;
         const remaining = s.remaining || 0;
 
-        // 🔴 عرض اسم الموظف اللي سجل الجلسة 🔴
-        // بما إن حقل createdBy لسه ضايفينه جديد في ملف المريض، ممكن ميكونش موجود في الجلسات القديمة
         let createdByHtml = '';
         if (s.createdBy) {
             createdByHtml = `<div style="margin-top: 5px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${s.createdBy}</span></div>`;
@@ -201,9 +202,7 @@ async function deleteSession(sessionId) {
     }
 }
 
-// ==========================================
-// 🔴 قسم الروشتات ورفع الملفات 🔴
-// ==========================================
+// 🔴 حماية الباقة مع الأوفلاين للروشتات 🔴
 async function loadPrescriptions(isLoadMore = false) {
     if (!clinicId) return;
     const tbody = document.getElementById('prescriptionsBody');
@@ -218,7 +217,11 @@ async function loadPrescriptions(isLoadMore = false) {
     }
 
     try {
-        let queryRef = db.collection("Prescriptions").where("clinicId", "==", clinicId).orderBy("createdAt", "desc").limit(ITEMS_PER_PAGE);
+        let queryRef = db.collection("Prescriptions")
+                         .where("clinicId", "==", clinicId)
+                         .orderBy("date", "desc") // الترتيب بالتاريخ لضمان الأوفلاين
+                         .limit(ITEMS_PER_PAGE);
+
         if (isLoadMore && lastVisibleRx) queryRef = queryRef.startAfter(lastVisibleRx);
 
         const snap = await queryRef.get();
@@ -268,13 +271,15 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
         if (seenPatients.has(p.patientId)) return; 
         seenPatients.add(p.patientId);
 
-        let timeStr = '';
+        let timeStr = '---';
         if (p.createdAt) {
-            const d = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
-            timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            try {
+                const d = typeof p.createdAt.toDate === 'function' ? p.createdAt.toDate() : new Date(p.createdAt);
+                timeStr = d.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            } catch(e) { timeStr = '---'; }
         }
 
-        const patName = patientsMap[p.patientId] || "مريض غير معروف";
+        const patName = patientsMap[p.patientId] || "مريض (يرجى الاتصال بالإنترنت)";
         const tr = document.createElement('tr');
         
         let rxButtons = `<button class="btn-action" style="background:#f59e0b; color:white; border:none;" onclick="triggerUploadRx('${p.id}')" title="رفع صورة/ملف للروشتة">📎</button>`;
@@ -282,7 +287,6 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
             rxButtons += `<button class="btn-action" style="background:#3b82f6; color:white; border:none;" onclick="window.open('${p.imageUrl}', '_blank')" title="عرض الروشتة المرفوعة">👁️</button>`;
         }
 
-        // 🔴 عرض اسم الموظف اللي أصدر الروشتة 🔴
         let createdByHtml = '';
         if (p.createdBy) {
             createdByHtml = `<div style="margin-top: 8px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${p.createdBy}</span></div>`;
@@ -312,7 +316,6 @@ function renderPrescriptions(dataToRender = loadedPrescriptions) {
     });
 }
 
-// دوال رفع الروشتة
 function triggerUploadRx(rxId) {
     currentSessionIdForUpload = rxId;
     document.getElementById('uploadPrescriptionInput').click();
@@ -346,7 +349,6 @@ document.getElementById('uploadPrescriptionInput').addEventListener('change', as
     }
 });
 
-// 6. البحث الذكي 
 function searchActivity() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
     
@@ -383,7 +385,6 @@ function resetSearch() {
     searchActivity(); 
 }
 
-// 7. دالة الطباعة وتوجيه البروفايل
 async function printGlobalPrescription(docId, patientName) {
     try {
         const doc = await db.collection("Prescriptions").doc(docId).get();
@@ -416,7 +417,6 @@ window.onload = () => {
     
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) { 
-            // 🔴 التقاط اسم المستخدم الحالي 🔴
             try {
                 const userDoc = await db.collection("Users").doc(user.email).get();
                 if (userDoc.exists) {
