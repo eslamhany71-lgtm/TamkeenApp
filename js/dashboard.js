@@ -10,7 +10,6 @@ let todayRevenueData = [];
 let currentSelectedPatientId = null; 
 let currentSelectedApp = null; 
 
-// 🔴 دالة سحرية لضبط التاريخ المحلي (بتمنع أي تهييس بسبب فرق التوقيت) 🔴
 function getLocalTodayString() {
     const d = new Date();
     const yyyy = d.getFullYear();
@@ -101,7 +100,7 @@ function updateTotalRevenue() {
 
 function loadDashboardStats() {
     if (!clinicId) return;
-    const todayStr = getLocalTodayString(); // 🔴 سحب التاريخ المحلي بالمللي
+    const todayStr = getLocalTodayString(); 
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
 
@@ -165,7 +164,7 @@ function loadDashboardStats() {
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
 function openNewAppModal() {
-    const today = getLocalTodayString(); // 🔴 تاريخ محلي
+    const today = getLocalTodayString(); 
     document.getElementById('new_app_name').value = '';
     document.getElementById('new_app_phone').value = '';
     document.getElementById('new_app_date').value = today;
@@ -298,11 +297,11 @@ async function updateAppStatus(newStatus) {
     }
 }
 
-// 🔴 اللوجيك الشامل زي بتاع الكاليندر بالظبط 🔴
+// 🔴 اللوجيك الشامل المحدث (التحقق من الاسم والرقم لمنع تداخل أفراد العائلة) 🔴
 async function processFullCompletionLogic() {
     const appId = currentSelectedApp.id;
     const props = currentSelectedApp; 
-    const currentPayDate = getLocalTodayString(); // 🔴 تاريخ دفع الفلوس الفعلي (اليوم)
+    const currentPayDate = getLocalTodayString(); 
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إتمام الحجز وتكوين الملف..." : "Completing and creating profile...");
 
@@ -319,8 +318,19 @@ async function processFullCompletionLogic() {
             .get();
 
         let patientId = null;
+        let matchedPatientDoc = null;
 
-        if (existingPatientQuery.empty) {
+        // 🔴 التعديل هنا: مش بنكتفي إن الرقم موجود، لازم الاسم كمان يتطابق 🔴
+        if (!existingPatientQuery.empty) {
+            existingPatientQuery.forEach(doc => {
+                if (doc.data().name.trim() === props.patientName.trim()) {
+                    matchedPatientDoc = doc;
+                }
+            });
+        }
+
+        if (!matchedPatientDoc) {
+            // مريض جديد (أو أخو المريض بنفس الرقم)
             let historyArray = [];
             if(props.history && props.history.length > 0) {
                 historyArray = props.history.split(',').map(item => item.trim()).filter(i => i);
@@ -338,7 +348,8 @@ async function processFullCompletionLogic() {
             });
             patientId = newPat.id;
         } else {
-            patientId = existingPatientQuery.docs[0].id;
+            // مريض متسجل فعلياً (نفس الرقم والاسم)
+            patientId = matchedPatientDoc.id;
             if (remainingAmount > 0) {
                 await db.collection("Patients").doc(patientId).update({
                     totalDebt: firebase.firestore.FieldValue.increment(remainingAmount)
@@ -346,10 +357,11 @@ async function processFullCompletionLogic() {
             }
         }
 
+        // إنشاء الجلسة في ملف المريض
         await db.collection("Sessions").add({
             clinicId: clinicId,
             patientId: patientId,
-            date: currentPayDate, // تاريخ الجلسة
+            date: currentPayDate, 
             procedure: props.type || "كشف / إجراء",
             total: props.total || 0,
             paid: paidAmount,
@@ -358,7 +370,7 @@ async function processFullCompletionLogic() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 🔴 تسجيل الإيرادات بتاريخ استلام الفلوس 🔴
+        // تسجيل الإيرادات
         if (paidAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: clinicId,
@@ -372,6 +384,7 @@ async function processFullCompletionLogic() {
             });
         }
 
+        // تسجيل المديونية
         if (remainingAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: clinicId,
