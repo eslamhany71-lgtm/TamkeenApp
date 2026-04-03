@@ -10,6 +10,15 @@ let todayRevenueData = [];
 let currentSelectedPatientId = null; 
 let currentSelectedApp = null; 
 
+// 🔴 دالة سحرية لضبط التاريخ المحلي (بتمنع أي تهييس بسبب فرق التوقيت) 🔴
+function getLocalTodayString() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
 function updatePageContent(lang) {
     const t = { 
         ar: { 
@@ -92,7 +101,7 @@ function updateTotalRevenue() {
 
 function loadDashboardStats() {
     if (!clinicId) return;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalTodayString(); // 🔴 سحب التاريخ المحلي بالمللي
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
 
@@ -156,7 +165,7 @@ function loadDashboardStats() {
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
 function openNewAppModal() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalTodayString(); // 🔴 تاريخ محلي
     document.getElementById('new_app_name').value = '';
     document.getElementById('new_app_phone').value = '';
     document.getElementById('new_app_date').value = today;
@@ -270,7 +279,6 @@ function openAppDetails(app) {
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
 
-// 🔴 الدالة المحسنة عشان تسمع وتخلق ملف المريض والإيرادات 🔴
 async function updateAppStatus(newStatus) {
     if(!currentSelectedApp) return;
 
@@ -290,10 +298,11 @@ async function updateAppStatus(newStatus) {
     }
 }
 
-// 🔴 اللوجيك الشامل زي بتاع الكاليندر بالظبط
+// 🔴 اللوجيك الشامل زي بتاع الكاليندر بالظبط 🔴
 async function processFullCompletionLogic() {
     const appId = currentSelectedApp.id;
     const props = currentSelectedApp; 
+    const currentPayDate = getLocalTodayString(); // 🔴 تاريخ دفع الفلوس الفعلي (اليوم)
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إتمام الحجز وتكوين الملف..." : "Completing and creating profile...");
 
@@ -340,7 +349,7 @@ async function processFullCompletionLogic() {
         await db.collection("Sessions").add({
             clinicId: clinicId,
             patientId: patientId,
-            date: props.date,
+            date: currentPayDate, // تاريخ الجلسة
             procedure: props.type || "كشف / إجراء",
             total: props.total || 0,
             paid: paidAmount,
@@ -349,6 +358,7 @@ async function processFullCompletionLogic() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 🔴 تسجيل الإيرادات بتاريخ استلام الفلوس 🔴
         if (paidAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: clinicId,
@@ -356,7 +366,7 @@ async function processFullCompletionLogic() {
                 type: 'income',
                 category: 'كشف / جلسة',
                 amount: paidAmount,
-                date: props.date,
+                date: currentPayDate, 
                 notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -369,7 +379,7 @@ async function processFullCompletionLogic() {
                 type: 'debt', 
                 category: 'متبقي كشف / جلسة',
                 amount: remainingAmount,
-                date: props.date,
+                date: currentPayDate,
                 notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
