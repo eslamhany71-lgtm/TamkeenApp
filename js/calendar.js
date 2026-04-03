@@ -74,7 +74,6 @@ function initCalendar() {
             center: 'title',
             right: isMobile ? 'timeGridDay,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay'
         },
-        // 🔴 التعديل هنا: وسعنا الوقت عشان مفيش حجز يختفي بره الشاشة 🔴
         slotMinTime: '00:00:00', 
         slotMaxTime: '24:00:00',
         allDaySlot: false,
@@ -151,7 +150,7 @@ async function saveAppointment(e) {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحفظ..." : "Saving...");
 
     const dateVal = document.getElementById('app_date').value;
-    const timeVal = document.getElementById('app_time').value || '12:00'; // 🔴 تأمين الوقت عشان ميضربش
+    const timeVal = document.getElementById('app_time').value || '12:00'; 
     const typeVal = document.getElementById('app_type').value;
 
     let eventColor = '#0284C7'; 
@@ -193,6 +192,7 @@ async function saveAppointment(e) {
     }
 }
 
+// 🔴 دالة الاكتمال المحدثة لضبط تزامن العائلات 🔴
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -218,8 +218,18 @@ async function markAppAsCompleted() {
             .get();
 
         let patientId = null;
+        let matchedPatientDoc = null;
 
-        if (existingPatientQuery.empty) {
+        // 🔴 التعديل هنا لعدم دمج أفراد العائلة 🔴
+        if (!existingPatientQuery.empty) {
+            existingPatientQuery.forEach(doc => {
+                if (doc.data().name.trim() === props.patientName.trim()) {
+                    matchedPatientDoc = doc;
+                }
+            });
+        }
+
+        if (!matchedPatientDoc) {
             let historyArray = [];
             if(props.history && props.history.length > 0) {
                 historyArray = props.history.split(',').map(item => item.trim()).filter(i => i);
@@ -238,7 +248,7 @@ async function markAppAsCompleted() {
             });
             patientId = newPat.id;
         } else {
-            patientId = existingPatientQuery.docs[0].id;
+            patientId = matchedPatientDoc.id;
             if (remainingAmount > 0) {
                 await db.collection("Patients").doc(patientId).update({
                     totalDebt: firebase.firestore.FieldValue.increment(remainingAmount)
@@ -246,10 +256,14 @@ async function markAppAsCompleted() {
             }
         }
 
+        // عشان الإيراد يتسجل بتاريخ النهاردة الفعلي
+        const d = new Date();
+        const currentPayDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
         await db.collection("Sessions").add({
             clinicId: currentClinicId,
             patientId: patientId,
-            date: props.date,
+            date: currentPayDate,
             procedure: props.type || "كشف / إجراء",
             total: props.total || 0,
             paid: paidAmount,
@@ -257,7 +271,7 @@ async function markAppAsCompleted() {
             notes: props.notes || "",
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
+        
         if (paidAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: currentClinicId,
@@ -265,7 +279,7 @@ async function markAppAsCompleted() {
                 type: 'income',
                 category: 'كشف / جلسة',
                 amount: paidAmount,
-                date: props.date,
+                date: currentPayDate,
                 notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -278,7 +292,7 @@ async function markAppAsCompleted() {
                 type: 'debt', 
                 category: 'متبقي كشف / جلسة',
                 amount: remainingAmount,
-                date: props.date,
+                date: currentPayDate,
                 notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -355,7 +369,7 @@ function loadAppointments() {
         calendar.removeAllEvents();
         snap.forEach(doc => {
             const data = doc.data();
-            const safeTime = data.time || "12:00"; // 🔴 تأمين الحجوزات القديمة
+            const safeTime = data.time || "12:00"; 
             const startDateTime = `${data.date}T${safeTime}:00`;
 
             let finalColor = data.color || '#0284C7';
