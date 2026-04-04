@@ -323,7 +323,7 @@ function renderSelectedDrugs() {
             <div class="drug-list-item">
                 <div style="flex: 1; font-weight: 800; font-size: 15px; color: #0f172a;" dir="ltr">${drug.name}</div>
                 <div style="flex: 2;">
-                    <input type="text" value="${drug.dose}" onchange="updateDose(${index}, this.value)" class="search-box" style="padding: 8px; border-radius: 6px; font-size: 13px;">
+                    <input type="text" value="${drug.dose}" id="dose_${index}" onchange="updateDose(${index}, this.value)" class="search-box" style="padding: 8px; border-radius: 6px; font-size: 13px;">
                 </div>
                 <div><button type="button" class="btn-danger" style="padding: 8px 12px; border-radius: 6px; font-size: 12px;" onclick="removeDrugFromList(${index})">❌</button></div>
             </div>
@@ -392,10 +392,16 @@ async function saveCurrentRxAsTemplate() {
 
     if (window.showLoader) window.showLoader("جاري حفظ القالب...");
     try {
+        // 🔴 التحديث هنا: تأكيد أخذ الجرعات المحدثة من الـ Input مباشرة
+        const updatedDrugs = currentPrescriptionDrugs.map((d, i) => {
+            const doseEl = document.getElementById(`dose_${i}`);
+            return { name: d.name, dose: doseEl ? doseEl.value : d.dose };
+        });
+
         await db.collection("RxTemplates").add({
             clinicId: clinicId,
             templateName: tplName,
-            drugsArray: currentPrescriptionDrugs,
+            drugsArray: updatedDrugs,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         document.getElementById('tpl_name').value = '';
@@ -410,8 +416,13 @@ async function saveSmartPrescription() {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إصدار الروشتة..." : "Creating prescription...");
 
     let medsText = "";
+    
+    // 🔴 التحديث هنا: سحب آخر كلام اتكتب جوه مربع الجرعة قبل الحفظ فوراً 🔴
     currentPrescriptionDrugs.forEach((d, i) => {
-        medsText += `${i+1}. ${d.name}\n   ${d.dose}\n\n`;
+        const doseEl = document.getElementById(`dose_${i}`);
+        const finalDose = doseEl ? doseEl.value : d.dose;
+        d.dose = finalDose; // تحديث المصفوفة نفسها بالجرعة الجديدة
+        medsText += `${i+1}. ${d.name}\n   ${finalDose}\n\n`;
     });
     
     const notes = document.getElementById('rx_general_notes').value;
@@ -448,10 +459,6 @@ function loadSessionPrescription() {
     db.collection("Prescriptions").where("sessionId", "==", sessionId).onSnapshot(snap => {
         const container = document.getElementById('session-rx-container');
         
-        // إخفاء الـ Container القديم بتاع الـ HTML لو موجود
-        const legacyUploadBox = document.getElementById('uploaded-rx-container');
-        if(legacyUploadBox) legacyUploadBox.style.display = 'none';
-
         if(snap.empty) {
             container.innerHTML = `
                 <div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>
@@ -472,14 +479,12 @@ function loadSessionPrescription() {
             currentPrescriptionDrugs = p.rawDrugsArray || []; 
             document.getElementById('rx_general_notes').value = p.notes || '';
 
-            // تجميع الصور (القديمة والجديدة) في مصفوفة واحدة
             let uploadedUrls = [];
             if (p.uploadedRxUrl) uploadedUrls.push(p.uploadedRxUrl);
             if (p.uploadedRxUrls && Array.isArray(p.uploadedRxUrls)) {
                 uploadedUrls = [...new Set([...uploadedUrls, ...p.uploadedRxUrls])];
             }
 
-            // رسم شبكة الصور لو موجودة
             let uploadsHtml = '';
             if (uploadedUrls.length > 0) {
                 let imagesHtml = '';
@@ -504,6 +509,7 @@ function loadSessionPrescription() {
                 `;
             }
             
+            // 🔴 التحديث هنا: ضمان ظهور النص والصور بوضوح 🔴
             container.innerHTML = `
                 <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1; position: relative;">
                     ${p.medications && p.medications !== "روشتة خارجية مرفقة" ? `<div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:700; color:#0f172a; line-height: 1.6;">${p.medications}</div>` : ''}
@@ -523,7 +529,6 @@ function loadSessionPrescription() {
     });
 }
 
-// 🔴 رفع صور الروشتات (وتجميعها كمصفوفة) 🔴
 document.getElementById('upload-rx-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -548,7 +553,6 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
         await storageRef.put(file);
         const url = await storageRef.getDownloadURL();
         
-        // استخدام arrayUnion لإضافة الصورة الجديدة للي موجودين
         await db.collection("Prescriptions").doc(activePrescriptionDocId).update({ 
             uploadedRxUrls: firebase.firestore.FieldValue.arrayUnion(url) 
         });
@@ -563,7 +567,6 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
     }
 });
 
-// مسح صورة روشتة واحدة بعينها
 async function deleteSpecificRxImage(docId, imageUrl) {
     if(confirm("هل أنت متأكد من حذف هذه الصورة فقط؟")) {
         if(window.showLoader) window.showLoader("جاري حذف الصورة...");
@@ -593,7 +596,6 @@ function printSessionRx(docId) {
             document.getElementById('print-meds').innerText = p.medications;
             document.getElementById('print-notes').innerText = p.notes || 'لا يوجد';
             
-            // سحب بيانات العيادة عشان تتطبع في الهيدر والفوتر 🔴
             db.collection("Clinics").doc(clinicId).get().then(cDoc => {
                 if(cDoc.exists) {
                     const cInfo = cDoc.data();
@@ -606,7 +608,6 @@ function printSessionRx(docId) {
                         printLogo.style.display = 'block';
                     }
 
-                    // 🔴 تسميع العناوين والأرقام اللي في الإعدادات 🔴
                     document.getElementById('print-clinic-address').innerText = cInfo.address1 || "---";
                     document.getElementById('print-clinic-phone').innerText = cInfo.phone1 || "---";
                 }
