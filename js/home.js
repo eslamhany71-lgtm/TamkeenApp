@@ -40,7 +40,7 @@ function updatePageContent(lang) {
         ar: {
             header: "لوحة التحكم",
             navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
-            navSessions: "الجلسات والروشتات", navFinances: "الحسابات والمصروفات",
+            navFinances: "الحسابات والمصروفات",
             navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
             alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام."
@@ -48,7 +48,7 @@ function updatePageContent(lang) {
         en: {
             header: "Dashboard",
             navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
-            navSessions: "Sessions & Prescriptions", navFinances: "Finances",
+            navFinances: "Finances",
             navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
             alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension."
@@ -59,7 +59,7 @@ function updatePageContent(lang) {
 
     setTxt('txt-header', c.header);
     setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
-    setTxt('nav-sessions', c.navSessions); setTxt('nav-finances', c.navFinances);
+    setTxt('nav-finances', c.navFinances);
     setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
     
     window.homeLang = c;
