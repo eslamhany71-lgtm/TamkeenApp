@@ -2,7 +2,6 @@ const db = firebase.firestore();
 const auth = firebase.auth(); 
 const clinicId = sessionStorage.getItem('clinicId');
 
-// 1. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -13,9 +12,7 @@ function updatePageContent(lang) {
             lAddress1: "عنوان العيادة الأساسي", lAddress2: "عنوان فرع آخر (اختياري)",
             lLang: "لغة النظام (System Language)",
             btnSave: "حفظ التعديلات", msgSuccess: "تم حفظ التعديلات بنجاح!", msgError: "حدث خطأ أثناء الحفظ",
-            // ترجمة الباك أب للإكسل
             bkpTitle: "النسخ الاحتياطي لـ Excel", bkpDesc: "قم بتحميل نسخة احتياطية كاملة من بيانات العيادة في ملف Excel واحد مقسم لشيتات (مرضى، حجوزات، حسابات، الخ) جاهز للطباعة أو الحفظ على جهازك.", btnBkp: "تحميل البيانات (Excel Backup)", msgBkpWait: "جاري استخراج البيانات لـ Excel...", msgBkpDone: "تم تحميل ملف الـ Excel بنجاح!",
-            // ترجمة الأمان
             secTitle: "الأمان وتسجيل الدخول", secDesc: "يمكنك تغيير كلمة المرور الخاصة بحساب العيادة. ستحتاج إلى إدخال كلمة المرور الحالية للتأكيد.",
             btnPass: "تغيير كلمة المرور", modalPassTitle: "تغيير كلمة المرور", lOldPass: "كلمة المرور الحالية", lNewPass: "كلمة المرور الجديدة", lConfPass: "تأكيد كلمة المرور الجديدة", btnSavePass: "تحديث كلمة المرور"
         },
@@ -38,7 +35,6 @@ function updatePageContent(lang) {
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('txt-card-title', c.cardTitle);
     setTxt('lbl-logo', c.lLogo); setTxt('lbl-logo-hint', c.lHint); setTxt('lbl-name', c.lName);
     
-    // ربط الترجمة بالحقول الجديدة
     setTxt('lbl-phone1', c.lPhone1); setTxt('lbl-phone2', c.lPhone2);
     setTxt('lbl-address1', c.lAddress1); setTxt('lbl-address2', c.lAddress2);
     
@@ -72,7 +68,6 @@ async function loadClinicSettings() {
             const data = doc.data();
             if (data.clinicName) document.getElementById('clinic_name').value = data.clinicName;
             
-            // سحب العناوين والأرقام
             if (data.phone1) document.getElementById('clinic_phone_1').value = data.phone1;
             if (data.phone2) document.getElementById('clinic_phone_2').value = data.phone2;
             if (data.address1) document.getElementById('clinic_address_1').value = data.address1;
@@ -140,8 +135,6 @@ async function saveSettings(e) {
 
     const newName = document.getElementById('clinic_name').value.trim();
     const newLogo = document.getElementById('logo_base64').value;
-    
-    // سحب العناوين والأرقام الجديدة
     const newPhone1 = document.getElementById('clinic_phone_1').value.trim();
     const newPhone2 = document.getElementById('clinic_phone_2').value.trim();
     const newAddress1 = document.getElementById('clinic_address_1').value.trim();
