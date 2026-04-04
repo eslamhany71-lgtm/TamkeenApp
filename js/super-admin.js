@@ -1,7 +1,6 @@
 const db = firebase.firestore();
-let allClinicsList = []; // مصفوفة لتخزين بيانات العيادات عشان نستخدمها في المودال التفصيلي
+let allClinicsList = []; 
 
-// 1. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -68,7 +67,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// === 🔴 مودال تفاصيل العيادة والمستخدمين (التحديث الجديد) 🔴 ===
 async function openClinicDetailsModal(clinicId) {
     const clinic = allClinicsList.find(c => c.id === clinicId);
     if (!clinic) return;
@@ -79,7 +77,6 @@ async function openClinicDetailsModal(clinicId) {
     else if(clinic.package === 'yearly') pkgLabel = 'اشتراك سنوي';
     else pkgLabel = 'اشتراك شهري';
 
-    // تعبئة البيانات الأساسية
     document.getElementById('det-clinic-name').innerText = clinic.clinicName;
     document.getElementById('det-clinic-code').innerText = clinic.accessCode || '---';
     document.getElementById('det-clinic-email').innerText = clinic.adminEmail || '---';
@@ -90,8 +87,10 @@ async function openClinicDetailsModal(clinicId) {
     const tbody = document.getElementById('det-users-body');
     tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">جاري تجميع بيانات المستخدمين...</td></tr>';
 
+    // 🔴 إظهار اللودر 🔴
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري سحب بيانات المستخدمين..." : "Fetching users...");
+
     try {
-        // جلب المستخدمين بثلاث طرق (مفعلين، كود أدمن معلق، دعوات تمريض معلقة)
         const [usersSnap, adminCodesSnap, invitesSnap] = await Promise.all([
             db.collection("Users").where("clinicId", "==", clinicId).get(),
             db.collection("clinicId").where("clinicId", "==", clinicId).get(),
@@ -100,13 +99,11 @@ async function openClinicDetailsModal(clinicId) {
 
         let staffList = [];
 
-        // 1. الحسابات المفعلة فعلياً
         usersSnap.forEach(doc => {
             const u = doc.data();
             staffList.push({ name: u.name || '---', identifier: u.email || doc.id, role: u.role, status: 'active' });
         });
 
-        // 2. كود الأدمن (لو لسه متفعلش)
         adminCodesSnap.forEach(doc => {
             const a = doc.data();
             if (!a.activated) {
@@ -114,7 +111,6 @@ async function openClinicDetailsModal(clinicId) {
             }
         });
 
-        // 3. دعوات التمريض (لو لسه متفعلتش)
         invitesSnap.forEach(doc => {
             const inv = doc.data();
             if (!inv.activated) {
@@ -153,12 +149,13 @@ async function openClinicDetailsModal(clinicId) {
     } catch (e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">حدث خطأ في تحميل المستخدمين.</td></tr>';
+    } finally {
+        // 🔴 إخفاء اللودر 🔴
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
 function closeClinicDetailsModal() { document.getElementById('clinicDetailsModal').style.display = 'none'; }
-// ===========================================================================
-
 
 function openClinicModal() {
     document.getElementById('clinicForm').reset();
@@ -225,7 +222,6 @@ async function saveNewUser(e) {
     } finally {
         btn.disabled = false;
         btn.innerText = "توليد كود الدعوة";
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -246,7 +242,7 @@ async function saveNewClinic(e) {
     const btn = document.getElementById('btn-save');
     btn.disabled = true; btn.innerText = window.superLang.btnSaving;
 
-    // 🔴 إظهار اللودر عند إضافة عيادة جديدة 🔴
+    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تجهيز مساحة العيادة على السيرفر..." : "Setting up new clinic...");
 
     const clinicName = document.getElementById('clinic_name').value.trim();
@@ -295,16 +291,18 @@ async function saveNewClinic(e) {
         alert(window.superLang.msgError);
     } finally {
         btn.disabled = false; btn.innerText = window.superLang.btnSave;
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
 
 function loadClinics() {
+    // 🔴 إظهار اللودر عند تحميل قائمة العيادات لأول مرة 🔴
+    if (window.showLoader && allClinicsList.length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة بيانات النظام..." : "Syncing SaaS data...");
+
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
         const tbody = document.getElementById('clinicsBody');
         tbody.innerHTML = '';
-        allClinicsList = []; // حفظ العيادات للمودال
+        allClinicsList = []; 
         
         let activeCount = 0;
         let suspendedCount = 0;
@@ -313,6 +311,7 @@ function loadClinics() {
             document.getElementById('stat-clinics').innerText = 0;
             document.getElementById('stat-susp-clinics').innerText = 0;
             tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${window.superLang.empty}</td></tr>`;
+            if (window.hideLoader) window.hideLoader();
             return;
         }
 
@@ -322,7 +321,7 @@ function loadClinics() {
         for (const doc of snap.docs) {
             const c = doc.data();
             c.id = doc.id;
-            allClinicsList.push(c); // إضافة للمصفوفة
+            allClinicsList.push(c); 
 
             const dateStr = c.createdAt ? c.createdAt.toDate().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US') : '---';
             
@@ -392,12 +391,14 @@ function loadClinics() {
         
         document.getElementById('stat-clinics').innerText = activeCount;
         document.getElementById('stat-susp-clinics').innerText = suspendedCount;
+        if (window.hideLoader) window.hideLoader();
+    }, () => {
+        if (window.hideLoader) window.hideLoader();
     });
 }
 
 async function markAsPaid(clinicId) {
     if(confirm(window.superLang.msgConfirmPaid)) {
-        // 🔴 إظهار اللودر 🔴
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التجديد..." : "Renewing...");
         try {
             const newNextPay = new Date();
@@ -418,7 +419,6 @@ async function markAsPaid(clinicId) {
 
 async function toggleSubscription(clinicId, newStatus) {
     if(confirm(window.superLang.msgConfirmToggle)) {
-        // 🔴 إظهار اللودر 🔴
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تغيير الحالة..." : "Updating status...");
         try {
             await db.collection("Clinics").doc(clinicId).update({ status: newStatus });
@@ -433,7 +433,6 @@ async function toggleSubscription(clinicId, newStatus) {
 async function deleteClinic(clinicId, accessCode) {
     const code = prompt(window.superLang.msgWarnDel);
     if (code === '1234') {
-        // 🔴 إظهار اللودر 🔴
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري مسح العيادة نهائياً..." : "Deleting clinic...");
         try {
             await db.collection("Clinics").doc(clinicId).delete();
