@@ -17,6 +17,9 @@
         .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
         .finance-box-modal input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold;}
         .finance-box-modal input[readonly] { background: #e2e8f0; color: #ef4444; }
+        
+        /* ستايل المربعات الطبية */
+        .med-history-cb { width: 18px; height: 18px; cursor: pointer; accent-color: #d97706;}
     </style>
 </head>
 <body>
@@ -64,18 +67,26 @@
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
                         <div class="form-group">
                             <label>النوع</label>
-                            <select id="app_gender" required>
+                            <select id="app_gender" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
                                 <option value="ذكر">ذكر</option>
                                 <option value="أنثى">أنثى</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>أمراض مزمنة (إن وجد)</label>
-                            <input type="text" id="app_history" placeholder="سكر، ضغط، سيولة... (اتركه فارغاً إن لم يوجد)">
+                    </div>
+
+                    <div style="grid-column: 1 / -1; background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px dashed #fcd34d; margin-top: 10px;">
+                        <label style="font-weight: bold; color: #d97706; margin-bottom: 10px; display: block;">التاريخ الطبي وأمراض مزمنة (اختياري)</label>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 10px; color: #0f172a; font-weight: 500;">
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; flex-direction: row-reverse;"><input type="checkbox" class="med-history-cb" value="قلب"> قلب</label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; flex-direction: row-reverse;"><input type="checkbox" class="med-history-cb" value="غدة"> غدة</label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; flex-direction: row-reverse;"><input type="checkbox" class="med-history-cb" value="سكر"> سكر</label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; flex-direction: row-reverse;"><input type="checkbox" class="med-history-cb" value="ضغط"> ضغط</label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; flex-direction: row-reverse;"><input type="checkbox" class="med-history-cb" value="حمل"> حمل</label>
                         </div>
+                        <input type="text" id="app_history" placeholder="ملاحظات طبية أخرى (اكتب هنا إن وجد)..." style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;">
                     </div>
                 </div>
                 
@@ -112,7 +123,7 @@
 
                 <div class="form-group">
                     <label id="lbl-app-notes">ملاحظات الحجز (اختياري)</label>
-                    <input type="text" id="app_notes">
+                    <input type="text" id="app_notes" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px;">
                 </div>
 
                 <button type="submit" id="btn-save" class="btn-add" style="width: 100%; justify-content: center; margin-top: 10px; padding: 12px; font-size: 16px;">
@@ -133,6 +144,7 @@
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📅 التاريخ:</strong> <span id="det_date"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>⏰ الساعة:</strong> <span id="det_time"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🩺 نوع الكشف:</strong> <span id="det_type"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📋 التاريخ الطبي:</strong> <span id="det_history" style="color: #d97706; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>💰 الحساب (مدفوع / إجمالي):</strong> <span id="det_finance" style="color: #10b981; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>📝 ملاحظات:</strong> <span id="det_notes"></span></p>
                 <p style="margin: 0; font-size: 16px;"><strong>📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
@@ -142,12 +154,20 @@
                 <button class="btn-success" id="btn-complete-app" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)</button>
             </div>
 
-            <div id="edit-action-box" style="margin-bottom: 15px;">
+            <div id="edit-action-box" style="margin-bottom: 10px;">
                 <button class="btn-action-primary" onclick="openEditModal()" style="width: 100%; padding: 10px; background: #0284C7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✏️ تعديل الحجز</button>
             </div>
 
+            <div id="cancel-action-box" style="margin-bottom: 10px;">
+                <button class="btn-warning" onclick="cancelAppointment()" style="width: 100%; padding: 10px; background: #f97316; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🚫 إلغاء الحجز (بدون مسح)</button>
+            </div>
+
+            <div id="restore-action-box" style="margin-bottom: 10px; display: none;">
+                <button class="btn-success" onclick="restoreAppointment()" style="width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🔄 إرجاع الحجز لقيد الانتظار</button>
+            </div>
+
             <div id="delete-action-box">
-                <button class="btn-action-danger" onclick="deleteAppointment()" style="width: 100%; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ حذف الحجز</button>
+                <button class="btn-action-danger" onclick="deleteAppointment()" style="width: 100%; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ حذف الحجز نهائياً</button>
             </div>
         </div>
     </div>
