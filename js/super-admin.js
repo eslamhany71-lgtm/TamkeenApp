@@ -77,9 +77,10 @@ async function openClinicDetailsModal(clinicId) {
     else if(clinic.package === 'yearly') pkgLabel = 'اشتراك سنوي';
     else pkgLabel = 'اشتراك شهري';
 
-    // 🔴 تم إعادة إظهار رقم الهاتف بناءً على طلبك 🔴
+    // عرض رقم مبدئي لغاية ما نسحبه من الأكواد للعيادات القديمة
     const detPhone = document.getElementById('det-clinic-phone');
-    if (detPhone) detPhone.innerText = clinic.phone1 || clinic.adminPhone || 'غير مسجل';
+    let phoneFound = clinic.phone1 || clinic.adminPhone || null;
+    if (detPhone) detPhone.innerText = phoneFound || 'جاري البحث...';
 
     document.getElementById('det-clinic-name').innerText = clinic.clinicName;
     document.getElementById('det-clinic-code').innerText = clinic.accessCode || '---';
@@ -109,10 +110,19 @@ async function openClinicDetailsModal(clinicId) {
 
         adminCodesSnap.forEach(doc => {
             const a = doc.data();
+            // 🔴 التحديث هنا: نسحب الرقم من كود التفعيل للعيادات القديمة اللي مكنش فيها رقم 🔴
+            if (!phoneFound && a.phone) {
+                phoneFound = a.phone;
+                if (detPhone) detPhone.innerText = phoneFound;
+            }
+
             if (!a.activated) {
                 staffList.push({ name: 'مدير العيادة (الأدمن)', identifier: `كود التفعيل: ${doc.id}`, role: 'admin', status: 'pending' });
             }
         });
+        
+        // لو ملقيناش رقم خالص
+        if (!phoneFound && detPhone) detPhone.innerText = 'غير مسجل';
 
         invitesSnap.forEach(doc => {
             const inv = doc.data();
@@ -272,7 +282,7 @@ async function saveNewClinic(e) {
             logoUrl: "",
             accessCode: accessCode,
             adminEmail: adminEmail,
-            adminPhone: adminPhone // 🔴 حفظ رقم الهاتف الأساسي للعيادة الجديدة
+            adminPhone: adminPhone
         });
 
         await db.collection("clinicId").doc(accessCode).set({
@@ -370,7 +380,6 @@ function loadClinics() {
                 toggleBtnHtml = `<button class="btn-warning" onclick="toggleSubscription('${doc.id}', 'suspended')" style="background:#f59e0b; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">⏸️ ${window.superLang.btnCancelSub}</button>`;
             }
 
-            // 🔴 زرار تغيير الباقة الجديد 🔴
             let btnPkgTxt = lang === 'ar' ? "تغيير الباقة" : "Package";
 
             const tr = document.createElement('tr');
@@ -401,9 +410,6 @@ function loadClinics() {
     });
 }
 
-// =========================================================================
-// 🔴 ميزة تغيير الباقة (مودال ديناميكي يتولد تلقائياً بدون تعديل HTML) 🔴
-// =========================================================================
 function openChangePackageModal(clinicId) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const isAr = lang === 'ar';
