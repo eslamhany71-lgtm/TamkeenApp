@@ -9,6 +9,9 @@ let sessionData = null;
 let patientName = "المريض";
 let patientAge = "---";
 let clinicPharmacy = []; 
+
+// 🔴 متغيرات الروشتات (تم تحديثها لدعم الروشتات المتعددة) 🔴
+let sessionPrescriptions = {}; // هيشيل كل الروشتات بتاعة الجلسة
 let currentPrescriptionDrugs = []; 
 let activePrescriptionDocId = null; 
 
@@ -291,7 +294,7 @@ function importDrugsFromExcel(input) {
 }
 
 // ====================================================================
-// 🔴 2. الروشتة الذكية وقوالب الروشتات (Templates) 🔴
+// 🔴 2. الروشتة الذكية وقوالب الروشتات (التعديل للروشتات المتعددة) 🔴
 // ====================================================================
 
 function addDrugToPrescriptionList(drug) {
@@ -333,7 +336,26 @@ function renderSelectedDrugs() {
 
 function updateDose(index, newDose) { currentPrescriptionDrugs[index].dose = newDose; }
 
+// 🔴 إنشاء روشتة جديدة تماماً (تُستدعى من زرار "إصدار روشتة" الخارجي)
 function openSmartRxModal() {
+    activePrescriptionDocId = null; // تفريغ الـ ID عشان يعمل روشتة جديدة
+    currentPrescriptionDrugs = [];
+    document.getElementById('drug-search').value = '';
+    document.getElementById('search-results-box').style.display = 'none';
+    document.getElementById('rx_template_select').value = '';
+    document.getElementById('rx_general_notes').value = '';
+    renderSelectedDrugs();
+    openModal('smartRxModal');
+}
+
+// 🔴 تعديل روشتة سابقة (تُستدعى من زرار "تعديل الأدوية" جوه كارت الروشتة)
+function editPrescription(docId) {
+    const p = sessionPrescriptions[docId];
+    if(!p) return;
+    
+    activePrescriptionDocId = docId; // ربط المودال بالروشتة دي بالذات
+    currentPrescriptionDrugs = p.rawDrugsArray ? [...p.rawDrugsArray] : [];
+    document.getElementById('rx_general_notes').value = p.notes || '';
     document.getElementById('drug-search').value = '';
     document.getElementById('search-results-box').style.display = 'none';
     document.getElementById('rx_template_select').value = '';
@@ -392,7 +414,6 @@ async function saveCurrentRxAsTemplate() {
 
     if (window.showLoader) window.showLoader("جاري حفظ القالب...");
     try {
-        // 🔴 التحديث هنا: تأكيد أخذ الجرعات المحدثة من الـ Input مباشرة
         const updatedDrugs = currentPrescriptionDrugs.map((d, i) => {
             const doseEl = document.getElementById(`dose_${i}`);
             return { name: d.name, dose: doseEl ? doseEl.value : d.dose };
@@ -417,11 +438,10 @@ async function saveSmartPrescription() {
 
     let medsText = "";
     
-    // 🔴 التحديث هنا: سحب آخر كلام اتكتب جوه مربع الجرعة قبل الحفظ فوراً 🔴
     currentPrescriptionDrugs.forEach((d, i) => {
         const doseEl = document.getElementById(`dose_${i}`);
         const finalDose = doseEl ? doseEl.value : d.dose;
-        d.dose = finalDose; // تحديث المصفوفة نفسها بالجرعة الجديدة
+        d.dose = finalDose; 
         medsText += `${i+1}. ${d.name}\n   ${finalDose}\n\n`;
     });
     
@@ -438,8 +458,10 @@ async function saveSmartPrescription() {
 
     try {
         if(activePrescriptionDocId) {
+            // تحديث روشتة حالية
             await db.collection("Prescriptions").doc(activePrescriptionDocId).update(data);
         } else {
+            // إنشاء روشتة جديدة
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection("Prescriptions").add(data);
         }
@@ -452,32 +474,36 @@ async function saveSmartPrescription() {
 }
 
 // ====================================================================
-// 🔴 3. المرفقات الخارجية المتعددة (صور الروشتات) 🔴
+// 🔴 3. المرفقات الخارجية المتعددة وعرض الروشتات 🔴
 // ====================================================================
 
+function attachImageToRx(docId) {
+    activePrescriptionDocId = docId; // ربط زرار الرفع بالروشتة المحددة
+    document.getElementById('upload-rx-input').click();
+}
+
 function loadSessionPrescription() {
-    db.collection("Prescriptions").where("sessionId", "==", sessionId).onSnapshot(snap => {
+    db.collection("Prescriptions").where("sessionId", "==", sessionId).orderBy("createdAt", "asc").onSnapshot(snap => {
         const container = document.getElementById('session-rx-container');
         
+        sessionPrescriptions = {}; // تفريغ الروشتات المخزنة
+
         if(snap.empty) {
             container.innerHTML = `
-                <div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>
+                <div class="empty-state">لا توجد روشتات مسجلة لهذه الجلسة.</div>
                 <div style="text-align: center; margin-top: 15px;">
-                    <button class="btn-action" style="background:#f8fafc; border:1px solid #cbd5e1; color:#475569;" onclick="document.getElementById('upload-rx-input').click()">📎 إرفاق روشتة خارجية (صورة)</button>
+                    <button class="btn-action" style="background:#f8fafc; border:1px solid #cbd5e1; color:#475569;" onclick="attachImageToRx(null)">📎 إرفاق روشتة خارجية (صورة)</button>
                 </div>
             `;
-            activePrescriptionDocId = null;
-            currentPrescriptionDrugs = [];
-            document.getElementById('rx_general_notes').value = '';
             return;
         }
         
+        container.innerHTML = ''; // مسح الـ Container عشان نرص الروشتات
+        let counter = 1;
+
         snap.forEach(doc => {
             const p = doc.data();
-            activePrescriptionDocId = doc.id;
-            
-            currentPrescriptionDrugs = p.rawDrugsArray || []; 
-            document.getElementById('rx_general_notes').value = p.notes || '';
+            sessionPrescriptions[doc.id] = p; // تخزين الروشتة للاستخدام في التعديل
 
             let uploadedUrls = [];
             if (p.uploadedRxUrl) uploadedUrls.push(p.uploadedRxUrl);
@@ -500,7 +526,7 @@ function loadSessionPrescription() {
                 });
 
                 uploadsHtml = `
-                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; text-align: right;">
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #cbd5e1; text-align: right;">
                         <span style="color: #64748b; font-size: 14px; display: block; margin-bottom: 10px; font-weight: bold;">📎 نسخ خارجية مرفوعة (${uploadedUrls.length}):</span>
                         <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                             ${imagesHtml}
@@ -509,22 +535,27 @@ function loadSessionPrescription() {
                 `;
             }
             
-            // 🔴 التحديث هنا: ضمان ظهور النص والصور بوضوح 🔴
-            container.innerHTML = `
-                <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1; position: relative;">
+            let rxTitle = `روشتة #${counter}`;
+            if (p.medications === "روشتة خارجية مرفقة") rxTitle = `مرفق خارجي #${counter}`;
+
+            container.innerHTML += `
+                <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; position: relative;">
+                    <h4 style="margin: 0 0 15px 0; color: #0284c7; border-bottom: 2px solid #e0f2fe; padding-bottom: 5px; display: inline-block;">📜 ${rxTitle}</h4>
+                    
                     ${p.medications && p.medications !== "روشتة خارجية مرفقة" ? `<div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:700; color:#0f172a; line-height: 1.6;">${p.medications}</div>` : ''}
-                    ${p.notes ? `<p style="margin-top:15px; color:#475569; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 14px;"><strong>تعليمات خاصة:</strong> ${p.notes}</p>` : ''}
+                    ${p.notes ? `<p style="margin-top:15px; color:#475569; border-top: 1px dashed #cbd5e1; padding-top: 10px; font-size: 14px;"><strong>تعليمات خاصة:</strong> ${p.notes}</p>` : ''}
                     
                     ${uploadsHtml}
 
                     <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
                         <button class="btn-primary" style="flex:1; min-width: 100px; background:#10b981; justify-content: center;" onclick="printSessionRx('${doc.id}')">🖨️ طباعة</button>
-                        <button class="btn-action" style="flex:1; min-width: 100px; background:#fff7ed; color:#ea580c; border-color:#fed7aa; justify-content: center;" onclick="openSmartRxModal()">✏️ تعديل الأدوية</button>
-                        <button class="btn-action" style="flex:1; min-width: 100px; background:#f1f5f9; color:#475569; border-color:#cbd5e1; justify-content: center;" onclick="document.getElementById('upload-rx-input').click()">📎 إرفاق صورة</button>
-                        <button class="btn-danger" style="flex:1; min-width: 100px; justify-content: center;" onclick="deleteDoc('Prescriptions', '${doc.id}')">🗑️ مسح الكل</button>
+                        <button class="btn-action" style="flex:1; min-width: 100px; background:#fff7ed; color:#ea580c; border-color:#fed7aa; justify-content: center;" onclick="editPrescription('${doc.id}')">✏️ تعديل الأدوية</button>
+                        <button class="btn-action" style="flex:1; min-width: 100px; background:#f1f5f9; color:#475569; border-color:#cbd5e1; justify-content: center;" onclick="attachImageToRx('${doc.id}')">📎 إرفاق صورة</button>
+                        <button class="btn-danger" style="flex:1; min-width: 100px; justify-content: center;" onclick="deleteDoc('Prescriptions', '${doc.id}')">🗑️ مسح الروشتة</button>
                     </div>
                 </div>
             `;
+            counter++;
         });
     });
 }
@@ -534,7 +565,7 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
     if (!file) return;
 
     if (!activePrescriptionDocId) {
-        if (window.showLoader) window.showLoader("جاري إنشاء الروشتة المرفقة...");
+        if (window.showLoader) window.showLoader("جاري إنشاء مرفق جديد...");
         try {
             const newRx = await db.collection("Prescriptions").add({
                 clinicId: clinicId, patientId: patientId, sessionId: sessionId,
