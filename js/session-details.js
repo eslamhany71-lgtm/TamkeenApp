@@ -1,5 +1,5 @@
 const db = firebase.firestore();
-const storage = firebase.storage(); // 🔴 لرفع صور الروشتات 🔴
+const storage = firebase.storage(); 
 const urlParams = new URLSearchParams(window.location.search);
 const sessionId = urlParams.get('sessionId');
 const patientId = urlParams.get('patientId');
@@ -44,7 +44,7 @@ async function loadSessionDetails() {
         if(doc.exists) {
             sessionData = doc.data();
             document.getElementById('sd-procedure').innerText = sessionData.procedure;
-            document.getElementById('print-patient-diag').innerText = sessionData.procedure; // 🔴 للطباعة
+            document.getElementById('print-patient-diag').innerText = sessionData.procedure; 
             document.getElementById('sd-date').innerText = sessionData.date;
             document.getElementById('sd-tooth').innerText = sessionData.tooth || '---';
             document.getElementById('sd-total').innerText = sessionData.total || 0;
@@ -57,7 +57,7 @@ async function loadSessionDetails() {
     loadSessionXRays();
     loadSessionPrescription();
     loadClinicPharmacy();
-    loadRxTemplates(); // 🔴 تحميل قوالب الروشتات 🔴
+    loadRxTemplates(); 
 }
 
 function openEditSessionModal() {
@@ -232,7 +232,6 @@ function searchDrugs() {
     resultBox.style.display = 'block';
 }
 
-// --- استيراد الأدوية بالإكسيل ---
 function downloadDrugsTemplate() {
     const wb = XLSX.utils.book_new();
     const ws_data = [
@@ -284,7 +283,7 @@ function importDrugsFromExcel(input) {
             console.error(error);
             alert("❌ حدث خطأ في قراءة ملف الإكسيل. تأكد من استخدام القالب الصحيح.");
         } finally {
-            input.value = ''; // تفريغ
+            input.value = ''; 
             if (window.hideLoader) window.hideLoader();
         }
     };
@@ -342,7 +341,6 @@ function openSmartRxModal() {
     openModal('smartRxModal');
 }
 
-// --- قوالب الروشتات الجاهزة ---
 function loadRxTemplates() {
     db.collection("RxTemplates").where("clinicId", "==", clinicId).onSnapshot(snap => {
         const select = document.getElementById('rx_template_select');
@@ -358,10 +356,8 @@ function loadRxTemplates() {
 
         snap.forEach(doc => {
             const t = doc.data();
-            // ملء القائمة المنسدلة
             select.innerHTML += `<option value="${doc.id}">${t.templateName}</option>`;
             
-            // ملء مودال الإدارة
             listContainer.innerHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f1f5f9;">
                     <strong>${t.templateName}</strong>
@@ -380,7 +376,6 @@ function applyRxTemplate(templateId) {
     if(!templateId) return;
     const tpl = window.rxTemplatesData.find(t => t.id === templateId);
     if(tpl && tpl.drugsArray) {
-        // دمج الأدوية بدون تكرار
         tpl.drugsArray.forEach(drug => {
             if(!currentPrescriptionDrugs.some(d => d.name === drug.name)) {
                 currentPrescriptionDrugs.push({ name: drug.name, dose: drug.dose });
@@ -445,26 +440,28 @@ async function saveSmartPrescription() {
     }
 }
 
+// ====================================================================
+// 🔴 3. المرفقات الخارجية المتعددة (صور الروشتات) 🔴
+// ====================================================================
+
 function loadSessionPrescription() {
     db.collection("Prescriptions").where("sessionId", "==", sessionId).onSnapshot(snap => {
         const container = document.getElementById('session-rx-container');
-        const uploadBox = document.getElementById('uploaded-rx-container');
-        const uploadImg = document.getElementById('uploaded-rx-img');
-        const uploadLink = document.getElementById('uploaded-rx-link');
+        
+        // إخفاء الـ Container القديم بتاع الـ HTML لو موجود
+        const legacyUploadBox = document.getElementById('uploaded-rx-container');
+        if(legacyUploadBox) legacyUploadBox.style.display = 'none';
 
         if(snap.empty) {
-            container.innerHTML = `<div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>`;
-            uploadBox.style.display = 'none';
+            container.innerHTML = `
+                <div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button class="btn-action" style="background:#f8fafc; border:1px solid #cbd5e1; color:#475569;" onclick="document.getElementById('upload-rx-input').click()">📎 إرفاق روشتة خارجية (صورة)</button>
+                </div>
+            `;
             activePrescriptionDocId = null;
             currentPrescriptionDrugs = [];
             document.getElementById('rx_general_notes').value = '';
-            
-            // إظهار زر الرفع الفاضي
-            container.innerHTML += `
-                <div style="text-align: center; margin-top: 15px;">
-                    <button class="btn-action" style="background:#f8fafc; border:1px solid #cbd5e1; color:#475569;" onclick="document.getElementById('upload-rx-input').click()">📎 رفع روشتة خارجية (صورة/ملف)</button>
-                </div>
-            `;
             return;
         }
         
@@ -474,26 +471,51 @@ function loadSessionPrescription() {
             
             currentPrescriptionDrugs = p.rawDrugsArray || []; 
             document.getElementById('rx_general_notes').value = p.notes || '';
-            
-            // 🔴 عرض الروشتة المرفوعة لو موجودة 🔴
-            if (p.uploadedRxUrl) {
-                uploadImg.src = p.uploadedRxUrl;
-                uploadLink.href = p.uploadedRxUrl;
-                uploadBox.style.display = 'block';
-            } else {
-                uploadBox.style.display = 'none';
+
+            // تجميع الصور (القديمة والجديدة) في مصفوفة واحدة
+            let uploadedUrls = [];
+            if (p.uploadedRxUrl) uploadedUrls.push(p.uploadedRxUrl);
+            if (p.uploadedRxUrls && Array.isArray(p.uploadedRxUrls)) {
+                uploadedUrls = [...new Set([...uploadedUrls, ...p.uploadedRxUrls])];
             }
 
+            // رسم شبكة الصور لو موجودة
+            let uploadsHtml = '';
+            if (uploadedUrls.length > 0) {
+                let imagesHtml = '';
+                uploadedUrls.forEach((url) => {
+                    imagesHtml += `
+                        <div style="position: relative; display: inline-block; margin: 5px;">
+                            <a href="${url}" target="_blank">
+                                <img src="${url}" style="height: 100px; width: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            </a>
+                            <button onclick="deleteSpecificRxImage('${doc.id}', '${url}')" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">×</button>
+                        </div>
+                    `;
+                });
+
+                uploadsHtml = `
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; text-align: right;">
+                        <span style="color: #64748b; font-size: 14px; display: block; margin-bottom: 10px; font-weight: bold;">📎 نسخ خارجية مرفوعة (${uploadedUrls.length}):</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            ${imagesHtml}
+                        </div>
+                    </div>
+                `;
+            }
+            
             container.innerHTML = `
                 <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1; position: relative;">
-                    <div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:700; color:#0f172a; line-height: 1.6;">${p.medications}</div>
+                    ${p.medications && p.medications !== "روشتة خارجية مرفقة" ? `<div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:700; color:#0f172a; line-height: 1.6;">${p.medications}</div>` : ''}
                     ${p.notes ? `<p style="margin-top:15px; color:#475569; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 14px;"><strong>تعليمات خاصة:</strong> ${p.notes}</p>` : ''}
                     
+                    ${uploadsHtml}
+
                     <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
                         <button class="btn-primary" style="flex:1; min-width: 100px; background:#10b981; justify-content: center;" onclick="printSessionRx('${doc.id}')">🖨️ طباعة</button>
                         <button class="btn-action" style="flex:1; min-width: 100px; background:#fff7ed; color:#ea580c; border-color:#fed7aa; justify-content: center;" onclick="openSmartRxModal()">✏️ تعديل الأدوية</button>
                         <button class="btn-action" style="flex:1; min-width: 100px; background:#f1f5f9; color:#475569; border-color:#cbd5e1; justify-content: center;" onclick="document.getElementById('upload-rx-input').click()">📎 إرفاق صورة</button>
-                        <button class="btn-danger" style="flex:1; min-width: 100px; justify-content: center;" onclick="deleteDoc('Prescriptions', '${doc.id}')">🗑️ مسح الروشتة</button>
+                        <button class="btn-danger" style="flex:1; min-width: 100px; justify-content: center;" onclick="deleteDoc('Prescriptions', '${doc.id}')">🗑️ مسح الكل</button>
                     </div>
                 </div>
             `;
@@ -501,19 +523,19 @@ function loadSessionPrescription() {
     });
 }
 
-// 🔴 رفع صورة الروشتة الخارجية 🔴
+// 🔴 رفع صور الروشتات (وتجميعها كمصفوفة) 🔴
 document.getElementById('upload-rx-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (!activePrescriptionDocId) {
-        // لو مفيش روشتة أصلاً، ننشئ واحدة فاضية عشان نربط فيها الصورة
-        if (window.showLoader) window.showLoader("جاري إنشاء الروشتة ورفع الصورة...");
+        if (window.showLoader) window.showLoader("جاري إنشاء الروشتة المرفقة...");
         try {
             const newRx = await db.collection("Prescriptions").add({
                 clinicId: clinicId, patientId: patientId, sessionId: sessionId,
                 medications: "روشتة خارجية مرفقة", date: new Date().toISOString().split('T')[0],
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                uploadedRxUrls: []
             });
             activePrescriptionDocId = newRx.id;
         } catch(err) { console.error(err); if(window.hideLoader) window.hideLoader(); return; }
@@ -522,12 +544,16 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
     }
 
     try {
-        const storageRef = storage.ref(`prescriptions/${clinicId}/${activePrescriptionDocId}_${file.name}`);
+        const storageRef = storage.ref(`prescriptions/${clinicId}/${activePrescriptionDocId}_${Date.now()}_${file.name}`);
         await storageRef.put(file);
         const url = await storageRef.getDownloadURL();
         
-        await db.collection("Prescriptions").doc(activePrescriptionDocId).update({ uploadedRxUrl: url });
-        alert("✅ تم رفع الروشتة بنجاح!");
+        // استخدام arrayUnion لإضافة الصورة الجديدة للي موجودين
+        await db.collection("Prescriptions").doc(activePrescriptionDocId).update({ 
+            uploadedRxUrls: firebase.firestore.FieldValue.arrayUnion(url) 
+        });
+        
+        alert("✅ تم إرفاق الصورة بنجاح!");
     } catch (error) {
         console.error("Upload error:", error);
         alert("❌ حدث خطأ أثناء الرفع.");
@@ -537,8 +563,24 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
     }
 });
 
+// مسح صورة روشتة واحدة بعينها
+async function deleteSpecificRxImage(docId, imageUrl) {
+    if(confirm("هل أنت متأكد من حذف هذه الصورة فقط؟")) {
+        if(window.showLoader) window.showLoader("جاري حذف الصورة...");
+        try {
+            await db.collection("Prescriptions").doc(docId).update({
+                uploadedRxUrls: firebase.firestore.FieldValue.arrayRemove(imageUrl)
+            });
+        } catch(e) {
+            console.error(e);
+        } finally {
+            if(window.hideLoader) window.hideLoader();
+        }
+    }
+}
+
 // ====================================================================
-// 🔴 3. الطباعة والمرفقات (الأشعة) 🔴
+// 🔴 4. الطباعة والمرفقات (الأشعة) 🔴
 // ====================================================================
 
 function printSessionRx(docId) {
@@ -551,27 +593,26 @@ function printSessionRx(docId) {
             document.getElementById('print-meds').innerText = p.medications;
             document.getElementById('print-notes').innerText = p.notes || 'لا يوجد';
             
-            // سحب بيانات العيادة عشان تتطبع في الهيدر والفوتر
+            // سحب بيانات العيادة عشان تتطبع في الهيدر والفوتر 🔴
             db.collection("Clinics").doc(clinicId).get().then(cDoc => {
                 if(cDoc.exists) {
                     const cInfo = cDoc.data();
                     document.getElementById('print-clinic-name').innerText = cInfo.clinicName || 'Clinic Name';
                     document.getElementById('print-doctor-name').innerText = cInfo.adminEmail ? `Dr. Account: ${cInfo.adminEmail}` : '';
                     
-                    // لو في لوجو يظهر
                     if(cInfo.logoUrl) {
                         const printLogo = document.getElementById('print-clinic-logo');
                         printLogo.src = cInfo.logoUrl;
                         printLogo.style.display = 'block';
                     }
 
-                    // بيانات وهمية للفوتر (لحد ما تعملها صفحة إعدادات خاصة)
-                    document.getElementById('print-clinic-address').innerText = "NivaDent System Powered Clinic";
-                    document.getElementById('print-clinic-phone').innerText = "01000000000";
+                    // 🔴 تسميع العناوين والأرقام اللي في الإعدادات 🔴
+                    document.getElementById('print-clinic-address').innerText = cInfo.address1 || "---";
+                    document.getElementById('print-clinic-phone').innerText = cInfo.phone1 || "---";
                 }
                 
                 if (window.hideLoader) window.hideLoader();
-                setTimeout(() => window.print(), 500); // تأخير بسيط عشان الصور تحمل
+                setTimeout(() => window.print(), 500); 
             }).catch(() => { if (window.hideLoader) window.hideLoader(); });
         } else {
             if (window.hideLoader) window.hideLoader();
