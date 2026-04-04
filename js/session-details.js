@@ -1,4 +1,5 @@
 const db = firebase.firestore();
+const storage = firebase.storage(); // 🔴 لرفع صور الروشتات 🔴
 const urlParams = new URLSearchParams(window.location.search);
 const sessionId = urlParams.get('sessionId');
 const patientId = urlParams.get('patientId');
@@ -6,6 +7,7 @@ const clinicId = sessionStorage.getItem('clinicId');
 
 let sessionData = null;
 let patientName = "المريض";
+let patientAge = "---";
 let clinicPharmacy = []; 
 let currentPrescriptionDrugs = []; 
 let activePrescriptionDocId = null; 
@@ -31,7 +33,10 @@ async function loadSessionDetails() {
     db.collection("Patients").doc(patientId).get().then(doc => {
         if(doc.exists) {
             patientName = doc.data().name;
+            patientAge = doc.data().age || '---';
+            document.getElementById('header-patient-name').innerText = patientName;
             document.getElementById('print-patient-name').innerText = patientName;
+            document.getElementById('print-patient-age').innerText = patientAge;
         }
     });
 
@@ -39,6 +44,7 @@ async function loadSessionDetails() {
         if(doc.exists) {
             sessionData = doc.data();
             document.getElementById('sd-procedure').innerText = sessionData.procedure;
+            document.getElementById('print-patient-diag').innerText = sessionData.procedure; // 🔴 للطباعة
             document.getElementById('sd-date').innerText = sessionData.date;
             document.getElementById('sd-tooth').innerText = sessionData.tooth || '---';
             document.getElementById('sd-total').innerText = sessionData.total || 0;
@@ -51,6 +57,7 @@ async function loadSessionDetails() {
     loadSessionXRays();
     loadSessionPrescription();
     loadClinicPharmacy();
+    loadRxTemplates(); // 🔴 تحميل قوالب الروشتات 🔴
 }
 
 function openEditSessionModal() {
@@ -70,11 +77,8 @@ function calcEditRemaining() {
     document.getElementById('es_remaining').value = Math.max(0, t - p);
 }
 
-// تعديل الجلسة
 async function updateSession(e) {
     e.preventDefault();
-
-    // 🔴 إضافة اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
 
     const data = {
@@ -91,61 +95,13 @@ async function updateSession(e) {
     } catch(e) { 
         console.error(e); 
     } finally {
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
 
-function encodeSessionImage(element) {
-    const file = element.files[0];
-    const reader = new FileReader();
-    reader.onloadend = function() { document.getElementById('sx_base64').value = reader.result; }
-    if (file) reader.readAsDataURL(file);
-}
-
-async function saveSessionXRay(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-save-sx');
-    btn.disabled = true; btn.innerText = "جاري الرفع...";
-
-    // 🔴 إضافة اللودر 🔴
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري رفع المرفق..." : "Uploading...");
-
-    const data = {
-        clinicId: clinicId, patientId: patientId, sessionId: sessionId,
-        type: document.getElementById('sx_type').value,
-        imageBase64: document.getElementById('sx_base64').value,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    try {
-        await db.collection("XRays").add(data);
-        closeModal('xrayModal'); document.querySelector('#xrayModal form').reset();
-    } catch (e) { 
-        alert("حجم الصورة كبير جداً! برجاء استخدام صورة أصغر."); 
-    } finally { 
-        btn.disabled = false; btn.innerText = "رفع المرفق"; 
-        // 🔴 إخفاء اللودر 🔴
-        if (window.hideLoader) window.hideLoader();
-    }
-}
-
-function loadSessionXRays() {
-    db.collection("XRays").where("sessionId", "==", sessionId).onSnapshot(snap => {
-        const list = document.getElementById('session-xrays-list');
-        list.innerHTML = '';
-        if (snap.empty) { list.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">لا توجد مرفقات.</div>`; return; }
-        snap.forEach(doc => {
-            const x = doc.data();
-            list.innerHTML += `
-                <div class="xray-card" style="padding: 10px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
-                    <a href="${x.imageBase64}" target="_blank"><img src="${x.imageBase64}" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom: 10px; border:1px solid #f1f5f9;"></a>
-                    <p style="font-size: 13px; margin: 5px 0; font-weight:bold; color: #1e293b;">${x.type}</p>
-                    <button class="btn-danger" style="width:100%; padding:6px; font-size:13px; margin-top: 5px;" onclick="deleteDoc('XRays', '${doc.id}')">🗑️ حذف</button>
-                </div>
-            `;
-        });
-    });
-}
+// ====================================================================
+// 🔴 1. إدارة الأدوية والاستيراد من الإكسيل 🔴
+// ====================================================================
 
 function loadClinicPharmacy() {
     db.collection("Pharmacy").where("clinicId", "==", clinicId).onSnapshot(snap => {
@@ -184,9 +140,7 @@ function openEditDrugModal(drugId, event) {
 async function deleteDrugFromPharmacy(drugId, event) {
     event.stopPropagation(); 
     if(confirm("هل أنت متأكد من حذف هذا الدواء نهائياً من قاعدة بيانات العيادة؟")) {
-        // 🔴 إضافة اللودر 🔴
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
-
         try {
             await db.collection("Pharmacy").doc(drugId).delete();
             document.getElementById('search-results-box').style.display = 'none';
@@ -194,7 +148,6 @@ async function deleteDrugFromPharmacy(drugId, event) {
         } catch(e) { 
             console.error(e); 
         } finally {
-            // 🔴 إخفاء اللودر 🔴
             if (window.hideLoader) window.hideLoader();
         }
     }
@@ -212,7 +165,6 @@ async function saveNewDrugToPharmacy(e) {
         }
     }
 
-    // 🔴 إضافة اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحفظ..." : "Saving...");
 
     const data = {
@@ -234,7 +186,6 @@ async function saveNewDrugToPharmacy(e) {
     } catch(e) { 
         console.error(e); 
     } finally {
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -269,8 +220,8 @@ function searchDrugs() {
             actionsDiv.style.gap = '5px';
             
             actionsDiv.innerHTML = `
-                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa;" onclick="openEditDrugModal('${d.id}', event)" title="تعديل هذا العلاج">✏️</button>
-                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;" onclick="deleteDrugFromPharmacy('${d.id}', event)" title="حذف هذا العلاج نهائياً">🗑️</button>
+                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa;" onclick="openEditDrugModal('${d.id}', event)" title="تعديل">✏️</button>
+                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;" onclick="deleteDrugFromPharmacy('${d.id}', event)" title="حذف">🗑️</button>
             `;
 
             div.appendChild(infoDiv);
@@ -281,15 +232,75 @@ function searchDrugs() {
     resultBox.style.display = 'block';
 }
 
+// --- استيراد الأدوية بالإكسيل ---
+function downloadDrugsTemplate() {
+    const wb = XLSX.utils.book_new();
+    const ws_data = [
+        ["category", "name", "defaultDose"],
+        ["مضاد حيوي", "Augmentin 1gm", "قرص كل 12 ساعة"],
+        ["مسكن", "Panadol Extra", "قرص عند اللزوم"]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    XLSX.utils.book_append_sheet(wb, ws, "Drugs");
+    XLSX.writeFile(wb, "NivaDent_Drugs_Template.xlsx");
+}
+
+function importDrugsFromExcel(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري استيراد الأدوية..." : "Importing drugs...");
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheet = workbook.SheetNames[0];
+            const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+
+            if (excelRows.length === 0) { alert("الملف فارغ!"); return; }
+
+            let importedCount = 0;
+            const batch = db.batch();
+            
+            excelRows.forEach(row => {
+                if (row.name && row.category) {
+                    const docRef = db.collection("Pharmacy").doc();
+                    batch.set(docRef, {
+                        clinicId: clinicId,
+                        category: String(row.category).trim(),
+                        name: String(row.name).trim(),
+                        defaultDose: row.defaultDose ? String(row.defaultDose).trim() : ""
+                    });
+                    importedCount++;
+                }
+            });
+
+            await batch.commit();
+            alert(`✅ تم استيراد ${importedCount} دواء بنجاح!`);
+            closeModal('addDrugModal');
+        } catch (error) {
+            console.error(error);
+            alert("❌ حدث خطأ في قراءة ملف الإكسيل. تأكد من استخدام القالب الصحيح.");
+        } finally {
+            input.value = ''; // تفريغ
+            if (window.hideLoader) window.hideLoader();
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+// ====================================================================
+// 🔴 2. الروشتة الذكية وقوالب الروشتات (Templates) 🔴
+// ====================================================================
+
 function addDrugToPrescriptionList(drug) {
     document.getElementById('search-results-box').style.display = 'none';
     document.getElementById('drug-search').value = '';
     
     const exists = currentPrescriptionDrugs.some(d => d.name === drug.name);
-    if(exists) {
-        alert("هذا الدواء مضاف بالفعل في الروشتة الحالية.");
-        return;
-    }
+    if(exists) { alert("هذا الدواء مضاف بالفعل."); return; }
 
     currentPrescriptionDrugs.push({ name: drug.name, dose: drug.defaultDose });
     renderSelectedDrugs();
@@ -304,7 +315,7 @@ function renderSelectedDrugs() {
     const list = document.getElementById('selected-drugs-list');
     list.innerHTML = '';
     if(currentPrescriptionDrugs.length === 0) {
-        list.innerHTML = '<div class="empty-state" style="padding: 20px;">لم يتم اختيار أدوية بعد. ابحث في الأعلى واختر العلاج.</div>';
+        list.innerHTML = '<div class="empty-state" style="padding: 30px;">لم يتم اختيار أدوية بعد. ابحث في الأعلى واختر العلاج.</div>';
         return;
     }
     
@@ -313,29 +324,94 @@ function renderSelectedDrugs() {
             <div class="drug-list-item">
                 <div style="flex: 1; font-weight: 800; font-size: 15px; color: #0f172a;" dir="ltr">${drug.name}</div>
                 <div style="flex: 2;">
-                    <input type="text" value="${drug.dose}" id="dose_${index}" onchange="updateDose(${index}, this.value)" class="search-box" style="padding: 8px; border-radius: 6px; font-size: 13px;">
+                    <input type="text" value="${drug.dose}" onchange="updateDose(${index}, this.value)" class="search-box" style="padding: 8px; border-radius: 6px; font-size: 13px;">
                 </div>
-                <div><button type="button" class="btn-danger" style="padding: 8px 12px; border-radius: 6px; font-size: 12px;" onclick="removeDrugFromList(${index})" title="إزالة الدواء">❌</button></div>
+                <div><button type="button" class="btn-danger" style="padding: 8px 12px; border-radius: 6px; font-size: 12px;" onclick="removeDrugFromList(${index})">❌</button></div>
             </div>
         `;
     });
 }
 
-function updateDose(index, newDose) {
-    currentPrescriptionDrugs[index].dose = newDose;
-}
+function updateDose(index, newDose) { currentPrescriptionDrugs[index].dose = newDose; }
 
 function openSmartRxModal() {
     document.getElementById('drug-search').value = '';
     document.getElementById('search-results-box').style.display = 'none';
+    document.getElementById('rx_template_select').value = '';
     renderSelectedDrugs();
     openModal('smartRxModal');
+}
+
+// --- قوالب الروشتات الجاهزة ---
+function loadRxTemplates() {
+    db.collection("RxTemplates").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        const select = document.getElementById('rx_template_select');
+        select.innerHTML = '<option value="">اختر قالب جاهز (مثال: روشتة خلع، عصب...)</option>';
+        
+        const listContainer = document.getElementById('templates-list-container');
+        listContainer.innerHTML = '';
+        
+        if (snap.empty) {
+            listContainer.innerHTML = '<div class="empty-state">لا يوجد قوالب محفوظة.</div>';
+            return;
+        }
+
+        snap.forEach(doc => {
+            const t = doc.data();
+            // ملء القائمة المنسدلة
+            select.innerHTML += `<option value="${doc.id}">${t.templateName}</option>`;
+            
+            // ملء مودال الإدارة
+            listContainer.innerHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f1f5f9;">
+                    <strong>${t.templateName}</strong>
+                    <button class="btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteDoc('RxTemplates', '${doc.id}')">حذف</button>
+                </div>
+            `;
+        });
+        
+        window.rxTemplatesData = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    });
+}
+
+function openTemplateManager() { openModal('templatesModal'); }
+
+function applyRxTemplate(templateId) {
+    if(!templateId) return;
+    const tpl = window.rxTemplatesData.find(t => t.id === templateId);
+    if(tpl && tpl.drugsArray) {
+        // دمج الأدوية بدون تكرار
+        tpl.drugsArray.forEach(drug => {
+            if(!currentPrescriptionDrugs.some(d => d.name === drug.name)) {
+                currentPrescriptionDrugs.push({ name: drug.name, dose: drug.dose });
+            }
+        });
+        renderSelectedDrugs();
+    }
+}
+
+async function saveCurrentRxAsTemplate() {
+    const tplName = document.getElementById('tpl_name').value.trim();
+    if (!tplName) { alert("برجاء كتابة اسم القالب أولاً!"); return; }
+    if (currentPrescriptionDrugs.length === 0) { alert("الروشتة الحالية فارغة!"); return; }
+
+    if (window.showLoader) window.showLoader("جاري حفظ القالب...");
+    try {
+        await db.collection("RxTemplates").add({
+            clinicId: clinicId,
+            templateName: tplName,
+            drugsArray: currentPrescriptionDrugs,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        document.getElementById('tpl_name').value = '';
+        alert("✅ تم حفظ القالب بنجاح!");
+    } catch(e) { console.error(e); }
+    finally { if (window.hideLoader) window.hideLoader(); }
 }
 
 async function saveSmartPrescription() {
     if(currentPrescriptionDrugs.length === 0) { alert("برجاء اختيار دواء واحد على الأقل لإصدار الروشتة."); return; }
     
-    // 🔴 إضافة اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إصدار الروشتة..." : "Creating prescription...");
 
     let medsText = "";
@@ -365,7 +441,6 @@ async function saveSmartPrescription() {
     } catch(e) { 
         console.error(e); 
     } finally {
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -373,11 +448,23 @@ async function saveSmartPrescription() {
 function loadSessionPrescription() {
     db.collection("Prescriptions").where("sessionId", "==", sessionId).onSnapshot(snap => {
         const container = document.getElementById('session-rx-container');
+        const uploadBox = document.getElementById('uploaded-rx-container');
+        const uploadImg = document.getElementById('uploaded-rx-img');
+        const uploadLink = document.getElementById('uploaded-rx-link');
+
         if(snap.empty) {
             container.innerHTML = `<div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>`;
+            uploadBox.style.display = 'none';
             activePrescriptionDocId = null;
             currentPrescriptionDrugs = [];
             document.getElementById('rx_general_notes').value = '';
+            
+            // إظهار زر الرفع الفاضي
+            container.innerHTML += `
+                <div style="text-align: center; margin-top: 15px;">
+                    <button class="btn-action" style="background:#f8fafc; border:1px solid #cbd5e1; color:#475569;" onclick="document.getElementById('upload-rx-input').click()">📎 رفع روشتة خارجية (صورة/ملف)</button>
+                </div>
+            `;
             return;
         }
         
@@ -388,14 +475,24 @@ function loadSessionPrescription() {
             currentPrescriptionDrugs = p.rawDrugsArray || []; 
             document.getElementById('rx_general_notes').value = p.notes || '';
             
+            // 🔴 عرض الروشتة المرفوعة لو موجودة 🔴
+            if (p.uploadedRxUrl) {
+                uploadImg.src = p.uploadedRxUrl;
+                uploadLink.href = p.uploadedRxUrl;
+                uploadBox.style.display = 'block';
+            } else {
+                uploadBox.style.display = 'none';
+            }
+
             container.innerHTML = `
                 <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1; position: relative;">
                     <div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:700; color:#0f172a; line-height: 1.6;">${p.medications}</div>
                     ${p.notes ? `<p style="margin-top:15px; color:#475569; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 14px;"><strong>تعليمات خاصة:</strong> ${p.notes}</p>` : ''}
                     
                     <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="btn-primary" style="flex:1; min-width: 100px; background:#10b981; justify-content: center;" onclick="printSessionRx('${doc.id}')">🖨️ طباعة الروشتة</button>
-                        <button class="btn-action" style="flex:1; min-width: 100px; background:#fff7ed; color:#ea580c; border-color:#fed7aa;" onclick="openSmartRxModal()">✏️ تعديل الأدوية</button>
+                        <button class="btn-primary" style="flex:1; min-width: 100px; background:#10b981; justify-content: center;" onclick="printSessionRx('${doc.id}')">🖨️ طباعة</button>
+                        <button class="btn-action" style="flex:1; min-width: 100px; background:#fff7ed; color:#ea580c; border-color:#fed7aa; justify-content: center;" onclick="openSmartRxModal()">✏️ تعديل الأدوية</button>
+                        <button class="btn-action" style="flex:1; min-width: 100px; background:#f1f5f9; color:#475569; border-color:#cbd5e1; justify-content: center;" onclick="document.getElementById('upload-rx-input').click()">📎 إرفاق صورة</button>
                         <button class="btn-danger" style="flex:1; min-width: 100px; justify-content: center;" onclick="deleteDoc('Prescriptions', '${doc.id}')">🗑️ مسح الروشتة</button>
                     </div>
                 </div>
@@ -404,8 +501,47 @@ function loadSessionPrescription() {
     });
 }
 
+// 🔴 رفع صورة الروشتة الخارجية 🔴
+document.getElementById('upload-rx-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!activePrescriptionDocId) {
+        // لو مفيش روشتة أصلاً، ننشئ واحدة فاضية عشان نربط فيها الصورة
+        if (window.showLoader) window.showLoader("جاري إنشاء الروشتة ورفع الصورة...");
+        try {
+            const newRx = await db.collection("Prescriptions").add({
+                clinicId: clinicId, patientId: patientId, sessionId: sessionId,
+                medications: "روشتة خارجية مرفقة", date: new Date().toISOString().split('T')[0],
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            activePrescriptionDocId = newRx.id;
+        } catch(err) { console.error(err); if(window.hideLoader) window.hideLoader(); return; }
+    } else {
+        if (window.showLoader) window.showLoader("جاري رفع الصورة...");
+    }
+
+    try {
+        const storageRef = storage.ref(`prescriptions/${clinicId}/${activePrescriptionDocId}_${file.name}`);
+        await storageRef.put(file);
+        const url = await storageRef.getDownloadURL();
+        
+        await db.collection("Prescriptions").doc(activePrescriptionDocId).update({ uploadedRxUrl: url });
+        alert("✅ تم رفع الروشتة بنجاح!");
+    } catch (error) {
+        console.error("Upload error:", error);
+        alert("❌ حدث خطأ أثناء الرفع.");
+    } finally {
+        e.target.value = ''; 
+        if (window.hideLoader) window.hideLoader();
+    }
+});
+
+// ====================================================================
+// 🔴 3. الطباعة والمرفقات (الأشعة) 🔴
+// ====================================================================
+
 function printSessionRx(docId) {
-    // 🔴 إضافة اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "تجهيز للطباعة..." : "Preparing print...");
 
     db.collection("Prescriptions").doc(docId).get().then(doc => {
@@ -414,16 +550,29 @@ function printSessionRx(docId) {
             document.getElementById('print-date').innerText = p.date;
             document.getElementById('print-meds').innerText = p.medications;
             document.getElementById('print-notes').innerText = p.notes || 'لا يوجد';
+            
+            // سحب بيانات العيادة عشان تتطبع في الهيدر والفوتر
             db.collection("Clinics").doc(clinicId).get().then(cDoc => {
-                if(cDoc.exists && cDoc.data().clinicName) {
-                    document.getElementById('print-clinic-name').innerText = cDoc.data().clinicName;
+                if(cDoc.exists) {
+                    const cInfo = cDoc.data();
+                    document.getElementById('print-clinic-name').innerText = cInfo.clinicName || 'Clinic Name';
+                    document.getElementById('print-doctor-name').innerText = cInfo.adminEmail ? `Dr. Account: ${cInfo.adminEmail}` : '';
+                    
+                    // لو في لوجو يظهر
+                    if(cInfo.logoUrl) {
+                        const printLogo = document.getElementById('print-clinic-logo');
+                        printLogo.src = cInfo.logoUrl;
+                        printLogo.style.display = 'block';
+                    }
+
+                    // بيانات وهمية للفوتر (لحد ما تعملها صفحة إعدادات خاصة)
+                    document.getElementById('print-clinic-address').innerText = "NivaDent System Powered Clinic";
+                    document.getElementById('print-clinic-phone').innerText = "01000000000";
                 }
-                // 🔴 إخفاء اللودر 🔴
+                
                 if (window.hideLoader) window.hideLoader();
-                window.print();
-            }).catch(() => {
-                if (window.hideLoader) window.hideLoader();
-            });
+                setTimeout(() => window.print(), 500); // تأخير بسيط عشان الصور تحمل
+            }).catch(() => { if (window.hideLoader) window.hideLoader(); });
         } else {
             if (window.hideLoader) window.hideLoader();
         }
@@ -432,17 +581,63 @@ function printSessionRx(docId) {
     });
 }
 
+function encodeSessionImage(element) {
+    const file = element.files[0];
+    const reader = new FileReader();
+    reader.onloadend = function() { document.getElementById('sx_base64').value = reader.result; }
+    if (file) reader.readAsDataURL(file);
+}
+
+async function saveSessionXRay(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-sx');
+    btn.disabled = true; btn.innerText = "جاري الرفع...";
+
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري رفع المرفق..." : "Uploading...");
+
+    const data = {
+        clinicId: clinicId, patientId: patientId, sessionId: sessionId,
+        type: document.getElementById('sx_type').value,
+        imageBase64: document.getElementById('sx_base64').value,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    try {
+        await db.collection("XRays").add(data);
+        closeModal('xrayModal'); document.querySelector('#xrayModal form').reset();
+    } catch (e) { 
+        alert("حجم الصورة كبير جداً! برجاء استخدام صورة أصغر."); 
+    } finally { 
+        btn.disabled = false; btn.innerText = "رفع المرفق"; 
+        if (window.hideLoader) window.hideLoader();
+    }
+}
+
+function loadSessionXRays() {
+    db.collection("XRays").where("sessionId", "==", sessionId).onSnapshot(snap => {
+        const list = document.getElementById('session-xrays-list');
+        list.innerHTML = '';
+        if (snap.empty) { list.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">لا توجد مرفقات.</div>`; return; }
+        snap.forEach(doc => {
+            const x = doc.data();
+            list.innerHTML += `
+                <div class="xray-card" style="padding: 10px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+                    <a href="${x.imageBase64}" target="_blank"><img src="${x.imageBase64}" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom: 10px; border:1px solid #f1f5f9;"></a>
+                    <p style="font-size: 13px; margin: 5px 0; font-weight:bold; color: #1e293b;">${x.type}</p>
+                    <button class="btn-danger" style="width:100%; padding:6px; font-size:13px; margin-top: 5px;" onclick="deleteDoc('XRays', '${doc.id}')">🗑️ حذف</button>
+                </div>
+            `;
+        });
+    });
+}
+
 async function deleteDoc(collectionName, docId) {
     if(confirm("هل أنت متأكد من الحذف النهائي؟")) {
-        // 🔴 إضافة اللودر 🔴
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
-
         try { 
             await db.collection(collectionName).doc(docId).delete(); 
         } catch (e) { 
             console.error(e); 
         } finally {
-            // 🔴 إخفاء اللودر 🔴
             if (window.hideLoader) window.hideLoader();
         }
     }
