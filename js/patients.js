@@ -8,7 +8,6 @@ const PATIENTS_PER_PAGE = 50;
 let lastVisibleDoc = null; 
 let isSearchMode = false;  
 
-// 1. نظام الترجمة
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -54,7 +53,6 @@ function openPatientModal(patientId = null) {
     document.getElementById('addPatientForm').reset();
     currentEditPatientId = patientId;
     
-    // 🔴 تفريغ المربعات الطبية وتاريخ اليوم
     document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
     document.getElementById('p_history_notes').value = '';
     
@@ -72,13 +70,11 @@ function openPatientModal(patientId = null) {
             document.getElementById('p_gender').value = p.gender;
             document.getElementById('p_notes').value = p.notes || '';
             
-            // استرجاع التاريخ من الفايربيز ووضعه في حقل التاريخ
             if(p.createdAt) {
                 const docDate = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
                 document.getElementById('p_date').value = `${docDate.getFullYear()}-${String(docDate.getMonth()+1).padStart(2, '0')}-${String(docDate.getDate()).padStart(2, '0')}`;
             }
             
-            // 🔴 استرجاع التاريخ الطبي المدمج
             let remainingNotes = [];
             if(p.medicalHistory && Array.isArray(p.medicalHistory)) {
                 p.medicalHistory.forEach(part => {
@@ -108,7 +104,6 @@ async function savePatient(e) {
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ البيانات..." : "Saving data...");
 
-    // 🔴 تجميع المربعات الطبية المحددة مع النص 🔴
     let historyArr = [];
     document.querySelectorAll('.med-history-cb:checked').forEach(cb => {
         historyArr.push(cb.value);
@@ -118,7 +113,6 @@ async function savePatient(e) {
         historyArr.push(otherHistory);
     }
 
-    // 🔴 التعامل مع التاريخ المختار 🔴
     const selectedDateStr = document.getElementById('p_date').value;
     const selectedDateObj = new Date(selectedDateStr);
     
@@ -134,7 +128,6 @@ async function savePatient(e) {
 
     try {
         if (currentEditPatientId) {
-            // لو بنعدل، نحتفظ بالتاريخ المختار كـ Timestamp
             patientData.createdAt = firebase.firestore.Timestamp.fromDate(selectedDateObj);
             
             await db.collection("Patients").doc(currentEditPatientId).update(patientData);
@@ -302,7 +295,6 @@ function resetPatientSearch() {
     loadPatients(); 
 }
 
-// 🔴 دالة رسم الجدول المحدثة (تدعم الـ Clickable Row)
 function renderPatientsTable() {
     const tbody = document.getElementById('patientsBody');
     tbody.innerHTML = '';
@@ -320,7 +312,6 @@ function renderPatientsTable() {
         if (p.createdAt) {
             const dateObj = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
             dateStr = dateObj.toLocaleDateString(isAr ? 'ar-EG' : 'en-US');
-            // إخفاء الوقت لو كان منتصف الليل بالظبط (لأن ده معناه إن الدكتور مختار التاريخ يدوي)
             if (dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0) {
                 timeStr = dateObj.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
             }
@@ -341,10 +332,8 @@ function renderPatientsTable() {
         }
 
         const tr = document.createElement('tr');
-        // 🔴 إضافة كلاس وإيفنت لفتح الملف عند الضغط على أي مكان في السطر
         tr.className = 'clickable-row';
         tr.onclick = function(e) {
-            // منع فتح الملف لو اليوزر داس على التشيك بوكس أو زراير الأكشن
             if(e.target.type === 'checkbox' || e.target.tagName === 'BUTTON' || e.target.parentElement.tagName === 'BUTTON') return;
             openMedicalProfile(p.id);
         };
@@ -437,9 +426,7 @@ async function deleteSelectedPatients() {
 
 function openMedicalProfile(patientId) { window.location.href = `patient-profile.html?id=${patientId}`; }
 
-// ====================================================================
-// 🔴 دالة سحب وإضافة المرضى من الإكسيل (بدون تكرار الرقم) 🔴
-// ====================================================================
+// 🔴 دالة سحب وإضافة المرضى من الإكسيل (اللوجيك المحدث لمقارنة الاسم والرقم معاً) 🔴
 function importPatientsFromExcel(input) {
     const file = input.files[0];
     if (!file) return;
@@ -460,7 +447,8 @@ function importPatientsFromExcel(input) {
             let skippedCount = 0;
             const batch = db.batch();
             
-            const currentPhones = patientsDataArray.map(p => p.phone);
+            // 🔴 استخدام (الاسم + رقم الموبايل) كمفتاح لمنع التكرار للمريض نفسه
+            const currentPatientsSet = new Set(patientsDataArray.map(p => String(p.phone).trim() + "_" + String(p.name).trim().toLowerCase()));
 
             excelRows.forEach(row => {
                 const pName = row['الاسم'] || row['اسم المريض'] || row['name'];
@@ -468,11 +456,13 @@ function importPatientsFromExcel(input) {
                 
                 if (pName && pPhone) {
                     const phoneStr = String(pPhone).trim();
+                    const nameStr = String(pName).trim().toLowerCase();
+                    const uniqueKey = phoneStr + "_" + nameStr;
                     
-                    // منع تكرار رقم الموبايل
-                    if (currentPhones.includes(phoneStr)) {
+                    // 🔴 منع التكرار لو نفس الاسم ونفس الرقم متسجلين مع بعض
+                    if (currentPatientsSet.has(uniqueKey)) {
                         skippedCount++;
-                        return; // تجاوز المريض ده
+                        return; // تجاوز المريض ده لأنه متسجل قبل كده
                     }
 
                     const pAge = row['السن'] || row['العمر'] || row['age'] || "";
@@ -497,24 +487,24 @@ function importPatientsFromExcel(input) {
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     
-                    currentPhones.push(phoneStr); // تحديث الأرقام المحجوزة
+                    currentPatientsSet.add(uniqueKey); // 🔴 تحديث قائمة الأرقام والأسماء المحجوزة
                     importedCount++;
                 }
             });
 
             if (importedCount > 0) {
                 await batch.commit();
-                alert(`✅ تم استيراد ${importedCount} مريض بنجاح!\n⚠️ تم تجاهل ${skippedCount} مريض لتكرار رقم الهاتف.`);
-                loadPatients(); // إعادة تحميل الجدول
+                alert(`✅ تم استيراد ${importedCount} مريض بنجاح!\n⚠️ تم تجاهل ${skippedCount} مريض لأنهم مسجلين مسبقاً.`);
+                loadPatients(); 
             } else {
-                alert("لم يتم استيراد أي مريض. تأكد من صحة أسماء الأعمدة (الاسم، الموبايل).");
+                alert("لم يتم استيراد أي مريض. تأكد من صحة أسماء الأعمدة (الاسم، الموبايل) أو أنهم مسجلين بالفعل.");
             }
 
         } catch (error) {
             console.error(error);
             alert("❌ حدث خطأ في قراءة ملف الإكسيل.");
         } finally {
-            input.value = ''; // تفريغ
+            input.value = ''; 
             if (window.hideLoader) window.hideLoader();
         }
     };
