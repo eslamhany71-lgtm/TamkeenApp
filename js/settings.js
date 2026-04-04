@@ -9,6 +9,8 @@ function updatePageContent(lang) {
             title: "إعدادات العيادة", sub: "تخصيص بيانات العيادة والشعار (اللوجو)", cardTitle: "البيانات الأساسية",
             lLogo: "شعار العيادة (اللوجو)", lHint: "يفضل أن تكون الصورة مربعة (1:1) بخلفية شفافة",
             lName: "اسم العيادة / المركز الطبي", pName: "أدخل اسم العيادة الذي سيظهر في النظام والروشتات",
+            lPhone1: "رقم الهاتف الأساسي للعيادة", lPhone2: "رقم هاتف آخر (اختياري)",
+            lAddress1: "عنوان العيادة الأساسي", lAddress2: "عنوان فرع آخر (اختياري)",
             lLang: "لغة النظام (System Language)",
             btnSave: "حفظ التعديلات", msgSuccess: "تم حفظ التعديلات بنجاح!", msgError: "حدث خطأ أثناء الحفظ",
             // ترجمة الباك أب للإكسل
@@ -21,6 +23,8 @@ function updatePageContent(lang) {
             title: "Clinic Settings", sub: "Customize clinic data and logo", cardTitle: "Basic Information",
             lLogo: "Clinic Logo", lHint: "Square image (1:1) with transparent background is recommended",
             lName: "Clinic / Center Name", pName: "Enter the clinic name to appear in the system and prescriptions",
+            lPhone1: "Main Phone Number", lPhone2: "Secondary Phone (Optional)",
+            lAddress1: "Main Clinic Address", lAddress2: "Secondary Branch (Optional)",
             lLang: "System Language",
             btnSave: "Save Changes", msgSuccess: "Changes saved successfully!", msgError: "Error saving changes",
             bkpTitle: "Excel Backup & Data", bkpDesc: "Download a full backup of clinic data in a single Excel file with separated sheets (Patients, Appointments, Finances, etc.) ready for printing or storage.", btnBkp: "Download Excel Backup", msgBkpWait: "Extracting data to Excel...", msgBkpDone: "Excel file downloaded successfully!",
@@ -33,6 +37,11 @@ function updatePageContent(lang) {
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('txt-card-title', c.cardTitle);
     setTxt('lbl-logo', c.lLogo); setTxt('lbl-logo-hint', c.lHint); setTxt('lbl-name', c.lName);
+    
+    // ربط الترجمة بالحقول الجديدة
+    setTxt('lbl-phone1', c.lPhone1); setTxt('lbl-phone2', c.lPhone2);
+    setTxt('lbl-address1', c.lAddress1); setTxt('lbl-address2', c.lAddress2);
+    
     setTxt('lbl-lang', c.lLang);
     setTxt('txt-backup-title', c.bkpTitle); setTxt('txt-backup-desc', c.bkpDesc); setTxt('btn-backup-txt', c.btnBkp);
     
@@ -55,16 +64,20 @@ const defaultLogoSVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/
 async function loadClinicSettings() {
     if (!clinicId || clinicId === 'default') return;
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل الإعدادات..." : "Loading settings...");
 
     try {
         const doc = await db.collection("Clinics").doc(clinicId).get();
         if (doc.exists) {
             const data = doc.data();
-            if (data.clinicName) {
-                document.getElementById('clinic_name').value = data.clinicName;
-            }
+            if (data.clinicName) document.getElementById('clinic_name').value = data.clinicName;
+            
+            // سحب العناوين والأرقام
+            if (data.phone1) document.getElementById('clinic_phone_1').value = data.phone1;
+            if (data.phone2) document.getElementById('clinic_phone_2').value = data.phone2;
+            if (data.address1) document.getElementById('clinic_address_1').value = data.address1;
+            if (data.address2) document.getElementById('clinic_address_2').value = data.address2;
+
             if (data.logoUrl && data.logoUrl !== "") {
                 document.getElementById('logo-preview').src = data.logoUrl;
                 document.getElementById('logo_base64').value = data.logoUrl;
@@ -76,7 +89,6 @@ async function loadClinicSettings() {
     } catch (error) {
         console.error("Error loading settings:", error);
     } finally {
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -102,7 +114,6 @@ function deleteLogo() {
 function changeSystemLanguage(newLang) {
     localStorage.setItem('preferredLang', newLang);
     
-    // 🔴 إظهار اللودر عند تغيير اللغة 🔴
     if (window.showLoader) window.showLoader("...");
 
     if (window.parent && typeof window.parent.switchAppLanguage === 'function') {
@@ -125,16 +136,25 @@ async function saveSettings(e) {
         return;
     }
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ التعديلات..." : "Saving changes...");
 
     const newName = document.getElementById('clinic_name').value.trim();
     const newLogo = document.getElementById('logo_base64').value;
+    
+    // سحب العناوين والأرقام الجديدة
+    const newPhone1 = document.getElementById('clinic_phone_1').value.trim();
+    const newPhone2 = document.getElementById('clinic_phone_2').value.trim();
+    const newAddress1 = document.getElementById('clinic_address_1').value.trim();
+    const newAddress2 = document.getElementById('clinic_address_2').value.trim();
 
     try {
         await db.collection("Clinics").doc(clinicId).update({
             clinicName: newName,
-            logoUrl: newLogo
+            logoUrl: newLogo,
+            phone1: newPhone1,
+            phone2: newPhone2,
+            address1: newAddress1,
+            address2: newAddress2
         });
 
         alert(window.settingsLang.msgSuccess);
@@ -147,7 +167,6 @@ async function saveSettings(e) {
         alert(window.settingsLang.msgError);
     } finally {
         btn.disabled = false; btn.innerText = window.settingsLang.btnSave;
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -184,7 +203,6 @@ async function changePassword(e) {
     btn.disabled = true;
     btn.innerText = "جاري التحديث...";
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تغيير كلمة المرور..." : "Changing password...");
 
     const user = auth.currentUser;
@@ -213,7 +231,6 @@ async function changePassword(e) {
     
     btn.disabled = false;
     btn.innerText = window.settingsLang.btnSavePass || "تحديث كلمة المرور";
-    // 🔴 إخفاء اللودر 🔴
     if (window.hideLoader) window.hideLoader();
 }
 
@@ -224,7 +241,6 @@ window.addEventListener('click', function(event) {
     }
 });
 
-// ================== 🔴 دالة النسخ الاحتياطي لـ Excel السحرية 🔴 ==================
 async function exportClinicDataToExcel() {
     if (!clinicId || clinicId === 'default') {
         alert("لا يوجد بيانات لتصديرها.");
@@ -242,7 +258,6 @@ async function exportClinicDataToExcel() {
     btn.disabled = true; 
     document.getElementById('btn-backup-txt').innerText = safeLang.msgBkpWait;
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تجميع البيانات لملف Excel..." : "Generating Excel backup...");
 
     try {
@@ -316,7 +331,6 @@ async function exportClinicDataToExcel() {
     } finally {
         btn.disabled = false; 
         document.getElementById('btn-backup-txt').innerText = originalText;
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
