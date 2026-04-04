@@ -47,6 +47,9 @@ function openAppointmentModal() {
     currentEditAppId = null; 
     document.getElementById('addAppointmentForm').reset();
     
+    // تفريغ الـ Checkboxes
+    document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
+    
     document.getElementById('app_total').value = '0';
     document.getElementById('app_paid').value = '0';
     document.getElementById('app_remaining').value = '0';
@@ -93,6 +96,9 @@ function initCalendar() {
             document.getElementById('det_time').innerText = dateObj.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
             document.getElementById('det_type').innerText = props.type;
             
+            // إظهار التاريخ الطبي
+            document.getElementById('det_history').innerText = props.history && props.history !== "" ? props.history : "سليم (لا يوجد)";
+            
             const paid = props.paid || 0;
             const total = props.total || 0;
             document.getElementById('det_finance').innerText = `${paid} / ${total} ج.م`;
@@ -104,12 +110,22 @@ function initCalendar() {
             if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
             document.getElementById('det_status').innerText = statusTxt;
 
-            if(props.status === 'completed' || props.status === 'cancelled') {
+            // 🔴 لوجيك إظهار وإخفاء زراير (الإلغاء والاسترجاع) 🔴
+            if(props.status === 'completed') {
                 document.getElementById('complete-action-box').style.display = 'none';
                 document.getElementById('edit-action-box').style.display = 'none';
+                document.getElementById('cancel-action-box').style.display = 'none';
+                document.getElementById('restore-action-box').style.display = 'none';
+            } else if (props.status === 'cancelled') {
+                document.getElementById('complete-action-box').style.display = 'none';
+                document.getElementById('edit-action-box').style.display = 'none';
+                document.getElementById('cancel-action-box').style.display = 'none';
+                document.getElementById('restore-action-box').style.display = 'block'; // الاسترجاع فقط بيظهر
             } else {
                 document.getElementById('complete-action-box').style.display = 'block';
                 document.getElementById('edit-action-box').style.display = 'block';
+                document.getElementById('cancel-action-box').style.display = 'block';
+                document.getElementById('restore-action-box').style.display = 'none';
             }
 
             document.getElementById('appDetailsModal').style.display = 'flex';
@@ -153,6 +169,17 @@ async function saveAppointment(e) {
     const timeVal = document.getElementById('app_time').value || '12:00'; 
     const typeVal = document.getElementById('app_type').value;
 
+    // 🔴 تجميع المربعات الطبية المحددة مع النص 🔴
+    let historyArr = [];
+    document.querySelectorAll('.med-history-cb:checked').forEach(cb => {
+        historyArr.push(cb.value);
+    });
+    const otherHistory = document.getElementById('app_history').value.trim();
+    if(otherHistory) {
+        historyArr.push(otherHistory);
+    }
+    const finalHistory = historyArr.join(' ، ');
+
     let eventColor = '#0284C7'; 
     if (typeVal.includes('استشارة')) eventColor = '#f59e0b'; 
     if (typeVal.includes('جلسة')) eventColor = '#10b981'; 
@@ -163,7 +190,7 @@ async function saveAppointment(e) {
         phone: document.getElementById('app_phone').value.trim(),
         age: document.getElementById('app_age').value,
         gender: document.getElementById('app_gender').value,
-        history: document.getElementById('app_history').value.trim(),
+        history: finalHistory, // 🔴 حفظ التاريخ الطبي المدمج
         date: dateVal,
         time: timeVal,
         type: typeVal,
@@ -192,7 +219,6 @@ async function saveAppointment(e) {
     }
 }
 
-// 🔴 دالة الاكتمال المحدثة لضبط تزامن العائلات 🔴
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -220,7 +246,6 @@ async function markAppAsCompleted() {
         let patientId = null;
         let matchedPatientDoc = null;
 
-        // 🔴 التعديل هنا لعدم دمج أفراد العائلة 🔴
         if (!existingPatientQuery.empty) {
             existingPatientQuery.forEach(doc => {
                 if (doc.data().name.trim() === props.patientName.trim()) {
@@ -232,7 +257,7 @@ async function markAppAsCompleted() {
         if (!matchedPatientDoc) {
             let historyArray = [];
             if(props.history && props.history.length > 0) {
-                historyArray = props.history.split(',').map(item => item.trim()).filter(i => i);
+                historyArray = props.history.split(' ، ').map(item => item.trim()).filter(i => i);
             }
 
             const newPat = await db.collection("Patients").add({
@@ -256,7 +281,6 @@ async function markAppAsCompleted() {
             }
         }
 
-        // عشان الإيراد يتسجل بتاريخ النهاردة الفعلي
         const d = new Date();
         const currentPayDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -323,7 +347,20 @@ async function openEditModal() {
         document.getElementById('app_phone').value = props.phone || '';
         document.getElementById('app_age').value = props.age || '';
         document.getElementById('app_gender').value = props.gender || 'ذكر';
-        document.getElementById('app_history').value = props.history || '';
+        
+        // 🔴 تفكيك التاريخ الطبي عشان نعلم على المربعات الصح 🔴
+        document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
+        let remainingNotes = [];
+        if(props.history) {
+            const parts = props.history.split(' ، ');
+            parts.forEach(part => {
+                const cb = document.querySelector(`.med-history-cb[value="${part}"]`);
+                if(cb) cb.checked = true;
+                else remainingNotes.push(part);
+            });
+        }
+        document.getElementById('app_history').value = remainingNotes.join(' ، ');
+
         document.getElementById('app_date').value = props.date;
         document.getElementById('app_time').value = props.time;
         document.getElementById('app_type').value = props.type;
@@ -339,6 +376,42 @@ async function openEditModal() {
         closeAppDetailsModal(); 
         document.getElementById('appointmentModal').style.display = 'flex';
     } catch (e) { console.error(e); }
+}
+
+// 🔴 دالة إلغاء الحجز 🔴
+async function cancelAppointment() {
+    const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
+    if (!appId) return;
+
+    const msg = document.body.dir === 'rtl' ? "هل أنت متأكد من إلغاء هذا الحجز؟ (سيبقى في الأجندة كـ ملغي)" : "Are you sure you want to cancel this appointment?";
+    
+    if (confirm(msg)) {
+        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الإلغاء..." : "Cancelling...");
+        try {
+            await db.collection("Appointments").doc(appId).update({ status: 'cancelled' });
+            closeAppDetailsModal();
+        } catch (error) { 
+            console.error("Error cancelling:", error); 
+        } finally {
+            if (window.hideLoader) window.hideLoader();
+        }
+    }
+}
+
+// 🔴 دالة إرجاع الحجز لقيد الانتظار 🔴
+async function restoreAppointment() {
+    const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
+    if (!appId) return;
+
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الإرجاع..." : "Restoring...");
+    try {
+        await db.collection("Appointments").doc(appId).update({ status: 'pending' });
+        closeAppDetailsModal();
+    } catch (error) { 
+        console.error("Error restoring:", error); 
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 async function deleteAppointment() {
@@ -374,7 +447,7 @@ function loadAppointments() {
 
             let finalColor = data.color || '#0284C7';
             if(data.status === 'completed') finalColor = '#94a3b8';
-            if(data.status === 'cancelled') finalColor = '#ef4444';
+            if(data.status === 'cancelled') finalColor = '#ef4444'; // لون أحمر للملغي
 
             calendar.addEvent({
                 id: doc.id,
