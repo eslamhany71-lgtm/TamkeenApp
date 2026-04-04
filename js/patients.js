@@ -2,12 +2,11 @@ const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
 let currentEditPatientId = null;
 let patientsDataArray = []; 
-let filteredPatientsArray = []; // مصفوفة جديدة للفلترة الذكية
+let filteredPatientsArray = []; 
 
-// 🔴 متغيرات الـ Pagination للتحكم في قراءات الفايربيز
 const PATIENTS_PER_PAGE = 50;
-let lastVisibleDoc = null; // بيحفظ آخر مريض وقفنا عنده
-let isSearchMode = false;  // عشان نفرق إحنا بنعرض لستة عادية ولا نتيجة بحث
+let lastVisibleDoc = null; 
+let isSearchMode = false;  
 
 // 1. نظام الترجمة
 function updatePageContent(lang) {
@@ -18,7 +17,6 @@ function updatePageContent(lang) {
             thDate: "التاريخ والوقت", thName: "اسم المريض", thPhone: "رقم الموبايل", thDebt: "المديونية", thAge: "السن", thHistory: "تنبيهات طبية", thNotes: "الملاحظات", thAction: "إجراءات",
             mTitleAdd: "تسجيل مريض جديد", mTitleEdit: "تعديل بيانات المريض", lName: "اسم المريض بالكامل", lPhone: "رقم الموبايل", lAge: "السن", lGender: "النوع",
             optM: "ذكر", optF: "أنثى", lHistory: "التاريخ الطبي والأمراض المزمنة (إن وجد)", 
-            cDiab: "مرض السكر", cBp: "ضغط الدم", cBleed: "سيولة بالدم", cAllg: "حساسية بنج",
             lNotes: "ملاحظات إضافية", btnSave: "حفظ البيانات", btnView: "فتح الملف",
             selCount: "تم تحديد", patWord: "مريض", bulkDel: "🗑️ حذف المحدد", confDel: "هل أنت متأكد من حذف المريض؟ لا يمكن التراجع عن هذا الإجراء.", confBulkDel: "هل أنت متأكد من حذف جميع المرضى المحددين؟",
             loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد مرضى آخرين", empty: "لا يوجد مرضى مسجلين"
@@ -29,7 +27,6 @@ function updatePageContent(lang) {
             thDate: "Date & Time", thName: "Patient Name", thPhone: "Phone Number", thDebt: "Debt", thAge: "Age", thHistory: "Medical Alerts", thNotes: "Notes", thAction: "Actions",
             mTitleAdd: "Register New Patient", mTitleEdit: "Edit Patient Data", lName: "Full Name", lPhone: "Phone Number", lAge: "Age", lGender: "Gender",
             optM: "Male", optF: "Female", lHistory: "Medical History & Chronic Diseases", 
-            cDiab: "Diabetes", cBp: "Blood Pressure", cBleed: "Bleeding", cAllg: "Anesthesia Allergy",
             lNotes: "Additional Notes", btnSave: "Save Data", btnView: "Open File",
             selCount: "Selected", patWord: "Patient(s)", bulkDel: "🗑️ Delete Selected", confDel: "Are you sure you want to delete this patient?", confBulkDel: "Are you sure you want to delete all selected patients?",
             loadMore: "⬇️ Load More...", noMore: "No more patients", empty: "No registered patients"
@@ -41,13 +38,11 @@ function updatePageContent(lang) {
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('btn-add-txt', c.btnAdd);
     document.getElementById('searchInput').placeholder = c.search;
     
-    // ربط عناوين الجدول بالترجمة
     setTxt('th-date', c.thDate); setTxt('th-name', c.thName); setTxt('th-phone', c.thPhone); setTxt('th-debt', c.thDebt); 
     setTxt('th-age', c.thAge); setTxt('th-history', c.thHistory); setTxt('th-notes', c.thNotes); setTxt('th-action', c.thAction);
     
     setTxt('lbl-p-name', c.lName); setTxt('lbl-p-phone', c.lPhone); setTxt('lbl-p-age', c.lAge); setTxt('lbl-p-gender', c.lGender);
     setTxt('opt-male', c.optM); setTxt('opt-female', c.optF); setTxt('lbl-p-history', c.lHistory);
-    setTxt('chk-diab', c.cDiab); setTxt('chk-bp', c.cBp); setTxt('chk-bleed', c.cBleed); setTxt('chk-allg', c.cAllg);
     setTxt('lbl-p-notes', c.lNotes); 
     setTxt('btn-bulk-delete', c.bulkDel);
     
@@ -59,7 +54,13 @@ function openPatientModal(patientId = null) {
     document.getElementById('addPatientForm').reset();
     currentEditPatientId = patientId;
     
-    ['med_diabetes', 'med_bp', 'med_bleeding', 'med_allergy'].forEach(id => document.getElementById(id).checked = false);
+    // 🔴 تفريغ المربعات الطبية وتاريخ اليوم
+    document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
+    document.getElementById('p_history_notes').value = '';
+    
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    document.getElementById('p_date').value = todayStr;
 
     if (patientId) {
         document.getElementById('modal-title').innerText = window.langVars.mTitleEdit;
@@ -71,12 +72,22 @@ function openPatientModal(patientId = null) {
             document.getElementById('p_gender').value = p.gender;
             document.getElementById('p_notes').value = p.notes || '';
             
-            if(p.medicalHistory) {
-                if(p.medicalHistory.includes('سكر')) document.getElementById('med_diabetes').checked = true;
-                if(p.medicalHistory.includes('ضغط')) document.getElementById('med_bp').checked = true;
-                if(p.medicalHistory.includes('سيولة')) document.getElementById('med_bleeding').checked = true;
-                if(p.medicalHistory.includes('حساسية بنج')) document.getElementById('med_allergy').checked = true;
+            // استرجاع التاريخ من الفايربيز ووضعه في حقل التاريخ
+            if(p.createdAt) {
+                const docDate = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+                document.getElementById('p_date').value = `${docDate.getFullYear()}-${String(docDate.getMonth()+1).padStart(2, '0')}-${String(docDate.getDate()).padStart(2, '0')}`;
             }
+            
+            // 🔴 استرجاع التاريخ الطبي المدمج
+            let remainingNotes = [];
+            if(p.medicalHistory && Array.isArray(p.medicalHistory)) {
+                p.medicalHistory.forEach(part => {
+                    const cb = document.querySelector(`.med-history-cb[value="${part}"]`);
+                    if(cb) cb.checked = true;
+                    else remainingNotes.push(part);
+                });
+            }
+            document.getElementById('p_history_notes').value = remainingNotes.join(' ، ');
         }
     } else {
         document.getElementById('modal-title').innerText = window.langVars.mTitleAdd;
@@ -95,39 +106,48 @@ async function savePatient(e) {
 
     if (!currentClinicId) return;
 
-    // --- إضافة اللودر هنا ---
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ البيانات..." : "Saving data...");
 
-    let diseases = [];
-    if(document.getElementById('med_diabetes').checked) diseases.push('سكر');
-    if(document.getElementById('med_bp').checked) diseases.push('ضغط');
-    if(document.getElementById('med_bleeding').checked) diseases.push('سيولة');
-    if(document.getElementById('med_allergy').checked) diseases.push('حساسية بنج');
+    // 🔴 تجميع المربعات الطبية المحددة مع النص 🔴
+    let historyArr = [];
+    document.querySelectorAll('.med-history-cb:checked').forEach(cb => {
+        historyArr.push(cb.value);
+    });
+    const otherHistory = document.getElementById('p_history_notes').value.trim();
+    if(otherHistory) {
+        historyArr.push(otherHistory);
+    }
 
+    // 🔴 التعامل مع التاريخ المختار 🔴
+    const selectedDateStr = document.getElementById('p_date').value;
+    const selectedDateObj = new Date(selectedDateStr);
+    
     const patientData = {
         clinicId: currentClinicId,
         name: document.getElementById('p_name').value.trim(),
         phone: document.getElementById('p_phone').value.trim(),
         age: document.getElementById('p_age').value,
         gender: document.getElementById('p_gender').value,
-        medicalHistory: diseases,
+        medicalHistory: historyArr,
         notes: document.getElementById('p_notes').value.trim(),
     };
 
     try {
         if (currentEditPatientId) {
+            // لو بنعدل، نحتفظ بالتاريخ المختار كـ Timestamp
+            patientData.createdAt = firebase.firestore.Timestamp.fromDate(selectedDateObj);
+            
             await db.collection("Patients").doc(currentEditPatientId).update(patientData);
             const index = patientsDataArray.findIndex(p => p.id === currentEditPatientId);
             if(index !== -1) {
-                // دمج البيانات الجديدة مع القديمة (عشان نحافظ على المديونية والتاريخ)
                 patientsDataArray[index] = { ...patientsDataArray[index], ...patientData };
             }
         } else {
-            patientData.totalDebt = 0; // مريض جديد مفيش عليه ديون
-            patientData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            patientData.totalDebt = 0; 
+            patientData.createdAt = firebase.firestore.Timestamp.fromDate(selectedDateObj);
+            
             const docRef = await db.collection("Patients").add(patientData);
-            // نضيفه للمصفوفة بتاريخ وهمي (الآن) عشان يظهر فوراً في الجدول
-            patientsDataArray.unshift({ id: docRef.id, ...patientData, createdAt: { toDate: () => new Date() } });
+            patientsDataArray.unshift({ id: docRef.id, ...patientData });
         }
         closePatientModal();
         filteredPatientsArray = [...patientsDataArray];
@@ -136,16 +156,13 @@ async function savePatient(e) {
         console.error(error); 
     } finally { 
         btn.disabled = false; btn.innerText = window.langVars.btnSave; 
-        // --- إخفاء اللودر هنا ---
         if (window.hideLoader) window.hideLoader();
     }
 }
 
 async function deletePatient(patientId) {
     if(confirm(window.langVars.confDel)) {
-        // --- إضافة اللودر هنا ---
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
-
         try { 
             await db.collection("Patients").doc(patientId).delete(); 
             patientsDataArray = patientsDataArray.filter(p => p.id !== patientId);
@@ -154,13 +171,11 @@ async function deletePatient(patientId) {
         } 
         catch (error) { console.error(error); }
         finally {
-            // --- إخفاء اللودر هنا ---
             if (window.hideLoader) window.hideLoader();
         }
     }
 }
 
-// 6. جلب المرضى بالتقسيم
 async function loadPatients(isLoadMore = false) {
     if (!currentClinicId) return;
     isSearchMode = false;
@@ -168,7 +183,6 @@ async function loadPatients(isLoadMore = false) {
     const tbody = document.getElementById('patientsBody');
     const loadMoreBtn = document.getElementById('btn-load-more');
 
-    // --- إضافة اللودر هنا للتحميل الأولي ---
     if (!isLoadMore && window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل بيانات المرضى..." : "Loading patients...");
 
     if (!isLoadMore) {
@@ -222,14 +236,12 @@ async function loadPatients(isLoadMore = false) {
         console.error("Error loading patients:", error);
     } finally {
         if(isLoadMore) loadMoreBtn.disabled = false;
-        // --- إخفاء اللودر هنا ---
         if (!isLoadMore && window.hideLoader) window.hideLoader();
     }
 }
 
 function loadMorePatients() { loadPatients(true); }
 
-// 🔴 7. الفلترة الذكية (Local Filter) للسرعة الصاروخية 🔴
 function filterPatientsLocally() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
     
@@ -244,7 +256,6 @@ function filterPatientsLocally() {
     renderPatientsTable();
 }
 
-// البحث الدقيق (في كل الداتا بيز لو المريض مش في الـ 50 اللي اتسحبوا)
 async function searchPatients() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
     const loadMoreBtn = document.getElementById('btn-load-more');
@@ -256,7 +267,6 @@ async function searchPatients() {
     loadMoreBtn.style.display = 'none'; 
     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">جاري البحث...</td></tr>';
 
-    // --- إضافة اللودر هنا للبحث ---
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري البحث في السجلات..." : "Searching...");
 
     try {
@@ -283,7 +293,6 @@ async function searchPatients() {
     } catch (error) { 
         console.error("Search Error:", error); 
     } finally {
-        // --- إخفاء اللودر هنا ---
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -293,7 +302,7 @@ function resetPatientSearch() {
     loadPatients(); 
 }
 
-// دالة رسم الجدول المحدثة (بتعرض التاريخ والمديونية)
+// 🔴 دالة رسم الجدول المحدثة (تدعم الـ Clickable Row)
 function renderPatientsTable() {
     const tbody = document.getElementById('patientsBody');
     tbody.innerHTML = '';
@@ -306,22 +315,22 @@ function renderPatientsTable() {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
     filteredPatientsArray.forEach(p => {
-        // 1. تظبيط التاريخ والوقت
         let dateStr = '---';
         let timeStr = '';
         if (p.createdAt) {
             const dateObj = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
             dateStr = dateObj.toLocaleDateString(isAr ? 'ar-EG' : 'en-US');
-            timeStr = dateObj.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            // إخفاء الوقت لو كان منتصف الليل بالظبط (لأن ده معناه إن الدكتور مختار التاريخ يدوي)
+            if (dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0) {
+                timeStr = dateObj.toLocaleTimeString(isAr ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
+            }
         }
 
-        // 2. تظبيط المديونية
         let debtAmount = p.totalDebt || 0;
         let debtHtml = debtAmount > 0 
             ? `<span style="color: #ef4444; font-weight: bold; background: #fee2e2; padding: 4px 8px; border-radius: 6px;">${debtAmount} ج.م</span>`
             : `<span style="color: #10b981;">0 ج.م</span>`;
 
-        // 3. تظبيط الأمراض المزمنة
         let historyTags = '';
         if (p.medicalHistory && p.medicalHistory.length > 0) {
             p.medicalHistory.forEach(disease => {
@@ -332,6 +341,14 @@ function renderPatientsTable() {
         }
 
         const tr = document.createElement('tr');
+        // 🔴 إضافة كلاس وإيفنت لفتح الملف عند الضغط على أي مكان في السطر
+        tr.className = 'clickable-row';
+        tr.onclick = function(e) {
+            // منع فتح الملف لو اليوزر داس على التشيك بوكس أو زراير الأكشن
+            if(e.target.type === 'checkbox' || e.target.tagName === 'BUTTON' || e.target.parentElement.tagName === 'BUTTON') return;
+            openMedicalProfile(p.id);
+        };
+
         tr.innerHTML = `
             <td style="text-align: center;">
                 <input type="checkbox" class="custom-checkbox row-checkbox" value="${p.id}" onclick="updateBulkActionBar()">
@@ -350,7 +367,6 @@ function renderPatientsTable() {
             <td style="color: #64748b; font-size: 14px; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.notes || ''}">${p.notes || '---'}</td>
             <td>
                 <div class="action-group" style="justify-content: center;">
-                    <button class="btn-action btn-open" onclick="openMedicalProfile('${p.id}')" title="فتح الملف الطبي">📂</button>
                     <button class="btn-action btn-edit" onclick="openPatientModal('${p.id}')" title="تعديل">✏️</button>
                     <button class="btn-action btn-delete" onclick="deletePatient('${p.id}')" title="حذف">🗑️</button>
                 </div>
@@ -395,7 +411,6 @@ async function deleteSelectedPatients() {
         const btn = document.getElementById('btn-bulk-delete');
         btn.disabled = true; btn.innerText = "...";
 
-        // --- إضافة اللودر هنا للحذف الجماعي ---
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
         
         try {
@@ -415,13 +430,96 @@ async function deleteSelectedPatients() {
             console.error(error);
         } finally {
             btn.disabled = false; btn.innerText = window.langVars.bulkDel;
-            // --- إخفاء اللودر هنا ---
             if (window.hideLoader) window.hideLoader();
         }
     }
 }
 
 function openMedicalProfile(patientId) { window.location.href = `patient-profile.html?id=${patientId}`; }
+
+// ====================================================================
+// 🔴 دالة سحب وإضافة المرضى من الإكسيل (بدون تكرار الرقم) 🔴
+// ====================================================================
+function importPatientsFromExcel(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري سحب بيانات المرضى من الإكسيل..." : "Importing patients...");
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheet = workbook.SheetNames[0];
+            const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+
+            if (excelRows.length === 0) { alert("ملف الإكسيل فارغ!"); return; }
+
+            let importedCount = 0;
+            let skippedCount = 0;
+            const batch = db.batch();
+            
+            const currentPhones = patientsDataArray.map(p => p.phone);
+
+            excelRows.forEach(row => {
+                const pName = row['الاسم'] || row['اسم المريض'] || row['name'];
+                const pPhone = row['الموبايل'] || row['الهاتف'] || row['phone'];
+                
+                if (pName && pPhone) {
+                    const phoneStr = String(pPhone).trim();
+                    
+                    // منع تكرار رقم الموبايل
+                    if (currentPhones.includes(phoneStr)) {
+                        skippedCount++;
+                        return; // تجاوز المريض ده
+                    }
+
+                    const pAge = row['السن'] || row['العمر'] || row['age'] || "";
+                    const pDebt = row['المديونية'] || row['debt'] || 0;
+                    
+                    let historyArr = [];
+                    const pHistory = row['التاريخ الطبي'] || row['الأمراض'] || row['history'];
+                    if (pHistory) {
+                        historyArr = String(pHistory).split(',').map(i => i.trim());
+                    }
+
+                    const docRef = db.collection("Patients").doc();
+                    batch.set(docRef, {
+                        clinicId: currentClinicId,
+                        name: String(pName).trim(),
+                        phone: phoneStr,
+                        age: String(pAge).trim(),
+                        gender: "غير محدد",
+                        medicalHistory: historyArr,
+                        notes: "تم الاستيراد من الإكسيل",
+                        totalDebt: Number(pDebt),
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    currentPhones.push(phoneStr); // تحديث الأرقام المحجوزة
+                    importedCount++;
+                }
+            });
+
+            if (importedCount > 0) {
+                await batch.commit();
+                alert(`✅ تم استيراد ${importedCount} مريض بنجاح!\n⚠️ تم تجاهل ${skippedCount} مريض لتكرار رقم الهاتف.`);
+                loadPatients(); // إعادة تحميل الجدول
+            } else {
+                alert("لم يتم استيراد أي مريض. تأكد من صحة أسماء الأعمدة (الاسم، الموبايل).");
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert("❌ حدث خطأ في قراءة ملف الإكسيل.");
+        } finally {
+            input.value = ''; // تفريغ
+            if (window.hideLoader) window.hideLoader();
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
 
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
