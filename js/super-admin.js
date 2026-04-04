@@ -77,6 +77,10 @@ async function openClinicDetailsModal(clinicId) {
     else if(clinic.package === 'yearly') pkgLabel = 'اشتراك سنوي';
     else pkgLabel = 'اشتراك شهري';
 
+    // 🔴 تم إعادة إظهار رقم الهاتف بناءً على طلبك 🔴
+    const detPhone = document.getElementById('det-clinic-phone');
+    if (detPhone) detPhone.innerText = clinic.phone1 || clinic.adminPhone || 'غير مسجل';
+
     document.getElementById('det-clinic-name').innerText = clinic.clinicName;
     document.getElementById('det-clinic-code').innerText = clinic.accessCode || '---';
     document.getElementById('det-clinic-email').innerText = clinic.adminEmail || '---';
@@ -87,7 +91,6 @@ async function openClinicDetailsModal(clinicId) {
     const tbody = document.getElementById('det-users-body');
     tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">جاري تجميع بيانات المستخدمين...</td></tr>';
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري سحب بيانات المستخدمين..." : "Fetching users...");
 
     try {
@@ -150,7 +153,6 @@ async function openClinicDetailsModal(clinicId) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">حدث خطأ في تحميل المستخدمين.</td></tr>';
     } finally {
-        // 🔴 إخفاء اللودر 🔴
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -199,7 +201,6 @@ async function saveNewUser(e) {
 
     if (!clinicId) { alert("برجاء اختيار العيادة أولاً."); btn.disabled = false; btn.innerText = "توليد كود الدعوة"; return; }
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء كود الدعوة..." : "Generating invite code...");
 
     try {
@@ -242,7 +243,6 @@ async function saveNewClinic(e) {
     const btn = document.getElementById('btn-save');
     btn.disabled = true; btn.innerText = window.superLang.btnSaving;
 
-    // 🔴 إظهار اللودر 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تجهيز مساحة العيادة على السيرفر..." : "Setting up new clinic...");
 
     const clinicName = document.getElementById('clinic_name').value.trim();
@@ -271,7 +271,8 @@ async function saveNewClinic(e) {
             nextPaymentDate: nextPayDate,
             logoUrl: "",
             accessCode: accessCode,
-            adminEmail: adminEmail
+            adminEmail: adminEmail,
+            adminPhone: adminPhone // 🔴 حفظ رقم الهاتف الأساسي للعيادة الجديدة
         });
 
         await db.collection("clinicId").doc(accessCode).set({
@@ -296,7 +297,6 @@ async function saveNewClinic(e) {
 }
 
 function loadClinics() {
-    // 🔴 إظهار اللودر عند تحميل قائمة العيادات لأول مرة 🔴
     if (window.showLoader && allClinicsList.length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة بيانات النظام..." : "Syncing SaaS data...");
 
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
@@ -370,6 +370,9 @@ function loadClinics() {
                 toggleBtnHtml = `<button class="btn-warning" onclick="toggleSubscription('${doc.id}', 'suspended')" style="background:#f59e0b; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">⏸️ ${window.superLang.btnCancelSub}</button>`;
             }
 
+            // 🔴 زرار تغيير الباقة الجديد 🔴
+            let btnPkgTxt = lang === 'ar' ? "تغيير الباقة" : "Package";
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${dateStr}</td>
@@ -382,6 +385,7 @@ function loadClinics() {
                 <td>${statusHtml}</td>
                 <td style="text-align: center; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
                     <button onclick="markAsPaid('${doc.id}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="إضافة شهر جديد">💰 ${window.superLang.btnPaid}</button>
+                    <button onclick="openChangePackageModal('${doc.id}')" style="background:#8b5cf6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="${btnPkgTxt}">📦 ${btnPkgTxt}</button>
                     ${toggleBtnHtml}
                     <button class="btn-danger" onclick="deleteClinic('${doc.id}', '${accessCode}')" style="background:#ef4444; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">🗑️ ${window.superLang.btnDelete}</button>
                 </td>
@@ -395,6 +399,71 @@ function loadClinics() {
     }, () => {
         if (window.hideLoader) window.hideLoader();
     });
+}
+
+// =========================================================================
+// 🔴 ميزة تغيير الباقة (مودال ديناميكي يتولد تلقائياً بدون تعديل HTML) 🔴
+// =========================================================================
+function openChangePackageModal(clinicId) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const isAr = lang === 'ar';
+    
+    let modal = document.getElementById('dynamicPkgModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'dynamicPkgModal';
+        modal.className = 'modal no-print';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 400px; text-align: ${isAr ? 'right' : 'left'}; direction: ${isAr ? 'rtl' : 'ltr'};">
+                <span class="close-modal" onclick="document.getElementById('dynamicPkgModal').style.display='none'" style="${isAr ? 'left: 25px; right: auto;' : 'right: 25px; left: auto;'}">&times;</span>
+                <h2 style="margin-bottom: 20px;">${isAr ? 'تغيير باقة العيادة' : 'Change Clinic Package'}</h2>
+                <input type="hidden" id="pkg_change_clinic_id">
+                <div class="form-group">
+                    <label>${isAr ? 'اختر الباقة الجديدة' : 'Select New Package'}</label>
+                    <select id="new_pkg_select" class="search-box" style="direction: ${isAr ? 'rtl' : 'ltr'}; margin-bottom: 20px;">
+                        <option value="trial_7">${isAr ? 'تجريبي 7 أيام' : 'Trial (7 Days)'}</option>
+                        <option value="trial_14">${isAr ? 'تجريبي 14 يوم' : 'Trial (14 Days)'}</option>
+                        <option value="monthly">${isAr ? 'شهري (Monthly)' : 'Monthly'}</option>
+                        <option value="yearly">${isAr ? 'سنوي (Yearly)' : 'Yearly'}</option>
+                    </select>
+                </div>
+                <button class="btn-primary" style="width: 100%; justify-content: center; background: #8b5cf6;" onclick="confirmPackageChange()">${isAr ? 'حفظ وتفعيل الباقة' : 'Save & Activate'}</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('pkg_change_clinic_id').value = clinicId;
+    modal.style.display = 'flex';
+}
+
+async function confirmPackageChange() {
+    const clinicId = document.getElementById('pkg_change_clinic_id').value;
+    const newPkg = document.getElementById('new_pkg_select').value;
+    if(!clinicId) return;
+
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الباقة وتفعيل العيادة..." : "Updating package...");
+    try {
+        const nextPayDate = new Date();
+        if (newPkg === 'trial_7') nextPayDate.setDate(nextPayDate.getDate() + 7);
+        else if (newPkg === 'trial_14') nextPayDate.setDate(nextPayDate.getDate() + 14);
+        else if (newPkg === 'monthly') nextPayDate.setMonth(nextPayDate.getMonth() + 1);
+        else if (newPkg === 'yearly') nextPayDate.setFullYear(nextPayDate.getFullYear() + 1);
+
+        await db.collection("Clinics").doc(clinicId).update({
+            package: newPkg,
+            nextPaymentDate: nextPayDate,
+            status: 'active'
+        });
+
+        document.getElementById('dynamicPkgModal').style.display = 'none';
+        closeClinicDetailsModal(); 
+        alert(document.body.dir === 'rtl' ? "✅ تم تحديث الباقة وتفعيل العيادة بنجاح!" : "✅ Package updated successfully!");
+    } catch(e) {
+        console.error(e);
+        alert("حدث خطأ");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 async function markAsPaid(clinicId) {
