@@ -42,9 +42,6 @@
                 <li onclick="loadPage('calendar.html', this)">
                     <a href="javascript:void(0)"><span class="icon">📅</span> <span id="nav-calendar">المواعيد والتقويم</span></a>
                 </li>
-                <li onclick="loadPage('sessions.html', this)">
-                    <a href="javascript:void(0)"><span class="icon">💊</span> <span id="nav-sessions">الجلسات والروشتات</span></a>
-                </li>
                 <li id="nav-finances-li" onclick="loadPage('finances.html', this)">
                     <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والمصروفات</span></a>
                 </li>
@@ -82,7 +79,7 @@
     </div>
 
     <script>
-        var h = Math.floor(Date.now() / 3600000); // رقم فريد يتغير كل ساعة فقط
+        var h = Math.floor(Date.now() / 3600000); 
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
         document.write('<script src="js/lang-manager.js?v=' + h + '"><\/script>');
         document.write('<script src="js/auth.js?v=' + h + '"><\/script>');
