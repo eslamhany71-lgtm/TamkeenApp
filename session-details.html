@@ -14,10 +14,12 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script> <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script> 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         .session-summary { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-right: 6px solid #0ea5e9; border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;}
+        html[dir="ltr"] .session-summary { border-right: 1px solid #e2e8f0; border-left: 6px solid #0ea5e9; }
         .financial-box-top { display: flex; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; margin-top: 20px; align-items: center; flex-wrap: wrap; border: 1px solid #e2e8f0;}
         .fin-item { flex: 1; min-width: 120px; }
         .fin-val { font-size: 22px; font-weight: 800; color: #0f172a;}
@@ -30,7 +32,6 @@
         .drug-list-item { display: flex; gap: 10px; background: white; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s;}
         .drug-list-item:hover { border-color: #cbd5e1; }
 
-        /* 🔴 تصميم الروشتة للطباعة الاحترافية */
         @media print {
             body { margin: 0; padding: 0; background: white; }
             .no-print { display: none !important; }
@@ -41,7 +42,6 @@
             .print-logo { width: 80px; height: 80px; object-fit: contain; }
             .print-info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
             .print-rx-body { min-height: 500px; padding: 20px; position: relative; }
-            /* علامة مائية مخففة للروشتة */
             .print-rx-body::before { content: "Rx"; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; color: rgba(2, 132, 199, 0.04); font-weight: 900; z-index: -1; }
             .print-footer { text-align: center; border-top: 2px solid #0284c7; padding-top: 15px; font-size: 14px; color: #475569; position: fixed; bottom: 0; width: 100%; background: white;}
         }
@@ -80,13 +80,13 @@
     <div class="no-print">
         <div class="profile-container">
             <button class="btn-back" onclick="goBackToPatient()">
-                <span>🔙</span> <span>العودة لملف المريض</span>
+                <span>🔙</span> <span id="txt-back-profile">العودة لملف المريض</span>
             </button>
 
             <div style="background: #e0f2fe; border: 1px solid #bae6fd; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
                 <span style="font-size: 30px;">👤</span>
                 <div>
-                    <span style="color: #0284c7; font-weight: 700; font-size: 14px;">ملف جلسة المريض:</span><br>
+                    <span id="txt-sess-header" style="color: #0284c7; font-weight: 700; font-size: 14px;">ملف جلسة المريض:</span><br>
                     <h1 id="header-patient-name" style="margin: 0; color: #0f172a; font-size: 22px;">جاري التحميل...</h1>
                 </div>
             </div>
@@ -96,45 +96,47 @@
                     <div>
                         <h2 style="margin: 0 0 10px 0; color: #0f172a; font-size: 24px;" id="sd-procedure">جاري تحميل الجلسة...</h2>
                         <div class="patient-meta">
-                            <span style="background: #f1f5f9; color: #475569; border-color: #e2e8f0;">📅 التاريخ: <strong id="sd-date" style="color: #0ea5e9;">---</strong></span>
-                            <span style="background: #f1f5f9; color: #475569; border-color: #e2e8f0;">🦷 السن: <strong id="sd-tooth" dir="ltr">---</strong></span>
+                            <span style="background: #f1f5f9; color: #475569; border-color: #e2e8f0;">📅 <strong id="sd-date" style="color: #0ea5e9;">---</strong></span>
+                            <span style="background: #f1f5f9; color: #475569; border-color: #e2e8f0;">🦷 <strong id="sd-tooth" dir="ltr">---</strong></span>
                         </div>
                     </div>
                     <div>
-                        <button class="btn-action" style="background: #fff7ed; color: #ea580c; border-color: #fed7aa; padding: 10px 20px; font-size: 15px;" onclick="openEditSessionModal()">✏️ تعديل الجلسة</button>
+                        <button class="btn-action" style="background: #fff7ed; color: #ea580c; border-color: #fed7aa; padding: 10px 20px; font-size: 15px;" onclick="openEditSessionModal()" id="btn-edit-sess">✏️ تعديل الجلسة</button>
                     </div>
                 </div>
 
                 <div class="financial-box-top">
                     <div class="fin-item">
-                        <span style="color: #64748b; font-size: 14px; font-weight: 700;">إجمالي الحساب</span><br>
+                        <span id="txt-total-calc" style="color: #64748b; font-size: 14px; font-weight: 700;">الإجمالي</span><br>
                         <span class="fin-val" id="sd-total">0</span> <small style="color: #94a3b8; font-weight: bold;">ج.م</small>
                     </div>
                     <div class="fin-item">
-                        <span style="color: #64748b; font-size: 14px; font-weight: 700;">المدفوع</span><br>
+                        <span id="txt-paid-calc" style="color: #64748b; font-size: 14px; font-weight: 700;">المدفوع</span><br>
                         <span class="fin-val" style="color: #10b981;" id="sd-paid">0</span> <small style="color: #94a3b8; font-weight: bold;">ج.م</small>
                     </div>
                     <div class="fin-item">
-                        <span style="color: #64748b; font-size: 14px; font-weight: 700;">المتبقي</span><br>
+                        <span id="txt-rem-calc" style="color: #64748b; font-size: 14px; font-weight: 700;">المتبقي</span><br>
                         <span class="fin-val" style="color: #ef4444;" id="sd-remaining">0</span> <small style="color: #94a3b8; font-weight: bold;">ج.م</small>
                     </div>
                 </div>
                 
                 <div style="margin-top: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1;">
-                    <strong style="color: #475569;">ملاحظات الطبيب:</strong> 
+                    <strong id="txt-doc-notes" style="color: #475569;">ملاحظات الطبيب:</strong> 
                     <p style="margin: 5px 0 0 0; color: #0f172a; line-height: 1.6;" id="sd-notes">---</p>
                 </div>
             </div>
 
             <div class="dental-chart no-print">
-                <h3 style="margin: 0 0 15px 0; color: #0f172a; text-align: center;">🦷 مخطط الأسنان الطبي</h3>
-                <div id="upper-jaw" class="jaw"></div> <div id="lower-jaw" class="jaw"></div> </div>
+                <h3 id="txt-chart-title" style="margin: 0 0 15px 0; color: #0f172a; text-align: center;">🦷 مخطط الأسنان الطبي</h3>
+                <div id="upper-jaw" class="jaw"></div> 
+                <div id="lower-jaw" class="jaw"></div> 
+            </div>
 
             <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 320px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
-                        <h3 style="margin: 0; font-size: 20px; color: #0f172a;">💊 روشتة الجلسة</h3>
-                        <button class="btn-primary" onclick="openSmartRxModal()">➕ إصدار روشتة</button>
+                        <h3 id="txt-rx-title" style="margin: 0; font-size: 20px; color: #0f172a;">💊 روشتة الجلسة</h3>
+                        <button class="btn-primary" onclick="openSmartRxModal()" id="btn-add-rx">➕ إصدار روشتة</button>
                     </div>
                     <div id="session-rx-container">
                         <div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>
@@ -148,8 +150,8 @@
 
                 <div style="flex: 1; min-width: 320px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
-                        <h3 style="margin: 0; font-size: 20px; color: #0f172a;">📸 مرفقات وأشعة</h3>
-                        <button class="btn-primary" onclick="openModal('xrayModal')">➕ رفع مرفق</button>
+                        <h3 id="txt-att-title" style="margin: 0; font-size: 20px; color: #0f172a;">📸 مرفقات وأشعة</h3>
+                        <button class="btn-primary" onclick="openModal('xrayModal')" id="btn-add-att">➕ رفع مرفق</button>
                     </div>
                     <div class="xray-grid" id="session-xrays-list" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
                         <div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">لا توجد مرفقات.</div>
@@ -176,37 +178,37 @@
     <div id="editSessionModal" class="modal no-print">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('editSessionModal')">&times;</span>
-            <h2>تعديل بيانات الجلسة</h2>
+            <h2 id="modal-edit-sess-title">تعديل بيانات الجلسة</h2>
             <form onsubmit="updateSession(event)">
                 <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
                     <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
-                        <label>تاريخ الجلسة</label>
+                        <label id="lbl-sess-date">تاريخ الجلسة</label>
                         <input type="date" id="es_date" class="search-box" required>
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
-                        <label>الموعد القادم</label>
+                        <label id="lbl-sess-next">الموعد القادم</label>
                         <input type="date" id="es_next_date" class="search-box">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>الإجراء الطبي</label>
+                    <label id="lbl-sess-proc">الإجراء الطبي</label>
                     <input type="text" id="es_procedure" class="search-box" required>
                 </div>
                 <div class="finance-box finance-box-edit" style="flex-wrap: wrap;">
                     <div class="form-group" style="flex: 1; min-width: 120px;">
-                        <label>الإجمالي</label>
+                        <label id="lbl-sess-total">الإجمالي</label>
                         <input type="number" id="es_total" class="search-box" required oninput="calcEditRemaining()">
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 120px;">
-                        <label>المدفوع</label>
+                        <label id="lbl-sess-paid">المدفوع</label>
                         <input type="number" id="es_paid" class="search-box" required oninput="calcEditRemaining()">
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 120px;">
-                        <label>المتبقي</label>
+                        <label id="lbl-sess-remaining">المتبقي</label>
                         <input type="number" id="es_remaining" class="search-box" readonly style="background: #e2e8f0; font-weight: bold; color: #ef4444;">
                     </div>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; background: #ea580c; justify-content: center;">حفظ التعديلات</button>
+                <button type="submit" class="btn-primary" style="width: 100%; background: #ea580c; justify-content: center;" id="btn-update-session">حفظ التعديلات</button>
             </form>
         </div>
     </div>
@@ -221,7 +223,7 @@
                 <div style="display: flex; gap: 10px;">
                     <select id="rx_template_select" class="search-box" style="flex: 1;" onchange="applyRxTemplate(this.value)">
                         <option value="">اختر قالب جاهز (مثال: روشتة خلع، عصب...)</option>
-                        </select>
+                    </select>
                     <button type="button" class="btn-action" style="background: white; border: 1px solid #e879f9; color: #a21caf;" onclick="openTemplateManager()" title="إدارة القوالب الجاهزة">⚙️</button>
                 </div>
             </div>
@@ -360,7 +362,6 @@
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
         document.write('<script src="js/lang-manager.js?v=' + h + '"><\/script>');
         document.write('<script src="js/session-details.js?v=' + h + '"><\/script>');
-        
     </script>
 </body>
 </html>
