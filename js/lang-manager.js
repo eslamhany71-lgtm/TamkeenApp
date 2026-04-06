@@ -1,7 +1,7 @@
 // قاموس الترجمة الشامل (عربي / إنجليزي)
 const translations = {
     en: {
-        // العناوين والنصوص
+        // --- Activate Page ---
         "page-title": "Activate Account - NivaDent",
         "txt-act-welcome": "Activate Clinic Account",
         "txt-act-sub": "Please enter the data registered with the system admin",
@@ -17,15 +17,70 @@ const translations = {
         "feat-1": "✔️ Manage Appointments & Sessions",
         "feat-2": "✔️ Secure Medical Files",
         "feat-3": "✔️ Smart Prescriptions & Reports",
-        
-        // النصوص التوضيحية داخل الحقول (Placeholders)
         "reg-code-placeholder": "Enter your code (e.g., 1001)",
         "reg-phone-placeholder": "Your registered mobile number",
         "reg-email-placeholder": "example@clinic.com",
-        "reg-pass-placeholder": "At least 6 characters or numbers"
+        "reg-pass-placeholder": "At least 6 characters or numbers",
+
+        // --- Patient Profile Page ---
+        "txt-back": "Back to Patients",
+        "txt-sess-title": "Treatment Sessions History",
+        "btn-add-sess": "➕ Add Session",
+        "btn-lab-order": "🔬 Lab Order",
+        "th-date": "Date",
+        "th-procedure": "Procedure",
+        "th-total": "Total",
+        "th-paid": "Paid",
+        "th-remaining": "Remaining",
+        "th-next-app": "Next Appt.",
+        "th-action": "Actions",
+        "btn-load-more-sessions": "⬇️ Load More Sessions...",
+        "txt-lab-title": "🔬 Lab Orders History",
+        
+        // --- Lab Modal ---
+        "modal-lab-title": "Send Lab Order",
+        "lbl-lab-date": "Order Date",
+        "lbl-lab-name": "Lab Name",
+        "lbl-lab-work": "Work Type",
+        "lbl-lab-cost": "Lab Cost (EGP)",
+        "lbl-lab-delivery": "Expected Delivery",
+        "lab-warning": "⚠️ Note: Lab costs will be recorded as 'Expenses' to be deducted from total revenue.",
+        "btn-save-lab": "Save & Send Order",
+        "lab_name-placeholder": "e.g: Al-Fayrouz Dental Lab",
+        "lab_work_type-placeholder": "e.g: 3 Zirconia Crowns Upper Jaw",
+        
+        // --- Session Modals (Add/Edit) ---
+        "modal-add-sess-title": "Add New Session",
+        "modal-edit-sess-title": "Edit Session Details",
+        "lbl-sess-date": "Session Date",
+        "lbl-sess-next": "Next Appointment (Optional)",
+        "lbl-sess-proc": "Medical Procedure",
+        "lbl-sess-tooth": "Tooth Number (Optional)",
+        "lbl-sess-total": "Total Amount",
+        "lbl-sess-paid": "Paid Amount",
+        "lbl-sess-remaining": "Remaining",
+        "lbl-sess-notes": "Doctor Notes",
+        "btn-save-session": "Save Session",
+        "btn-update-session": "Save Changes",
+        "sess_procedure-placeholder": "e.g., Root Canal, Extraction, Checkup...",
+        "sess_tooth-placeholder": "e.g., Upper Right 6",
+        
+        // --- Session Details Page ---
+        "txt-back-profile": "Back to Profile",
+        "txt-sess-header": "Patient Session File:",
+        "txt-total-calc": "Total Amount",
+        "txt-paid-calc": "Paid",
+        "txt-rem-calc": "Remaining",
+        "txt-doc-notes": "Doctor Notes:",
+        "btn-edit-sess": "✏️ Edit Session",
+        "txt-rx-title": "💊 Session Prescription",
+        "btn-add-rx": "➕ Issue Rx",
+        "txt-att-title": "📸 Attachments & X-Rays",
+        "btn-add-att": "➕ Upload Attachment",
+        "txt-chart-title": "🦷 Medical Dental Chart"
     },
     ar: {
-        // العناوين والنصوص
+        // --- Activate Page ---
         "page-title": "تفعيل الحساب - NivaDent",
         "txt-act-welcome": "تفعيل حساب العيادة",
         "txt-act-sub": "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
@@ -41,40 +96,88 @@ const translations = {
         "feat-1": "✔️ إدارة المواعيد والجلسات",
         "feat-2": "✔️ ملفات طبية آمنة",
         "feat-3": "✔️ روشتات وتقارير ذكية",
-        
-        // النصوص التوضيحية داخل الحقول (Placeholders)
         "reg-code-placeholder": "أدخل كودك (مثل: 1001)",
         "reg-phone-placeholder": "رقمك المسجل في النظام",
         "reg-email-placeholder": "example@clinic.com",
-        "reg-pass-placeholder": "6 أرقام أو حروف على الأقل"
+        "reg-pass-placeholder": "6 أرقام أو حروف على الأقل",
+
+        // --- Patient Profile Page ---
+        "txt-back": "العودة لقائمة المرضى",
+        "txt-sess-title": "سجل الجلسات العلاجية",
+        "btn-add-sess": "➕ إضافة جلسة",
+        "btn-lab-order": "🔬 طلب معمل",
+        "th-date": "التاريخ",
+        "th-procedure": "الإجراء الطبي",
+        "th-total": "الإجمالي",
+        "th-paid": "المدفوع",
+        "th-remaining": "المتبقي",
+        "th-next-app": "الموعد القادم",
+        "th-action": "إجراءات",
+        "btn-load-more-sessions": "⬇️ تحميل المزيد من الجلسات...",
+        "txt-lab-title": "🔬 سجل طلبات المعامل (Lab Orders)",
+        
+        // --- Lab Modal ---
+        "modal-lab-title": "إرسال طلب للمعمل",
+        "lbl-lab-date": "تاريخ الطلب",
+        "lbl-lab-name": "اسم المعمل",
+        "lbl-lab-work": "نوع الشغل المطلوب",
+        "lbl-lab-cost": "تكلفة المعمل (ج.م)",
+        "lbl-lab-delivery": "موعد الاستلام المتوقع",
+        "lab-warning": "⚠️ تنبيه: تكلفة المعمل هتتسجل كـ 'مصروفات' عشان تتخصم من إجمالي أرباح العيادة.",
+        "btn-save-lab": "حفظ الطلب وإرساله",
+        "lab_name-placeholder": "مثال: معمل الفيروز لطب الأسنان",
+        "lab_work_type-placeholder": "مثال: 3 طرابيش زيركون للفك العلوي",
+
+        // --- Session Modals (Add/Edit) ---
+        "modal-add-sess-title": "إضافة جلسة جديدة",
+        "modal-edit-sess-title": "تعديل بيانات الجلسة",
+        "lbl-sess-date": "تاريخ الجلسة",
+        "lbl-sess-next": "الموعد القادم (اختياري)",
+        "lbl-sess-proc": "الإجراء الطبي",
+        "lbl-sess-tooth": "رقم السن / الضرس (اختياري)",
+        "lbl-sess-total": "إجمالي الحساب",
+        "lbl-sess-paid": "المدفوع",
+        "lbl-sess-remaining": "المتبقي",
+        "lbl-sess-notes": "ملاحظات الطبيب",
+        "btn-save-session": "حفظ الجلسة",
+        "btn-update-session": "حفظ التعديلات",
+        "sess_procedure-placeholder": "مثال: حشو عصب، خلع، كشف...",
+        "sess_tooth-placeholder": "مثال: Upper Right 6",
+        
+        // --- Session Details Page ---
+        "txt-back-profile": "العودة لملف المريض",
+        "txt-sess-header": "ملف جلسة المريض:",
+        "txt-total-calc": "إجمالي الحساب",
+        "txt-paid-calc": "المدفوع",
+        "txt-rem-calc": "المتبقي",
+        "txt-doc-notes": "ملاحظات الطبيب:",
+        "btn-edit-sess": "✏️ تعديل الجلسة",
+        "txt-rx-title": "💊 روشتة الجلسة",
+        "btn-add-rx": "➕ إصدار روشتة",
+        "txt-att-title": "📸 مرفقات وأشعة",
+        "btn-add-att": "➕ رفع مرفق",
+        "txt-chart-title": "🦷 مخطط الأسنان الطبي"
     }
 };
 
-// دالة لتغيير اللغة وحفظها
 function setLanguage(lang) {
     localStorage.setItem('preferredLang', lang);
     applyLanguage(lang);
 }
 
-// دالة لتطبيق اللغة على العناصر الموجودة في الصفحة
 function applyLanguage(lang) {
-    // تغيير اتجاه الصفحة وتاج الـ html
     document.documentElement.lang = lang;
     document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
 
-    // تطبيق الترجمة على العناصر لو القاموس موجود للغة دي
     if (translations[lang]) {
         for (const key in translations[lang]) {
-            // لو الـ key بيعبر عن placeholder لحقل إدخال
             if (key.includes('-placeholder')) {
-                // بنشيل كلمة "-placeholder" عشان نجيب الـ id الأصلي للحقل
                 const inputId = key.replace('-placeholder', ''); 
                 const inputElement = document.getElementById(inputId);
                 if (inputElement) {
                     inputElement.placeholder = translations[lang][key];
                 }
             } else {
-                // لو عنصر نصي عادي (زي العناوين والزراير)
                 const element = document.getElementById(key);
                 if (element) {
                     element.textContent = translations[lang][key];
@@ -83,13 +186,11 @@ function applyLanguage(lang) {
         }
     }
 
-    // نداء على دالة الترجمة الخاصة بكل صفحة (لو لسه بتستخدمها في صفحات تانية)
     if (typeof updatePageContent === 'function') {
         updatePageContent(lang);
     }
 }
 
-// أول ما الصفحة تفتح، بنشوف اللغة المحفوظة ونطبقها
 window.addEventListener('DOMContentLoaded', () => {
     const savedLang = localStorage.getItem('preferredLang') || 'ar';
     applyLanguage(savedLang);
