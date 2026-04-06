@@ -97,11 +97,11 @@ function initCalendar() {
             document.getElementById('det_type').innerText = props.type;
             
             // إظهار التاريخ الطبي
-            document.getElementById('det_history').innerText = props.history && props.history !== "" ? props.history : "سليم (لا يوجد)";
+            document.getElementById('det_history').innerText = props.history && props.history !== "" ? props.history : (lang === 'ar' ? "سليم (لا يوجد)" : "Healthy (None)");
             
             const paid = props.paid || 0;
             const total = props.total || 0;
-            document.getElementById('det_finance').innerText = `${paid} / ${total} ج.م`;
+            document.getElementById('det_finance').innerText = `${paid} / ${total}`;
 
             document.getElementById('det_notes').innerText = props.notes || (lang === 'ar' ? 'لا يوجد ملاحظات' : 'No notes');
             
@@ -110,18 +110,15 @@ function initCalendar() {
             if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
             document.getElementById('det_status').innerText = statusTxt;
 
-            // 🔴 لوجيك إظهار وإخفاء زراير (الإلغاء والاسترجاع) 🔴
-            if(props.status === 'completed') {
+            // لوجيك إظهار وإخفاء الزراير (بما فيها الواتساب)
+            if(props.status === 'completed' || props.status === 'cancelled') {
+                document.getElementById('whatsapp-action-box').style.display = 'none'; // نخفي الواتساب لو الموعد خلص أو اتلغى
                 document.getElementById('complete-action-box').style.display = 'none';
                 document.getElementById('edit-action-box').style.display = 'none';
                 document.getElementById('cancel-action-box').style.display = 'none';
-                document.getElementById('restore-action-box').style.display = 'none';
-            } else if (props.status === 'cancelled') {
-                document.getElementById('complete-action-box').style.display = 'none';
-                document.getElementById('edit-action-box').style.display = 'none';
-                document.getElementById('cancel-action-box').style.display = 'none';
-                document.getElementById('restore-action-box').style.display = 'block'; // الاسترجاع فقط بيظهر
+                document.getElementById('restore-action-box').style.display = props.status === 'cancelled' ? 'block' : 'none';
             } else {
+                document.getElementById('whatsapp-action-box').style.display = 'block'; // نظهر الواتساب في الانتظار
                 document.getElementById('complete-action-box').style.display = 'block';
                 document.getElementById('edit-action-box').style.display = 'block';
                 document.getElementById('cancel-action-box').style.display = 'block';
@@ -156,6 +153,48 @@ function initCalendar() {
     loadAppointments(); 
 }
 
+// 🔴 اللوجيك السحري: إرسال الواتساب (ضغطة واحدة، بدون تابات مزعجة) 🔴
+function sendWhatsAppReminder() {
+    const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
+    if (!rawData) return;
+    
+    const props = JSON.parse(rawData);
+    let phone = props.phone;
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    
+    // تأكد إن الرقم مكتوب وصحيح
+    if (!phone || phone.length < 9) {
+        alert(isAr ? "عفواً، لا يوجد رقم موبايل صالح مسجل لهذا المريض." : "Sorry, no valid phone number recorded for this patient.");
+        return;
+    }
+
+    // تنظيف الرقم وإضافة كود الدولة (+20 لمصر كمثال، ممكن يتعدل)
+    phone = phone.replace(/\D/g, ''); // إزالة أي مسافات أو حروف
+    if (phone.startsWith('0')) {
+        phone = '2' + phone; // تحويل 010... إلى 2010...
+    } else if (!phone.startsWith('20')) {
+        phone = '20' + phone; // افتراض كود مصر لو مش مكتوب
+    }
+
+    // تجهيز الرسالة
+    let message = "";
+    if (isAr) {
+        message = `مرحباً أستاذ/ة *${props.patientName}* 👋\n\nنذكركم بموعدكم القادم في عيادتنا يوم *${props.date}* الساعة *${props.time}*.\n\nيرجى تأكيد الحضور أو إبلاغنا في حالة الاعتذار. نتمنى لكم دوام الصحة والعافية! 🦷✨`;
+    } else {
+        message = `Hello *${props.patientName}* 👋\n\nThis is a friendly reminder for your upcoming appointment at our clinic on *${props.date}* at *${props.time}*.\n\nPlease confirm your attendance. Wishing you a healthy smile! 🦷✨`;
+    }
+
+    // استخدام App Protocol لفتح البرنامج مباشرة بدون متصفح (ولو فشل بيفتح المتصفح العادي)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const whatsappUrl = isMobile 
+        ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`
+        : `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(message)}`;
+
+    // فتح الواتساب باستخدام اسم تابة محدد لتجنب فتح 100 تابة
+    window.open(whatsappUrl, 'NivaWhatsAppTab');
+    closeAppDetailsModal();
+}
+
 async function saveAppointment(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -169,7 +208,6 @@ async function saveAppointment(e) {
     const timeVal = document.getElementById('app_time').value || '12:00'; 
     const typeVal = document.getElementById('app_type').value;
 
-    // 🔴 تجميع المربعات الطبية المحددة مع النص 🔴
     let historyArr = [];
     document.querySelectorAll('.med-history-cb:checked').forEach(cb => {
         historyArr.push(cb.value);
@@ -190,7 +228,7 @@ async function saveAppointment(e) {
         phone: document.getElementById('app_phone').value.trim(),
         age: document.getElementById('app_age').value,
         gender: document.getElementById('app_gender').value,
-        history: finalHistory, // 🔴 حفظ التاريخ الطبي المدمج
+        history: finalHistory, 
         date: dateVal,
         time: timeVal,
         type: typeVal,
@@ -322,11 +360,11 @@ async function markAppAsCompleted() {
             });
         }
 
-        alert("✅ تم إتمام الحجز، وتسجيل الإيراد والمديونية (إن وجدت) بنجاح!");
+        alert(document.body.dir === 'rtl' ? "✅ تم إتمام الحجز وتسجيل الإيراد بنجاح!" : "✅ Appointment completed successfully!");
         closeAppDetailsModal();
     } catch (error) {
         console.error("Error completing app:", error);
-        alert("حدث خطأ أثناء إتمام العملية.");
+        alert(document.body.dir === 'rtl' ? "حدث خطأ أثناء الإتمام." : "Error completing appointment.");
     } finally {
         btn.innerText = "✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)";
         btn.disabled = false;
@@ -348,7 +386,6 @@ async function openEditModal() {
         document.getElementById('app_age').value = props.age || '';
         document.getElementById('app_gender').value = props.gender || 'ذكر';
         
-        // 🔴 تفكيك التاريخ الطبي عشان نعلم على المربعات الصح 🔴
         document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
         let remainingNotes = [];
         if(props.history) {
@@ -378,7 +415,6 @@ async function openEditModal() {
     } catch (e) { console.error(e); }
 }
 
-// 🔴 دالة إلغاء الحجز 🔴
 async function cancelAppointment() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     if (!appId) return;
@@ -398,7 +434,6 @@ async function cancelAppointment() {
     }
 }
 
-// 🔴 دالة إرجاع الحجز لقيد الانتظار 🔴
 async function restoreAppointment() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     if (!appId) return;
@@ -447,7 +482,7 @@ function loadAppointments() {
 
             let finalColor = data.color || '#0284C7';
             if(data.status === 'completed') finalColor = '#94a3b8';
-            if(data.status === 'cancelled') finalColor = '#ef4444'; // لون أحمر للملغي
+            if(data.status === 'cancelled') finalColor = '#ef4444'; 
 
             calendar.addEvent({
                 id: doc.id,
@@ -456,19 +491,11 @@ function loadAppointments() {
                 backgroundColor: finalColor,
                 borderColor: finalColor,
                 extendedProps: {
-                    patientName: data.patientName,
-                    phone: data.phone,
-                    age: data.age,
-                    gender: data.gender,
-                    history: data.history,
-                    type: data.type,
-                    notes: data.notes,
-                    status: data.status,
-                    date: data.date,
-                    time: safeTime,
-                    total: data.total,
-                    paid: data.paid,
-                    remaining: data.remaining
+                    patientName: data.patientName, phone: data.phone,
+                    age: data.age, gender: data.gender, history: data.history,
+                    type: data.type, notes: data.notes, status: data.status,
+                    date: data.date, time: safeTime, total: data.total,
+                    paid: data.paid, remaining: data.remaining
                 }
             });
         });
