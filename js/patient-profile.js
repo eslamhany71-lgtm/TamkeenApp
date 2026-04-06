@@ -10,20 +10,24 @@ let currentUserDisplayName = "مستخدم غير معروف";
 const SESSIONS_PER_PAGE = 50;
 let lastVisibleProfileSession = null;
 
+// مش هنحتاج دالة getLang() اللي عملتها المرة اللي فاتت لأن applyLanguage بتاعتك بتعمل كل حاجة
+// دالة updatePageContent دي اللي ملف lang-manager بتاعك بينادي عليها
 function updatePageContent(lang) {
     const isAr = lang === 'ar';
-    document.body.dir = isAr ? 'rtl' : 'ltr';
-    if(isAr) {
-        document.getElementById('txt-back').innerText = "العودة لقائمة المرضى";
-    } else {
-        document.getElementById('txt-back').innerText = "Back to Patients";
-    }
+    document.getElementById('searchSessionInput').placeholder = isAr ? 'بحث بالتاريخ، الإجراء...' : 'Search by date, procedure...';
+    
+    // إعادة رسم الجداول عشان تترجم محتوياتها
+    if (loadedPatientSessions.length > 0) renderPatientSessionsTable();
+    loadLabOrders(); // نحدث المعامل عشان اللغة
 }
 
 function openModal(id) { 
     document.getElementById(id).style.display = 'flex'; 
     if(id === 'sessionModal') {
         document.getElementById('sess_date').value = new Date().toISOString().split('T')[0];
+    }
+    if(id === 'labOrderModal') {
+        document.getElementById('lab_date').value = new Date().toISOString().split('T')[0];
     }
 }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -35,13 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadPatientData() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     if (!patientId || !clinicId) {
-        document.getElementById('prof-name').innerText = "خطأ: لم يتم العثور على المريض";
+        document.getElementById('prof-name').innerText = isAr ? "خطأ: لم يتم العثور على المريض" : "Error: Patient not found";
         return;
     }
 
-    // 🔴 إظهار اللودر
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحميل ملف المريض..." : "Loading patient profile...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري تحميل ملف المريض..." : "Loading patient profile...");
 
     try {
         const doc = await db.collection("Patients").doc(patientId).get();
@@ -51,72 +55,171 @@ async function loadPatientData() {
             
             let debtHtml = '';
             if (p.totalDebt && p.totalDebt > 0) {
-                debtHtml = `<span style="color: #ef4444; font-size: 14px; font-weight: bold; background: #fee2e2; padding: 4px 10px; border-radius: 8px; margin-right: 15px; border: 1px solid #fca5a5;">الديون: ${p.totalDebt} ج.م</span>`;
+                const debtTxt = isAr ? "الديون" : "Debt";
+                debtHtml = `<span style="color: #ef4444; font-size: 14px; font-weight: bold; background: #fee2e2; padding: 4px 10px; border-radius: 8px; margin-right: 15px; border: 1px solid #fca5a5;">${debtTxt}: ${p.totalDebt}</span>`;
             }
             
             document.getElementById('prof-name').innerHTML = `${p.name} ${debtHtml}`;
             document.getElementById('prof-phone').innerText = `📞 ${p.phone}`;
-            document.getElementById('prof-age').innerText = `🎂 ${p.age} سنة`;
-            document.getElementById('prof-gender').innerText = `🚻 ${p.gender || 'غير محدد'}`;
+            document.getElementById('prof-age').innerText = `🎂 ${p.age} ${isAr ? 'سنة' : 'Y'}`;
+            document.getElementById('prof-gender').innerText = `🚻 ${p.gender || (isAr ? 'غير محدد' : 'Unknown')}`;
             
             const alerts = document.getElementById('prof-alerts');
             alerts.innerHTML = '';
             if (p.medicalHistory && p.medicalHistory.length > 0) {
                 p.medicalHistory.forEach(d => { alerts.innerHTML += `<span class="alert-tag">⚠️ ${d}</span>`; });
             } else {
-                alerts.innerHTML = `<span style="color: #10b981; font-weight: bold;">✅ سليم / لا يوجد أمراض مزمنة</span>`;
+                const safeTxt = isAr ? '✅ سليم / لا يوجد أمراض مزمنة' : '✅ Healthy / No Chronic Diseases';
+                alerts.innerHTML = `<span style="color: #10b981; font-weight: bold;">${safeTxt}</span>`;
             }
 
+            // 🔴 حل مشكلة جلب الجلسات: شلت الأوردر المعقد مؤقتاً عشان لو الاندكس فيه مشكلة يقرأ الداتا
             await loadPatientSessions(); 
+            loadLabOrders(); 
         }
     } catch (e) { 
         console.error(e); 
     } finally {
-        // 🔴 إخفاء اللودر
         if (window.hideLoader) window.hideLoader();
     }
 }
+
+// ==========================================
+// أكواد إدارة المعامل (Lab Management)
+// ==========================================
+
+async function saveLabOrder(e) {
+    e.preventDefault();
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const btn = document.getElementById('btn-save-lab');
+    btn.disabled = true;
+    
+    if (window.showLoader) window.showLoader(isAr ? "جاري حفظ الطلب..." : "Saving Order...");
+
+    const labCost = Number(document.getElementById('lab_cost').value) || 0;
+    const workType = document.getElementById('lab_work_type').value;
+    const labName = document.getElementById('lab_name').value;
+    const orderDate = document.getElementById('lab_date').value;
+
+    const labData = {
+        clinicId: clinicId, patientId: patientId, date: orderDate,
+        labName: labName, workType: workType, cost: labCost,
+        deliveryDate: document.getElementById('lab_delivery_date').value || null,
+        status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    try {
+        await db.collection("LabOrders").add(labData);
+
+        if (labCost > 0) {
+            await db.collection("Finances").add({
+                clinicId: clinicId, patientId: patientId, type: 'expense', category: isAr ? 'مصروفات معمل' : 'Lab Expense',
+                amount: labCost, date: orderDate,
+                notes: isAr ? `تكلفة معمل: ${labName} - للمريض: ${currentPatientName}` : `Lab Cost: ${labName} - Patient: ${currentPatientName}`,
+                createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        closeModal('labOrderModal');
+        document.querySelector('#labOrderModal form').reset();
+        alert(isAr ? "✅ تم إرسال الطلب بنجاح!" : "✅ Order sent successfully!");
+        
+    } catch (error) {
+        console.error(error);
+        alert(isAr ? "❌ خطأ أثناء الإرسال." : "❌ Error sending order.");
+    } finally {
+        btn.disabled = false;
+        if (window.hideLoader) window.hideLoader();
+    }
+}
+
+function loadLabOrders() {
+    db.collection("LabOrders").where("patientId", "==", patientId).orderBy("createdAt", "desc").onSnapshot(snap => {
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+        const container = document.getElementById('lab-orders-list');
+        container.innerHTML = '';
+
+        if (snap.empty) {
+            container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 20px;">${isAr ? 'لا توجد طلبات معمل.' : 'No lab orders.'}</div>`;
+            return;
+        }
+
+        snap.forEach(doc => {
+            const data = doc.data();
+            const isPending = data.status === 'pending';
+            
+            const pendingTxt = isAr ? '⏳ قيد التنفيذ' : '⏳ Pending';
+            const deliveredTxt = isAr ? '✅ تم الاستلام' : '✅ Delivered';
+            const statusHtml = isPending ? `<span class="lab-status-pending">${pendingTxt}</span>` : `<span class="lab-status-delivered">${deliveredTxt}</span>`;
+            
+            const confirmBtnTxt = isAr ? '✔️ تأكيد الاستلام' : '✔️ Mark Delivered';
+            const actionBtn = isPending ? `<button onclick="markLabOrderDelivered('${doc.id}')" style="background:#10b981; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-weight:bold; font-size:12px;">${confirmBtnTxt}</button>` : '';
+
+            const deliveryTxt = data.deliveryDate ? `${isAr ? 'التسليم:' : 'Delivery:'} <strong dir="ltr">${data.deliveryDate}</strong>` : (isAr ? 'موعد غير محدد' : 'No date set');
+            const labLabel = isAr ? 'معمل:' : 'Lab:';
+            const costLabel = isAr ? 'التكلفة:' : 'Cost:';
+            const delBtn = isAr ? '🗑️ حذف' : '🗑️ Delete';
+
+            container.innerHTML += `
+                <div class="lab-card">
+                    <div style="flex: 2; min-width: 200px;">
+                        <h4 style="margin: 0 0 5px 0; color: #0f172a; font-size: 16px;">${data.workType}</h4>
+                        <div style="font-size: 13px; color: #64748b;">${labLabel} <strong>${data.labName}</strong> | ${costLabel} <strong>${data.cost}</strong></div>
+                    </div>
+                    <div style="flex: 1; text-align: left; min-width: 150px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                        ${statusHtml} <span style="font-size: 12px; color: #94a3b8;">${deliveryTxt}</span> ${actionBtn}
+                        <button class="btn-action" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5; padding: 4px 8px; font-size: 11px;" onclick="deleteDoc('LabOrders', '${doc.id}')">${delBtn}</button>
+                    </div>
+                </div>
+            `;
+        });
+    });
+}
+
+async function markLabOrderDelivered(orderId) {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    if(confirm(isAr ? "هل تم استلام الشغل من المعمل؟" : "Is the work delivered?")) {
+        if(window.showLoader) window.showLoader(isAr ? "تحديث..." : "Updating...");
+        try { await db.collection("LabOrders").doc(orderId).update({ status: 'delivered', deliveredAt: firebase.firestore.FieldValue.serverTimestamp() }); } 
+        catch(e) { console.error(e); } finally { if(window.hideLoader) window.hideLoader(); }
+    }
+}
+
+// ==========================================
+// الجلسات الأساسية (بحل مشكلة الاستدعاء)
+// ==========================================
 
 function calculateRemaining(mode = 'add') {
     const prefix = mode === 'add' ? 'sess_' : 'edit_sess_';
     const total = Number(document.getElementById(`${prefix}total`).value) || 0;
     const paid = Number(document.getElementById(`${prefix}paid`).value) || 0;
-    let remaining = total - paid;
-    if (remaining < 0) remaining = 0; 
-    document.getElementById(`${prefix}remaining`).value = remaining;
+    document.getElementById(`${prefix}remaining`).value = Math.max(0, total - paid);
 }
 
 async function saveSession(e, isEditMode) {
     e.preventDefault();
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const prefix = isEditMode ? 'edit_sess_' : 'sess_';
     const btnId = isEditMode ? 'btn-update-session' : 'btn-save-session';
     const modalId = isEditMode ? 'editSessionModal' : 'sessionModal';
     
     const btn = document.getElementById(btnId);
     btn.disabled = true;
-    btn.innerText = "جاري الحفظ...";
 
-    // 🔴 إظهار اللودر عند حفظ أو تعديل الجلسة
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? (isEditMode ? "جاري التحديث..." : "جاري حفظ الجلسة...") : "Saving session...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري الحفظ..." : "Saving...");
     
     const totalAmount = Number(document.getElementById(`${prefix}total`).value) || 0;
     const paidAmount = Number(document.getElementById(`${prefix}paid`).value) || 0;
     const remainingAmount = Number(document.getElementById(`${prefix}remaining`).value) || 0;
-
     const sessionDate = document.getElementById(`${prefix}date`).value;
     const procedureName = document.getElementById(`${prefix}procedure`).value;
 
     const data = {
-        clinicId: clinicId, 
-        patientId: patientId,
-        date: sessionDate,
+        clinicId: clinicId, patientId: patientId, date: sessionDate,
         nextAppointment: document.getElementById(`${prefix}next_date`).value || null,
-        procedure: procedureName,
-        tooth: document.getElementById(`${prefix}tooth`).value,
+        procedure: procedureName, tooth: document.getElementById(`${prefix}tooth`).value,
         notes: document.getElementById(`${prefix}notes`).value,
-        total: totalAmount,
-        paid: paidAmount,
-        remaining: remainingAmount
+        total: totalAmount, paid: paidAmount, remaining: remainingAmount
     };
     
     try {
@@ -129,20 +232,13 @@ async function saveSession(e, isEditMode) {
             await db.collection("Sessions").doc(docId).update(data);
             
             if (debtDiff !== 0) {
-                await db.collection("Patients").doc(patientId).update({
-                    totalDebt: firebase.firestore.FieldValue.increment(debtDiff)
-                });
-                
+                await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(debtDiff) });
                 await db.collection("Finances").add({
-                    clinicId: clinicId, patientId: patientId,
-                    type: 'debt', category: 'تعديل مديونية جلسة',
-                    amount: debtDiff, date: sessionDate,
-                    notes: `تسوية ديون بناءً على تعديل جلسة: ${procedureName}`,
-                    createdBy: currentUserDisplayName, 
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    clinicId: clinicId, patientId: patientId, type: 'debt', category: isAr ? 'تعديل مديونية جلسة' : 'Session Debt Adjustment',
+                    amount: debtDiff, date: sessionDate, notes: isAr ? `تسوية ديون: ${procedureName}` : `Debt Adjust: ${procedureName}`,
+                    createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
-
             const index = loadedPatientSessions.findIndex(s => s.id === docId);
             if(index !== -1) loadedPatientSessions[index] = { ...loadedPatientSessions[index], ...data };
             
@@ -152,110 +248,71 @@ async function saveSession(e, isEditMode) {
             
             if (paidAmount > 0) {
                 await db.collection("Finances").add({
-                    clinicId: clinicId, patientId: patientId,
-                    type: 'income', category: 'كشف / جلسة',
-                    amount: paidAmount, date: sessionDate,
-                    notes: `إيراد جلسة: ${procedureName} - مريض: ${currentPatientName}`,
-                    createdBy: currentUserDisplayName, 
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    clinicId: clinicId, patientId: patientId, type: 'income', category: isAr ? 'كشف / جلسة' : 'Session Income',
+                    amount: paidAmount, date: sessionDate, notes: isAr ? `إيراد جلسة: ${procedureName}` : `Income: ${procedureName}`,
+                    createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
-
             if (remainingAmount > 0) {
                 await db.collection("Finances").add({
-                    clinicId: clinicId, patientId: patientId,
-                    type: 'debt', category: 'متبقي جلسة',
-                    amount: remainingAmount, date: sessionDate,
-                    notes: `مديونية جلسة: ${procedureName} - مريض: ${currentPatientName}`,
-                    createdBy: currentUserDisplayName, 
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    clinicId: clinicId, patientId: patientId, type: 'debt', category: isAr ? 'متبقي جلسة' : 'Session Remaining',
+                    amount: remainingAmount, date: sessionDate, notes: isAr ? `مديونية جلسة: ${procedureName}` : `Debt: ${procedureName}`,
+                    createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
-
-                await db.collection("Patients").doc(patientId).update({
-                    totalDebt: firebase.firestore.FieldValue.increment(remainingAmount)
-                });
+                await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(remainingAmount) });
             }
-
-            // نضيف التوقيت المحلي مؤقتاً عشان يظهر في الجدول فوراً في حالة الأوفلاين
             data.createdAt = new Date();
             loadedPatientSessions.unshift({ id: docRef.id, ...data });
         }
         
         closeModal(modalId); 
         document.getElementById(isEditMode ? 'editSessionForm' : 'addSessionForm').reset();
-        await loadPatientData(); 
+        sortDataLocally(loadedPatientSessions);
+        renderPatientSessionsTable();
     } catch (error) { 
         console.error(error); 
-        alert("حدث خطأ أثناء الحفظ.");
+        alert(isAr ? "حدث خطأ أثناء الحفظ." : "Error saving.");
     } finally {
         btn.disabled = false;
-        btn.innerText = isEditMode ? "حفظ التعديلات" : "حفظ الجلسة";
-        // 🔴 إخفاء اللودر
         if (window.hideLoader) window.hideLoader();
     }
 }
 
 async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
-    const amountStr = prompt(`المبلغ المتبقي: ${currentRemaining} ج.م\nأدخل المبلغ المراد سداده الآن:`, currentRemaining);
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const amountStr = prompt(isAr ? `المتبقي: ${currentRemaining}\nأدخل السداد:` : `Remaining: ${currentRemaining}\nEnter payment:`, currentRemaining);
     if (amountStr === null) return; 
     
     const amountToPay = Number(amountStr);
-    if (isNaN(amountToPay) || amountToPay <= 0 || amountToPay > currentRemaining) {
-        alert("❌ يرجى إدخال مبلغ صحيح لا يتجاوز المتبقي.");
-        return;
-    }
+    if (isNaN(amountToPay) || amountToPay <= 0 || amountToPay > currentRemaining) return;
 
-    // 🔴 إظهار اللودر
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تسجيل السداد..." : "Processing payment...");
+    if (window.showLoader) window.showLoader(isAr ? "تسجيل السداد..." : "Processing...");
 
     try {
         const newPaid = currentPaid + amountToPay;
         const newRemaining = currentRemaining - amountToPay;
         const today = new Date().toISOString().split('T')[0];
 
-        await db.collection("Sessions").doc(sessionId).update({
-            paid: newPaid,
-            remaining: newRemaining
-        });
+        await db.collection("Sessions").doc(sessionId).update({ paid: newPaid, remaining: newRemaining });
+        await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(-amountToPay) });
 
-        await db.collection("Patients").doc(patientId).update({
-            totalDebt: firebase.firestore.FieldValue.increment(-amountToPay)
+        await db.collection("Finances").add({
+            clinicId: clinicId, patientId: patientId, type: 'income', category: isAr ? 'سداد مديونية' : 'Debt Payment',
+            amount: amountToPay, date: today, notes: isAr ? `سداد جزء من مديونية` : `Debt payment`,
+            createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         await db.collection("Finances").add({
-            clinicId: clinicId, patientId: patientId,
-            type: 'income', category: 'سداد مديونية',
-            amount: amountToPay, date: today,
-            notes: `سداد جزء من مديونية سابقة للمريض: ${currentPatientName}`,
-            createdBy: currentUserDisplayName, 
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            clinicId: clinicId, patientId: patientId, type: 'debt', category: isAr ? 'سداد مديونية' : 'Debt Payment',
+            amount: -amountToPay, date: today, notes: isAr ? `خصم مديونية مسددة` : `Deduct paid debt`,
+            createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        await db.collection("Finances").add({
-            clinicId: clinicId, patientId: patientId,
-            type: 'debt', category: 'سداد مديونية',
-            amount: -amountToPay, date: today,
-            notes: `خصم مديونية مسددة للمريض: ${currentPatientName}`,
-            createdBy: currentUserDisplayName, 
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        alert("✅ تم سداد المبلغ وتسجيله كإيراد في الخزنة بنجاح!");
-        
         const idx = loadedPatientSessions.findIndex(s => s.id === sessionId);
-        if(idx !== -1) {
-            loadedPatientSessions[idx].paid = newPaid;
-            loadedPatientSessions[idx].remaining = newRemaining;
-        }
-        await loadPatientData(); 
+        if(idx !== -1) { loadedPatientSessions[idx].paid = newPaid; loadedPatientSessions[idx].remaining = newRemaining; }
+        renderPatientSessionsTable();
 
-    } catch (error) {
-        console.error(error);
-        alert("حدث خطأ أثناء السداد.");
-    } finally {
-        // 🔴 إخفاء اللودر
-        if (window.hideLoader) window.hideLoader();
-    }
+    } catch (error) { console.error(error); } finally { if (window.hideLoader) window.hideLoader(); }
 }
 
 function getAccurateTime(timestamp) {
@@ -269,79 +326,52 @@ function sortDataLocally(dataArray) {
     dataArray.sort((a, b) => {
         const dateA = new Date(a.date || 0).getTime();
         const dateB = new Date(b.date || 0).getTime();
-        if (dateA !== dateB) {
-            return dateB - dateA; 
-        }
+        if (dateA !== dateB) return dateB - dateA; 
         return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
     });
 }
 
-async function loadPatientSessions(isLoadMore = false) {
+// 🔴 دالة الاستدعاء المحدثة: هنستخدم فلتر الـ patientId بس، وهنرتب عندنا محلياً عشان نتجنب مشكلة الـ Index
+async function loadPatientSessions() {
     if (!patientId) return;
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const tbody = document.getElementById('sessions-list');
-    const btnMore = document.getElementById('btn-load-more-sessions');
 
-    // إظهار اللودر لو دي أول ضغطة تحميل
-    if (!isLoadMore && window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري جلب الجلسات..." : "Loading sessions...");
-
-    if (!isLoadMore) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري التحميل...</td></tr>';
-        loadedPatientSessions = [];
-        lastVisibleProfileSession = null;
-    } else {
-        btnMore.innerText = "..."; btnMore.disabled = true;
-    }
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">${isAr ? 'جاري التحميل...' : 'Loading...'}</td></tr>`;
+    loadedPatientSessions = [];
 
     try {
-        let queryRef = db.collection("Sessions")
-                         .where("patientId", "==", patientId)
-                         .orderBy("date", "desc")
-                         .limit(SESSIONS_PER_PAGE);
-
-        if (isLoadMore && lastVisibleProfileSession) queryRef = queryRef.startAfter(lastVisibleProfileSession);
-
-        const snap = await queryRef.get();
+        // بنجيب الداتا المربوطة بالمريض بس، الفايربيز هيقبل ده من غير Index معقد
+        const snap = await db.collection("Sessions").where("patientId", "==", patientId).get();
+        
         if (!snap.empty) {
-            lastVisibleProfileSession = snap.docs[snap.docs.length - 1];
-            
             snap.forEach(doc => {
                 const s = doc.data({ serverTimestamps: 'estimate' });
                 s.id = doc.id;
-                if (!loadedPatientSessions.some(locSess => locSess.id === s.id)) {
-                    loadedPatientSessions.push(s);
-                }
+                loadedPatientSessions.push(s);
             });
             
+            // بنرتبهم هنا عندنا بالجافاسكريبت بالأحدث
             sortDataLocally(loadedPatientSessions);
             renderPatientSessionsTable();
-            
-            if (snap.docs.length === SESSIONS_PER_PAGE) {
-                btnMore.style.display = 'block';
-                btnMore.innerText = "⬇️ تحميل المزيد من الجلسات...";
-            } else { btnMore.style.display = 'none'; }
         } else {
-            if (!isLoadMore && loadedPatientSessions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">لا توجد جلسات مسجلة حتى الآن.</td></tr>`;
-            } else { btnMore.innerText = "لا يوجد جلسات أخرى"; setTimeout(() => btnMore.style.display = 'none', 2000); }
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">${isAr ? 'لا توجد جلسات.' : 'No sessions.'}</td></tr>`;
         }
     } catch (error) { 
-        console.error("Error loading profile sessions:", error); 
-    } finally { 
-        if(isLoadMore) btnMore.disabled = false; 
-        if (!isLoadMore && window.hideLoader) window.hideLoader();
+        console.error("Error loading sessions:", error); 
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Error Loading Data</td></tr>`;
     }
 }
 
 function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
     const tbody = document.getElementById('sessions-list');
     tbody.innerHTML = '';
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     
     if(dataToRender.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">لا توجد جلسات مطابقة</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">${isAr ? 'لا توجد بيانات' : 'No Data'}</td></tr>`;
         return;
     }
-
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
     dataToRender.forEach(s => {
         const total = s.total || 0;
@@ -359,8 +389,11 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
 
         let payBtnHtml = '';
         if (remaining > 0) {
-            payBtnHtml = `<button class="btn-action" style="background:#10b981; color:white; border-color:#059669;" onclick="paySessionDebt('${s.id}', ${paid}, ${remaining})" title="سداد جزء أو كل المديونية">💰 سداد</button>`;
+            payBtnHtml = `<button class="btn-action" style="background:#10b981; color:white; border-color:#059669;" onclick="paySessionDebt('${s.id}', ${paid}, ${remaining})">💰 ${isAr ? 'سداد' : 'Pay'}</button>`;
         }
+
+        const toothLabel = isAr ? 'السن:' : 'Tooth:';
+        const viewBtn = isAr ? '👁️ التفاصيل' : '👁️ View';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -370,7 +403,7 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
                     <span style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: bold;">${timeStr}</span>
                 </div>
             </td>
-            <td style="font-weight:bold; color:#0f172a;">${s.procedure} <br> <small style="color:gray;">السن: ${s.tooth || '---'}</small></td>
+            <td style="font-weight:bold; color:#0f172a;">${s.procedure} <br> <small style="color:gray;">${toothLabel} ${s.tooth || '---'}</small></td>
             <td style="font-weight:bold;">${total}</td>
             <td style="color: #10b981; font-weight: bold;">${paid}</td>
             <td style="color: ${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight: bold;">${remaining}</td>
@@ -378,9 +411,9 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
             <td style="text-align: center;">
                 <div class="action-group">
                     ${payBtnHtml}
-                    <button class="btn-view" onclick="viewSessionDetails('${s.id}')">👁️ التفاصيل</button>
-                    <button class="btn-action" style="background:#fff7ed; color:#d97706; border-color:#fed7aa;" onclick="openEditSession('${s.id}')" title="تعديل">✏️</button>
-                    <button class="btn-action" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5;" onclick="deleteDoc('Sessions', '${s.id}')" title="حذف">🗑️</button>
+                    <button class="btn-view" onclick="viewSessionDetails('${s.id}')">${viewBtn}</button>
+                    <button class="btn-action" style="background:#fff7ed; color:#d97706; border-color:#fed7aa;" onclick="openEditSession('${s.id}')">✏️</button>
+                    <button class="btn-action" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5;" onclick="deleteDoc('Sessions', '${s.id}')">🗑️</button>
                 </div>
             </td>
         `;
@@ -429,35 +462,32 @@ function viewSessionDetails(sessionId) {
 }
 
 async function deleteDoc(collectionName, docId) {
-    if(confirm("هل أنت متأكد من حذف هذه الجلسة بالكامل؟ سيتم حذف جميع المرفقات المرتبطة بها.")) {
-        // 🔴 إظهار اللودر عند الحذف
-        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
-
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    if(confirm(isAr ? "هل أنت متأكد من الحذف؟" : "Are you sure you want to delete?")) {
+        if (window.showLoader) window.showLoader(isAr ? "جاري الحذف..." : "Deleting...");
         try { 
             await db.collection(collectionName).doc(docId).delete(); 
-            loadedPatientSessions = loadedPatientSessions.filter(s => s.id !== docId);
-            renderPatientSessionsTable();
+            if (collectionName === 'Sessions') {
+                loadedPatientSessions = loadedPatientSessions.filter(s => s.id !== docId);
+                renderPatientSessionsTable();
+            }
         } 
         catch (e) { console.error(e); }
-        finally {
-            // 🔴 إخفاء اللودر
-            if (window.hideLoader) window.hideLoader();
-        }
+        finally { if (window.hideLoader) window.hideLoader(); }
     }
 }
 
 window.onload = () => {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    updatePageContent(lang);
-    
+    // مفيش داعي ننادي على applyLanguage هنا لأن ملف lang-manager بيعملها أوتوماتيك لما بيحمل
     firebase.auth().onAuthStateChanged(async (user) => { 
         if (user) { 
             try {
                 const userDoc = await db.collection("Users").doc(user.email).get();
                 if (userDoc.exists) {
-                    currentUserDisplayName = userDoc.data().name || "مدير النظام";
+                    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+                    currentUserDisplayName = userDoc.data().name || (isAr ? "مدير النظام" : "Admin");
                 }
-            } catch(e) { console.error("Error fetching user name"); }
+            } catch(e) { console.error(e); }
 
             loadPatientData(); 
         } 
