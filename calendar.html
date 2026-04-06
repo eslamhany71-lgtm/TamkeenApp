@@ -150,6 +150,10 @@
                 <p style="margin: 0; font-size: 16px;"><strong>📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
             </div>
 
+            <div id="whatsapp-action-box" style="margin-bottom: 10px;">
+                <button class="btn-success" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #25D366; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="sendWhatsAppReminder()">📱 إرسال تذكير بالموعد (واتساب)</button>
+            </div>
+
             <div id="complete-action-box" style="margin-bottom: 10px;">
                 <button class="btn-success" id="btn-complete-app" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)</button>
             </div>
@@ -173,6 +177,7 @@
     </div>
 
     <script src="js/firebase-config.js"></script>
+    <script src="js/lang-manager.js" onerror="console.log('No lang manager found, using fallback.')"></script>
     <script src="js/calendar.js"></script>
 </body>
 </html>
