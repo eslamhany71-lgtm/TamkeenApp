@@ -38,6 +38,9 @@ body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Ta
 .btn-action-danger { background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
 .btn-action-danger:hover { background: #fca5a5; }
 
+/* 🔴 تأثير زرار الواتساب 🔴 */
+.btn-success:hover { filter: brightness(0.9); }
+
 /* 🔴 تظبيط شكل التقويم على الموبايل */
 @media (max-width: 768px) {
     .calendar-container { padding: 10px; }
