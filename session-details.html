@@ -48,6 +48,31 @@
         @media screen {
             .print-only { display: none; }
         }
+
+        /* 🔴 تصميم مخطط الأسنان */
+        .dental-chart { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .jaw { display: flex; justify-content: center; gap: 5px; margin-bottom: 15px; flex-wrap: wrap; }
+        .tooth { 
+            width: 40px; 
+            height: 50px; 
+            background: white; 
+            border: 2px solid #cbd5e1; 
+            border-radius: 8px 8px 20px 20px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-weight: bold; 
+            font-size: 14px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+        }
+        .tooth:hover { border-color: #0ea5e9; transform: translateY(-2px); }
+
+        /* ألوان الحالات الطبية */
+        .status-decay { background: #fef08a; border-color: #eab308; } /* تسوس */
+        .status-extracted { background: #fecaca; border-color: #ef4444; color: white; text-decoration: line-through; } /* مخلوع */
+        .status-crown { background: #e0e7ff; border-color: #6366f1; } /* طربوش */
     </style>
 </head>
 <body>
@@ -101,6 +126,10 @@
                 </div>
             </div>
 
+            <div class="dental-chart no-print">
+                <h3 style="margin: 0 0 15px 0; color: #0f172a; text-align: center;">🦷 مخطط الأسنان الطبي</h3>
+                <div id="upper-jaw" class="jaw"></div> <div id="lower-jaw" class="jaw"></div> </div>
+
             <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 320px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
@@ -126,6 +155,20 @@
                         <div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">لا توجد مرفقات.</div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toothStatusModal" class="modal no-print">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-modal" onclick="closeModal('toothStatusModal')">&times;</span>
+            <h2 id="selected-tooth-title">اختر حالة السِنة رقم (--)</h2>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                <button class="btn-primary" style="background: #eab308; justify-content: center;" onclick="saveToothStatus('decay')">🟡 تسوس (Decay)</button>
+                <button class="btn-primary" style="background: #ef4444; justify-content: center;" onclick="saveToothStatus('extracted')">🔴 خلع (Extracted)</button>
+                <button class="btn-primary" style="background: #6366f1; justify-content: center;" onclick="saveToothStatus('crown')">🔵 طربوش (Crown)</button>
+                <button class="btn-primary" style="background: #94a3b8; justify-content: center;" onclick="saveToothStatus('normal')">⚪ سليم (مسح الحالة)</button>
             </div>
         </div>
     </div>
