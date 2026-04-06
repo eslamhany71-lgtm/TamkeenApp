@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// 1. دالة التنقل بين الصفحات في الـ Iframe (مع اللودر اللي طلبته المرة اللي فاتت)
+// 🔴 1. دالة التنقل (تم التعديل لحفظ مسار الصفحة في الـ SessionStorage) 🔴
 function loadPage(pageUrl, clickedLi) {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فتح الصفحة..." : "Loading page...");
     
@@ -54,10 +54,27 @@ function loadPage(pageUrl, clickedLi) {
         frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: currentTheme }, '*');
     };
     
+    // حفظ مسار الصفحة والزرار المفعل في القائمة عشان نرجعله بعد الريفريش
+    sessionStorage.setItem('lastOpenedPage', pageUrl);
+
     if (clickedLi) {
         const allLinks = document.querySelectorAll('#nav-links li');
         allLinks.forEach(li => li.classList.remove('active'));
         clickedLi.classList.add('active');
+        // حفظ الـ id بتاع الـ Li عشان نرجعه active بعد الريفريش
+        if(clickedLi.id) {
+            sessionStorage.setItem('lastActiveNavId', clickedLi.id);
+        }
+    } else {
+        // لو مفيش clickedLi اتبعت (زي لما بنفتح تفاصيل مريض من جوه صفحة تانية)
+        // بنحاول نعلم على آخر زرار كان متسجل إنه نشط
+        const lastNavId = sessionStorage.getItem('lastActiveNavId');
+        if (lastNavId) {
+            const allLinks = document.querySelectorAll('#nav-links li');
+            allLinks.forEach(li => li.classList.remove('active'));
+            const activeLi = document.getElementById(lastNavId);
+            if(activeLi) activeLi.classList.add('active');
+        }
     }
 
     if (window.innerWidth <= 992) {
@@ -77,7 +94,7 @@ function switchAppLanguage(lang) {
     }
 }
 
-// 3. الترجمة الخاصة بالهيكل الخارجي (مُحدثة بالدعم الفني)
+// 3. الترجمة الخاصة بالهيكل الخارجي
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -117,7 +134,7 @@ function updatePageContent(lang) {
     window.homeLang = c;
 }
 
-// 4. مراقب الصلاحيات وجلب بيانات العيادة
+// 4. مراقب الصلاحيات وجلب بيانات العيادة (مع استرجاع الصفحة المحفوظة)
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -138,6 +155,18 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 
                 if(role !== 'superadmin' && clinicId !== 'default') {
                     checkSubscriptionAlert(clinicId);
+                }
+
+                // 🔴 اللمسة السحرية: استرجاع الصفحة الأخيرة بعد الـ Refresh
+                const lastPage = sessionStorage.getItem('lastOpenedPage');
+                const lastNavId = sessionStorage.getItem('lastActiveNavId');
+                
+                if (lastPage) {
+                    const navLi = lastNavId ? document.getElementById(lastNavId) : null;
+                    loadPage(lastPage, navLi);
+                } else {
+                    // لو مفيش صفحة متسجلة، افتح الداشبورد عادي
+                    loadPage('dashboard.html', document.getElementById('nav-dash').parentElement);
                 }
             }
         } catch (error) {
