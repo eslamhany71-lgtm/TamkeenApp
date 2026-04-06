@@ -17,14 +17,23 @@
         .table-container { overflow-x: auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-top: 20px; }
         table { width: 100%; border-collapse: collapse; min-width: 800px; }
         th, td { padding: 15px; text-align: right; border-bottom: 1px solid #e2e8f0; }
+        html[dir="ltr"] th, html[dir="ltr"] td { text-align: left; }
         th { background: #f8fafc; color: #475569; font-weight: 700; }
         tr:hover { background: #f1f5f9; }
         .btn-view { background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; }
         .search-box { padding: 10px 15px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-family: inherit; width: 100%; transition: border-color 0.3s; }
         .search-box:focus { border-color: #0284c7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1); }
         .btn-action { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; margin-left: 5px;}
+        html[dir="ltr"] .btn-action { margin-left: 0; margin-right: 5px; }
         .btn-action:hover { background: #e2e8f0; }
         .action-group { display: flex; gap: 5px; justify-content: center; align-items: center;}
+        
+        /* ستايل المعمل */
+        .lab-status-pending { background: #fef08a; color: #854d0e; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid #eab308; }
+        .lab-status-delivered { background: #bbf7d0; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid #22c55e; }
+        .lab-card { background: #fff; border: 1px solid #e2e8f0; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-right: 4px solid #8b5cf6;}
+        html[dir="ltr"] .lab-card { border-right: 1px solid #e2e8f0; border-left: 4px solid #8b5cf6; }
+        .lab-container { margin-top: 30px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1; }
     </style>
 </head>
 <body>
@@ -39,10 +48,10 @@
                 <div class="patient-info">
                     <div class="patient-avatar">👤</div>
                     <div>
-                        <h1 id="prof-name" style="display: flex; align-items: center; flex-wrap: wrap;">جاري التحميل...</h1>
+                        <h1 id="prof-name" style="display: flex; align-items: center; flex-wrap: wrap;">...</h1>
                         <div class="patient-meta">
                             <span id="prof-phone" dir="ltr">📞 ---</span>
-                            <span id="prof-age">🎂 --- سنة</span>
+                            <span id="prof-age">🎂 ---</span>
                             <span id="prof-gender">🚻 ---</span>
                         </div>
                     </div>
@@ -53,10 +62,11 @@
             <div class="action-bar" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
                 <h3 id="txt-sess-title" style="margin: 0;">سجل الجلسات العلاجية</h3>
                 
-                <div style="display: flex; gap: 5px; flex: 1; justify-content: flex-end; align-items: center; min-width: 300px;">
-                    <input type="text" id="searchSessionInput" class="search-box" oninput="searchSessions()" placeholder="بحث بالتاريخ، الإجراء..." style="max-width: 250px;">
-                    <button class="btn-danger" onclick="resetSessionSearch()" style="padding: 10px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;" title="إعادة ضبط">🔄</button>
-                    <button class="btn-primary" onclick="openModal('sessionModal')" id="btn-add-sess" style="white-space: nowrap; margin-right: 10px;">➕ إضافة جلسة</button>
+                <div style="display: flex; gap: 5px; flex: 1; justify-content: flex-end; align-items: center; min-width: 300px; flex-wrap: wrap;">
+                    <input type="text" id="searchSessionInput" class="search-box" oninput="searchSessions()" placeholder="..." style="max-width: 250px;">
+                    <button class="btn-danger" onclick="resetSessionSearch()" style="padding: 10px; background: #94a3b8; border: none; border-radius: 8px; color: white; cursor: pointer;">🔄</button>
+                    <button class="btn-primary" onclick="openModal('labOrderModal')" id="btn-lab-order" style="white-space: nowrap; background: #8b5cf6;">🔬 طلب معمل</button>
+                    <button class="btn-primary" onclick="openModal('sessionModal')" id="btn-add-sess" style="white-space: nowrap;">➕ إضافة جلسة</button>
                 </div>
             </div>
 
@@ -64,74 +74,114 @@
                 <table id="sessionsTable">
                     <thead>
                         <tr>
-                            <th>التاريخ</th>
-                            <th>الإجراء الطبي</th>
-                            <th>الإجمالي</th>
-                            <th>المدفوع</th>
-                            <th>المتبقي</th>
-                            <th>الموعد القادم</th>
-                            <th style="text-align: center;">إجراءات</th>
+                            <th id="th-date">التاريخ</th>
+                            <th id="th-procedure">الإجراء الطبي</th>
+                            <th id="th-total">الإجمالي</th>
+                            <th id="th-paid">المدفوع</th>
+                            <th id="th-remaining">المتبقي</th>
+                            <th id="th-next-app">الموعد القادم</th>
+                            <th id="th-action" style="text-align: center;">إجراءات</th>
                         </tr>
                     </thead>
                     <tbody id="sessions-list">
-                        <tr><td colspan="7" style="text-align: center;">جاري التحميل...</td></tr>
+                        <tr><td colspan="7" style="text-align: center;">...</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <div style="text-align: center; margin-top: 20px;">
                 <button id="btn-load-more-sessions" class="btn-primary" onclick="loadPatientSessions(true)" style="display: none; padding: 10px 30px; border-radius: 20px; font-size: 14px; margin: 0 auto;">
-                    ⬇️ تحميل المزيد من الجلسات...
+                    ⬇️ تحميل المزيد...
                 </button>
             </div>
 
+            <div class="lab-container">
+                <h3 id="txt-lab-title" style="margin: 0 0 15px 0; color: #0f172a;">🔬 سجل طلبات المعامل</h3>
+                <div id="lab-orders-list"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="labOrderModal" class="modal no-print" style="display:none; position:fixed; z-index:1000; inset:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+        <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:500px; position:relative;">
+            <span class="close-modal" onclick="closeModal('labOrderModal')" style="position:absolute; top:15px; left:15px; cursor:pointer; font-size:24px;">&times;</span>
+            <h2 id="modal-lab-title" style="margin-top: 0; color: #8b5cf6;">إرسال طلب للمعمل</h2>
+            <form onsubmit="saveLabOrder(event)">
+                <div class="form-group">
+                    <label id="lbl-lab-date">تاريخ الطلب</label>
+                    <input type="date" id="lab_date" class="search-box" required>
+                </div>
+                <div class="form-group">
+                    <label id="lbl-lab-name">اسم المعمل</label>
+                    <input type="text" id="lab_name" class="search-box" required>
+                </div>
+                <div class="form-group">
+                    <label id="lbl-lab-work">نوع الشغل المطلوب</label>
+                    <input type="text" id="lab_work_type" class="search-box" required>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label id="lbl-lab-cost">تكلفة المعمل</label>
+                        <input type="number" id="lab_cost" class="search-box" min="0" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label id="lbl-lab-delivery">موعد الاستلام</label>
+                        <input type="date" id="lab_delivery_date" class="search-box">
+                    </div>
+                </div>
+                <div class="form-group" style="background: #fef2f2; padding: 10px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 15px;">
+                    <small id="lab-warning" style="color: #ef4444; font-weight: bold;">⚠️ تنبيه...</small>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; background: #8b5cf6;" id="btn-save-lab">حفظ الطلب وإرساله</button>
+            </form>
         </div>
     </div>
 
     <div id="sessionModal" class="modal no-print" style="display:none; position:fixed; z-index:1000; inset:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
         <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:600px; position:relative;">
             <span class="close-modal" onclick="closeModal('sessionModal')" style="position:absolute; top:15px; left:15px; cursor:pointer; font-size:24px;">&times;</span>
-            <h2 style="margin-top: 0;">إضافة جلسة جديدة</h2>
+            <h2 id="modal-add-sess-title" style="margin-top: 0;">إضافة جلسة جديدة</h2>
             <form id="addSessionForm" onsubmit="saveSession(event, false)">
                 
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <div class="form-group" style="flex: 1;">
-                        <label style="display:block; margin-bottom:5px;">تاريخ الجلسة</label>
+                        <label id="lbl-sess-date">تاريخ الجلسة</label>
                         <input type="date" id="sess_date" class="search-box" required>
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label style="display:block; margin-bottom:5px;">الموعد القادم (اختياري)</label>
+                        <label id="lbl-sess-next">الموعد القادم</label>
                         <input type="date" id="sess_next_date" class="search-box">
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom:5px;">الإجراء الطبي</label>
-                    <input type="text" id="sess_procedure" class="search-box" style="max-width:100%;" placeholder="مثال: حشو عصب، خلع، كشف..." required>
+                    <label id="lbl-sess-proc">الإجراء الطبي</label>
+                    <input type="text" id="sess_procedure" class="search-box" style="max-width:100%;" required>
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom:5px;">رقم السن / الضرس (اختياري)</label>
-                    <input type="text" id="sess_tooth" class="search-box" style="max-width:100%;" placeholder="مثال: Upper Right 6">
+                    <label id="lbl-sess-tooth">رقم السن / الضرس</label>
+                    <input type="text" id="sess_tooth" class="search-box" style="max-width:100%;">
                 </div>
                 
                 <div style="display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="display:block; margin-bottom:5px;">إجمالي الحساب</label>
-                        <input type="number" id="sess_total" class="search-box" placeholder="0" min="0" required oninput="calculateRemaining('add')">
+                        <label id="lbl-sess-total">إجمالي الحساب</label>
+                        <input type="number" id="sess_total" class="search-box" min="0" required oninput="calculateRemaining('add')">
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="display:block; margin-bottom:5px;">المدفوع</label>
-                        <input type="number" id="sess_paid" class="search-box" placeholder="0" min="0" required oninput="calculateRemaining('add')">
+                        <label id="lbl-sess-paid">المدفوع</label>
+                        <input type="number" id="sess_paid" class="search-box" min="0" required oninput="calculateRemaining('add')">
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="display:block; margin-bottom:5px;">المتبقي</label>
-                        <input type="number" id="sess_remaining" class="search-box" placeholder="0" readonly style="background: #e2e8f0; font-weight: bold; color: #ef4444;">
+                        <label id="lbl-sess-remaining">المتبقي</label>
+                        <input type="number" id="sess_remaining" class="search-box" readonly style="background: #e2e8f0; font-weight: bold; color: #ef4444;">
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom:5px;">ملاحظات الطبيب</label>
+                    <label id="lbl-sess-notes">ملاحظات الطبيب</label>
                     <textarea id="sess_notes" rows="3" class="search-box" style="max-width:100%; resize:vertical;"></textarea>
                 </div>
                 <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;" id="btn-save-session">حفظ الجلسة</button>
@@ -142,48 +192,48 @@
     <div id="editSessionModal" class="modal no-print" style="display:none; position:fixed; z-index:1000; inset:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
         <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:600px; position:relative;">
             <span class="close-modal" onclick="closeModal('editSessionModal')" style="position:absolute; top:15px; left:15px; cursor:pointer; font-size:24px;">&times;</span>
-            <h2 style="margin-top: 0;">تعديل بيانات الجلسة</h2>
+            <h2 id="modal-edit-sess-title" style="margin-top: 0;">تعديل بيانات الجلسة</h2>
             <form id="editSessionForm" onsubmit="saveSession(event, true)">
                 <input type="hidden" id="edit_sess_id">
                 
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <div class="form-group" style="flex: 1;">
-                        <label style="display:block; margin-bottom:5px;">تاريخ الجلسة</label>
+                        <label id="lbl-sess-date">تاريخ الجلسة</label>
                         <input type="date" id="edit_sess_date" class="search-box" required>
                     </div>
                     <div class="form-group" style="flex: 1;">
-                        <label style="display:block; margin-bottom:5px;">الموعد القادم</label>
+                        <label id="lbl-sess-next">الموعد القادم</label>
                         <input type="date" id="edit_sess_next_date" class="search-box">
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom:5px;">الإجراء الطبي</label>
+                    <label id="lbl-sess-proc">الإجراء الطبي</label>
                     <input type="text" id="edit_sess_procedure" class="search-box" style="max-width:100%;" required>
                 </div>
                 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom:5px;">رقم السن / الضرس</label>
+                    <label id="lbl-sess-tooth">رقم السن / الضرس</label>
                     <input type="text" id="edit_sess_tooth" class="search-box" style="max-width:100%;">
                 </div>
                 
                 <div style="display: flex; gap: 10px; background: #fff7ed; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #fed7aa;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="display:block; margin-bottom:5px;">إجمالي الحساب</label>
+                        <label id="lbl-sess-total">إجمالي الحساب</label>
                         <input type="number" id="edit_sess_total" class="search-box" min="0" required oninput="calculateRemaining('edit')">
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="display:block; margin-bottom:5px;">المدفوع</label>
+                        <label id="lbl-sess-paid">المدفوع</label>
                         <input type="number" id="edit_sess_paid" class="search-box" min="0" required oninput="calculateRemaining('edit')">
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="display:block; margin-bottom:5px;">المتبقي</label>
+                        <label id="lbl-sess-remaining">المتبقي</label>
                         <input type="number" id="edit_sess_remaining" class="search-box" readonly style="background: #e2e8f0; font-weight: bold; color: #ef4444;">
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display:block; margin-bottom:5px;">ملاحظات الطبيب</label>
+                    <label id="lbl-sess-notes">ملاحظات الطبيب</label>
                     <textarea id="edit_sess_notes" rows="3" class="search-box" style="max-width:100%; resize:vertical;"></textarea>
                 </div>
                 <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; background:#f59e0b;" id="btn-update-session">حفظ التعديلات</button>
@@ -194,6 +244,8 @@
     <script>
         var h = Math.floor(Date.now() / 3600000); 
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
+        // استدعاء ملف الترجمة قبل ملفات الجافاسكريبت عشان القاموس يكون جاهز
+        document.write('<script src="js/lang-manager.js?v=' + h + '"><\/script>');
         document.write('<script src="js/patient-profile.js?v=' + h + '"><\/script>');
     </script>
 </body>
