@@ -1,6 +1,6 @@
 /* css/home.css - Master Shell Styles */
 
-body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f1f5f9; overflow: hidden; }
+body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f1f5f9; overflow: hidden; transition: background-color 0.3s ease, color 0.3s ease; }
 
 .app-wrapper { display: flex; height: 100vh; overflow: hidden; position: relative; }
 
@@ -45,11 +45,11 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 .topbar {
     background: #fff; height: 70px; display: flex; justify-content: space-between; align-items: center;
     padding: 0 25px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 1005; position: relative;
-    box-sizing: border-box;
+    box-sizing: border-box; transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .topbar-right, .topbar-left { display: flex; align-items: center; gap: 15px; }
-.topbar h2 { margin: 0; font-size: 18px; color: #1e293b; font-weight: 800; }
+.topbar h2 { margin: 0; font-size: 18px; color: #1e293b; font-weight: 800; transition: color 0.3s ease;}
 
 .menu-toggle, .desktop-toggle {
     background: transparent; border: none; font-size: 24px; cursor: pointer; color: #475569; padding: 5px; border-radius: 8px; transition: 0.2s;
@@ -57,7 +57,7 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 .menu-toggle:hover, .desktop-toggle:hover { background: #f1f5f9; color: #0284C7; }
 .menu-toggle { display: none; }
 
-.user-profile { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #e2e8f0;}
+.user-profile { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 5px 15px 5px 5px; border-radius: 30px; border: 1px solid #e2e8f0; transition: all 0.3s ease;}
 html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 
 .lang-btn { cursor: pointer; font-weight: 700; color: #64748b; font-size: 14px; transition: 0.2s; }
@@ -65,7 +65,7 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
 .logout-btn:hover { background: #dc2626; }
 
-.content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; }
+.content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; transition: background-color 0.3s ease; }
 
 .mobile-overlay {
     display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1001; backdrop-filter: blur(2px);
@@ -74,7 +74,6 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 /* ================= تظبيط الموبايل (Mobile Responsive) ================= */
 @media (max-width: 992px) {
     .menu-toggle { display: block; }
-    /* زرار الطي ظاهر زي ما طلبت بس هنصغره سيكة */
     .desktop-toggle { display: block; font-size: 20px; padding: 2px; }
     
     .sidebar {
@@ -88,22 +87,60 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
     
     .mobile-overlay.active { display: block; top: 70px; }
 
-    /* لمينا المسافات عشان كل الأيقونات تظهر جنب بعضها شيك */
     .topbar { padding: 0 10px; width: 100%; justify-content: space-between; gap: 5px; }
     .topbar-right, .topbar-left { gap: 8px; }
     
-    /* إخفاء كلمة "لوحة التحكم" عشان نوفر مساحة للأيقونات */
     .topbar h2 { display: none; } 
 
-    /* تصغير زرار اللغة */
     .lang-switch { font-size: 12px; }
     .lang-btn { font-size: 12px; }
 
-    /* إخفاء إيميل المستخدم وترك أيقونة الدكتور (الأفاتار) فقط */
     .user-email { display: none; }
     .user-profile { padding: 2px; border: none; background: transparent; }
     .user-avatar { padding: 4px 6px; font-size: 16px; }
 
-    /* تصغير زرار الخروج */
     .logout-btn { padding: 6px 10px; font-size: 12px; }
 }
+
+/* ================= الإضافات الجديدة (بدون المساس بالقديم) ================= */
+
+/* 1. زرار الثيم (الوضع الليلي) */
+.btn-theme {
+    background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; font-size: 18px; 
+    border-radius: 50%; width: 35px; height: 35px; display: flex; justify-content: center; 
+    align-items: center; cursor: pointer; transition: all 0.3s ease;
+}
+.btn-theme:hover { background: #e2e8f0; transform: scale(1.1); }
+
+/* 2. مودال الدعم الفني */
+.support-modal { display: none; position: fixed; z-index: 10000; inset: 0; background-color: rgba(15, 23, 42, 0.8); align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+.support-modal-content { background: #ffffff; border-radius: 20px; width: 90%; max-width: 500px; padding: 35px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; text-align: right; direction: rtl; transition: background-color 0.3s ease;}
+html[dir="ltr"] .support-modal-content { text-align: left; direction: ltr; }
+.support-close { position: absolute; left: 25px; right: auto; top: 25px; font-size: 28px; color: #94a3b8; cursor: pointer; transition: 0.2s ease; line-height: 1; }
+html[dir="ltr"] .support-close { right: 25px; left: auto; }
+.support-close:hover { color: #ef4444; transform: rotate(90deg); }
+.btn-whatsapp { background: #25d366; color: white; transition: 0.3s; }
+.btn-whatsapp:hover { background: #1da851; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3); }
+
+/* 3. 🔴 سحر الوضع الليلي (Dark Mode Overrides) 🔴 */
+[data-theme="dark"] body { background: #0f172a; }
+[data-theme="dark"] .topbar { background: #1e293b; border-bottom: 1px solid #334155; box-shadow: none; }
+[data-theme="dark"] .topbar h2 { color: #f8fafc; }
+[data-theme="dark"] .user-profile { background: #0f172a; border-color: #334155; }
+[data-theme="dark"] .user-email { color: #f8fafc; }
+[data-theme="dark"] .btn-theme { background: #334155; border-color: #475569; color: #f8fafc; }
+[data-theme="dark"] .btn-theme:hover { background: #475569; }
+[data-theme="dark"] .menu-toggle, [data-theme="dark"] .desktop-toggle { color: #94a3b8; }
+[data-theme="dark"] .menu-toggle:hover, [data-theme="dark"] .desktop-toggle:hover { background: #334155; color: #38bdf8; }
+[data-theme="dark"] .content-frame { background: #0f172a; }
+[data-theme="dark"] .sidebar { background: #020617; border-left: 1px solid #1e293b; }
+html[dir="ltr"][data-theme="dark"] .sidebar { border-left: none; border-right: 1px solid #1e293b; }
+[data-theme="dark"] .lang-btn { color: #94a3b8; }
+[data-theme="dark"] .lang-btn:hover { color: #38bdf8; }
+
+/* الوضع الليلي لمودال الدعم الفني */
+[data-theme="dark"] .support-modal-content { background: #1e293b; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+[data-theme="dark"] #mod-support-title { color: #f8fafc; border-color: #334155; }
+[data-theme="dark"] #mod-support-desc { color: #94a3b8; }
+[data-theme="dark"] #support_message { background: #0f172a; color: #f8fafc; border-color: #475569; }
+[data-theme="dark"] #support_message:focus { border-color: #38bdf8; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1); }
