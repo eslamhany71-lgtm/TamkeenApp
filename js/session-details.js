@@ -61,6 +61,8 @@ async function loadSessionDetails() {
     loadSessionPrescription();
     loadClinicPharmacy();
     loadRxTemplates(); 
+    // 🔴 تم إضافة استدعاء رسم مخطط الأسنان هنا 🔴
+    renderDentalChart();
 }
 
 function openEditSessionModal() {
@@ -714,6 +716,75 @@ async function deleteDoc(collectionName, docId) {
             if (window.hideLoader) window.hideLoader();
         }
     }
+}
+
+// ====================================================================
+// 🔴 5. مخطط الأسنان التفاعلي (Dental Chart) 🔴
+// ====================================================================
+
+// 1. متغير عشان نحفظ فيه رقم السِنة اللي الدكتور داس عليها حالياً
+let currentSelectedTooth = null; 
+
+// 2. الدالة المسؤولة عن رسم الأسنان أول ما الصفحة تفتح
+function renderDentalChart() {
+    const upperJaw = document.getElementById('upper-jaw');
+    const lowerJaw = document.getElementById('lower-jaw');
+    
+    // بنفضي الفكين عشان لو الصفحة عملت تحديث ميرسمش أسنان فوق أسنان
+    upperJaw.innerHTML = ''; 
+    lowerJaw.innerHTML = '';
+    
+    // 3. (حلقة تكرارية) من رقم 1 لحد 16، عشان نرسم أسنان الفك العلوي
+    for (let i = 1; i <= 16; i++) {
+        // بننادي على الدالة اللي بتصنع السِنة، وبنديها الرقم، وبعدين بنلزقها في الفك العلوي
+        upperJaw.appendChild(createToothElement(i));
+    }
+    
+    // 4. (حلقة تكرارية) من رقم 17 لحد 32، عشان نرسم الفك السفلي
+    for (let i = 17; i <= 32; i++) {
+        lowerJaw.appendChild(createToothElement(i));
+    }
+}
+
+// 5. دي الدالة اللي بتصنع عنصر السِنة نفسه برمجياً (كأنك كتبتها في الـ HTML)
+function createToothElement(number) {
+    const toothDiv = document.createElement('div'); // اخلق عنصر div جديد
+    toothDiv.className = 'tooth'; // اديله شكل السِنة من الـ CSS
+    toothDiv.id = `tooth-${number}`; // اديله ID مميز عشان نعرف نمسكه بعدين (مثال: tooth-5)
+    toothDiv.innerText = number; // اكتب جواه رقم السِنة
+    
+    // بنقول للسِنة: لما حد يضغط عليكي (onclick)، شغلي دالة فتح النافذة وابعتيلها رقمك
+    toothDiv.onclick = function() {
+        openToothModal(number);
+    };
+    
+    return toothDiv; // بنرجع السِنة جاهزة عشان تترص في الفك
+}
+
+// 6. دالة بتفتح النافذة المنبثقة وتكتب فيها رقم السِنة
+function openToothModal(toothNumber) {
+    currentSelectedTooth = toothNumber; // بنسجل الرقم في الذاكرة
+    document.getElementById('selected-tooth-title').innerText = `اختر حالة السِنة رقم (${toothNumber})`;
+    openModal('toothStatusModal'); // بنفتح النافذة
+}
+
+// 7. الدالة اللي بتلون السِنة بناءً على اختيار الدكتور
+function saveToothStatus(statusType) {
+    // لو مفيش سِنة متسجلة في الذاكرة، وقف ومتعملش حاجة
+    if (!currentSelectedTooth) return; 
+    
+    // بنمسك السِنة اللي الدكتور داس عليها عن طريق الـ ID بتاعها
+    const toothElement = document.getElementById(`tooth-${currentSelectedTooth}`);
+    
+    // بنمسح أي حالات قديمة (ألوان) كانت على السِنة دي قبل كده
+    toothElement.classList.remove('status-decay', 'status-extracted', 'status-crown');
+    
+    // لو الدكتور اختار حالة غير "سليم"، بنضيف اللون (الكلاس) الجديد للسِنة
+    if (statusType !== 'normal') {
+        toothElement.classList.add(`status-${statusType}`);
+    }
+    
+    closeModal('toothStatusModal'); // نقفل النافذة بعد ما نخلص
 }
 
 window.onload = () => {
