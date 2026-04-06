@@ -10,15 +10,18 @@ let currentUserDisplayName = "مستخدم غير معروف";
 const SESSIONS_PER_PAGE = 50;
 let lastVisibleProfileSession = null;
 
-// مش هنحتاج دالة getLang() اللي عملتها المرة اللي فاتت لأن applyLanguage بتاعتك بتعمل كل حاجة
-// دالة updatePageContent دي اللي ملف lang-manager بتاعك بينادي عليها
+// 🔴 متغير جديد عشان نضمن إن الجلسات تتحمل مرة واحدة بس مش كل ما الدين يتغير
+let isInitialLoad = true;
+
+function getLang() {
+    return (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+}
+
 function updatePageContent(lang) {
     const isAr = lang === 'ar';
     document.getElementById('searchSessionInput').placeholder = isAr ? 'بحث بالتاريخ، الإجراء...' : 'Search by date, procedure...';
-    
-    // إعادة رسم الجداول عشان تترجم محتوياتها
     if (loadedPatientSessions.length > 0) renderPatientSessionsTable();
-    loadLabOrders(); // نحدث المعامل عشان اللغة
+    loadLabOrders(); 
 }
 
 function openModal(id) { 
@@ -38,17 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-async function loadPatientData() {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+// 🔴 التحديث السحري: استخدام onSnapshot للمراقبة اللحظية (Real-time)
+function loadPatientData() {
+    const isAr = getLang();
     if (!patientId || !clinicId) {
         document.getElementById('prof-name').innerText = isAr ? "خطأ: لم يتم العثور على المريض" : "Error: Patient not found";
         return;
     }
 
-    if (window.showLoader) window.showLoader(isAr ? "جاري تحميل ملف المريض..." : "Loading patient profile...");
+    if (isInitialLoad && window.showLoader) window.showLoader(isAr ? "جاري تحميل ملف المريض..." : "Loading patient profile...");
 
-    try {
-        const doc = await db.collection("Patients").doc(patientId).get();
+    // onSnapshot بتفضل تراقب ملف المريض، أي تغيير في الدين هيظهر فوراً بدون ريفريش
+    db.collection("Patients").doc(patientId).onSnapshot(doc => {
         if (doc.exists) {
             const p = doc.data();
             currentPatientName = p.name;
@@ -72,16 +76,19 @@ async function loadPatientData() {
                 const safeTxt = isAr ? '✅ سليم / لا يوجد أمراض مزمنة' : '✅ Healthy / No Chronic Diseases';
                 alerts.innerHTML = `<span style="color: #10b981; font-weight: bold;">${safeTxt}</span>`;
             }
-
-            // 🔴 حل مشكلة جلب الجلسات: شلت الأوردر المعقد مؤقتاً عشان لو الاندكس فيه مشكلة يقرأ الداتا
-            await loadPatientSessions(); 
-            loadLabOrders(); 
         }
-    } catch (e) { 
-        console.error(e); 
-    } finally {
-        if (window.hideLoader) window.hideLoader();
-    }
+        
+        // لو دي أول مرة نفتح الصفحة، حمل الجلسات والمعامل، بعدين شيل اللودر
+        if (isInitialLoad) {
+            loadPatientSessions(); 
+            loadLabOrders(); 
+            isInitialLoad = false;
+            if (window.hideLoader) window.hideLoader();
+        }
+    }, (error) => {
+        console.error(error);
+        if (isInitialLoad && window.hideLoader) window.hideLoader();
+    });
 }
 
 // ==========================================
@@ -90,7 +97,7 @@ async function loadPatientData() {
 
 async function saveLabOrder(e) {
     e.preventDefault();
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const isAr = getLang();
     const btn = document.getElementById('btn-save-lab');
     btn.disabled = true;
     
@@ -135,7 +142,7 @@ async function saveLabOrder(e) {
 
 function loadLabOrders() {
     db.collection("LabOrders").where("patientId", "==", patientId).orderBy("createdAt", "desc").onSnapshot(snap => {
-        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+        const isAr = getLang();
         const container = document.getElementById('lab-orders-list');
         container.innerHTML = '';
 
@@ -177,7 +184,7 @@ function loadLabOrders() {
 }
 
 async function markLabOrderDelivered(orderId) {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const isAr = getLang();
     if(confirm(isAr ? "هل تم استلام الشغل من المعمل؟" : "Is the work delivered?")) {
         if(window.showLoader) window.showLoader(isAr ? "تحديث..." : "Updating...");
         try { await db.collection("LabOrders").doc(orderId).update({ status: 'delivered', deliveredAt: firebase.firestore.FieldValue.serverTimestamp() }); } 
@@ -186,7 +193,7 @@ async function markLabOrderDelivered(orderId) {
 }
 
 // ==========================================
-// الجلسات الأساسية (بحل مشكلة الاستدعاء)
+// الجلسات الأساسية 
 // ==========================================
 
 function calculateRemaining(mode = 'add') {
@@ -198,7 +205,7 @@ function calculateRemaining(mode = 'add') {
 
 async function saveSession(e, isEditMode) {
     e.preventDefault();
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const isAr = getLang();
     const prefix = isEditMode ? 'edit_sess_' : 'sess_';
     const btnId = isEditMode ? 'btn-update-session' : 'btn-save-session';
     const modalId = isEditMode ? 'editSessionModal' : 'sessionModal';
@@ -279,7 +286,7 @@ async function saveSession(e, isEditMode) {
 }
 
 async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const isAr = getLang();
     const amountStr = prompt(isAr ? `المتبقي: ${currentRemaining}\nأدخل السداد:` : `Remaining: ${currentRemaining}\nEnter payment:`, currentRemaining);
     if (amountStr === null) return; 
     
@@ -331,17 +338,15 @@ function sortDataLocally(dataArray) {
     });
 }
 
-// 🔴 دالة الاستدعاء المحدثة: هنستخدم فلتر الـ patientId بس، وهنرتب عندنا محلياً عشان نتجنب مشكلة الـ Index
 async function loadPatientSessions() {
     if (!patientId) return;
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const isAr = getLang();
     const tbody = document.getElementById('sessions-list');
 
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">${isAr ? 'جاري التحميل...' : 'Loading...'}</td></tr>`;
     loadedPatientSessions = [];
 
     try {
-        // بنجيب الداتا المربوطة بالمريض بس، الفايربيز هيقبل ده من غير Index معقد
         const snap = await db.collection("Sessions").where("patientId", "==", patientId).get();
         
         if (!snap.empty) {
@@ -351,7 +356,6 @@ async function loadPatientSessions() {
                 loadedPatientSessions.push(s);
             });
             
-            // بنرتبهم هنا عندنا بالجافاسكريبت بالأحدث
             sortDataLocally(loadedPatientSessions);
             renderPatientSessionsTable();
         } else {
@@ -366,7 +370,7 @@ async function loadPatientSessions() {
 function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
     const tbody = document.getElementById('sessions-list');
     tbody.innerHTML = '';
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const isAr = getLang();
     
     if(dataToRender.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">${isAr ? 'لا توجد بيانات' : 'No Data'}</td></tr>`;
@@ -462,7 +466,7 @@ function viewSessionDetails(sessionId) {
 }
 
 async function deleteDoc(collectionName, docId) {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const isAr = getLang();
     if(confirm(isAr ? "هل أنت متأكد من الحذف؟" : "Are you sure you want to delete?")) {
         if (window.showLoader) window.showLoader(isAr ? "جاري الحذف..." : "Deleting...");
         try { 
@@ -478,13 +482,12 @@ async function deleteDoc(collectionName, docId) {
 }
 
 window.onload = () => {
-    // مفيش داعي ننادي على applyLanguage هنا لأن ملف lang-manager بيعملها أوتوماتيك لما بيحمل
     firebase.auth().onAuthStateChanged(async (user) => { 
         if (user) { 
             try {
                 const userDoc = await db.collection("Users").doc(user.email).get();
                 if (userDoc.exists) {
-                    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+                    const isAr = getLang();
                     currentUserDisplayName = userDoc.data().name || (isAr ? "مدير النظام" : "Admin");
                 }
             } catch(e) { console.error(e); }
