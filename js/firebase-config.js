@@ -190,3 +190,85 @@ window.hideLoader = function() {
         window.top.executeHideLoader();
     }
 };
+
+// =====================================================================
+// 🔴 سحر الوضع الليلي (Universal Dark Mode Injector) 🔴
+// =====================================================================
+
+// 1. حقن ستايل الوضع الليلي في رأس كل صفحة أوتوماتيكياً
+const darkModeStyles = `
+    [data-theme="dark"] body { background-color: #0f172a !important; color: #f8fafc !important; }
+    [data-theme="dark"] .page-header { background: transparent !important; }
+    [data-theme="dark"] #txt-title, [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3 { color: #f8fafc !important; }
+    [data-theme="dark"] #txt-subtitle, [data-theme="dark"] p { color: #94a3b8 !important; }
+
+    /* الجداول */
+    [data-theme="dark"] .table-container { background: #1e293b !important; border: 1px solid #334155 !important; box-shadow: none !important; }
+    [data-theme="dark"] table th { background: #0f172a !important; color: #cbd5e1 !important; border-bottom: 1px solid #334155 !important; }
+    [data-theme="dark"] table td { color: #f8fafc !important; border-bottom: 1px solid #334155 !important; }
+    [data-theme="dark"] table tr:hover td { background-color: #334155 !important; }
+    [data-theme="dark"] .clickable-row:hover td { background-color: #334155 !important; }
+
+    /* الموديل (النوافذ المنبثقة) */
+    [data-theme="dark"] .modal-content { background: #1e293b !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9) !important; }
+    [data-theme="dark"] .modal-content h2, [data-theme="dark"] .modal-content h3 { border-color: #334155 !important; }
+    [data-theme="dark"] .close-modal { color: #94a3b8 !important; }
+    [data-theme="dark"] .close-modal:hover { color: #ef4444 !important; }
+    [data-theme="dark"] .details-box, [data-theme="dark"] .finance-box-modal, [data-theme="dark"] .session-summary { background: #0f172a !important; border: 1px solid #334155 !important; }
+    [data-theme="dark"] .details-box p strong, [data-theme="dark"] .finance-box-modal label { color: #cbd5e1 !important; }
+    [data-theme="dark"] .details-box span { color: #f8fafc !important; }
+
+    /* الحقول (Inputs & Selects) */
+    [data-theme="dark"] input:not([type="checkbox"]), [data-theme="dark"] select, [data-theme="dark"] textarea, [data-theme="dark"] .search-box {
+        background-color: #0f172a !important; color: #f8fafc !important; border: 1px solid #475569 !important;
+    }
+    [data-theme="dark"] input[readonly] { background-color: #1e293b !important; color: #ef4444 !important; border-color: #334155 !important; }
+    [data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus {
+        border-color: #38bdf8 !important; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1) !important;
+    }
+    [data-theme="dark"] label { color: #cbd5e1 !important; }
+
+    /* الكروت (KPIs, Dashboard & Settings) */
+    [data-theme="dark"] .kpi-card, [data-theme="dark"] .settings-card { background: #1e293b !important; border-color: #334155 !important; box-shadow: none !important; }
+    [data-theme="dark"] .kpi-info h4 { color: #94a3b8 !important; }
+    [data-theme="dark"] .kpi-info h2 { color: #f8fafc !important; }
+    [data-theme="dark"] .chart-container { background: #1e293b !important; border-color: #334155 !important; box-shadow: none !important; }
+
+    /* التقويم (Calendar) */
+    [data-theme="dark"] .fc { color: #f8fafc !important; }
+    [data-theme="dark"] .fc-theme-standard td, [data-theme="dark"] .fc-theme-standard th { border-color: #334155 !important; }
+    [data-theme="dark"] .fc-theme-standard .fc-scrollgrid { border-color: #334155 !important; }
+    [data-theme="dark"] .fc-col-header-cell { background-color: #0f172a !important; }
+    [data-theme="dark"] .fc-daygrid-day { background-color: #1e293b !important; }
+    [data-theme="dark"] .fc-day-today { background-color: #334155 !important; }
+    [data-theme="dark"] .fc-list-day-cushion { background-color: #334155 !important; color: #f8fafc !important; }
+    [data-theme="dark"] .fc-list-event:hover td { background-color: #475569 !important; }
+    [data-theme="dark"] .fc-list-event-title { color: #f8fafc !important; }
+    [data-theme="dark"] .fc-timegrid-slot-label-cushion { color: #94a3b8 !important; }
+
+    /* حالات فارغة وعناصر إضافية */
+    [data-theme="dark"] .empty-state { background: #0f172a !important; border-color: #334155 !important; color: #94a3b8 !important; }
+    [data-theme="dark"] .drug-list-item { background: #0f172a !important; border-color: #334155 !important; }
+    [data-theme="dark"] .search-results { background: #1e293b !important; border-color: #334155 !important; }
+    [data-theme="dark"] .search-item { border-color: #334155 !important; }
+    [data-theme="dark"] .search-item:hover { background: #334155 !important; }
+    [data-theme="dark"] .search-item strong { color: #f8fafc !important; }
+`;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // حقن الكود السحري
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = darkModeStyles;
+    document.head.appendChild(styleSheet);
+
+    // سحب الثيم المحفوظ وتطبيقه أول ما الصفحة تفتح
+    const savedTheme = localStorage.getItem('niva_theme') || 'light';
+    document.body.setAttribute('data-theme', savedTheme);
+});
+
+// 2. مستمع الإشارات من الواجهة الرئيسية (home.html)
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'THEME_CHANGE') {
+        document.body.setAttribute('data-theme', event.data.theme);
+    }
+});
