@@ -768,23 +768,32 @@ function openToothModal(toothNumber) {
     openModal('toothStatusModal'); // بنفتح النافذة
 }
 
-// 7. الدالة اللي بتلون السِنة بناءً على اختيار الدكتور
-function saveToothStatus(statusType) {
-    // لو مفيش سِنة متسجلة في الذاكرة، وقف ومتعملش حاجة
+// 7. الدالة اللي بتلون السِنة وبتحفظها في الفايربيز
+async function saveToothStatus(statusType) {
     if (!currentSelectedTooth) return; 
     
-    // بنمسك السِنة اللي الدكتور داس عليها عن طريق الـ ID بتاعها
+    // 1. تلوين السِنة في الشاشة قدام الدكتور (عشان يحس بالاستجابة فوراً)
     const toothElement = document.getElementById(`tooth-${currentSelectedTooth}`);
-    
-    // بنمسح أي حالات قديمة (ألوان) كانت على السِنة دي قبل كده
     toothElement.classList.remove('status-decay', 'status-extracted', 'status-crown');
-    
-    // لو الدكتور اختار حالة غير "سليم"، بنضيف اللون (الكلاس) الجديد للسِنة
     if (statusType !== 'normal') {
         toothElement.classList.add(`status-${statusType}`);
     }
-    
-    closeModal('toothStatusModal'); // نقفل النافذة بعد ما نخلص
+    closeModal('toothStatusModal');
+
+    // 2. إرسال البيانات لقاعدة بيانات الفايربيز للحفظ
+    if (window.showLoader) window.showLoader("جاري حفظ حالة السِنة...");
+    try {
+        // بنعمل تحديث (update) للجلسة الحالية في الفايربيز
+        // بنستخدم طريقة النقطة (dentalChart.15) عشان نحفظ حالة كل سنة لوحدها من غير ما نمسح الباقي
+        await db.collection("Sessions").doc(sessionId).update({
+            [`dentalChart.${currentSelectedTooth}`]: statusType
+        });
+    } catch (e) {
+        console.error(e);
+        alert("❌ حدث خطأ أثناء حفظ حالة السِنة.");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 window.onload = () => {
