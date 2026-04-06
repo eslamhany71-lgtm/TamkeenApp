@@ -10,11 +10,10 @@ let patientName = "المريض";
 let patientAge = "---";
 let clinicPharmacy = []; 
 
-// 🔴 متغيرات الروشتات (تم تحديثها لدعم الروشتات المتعددة) 🔴
-let sessionPrescriptions = {}; // هيشيل كل الروشتات بتاعة الجلسة
+// 🔴 متغيرات الروشتات
+let sessionPrescriptions = {}; 
 let currentPrescriptionDrugs = []; 
 let activePrescriptionDocId = null; 
-
 let editDrugId = null; 
 
 function goBackToPatient() {
@@ -54,6 +53,21 @@ async function loadSessionDetails() {
             document.getElementById('sd-paid').innerText = sessionData.paid || 0;
             document.getElementById('sd-remaining').innerText = sessionData.remaining || 0;
             document.getElementById('sd-notes').innerText = sessionData.notes || 'لا يوجد';
+
+            // 🔴 1. دالة الاسترجاع (عشان تقرأ من الفايربيز وتلون السِنة) 🔴
+            if (sessionData.dentalChart) {
+                // بنلف على كل البيانات المحفوظة في الداتابيز (مثلاً السن 5 تسوس، السن 10 مخلوع)
+                for (const [toothNum, status] of Object.entries(sessionData.dentalChart)) {
+                    const toothEl = document.getElementById(`tooth-${toothNum}`);
+                    if (toothEl) {
+                        // بنمسح أي لون قديم ونحط اللون الجديد المحفوظ
+                        toothEl.classList.remove('status-decay', 'status-extracted', 'status-crown');
+                        if (status !== 'normal') {
+                            toothEl.classList.add(`status-${status}`);
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -61,8 +75,7 @@ async function loadSessionDetails() {
     loadSessionPrescription();
     loadClinicPharmacy();
     loadRxTemplates(); 
-    // 🔴 تم إضافة استدعاء رسم مخطط الأسنان هنا 🔴
-    renderDentalChart();
+    renderDentalChart(); // رسم مخطط الأسنان
 }
 
 function openEditSessionModal() {
@@ -105,7 +118,7 @@ async function updateSession(e) {
 }
 
 // ====================================================================
-// 🔴 1. إدارة الأدوية والاستيراد من الإكسيل 🔴
+// 🔴 إدارة الأدوية 🔴
 // ====================================================================
 
 function loadClinicPharmacy() {
@@ -296,7 +309,7 @@ function importDrugsFromExcel(input) {
 }
 
 // ====================================================================
-// 🔴 2. الروشتة الذكية وقوالب الروشتات (التعديل للروشتات المتعددة) 🔴
+// 🔴 الروشتة الذكية 🔴
 // ====================================================================
 
 function addDrugToPrescriptionList(drug) {
@@ -338,9 +351,8 @@ function renderSelectedDrugs() {
 
 function updateDose(index, newDose) { currentPrescriptionDrugs[index].dose = newDose; }
 
-// 🔴 إنشاء روشتة جديدة تماماً (تُستدعى من زرار "إصدار روشتة" الخارجي)
 function openSmartRxModal() {
-    activePrescriptionDocId = null; // تفريغ الـ ID عشان يعمل روشتة جديدة
+    activePrescriptionDocId = null; 
     currentPrescriptionDrugs = [];
     document.getElementById('drug-search').value = '';
     document.getElementById('search-results-box').style.display = 'none';
@@ -350,12 +362,11 @@ function openSmartRxModal() {
     openModal('smartRxModal');
 }
 
-// 🔴 تعديل روشتة سابقة (تُستدعى من زرار "تعديل الأدوية" جوه كارت الروشتة)
 function editPrescription(docId) {
     const p = sessionPrescriptions[docId];
     if(!p) return;
     
-    activePrescriptionDocId = docId; // ربط المودال بالروشتة دي بالذات
+    activePrescriptionDocId = docId; 
     currentPrescriptionDrugs = p.rawDrugsArray ? [...p.rawDrugsArray] : [];
     document.getElementById('rx_general_notes').value = p.notes || '';
     document.getElementById('drug-search').value = '';
@@ -460,10 +471,8 @@ async function saveSmartPrescription() {
 
     try {
         if(activePrescriptionDocId) {
-            // تحديث روشتة حالية
             await db.collection("Prescriptions").doc(activePrescriptionDocId).update(data);
         } else {
-            // إنشاء روشتة جديدة
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection("Prescriptions").add(data);
         }
@@ -476,11 +485,11 @@ async function saveSmartPrescription() {
 }
 
 // ====================================================================
-// 🔴 3. المرفقات الخارجية المتعددة وعرض الروشتات 🔴
+// 🔴 المرفقات والروشتات 🔴
 // ====================================================================
 
 function attachImageToRx(docId) {
-    activePrescriptionDocId = docId; // ربط زرار الرفع بالروشتة المحددة
+    activePrescriptionDocId = docId; 
     document.getElementById('upload-rx-input').click();
 }
 
@@ -488,7 +497,7 @@ function loadSessionPrescription() {
     db.collection("Prescriptions").where("sessionId", "==", sessionId).orderBy("createdAt", "asc").onSnapshot(snap => {
         const container = document.getElementById('session-rx-container');
         
-        sessionPrescriptions = {}; // تفريغ الروشتات المخزنة
+        sessionPrescriptions = {}; 
 
         if(snap.empty) {
             container.innerHTML = `
@@ -500,12 +509,12 @@ function loadSessionPrescription() {
             return;
         }
         
-        container.innerHTML = ''; // مسح الـ Container عشان نرص الروشتات
+        container.innerHTML = ''; 
         let counter = 1;
 
         snap.forEach(doc => {
             const p = doc.data();
-            sessionPrescriptions[doc.id] = p; // تخزين الروشتة للاستخدام في التعديل
+            sessionPrescriptions[doc.id] = p; 
 
             let uploadedUrls = [];
             if (p.uploadedRxUrl) uploadedUrls.push(p.uploadedRxUrl);
@@ -616,7 +625,7 @@ async function deleteSpecificRxImage(docId, imageUrl) {
 }
 
 // ====================================================================
-// 🔴 4. الطباعة والمرفقات (الأشعة) 🔴
+// 🔴 الطباعة والأشعة 🔴
 // ====================================================================
 
 function printSessionRx(docId) {
@@ -722,57 +731,48 @@ async function deleteDoc(collectionName, docId) {
 // 🔴 5. مخطط الأسنان التفاعلي (Dental Chart) 🔴
 // ====================================================================
 
-// 1. متغير عشان نحفظ فيه رقم السِنة اللي الدكتور داس عليها حالياً
 let currentSelectedTooth = null; 
 
-// 2. الدالة المسؤولة عن رسم الأسنان أول ما الصفحة تفتح
 function renderDentalChart() {
     const upperJaw = document.getElementById('upper-jaw');
     const lowerJaw = document.getElementById('lower-jaw');
     
-    // بنفضي الفكين عشان لو الصفحة عملت تحديث ميرسمش أسنان فوق أسنان
     upperJaw.innerHTML = ''; 
     lowerJaw.innerHTML = '';
     
-    // 3. (حلقة تكرارية) من رقم 1 لحد 16، عشان نرسم أسنان الفك العلوي
     for (let i = 1; i <= 16; i++) {
-        // بننادي على الدالة اللي بتصنع السِنة، وبنديها الرقم، وبعدين بنلزقها في الفك العلوي
         upperJaw.appendChild(createToothElement(i));
     }
     
-    // 4. (حلقة تكرارية) من رقم 17 لحد 32، عشان نرسم الفك السفلي
     for (let i = 17; i <= 32; i++) {
         lowerJaw.appendChild(createToothElement(i));
     }
 }
 
-// 5. دي الدالة اللي بتصنع عنصر السِنة نفسه برمجياً (كأنك كتبتها في الـ HTML)
 function createToothElement(number) {
-    const toothDiv = document.createElement('div'); // اخلق عنصر div جديد
-    toothDiv.className = 'tooth'; // اديله شكل السِنة من الـ CSS
-    toothDiv.id = `tooth-${number}`; // اديله ID مميز عشان نعرف نمسكه بعدين (مثال: tooth-5)
-    toothDiv.innerText = number; // اكتب جواه رقم السِنة
+    const toothDiv = document.createElement('div'); 
+    toothDiv.className = 'tooth'; 
+    toothDiv.id = `tooth-${number}`; 
+    toothDiv.innerText = number; 
     
-    // بنقول للسِنة: لما حد يضغط عليكي (onclick)، شغلي دالة فتح النافذة وابعتيلها رقمك
     toothDiv.onclick = function() {
         openToothModal(number);
     };
     
-    return toothDiv; // بنرجع السِنة جاهزة عشان تترص في الفك
+    return toothDiv; 
 }
 
-// 6. دالة بتفتح النافذة المنبثقة وتكتب فيها رقم السِنة
 function openToothModal(toothNumber) {
-    currentSelectedTooth = toothNumber; // بنسجل الرقم في الذاكرة
+    currentSelectedTooth = toothNumber; 
     document.getElementById('selected-tooth-title').innerText = `اختر حالة السِنة رقم (${toothNumber})`;
-    openModal('toothStatusModal'); // بنفتح النافذة
+    openModal('toothStatusModal'); 
 }
 
-// 7. الدالة اللي بتلون السِنة وبتحفظها في الفايربيز
+// 🔴 2. دالة الحفظ (عشان تبعت للفايربيز) 🔴
 async function saveToothStatus(statusType) {
     if (!currentSelectedTooth) return; 
     
-    // 1. تلوين السِنة في الشاشة قدام الدكتور (عشان يحس بالاستجابة فوراً)
+    // 1. تلوين السِنة في الشاشة قدام الدكتور
     const toothElement = document.getElementById(`tooth-${currentSelectedTooth}`);
     toothElement.classList.remove('status-decay', 'status-extracted', 'status-crown');
     if (statusType !== 'normal') {
@@ -780,11 +780,9 @@ async function saveToothStatus(statusType) {
     }
     closeModal('toothStatusModal');
 
-    // 2. إرسال البيانات لقاعدة بيانات الفايربيز للحفظ
+    // 2. إرسال البيانات لقاعدة بيانات الفايربيز
     if (window.showLoader) window.showLoader("جاري حفظ حالة السِنة...");
     try {
-        // بنعمل تحديث (update) للجلسة الحالية في الفايربيز
-        // بنستخدم طريقة النقطة (dentalChart.15) عشان نحفظ حالة كل سنة لوحدها من غير ما نمسح الباقي
         await db.collection("Sessions").doc(sessionId).update({
             [`dentalChart.${currentSelectedTooth}`]: statusType
         });
