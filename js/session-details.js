@@ -10,11 +10,16 @@ let patientName = "المريض";
 let patientAge = "---";
 let clinicPharmacy = []; 
 
-// 🔴 متغيرات الروشتات
+// متغيرات الروشتات
 let sessionPrescriptions = {}; 
 let currentPrescriptionDrugs = []; 
 let activePrescriptionDocId = null; 
 let editDrugId = null; 
+
+// دالة لمعرفة اللغة الحالية
+function getLang() {
+    return (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+}
 
 function goBackToPatient() {
     window.parent.loadPage(`patient-profile.html?id=${patientId}`, window.parent.document.getElementById('nav-patients').parentElement);
@@ -31,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadSessionDetails() {
     if(!sessionId || !clinicId) return;
+    const isAr = getLang();
 
     db.collection("Patients").doc(patientId).get().then(doc => {
         if(doc.exists) {
@@ -52,15 +58,13 @@ async function loadSessionDetails() {
             document.getElementById('sd-total').innerText = sessionData.total || 0;
             document.getElementById('sd-paid').innerText = sessionData.paid || 0;
             document.getElementById('sd-remaining').innerText = sessionData.remaining || 0;
-            document.getElementById('sd-notes').innerText = sessionData.notes || 'لا يوجد';
+            document.getElementById('sd-notes').innerText = sessionData.notes || (isAr ? 'لا يوجد' : 'None');
 
-            // 🔴 1. دالة الاسترجاع (عشان تقرأ من الفايربيز وتلون السِنة) 🔴
+            // قراءة بيانات الأسنان وتلوينها
             if (sessionData.dentalChart) {
-                // بنلف على كل البيانات المحفوظة في الداتابيز (مثلاً السن 5 تسوس، السن 10 مخلوع)
                 for (const [toothNum, status] of Object.entries(sessionData.dentalChart)) {
                     const toothEl = document.getElementById(`tooth-${toothNum}`);
                     if (toothEl) {
-                        // بنمسح أي لون قديم ونحط اللون الجديد المحفوظ
                         toothEl.classList.remove('status-decay', 'status-extracted', 'status-crown');
                         if (status !== 'normal') {
                             toothEl.classList.add(`status-${status}`);
@@ -75,7 +79,7 @@ async function loadSessionDetails() {
     loadSessionPrescription();
     loadClinicPharmacy();
     loadRxTemplates(); 
-    renderDentalChart(); // رسم مخطط الأسنان
+    renderDentalChart();
 }
 
 function openEditSessionModal() {
@@ -97,7 +101,8 @@ function calcEditRemaining() {
 
 async function updateSession(e) {
     e.preventDefault();
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
+    const isAr = getLang();
+    if (window.showLoader) window.showLoader(isAr ? "جاري التحديث..." : "Updating...");
 
     const data = {
         date: document.getElementById('es_date').value,
@@ -117,9 +122,9 @@ async function updateSession(e) {
     }
 }
 
-// ====================================================================
-// 🔴 إدارة الأدوية 🔴
-// ====================================================================
+// ==========================================
+// إدارة الأدوية 
+// ==========================================
 
 function loadClinicPharmacy() {
     db.collection("Pharmacy").where("clinicId", "==", clinicId).onSnapshot(snap => {
@@ -132,17 +137,19 @@ function loadClinicPharmacy() {
 }
 
 function openAddDrugModal() {
+    const isAr = getLang();
     editDrugId = null; 
     document.getElementById('new_drug_category').value = '';
     document.getElementById('new_drug_name').value = '';
     document.getElementById('new_drug_dose').value = '';
-    document.getElementById('modal-drug-title').innerText = 'إضافة علاج جديد للعيادة';
-    document.getElementById('btn-save-drug').innerText = 'حفظ في قاعدة الأدوية';
+    document.getElementById('modal-drug-title').innerText = isAr ? 'إضافة علاج جديد' : 'Add New Drug';
+    document.getElementById('btn-save-drug').innerText = isAr ? 'حفظ في قاعدة الأدوية' : 'Save Drug';
     openModal('addDrugModal');
 }
 
 function openEditDrugModal(drugId, event) {
     event.stopPropagation(); 
+    const isAr = getLang();
     const drug = clinicPharmacy.find(d => d.id === drugId);
     if(!drug) return;
 
@@ -150,15 +157,18 @@ function openEditDrugModal(drugId, event) {
     document.getElementById('new_drug_category').value = drug.category;
     document.getElementById('new_drug_name').value = drug.name;
     document.getElementById('new_drug_dose').value = drug.defaultDose;
-    document.getElementById('modal-drug-title').innerText = 'تعديل بيانات العلاج';
-    document.getElementById('btn-save-drug').innerText = 'حفظ التعديلات';
+    document.getElementById('modal-drug-title').innerText = isAr ? 'تعديل بيانات العلاج' : 'Edit Drug';
+    document.getElementById('btn-save-drug').innerText = isAr ? 'حفظ التعديلات' : 'Save Changes';
     openModal('addDrugModal');
 }
 
 async function deleteDrugFromPharmacy(drugId, event) {
     event.stopPropagation(); 
-    if(confirm("هل أنت متأكد من حذف هذا الدواء نهائياً من قاعدة بيانات العيادة؟")) {
-        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+    const isAr = getLang();
+    const msg = isAr ? "هل أنت متأكد من حذف هذا الدواء نهائياً؟" : "Are you sure you want to delete this drug permanently?";
+    
+    if(confirm(msg)) {
+        if (window.showLoader) window.showLoader(isAr ? "جاري الحذف..." : "Deleting...");
         try {
             await db.collection("Pharmacy").doc(drugId).delete();
             document.getElementById('search-results-box').style.display = 'none';
@@ -173,17 +183,18 @@ async function deleteDrugFromPharmacy(drugId, event) {
 
 async function saveNewDrugToPharmacy(e) {
     e.preventDefault();
+    const isAr = getLang();
     const nameInput = document.getElementById('new_drug_name').value.trim();
     
     if (!editDrugId) {
         const isDuplicate = clinicPharmacy.some(d => d.name.toLowerCase() === nameInput.toLowerCase());
         if (isDuplicate) {
-            alert("❌ هذا العلاج موجود بالفعل في قاعدة البيانات!");
+            alert(isAr ? "❌ هذا العلاج موجود بالفعل!" : "❌ This drug already exists!");
             return;
         }
     }
 
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحفظ..." : "Saving...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري الحفظ..." : "Saving...");
 
     const data = {
         clinicId: clinicId,
@@ -212,13 +223,15 @@ function searchDrugs() {
     const input = document.getElementById('drug-search').value.toLowerCase();
     const resultBox = document.getElementById('search-results-box');
     resultBox.innerHTML = '';
+    const isAr = getLang();
     
     if(input.length === 0) { resultBox.style.display = 'none'; return; }
     
     const filtered = clinicPharmacy.filter(d => d.name.toLowerCase().includes(input) || d.category.toLowerCase().includes(input));
     
     if(filtered.length === 0) {
-        resultBox.innerHTML = '<div class="search-item" style="color:#64748b; text-align: center; padding: 15px;">لا يوجد دواء بهذا الاسم. اضغط (جديد ➕) لإضافته.</div>';
+        const txt = isAr ? 'لا يوجد دواء بهذا الاسم. اضغط (جديد ➕) لإضافته.' : 'No drug found. Click (New ➕) to add it.';
+        resultBox.innerHTML = `<div class="search-item" style="color:#64748b; text-align: center; padding: 15px;">${txt}</div>`;
     } else {
         filtered.forEach(d => {
             const div = document.createElement('div');
@@ -238,8 +251,8 @@ function searchDrugs() {
             actionsDiv.style.gap = '5px';
             
             actionsDiv.innerHTML = `
-                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa;" onclick="openEditDrugModal('${d.id}', event)" title="تعديل">✏️</button>
-                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;" onclick="deleteDrugFromPharmacy('${d.id}', event)" title="حذف">🗑️</button>
+                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fff7ed; color:#ea580c; border:1px solid #fed7aa;" onclick="openEditDrugModal('${d.id}', event)">✏️</button>
+                <button type="button" class="btn-action" style="padding:6px; font-size:12px; background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;" onclick="deleteDrugFromPharmacy('${d.id}', event)">🗑️</button>
             `;
 
             div.appendChild(infoDiv);
@@ -265,8 +278,9 @@ function downloadDrugsTemplate() {
 function importDrugsFromExcel(input) {
     const file = input.files[0];
     if (!file) return;
+    const isAr = getLang();
 
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري استيراد الأدوية..." : "Importing drugs...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري استيراد الأدوية..." : "Importing drugs...");
 
     const reader = new FileReader();
     reader.onload = async function(e) {
@@ -276,7 +290,7 @@ function importDrugsFromExcel(input) {
             const firstSheet = workbook.SheetNames[0];
             const excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
 
-            if (excelRows.length === 0) { alert("الملف فارغ!"); return; }
+            if (excelRows.length === 0) { alert(isAr ? "الملف فارغ!" : "File is empty!"); return; }
 
             let importedCount = 0;
             const batch = db.batch();
@@ -295,11 +309,11 @@ function importDrugsFromExcel(input) {
             });
 
             await batch.commit();
-            alert(`✅ تم استيراد ${importedCount} دواء بنجاح!`);
+            alert(isAr ? `✅ تم استيراد ${importedCount} دواء بنجاح!` : `✅ Successfully imported ${importedCount} drugs!`);
             closeModal('addDrugModal');
         } catch (error) {
             console.error(error);
-            alert("❌ حدث خطأ في قراءة ملف الإكسيل. تأكد من استخدام القالب الصحيح.");
+            alert(isAr ? "❌ حدث خطأ في قراءة الملف." : "❌ Error reading file.");
         } finally {
             input.value = ''; 
             if (window.hideLoader) window.hideLoader();
@@ -308,16 +322,17 @@ function importDrugsFromExcel(input) {
     reader.readAsArrayBuffer(file);
 }
 
-// ====================================================================
-// 🔴 الروشتة الذكية 🔴
-// ====================================================================
+// ==========================================
+// الروشتة الذكية 
+// ==========================================
 
 function addDrugToPrescriptionList(drug) {
+    const isAr = getLang();
     document.getElementById('search-results-box').style.display = 'none';
     document.getElementById('drug-search').value = '';
     
     const exists = currentPrescriptionDrugs.some(d => d.name === drug.name);
-    if(exists) { alert("هذا الدواء مضاف بالفعل."); return; }
+    if(exists) { alert(isAr ? "هذا الدواء مضاف بالفعل." : "Drug already added."); return; }
 
     currentPrescriptionDrugs.push({ name: drug.name, dose: drug.defaultDose });
     renderSelectedDrugs();
@@ -331,8 +346,11 @@ function removeDrugFromList(index) {
 function renderSelectedDrugs() {
     const list = document.getElementById('selected-drugs-list');
     list.innerHTML = '';
+    const isAr = getLang();
+
     if(currentPrescriptionDrugs.length === 0) {
-        list.innerHTML = '<div class="empty-state" style="padding: 30px;">لم يتم اختيار أدوية بعد. ابحث في الأعلى واختر العلاج.</div>';
+        const txt = isAr ? 'لم يتم اختيار أدوية بعد. ابحث واختر العلاج.' : 'No drugs selected. Search and add drugs.';
+        list.innerHTML = `<div class="empty-state" style="padding: 30px;">${txt}</div>`;
         return;
     }
     
@@ -378,14 +396,15 @@ function editPrescription(docId) {
 
 function loadRxTemplates() {
     db.collection("RxTemplates").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        const isAr = getLang();
         const select = document.getElementById('rx_template_select');
-        select.innerHTML = '<option value="">اختر قالب جاهز (مثال: روشتة خلع، عصب...)</option>';
+        select.innerHTML = `<option value="">${isAr ? 'اختر قالب جاهز...' : 'Choose template...'}</option>`;
         
         const listContainer = document.getElementById('templates-list-container');
         listContainer.innerHTML = '';
         
         if (snap.empty) {
-            listContainer.innerHTML = '<div class="empty-state">لا يوجد قوالب محفوظة.</div>';
+            listContainer.innerHTML = `<div class="empty-state">${isAr ? 'لا يوجد قوالب محفوظة.' : 'No saved templates.'}</div>`;
             return;
         }
 
@@ -396,7 +415,7 @@ function loadRxTemplates() {
             listContainer.innerHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f1f5f9;">
                     <strong>${t.templateName}</strong>
-                    <button class="btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteDoc('RxTemplates', '${doc.id}')">حذف</button>
+                    <button class="btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteDoc('RxTemplates', '${doc.id}')">${isAr ? 'حذف' : 'Delete'}</button>
                 </div>
             `;
         });
@@ -421,11 +440,12 @@ function applyRxTemplate(templateId) {
 }
 
 async function saveCurrentRxAsTemplate() {
+    const isAr = getLang();
     const tplName = document.getElementById('tpl_name').value.trim();
-    if (!tplName) { alert("برجاء كتابة اسم القالب أولاً!"); return; }
-    if (currentPrescriptionDrugs.length === 0) { alert("الروشتة الحالية فارغة!"); return; }
+    if (!tplName) { alert(isAr ? "برجاء كتابة اسم القالب أولاً!" : "Please write a template name!"); return; }
+    if (currentPrescriptionDrugs.length === 0) { alert(isAr ? "الروشتة الحالية فارغة!" : "Current prescription is empty!"); return; }
 
-    if (window.showLoader) window.showLoader("جاري حفظ القالب...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري الحفظ..." : "Saving...");
     try {
         const updatedDrugs = currentPrescriptionDrugs.map((d, i) => {
             const doseEl = document.getElementById(`dose_${i}`);
@@ -439,18 +459,18 @@ async function saveCurrentRxAsTemplate() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         document.getElementById('tpl_name').value = '';
-        alert("✅ تم حفظ القالب بنجاح!");
+        alert(isAr ? "✅ تم حفظ القالب بنجاح!" : "✅ Template saved successfully!");
     } catch(e) { console.error(e); }
     finally { if (window.hideLoader) window.hideLoader(); }
 }
 
 async function saveSmartPrescription() {
-    if(currentPrescriptionDrugs.length === 0) { alert("برجاء اختيار دواء واحد على الأقل لإصدار الروشتة."); return; }
+    const isAr = getLang();
+    if(currentPrescriptionDrugs.length === 0) { alert(isAr ? "برجاء اختيار دواء واحد على الأقل." : "Please select at least one drug."); return; }
     
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إصدار الروشتة..." : "Creating prescription...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري إصدار الروشتة..." : "Creating prescription...");
 
     let medsText = "";
-    
     currentPrescriptionDrugs.forEach((d, i) => {
         const doseEl = document.getElementById(`dose_${i}`);
         const finalDose = doseEl ? doseEl.value : d.dose;
@@ -484,9 +504,9 @@ async function saveSmartPrescription() {
     }
 }
 
-// ====================================================================
-// 🔴 المرفقات والروشتات 🔴
-// ====================================================================
+// ==========================================
+// المرفقات والروشتات
+// ==========================================
 
 function attachImageToRx(docId) {
     activePrescriptionDocId = docId; 
@@ -496,14 +516,16 @@ function attachImageToRx(docId) {
 function loadSessionPrescription() {
     db.collection("Prescriptions").where("sessionId", "==", sessionId).orderBy("createdAt", "asc").onSnapshot(snap => {
         const container = document.getElementById('session-rx-container');
-        
+        const isAr = getLang();
         sessionPrescriptions = {}; 
 
         if(snap.empty) {
+            const txt = isAr ? 'لا توجد روشتات مسجلة لهذه الجلسة.' : 'No prescriptions recorded for this session.';
+            const btnTxt = isAr ? '📎 إرفاق روشتة خارجية (صورة)' : '📎 Attach External Rx (Image)';
             container.innerHTML = `
-                <div class="empty-state">لا توجد روشتات مسجلة لهذه الجلسة.</div>
+                <div class="empty-state">${txt}</div>
                 <div style="text-align: center; margin-top: 15px;">
-                    <button class="btn-action" style="background:#f8fafc; border:1px solid #cbd5e1; color:#475569;" onclick="attachImageToRx(null)">📎 إرفاق روشتة خارجية (صورة)</button>
+                    <button class="btn-action" style="background:#f8fafc; border:1px solid #cbd5e1; color:#475569;" onclick="attachImageToRx(null)">${btnTxt}</button>
                 </div>
             `;
             return;
@@ -529,40 +551,42 @@ function loadSessionPrescription() {
                     imagesHtml += `
                         <div style="position: relative; display: inline-block; margin: 5px;">
                             <a href="${url}" target="_blank">
-                                <img src="${url}" style="height: 100px; width: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <img src="${url}" style="height: 100px; width: 100px; object-fit: cover; border-radius: 8px; border: 1px solid #cbd5e1;">
                             </a>
-                            <button onclick="deleteSpecificRxImage('${doc.id}', '${url}')" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">×</button>
+                            <button onclick="deleteSpecificRxImage('${doc.id}', '${url}')" style="position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 12px;">×</button>
                         </div>
                     `;
                 });
 
                 uploadsHtml = `
                     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #cbd5e1; text-align: right;">
-                        <span style="color: #64748b; font-size: 14px; display: block; margin-bottom: 10px; font-weight: bold;">📎 نسخ خارجية مرفوعة (${uploadedUrls.length}):</span>
-                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                            ${imagesHtml}
-                        </div>
+                        <span style="color: #64748b; font-size: 14px; display: block; margin-bottom: 10px; font-weight: bold;">📎 ${isAr?'مرفقات':'Attachments'} (${uploadedUrls.length}):</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">${imagesHtml}</div>
                     </div>
                 `;
             }
             
-            let rxTitle = `روشتة #${counter}`;
-            if (p.medications === "روشتة خارجية مرفقة") rxTitle = `مرفق خارجي #${counter}`;
+            let rxTitle = isAr ? `روشتة #${counter}` : `Prescription #${counter}`;
+            if (p.medications === "روشتة خارجية مرفقة") rxTitle = isAr ? `مرفق خارجي #${counter}` : `External Attachment #${counter}`;
+
+            const noteTitle = isAr ? 'تعليمات خاصة:' : 'Notes:';
+            const btnPrint = isAr ? '🖨️ طباعة' : '🖨️ Print';
+            const btnEdit = isAr ? '✏️ تعديل' : '✏️ Edit';
+            const btnAtt = isAr ? '📎 إرفاق صورة' : '📎 Attach Image';
+            const btnDel = isAr ? '🗑️ مسح' : '🗑️ Delete';
 
             container.innerHTML += `
-                <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px; position: relative;">
-                    <h4 style="margin: 0 0 15px 0; color: #0284c7; border-bottom: 2px solid #e0f2fe; padding-bottom: 5px; display: inline-block;">📜 ${rxTitle}</h4>
-                    
-                    ${p.medications && p.medications !== "روشتة خارجية مرفقة" ? `<div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:700; color:#0f172a; line-height: 1.6;">${p.medications}</div>` : ''}
-                    ${p.notes ? `<p style="margin-top:15px; color:#475569; border-top: 1px dashed #cbd5e1; padding-top: 10px; font-size: 14px;"><strong>تعليمات خاصة:</strong> ${p.notes}</p>` : ''}
-                    
+                <div style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 15px 0; color: #0284c7; border-bottom: 2px solid #e0f2fe; padding-bottom: 5px;">📜 ${rxTitle}</h4>
+                    ${p.medications && p.medications !== "روشتة خارجية مرفقة" ? `<div style="white-space: pre-wrap; direction: ltr; text-align: left; font-weight:700; color:#0f172a;">${p.medications}</div>` : ''}
+                    ${p.notes ? `<p style="margin-top:15px; color:#475569; border-top: 1px dashed #cbd5e1; padding-top: 10px; font-size: 14px;"><strong>${noteTitle}</strong> ${p.notes}</p>` : ''}
                     ${uploadsHtml}
 
                     <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="btn-primary" style="flex:1; min-width: 100px; background:#10b981; justify-content: center;" onclick="printSessionRx('${doc.id}')">🖨️ طباعة</button>
-                        <button class="btn-action" style="flex:1; min-width: 100px; background:#fff7ed; color:#ea580c; border-color:#fed7aa; justify-content: center;" onclick="editPrescription('${doc.id}')">✏️ تعديل الأدوية</button>
-                        <button class="btn-action" style="flex:1; min-width: 100px; background:#f1f5f9; color:#475569; border-color:#cbd5e1; justify-content: center;" onclick="attachImageToRx('${doc.id}')">📎 إرفاق صورة</button>
-                        <button class="btn-danger" style="flex:1; min-width: 100px; justify-content: center;" onclick="deleteDoc('Prescriptions', '${doc.id}')">🗑️ مسح الروشتة</button>
+                        <button class="btn-primary" style="flex:1; background:#10b981; justify-content: center;" onclick="printSessionRx('${doc.id}')">${btnPrint}</button>
+                        <button class="btn-action" style="flex:1; background:#fff7ed; color:#ea580c; border-color:#fed7aa; justify-content: center;" onclick="editPrescription('${doc.id}')">${btnEdit}</button>
+                        <button class="btn-action" style="flex:1; background:#f1f5f9; color:#475569; border-color:#cbd5e1; justify-content: center;" onclick="attachImageToRx('${doc.id}')">${btnAtt}</button>
+                        <button class="btn-danger" style="flex:1; justify-content: center;" onclick="deleteDoc('Prescriptions', '${doc.id}')">${btnDel}</button>
                     </div>
                 </div>
             `;
@@ -574,9 +598,10 @@ function loadSessionPrescription() {
 document.getElementById('upload-rx-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    const isAr = getLang();
 
     if (!activePrescriptionDocId) {
-        if (window.showLoader) window.showLoader("جاري إنشاء مرفق جديد...");
+        if (window.showLoader) window.showLoader(isAr ? "جاري إنشاء مرفق جديد..." : "Creating attachment...");
         try {
             const newRx = await db.collection("Prescriptions").add({
                 clinicId: clinicId, patientId: patientId, sessionId: sessionId,
@@ -587,7 +612,7 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
             activePrescriptionDocId = newRx.id;
         } catch(err) { console.error(err); if(window.hideLoader) window.hideLoader(); return; }
     } else {
-        if (window.showLoader) window.showLoader("جاري رفع الصورة...");
+        if (window.showLoader) window.showLoader(isAr ? "جاري رفع الصورة..." : "Uploading image...");
     }
 
     try {
@@ -599,10 +624,10 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
             uploadedRxUrls: firebase.firestore.FieldValue.arrayUnion(url) 
         });
         
-        alert("✅ تم إرفاق الصورة بنجاح!");
+        alert(isAr ? "✅ تم إرفاق الصورة بنجاح!" : "✅ Image attached successfully!");
     } catch (error) {
         console.error("Upload error:", error);
-        alert("❌ حدث خطأ أثناء الرفع.");
+        alert(isAr ? "❌ حدث خطأ أثناء الرفع." : "❌ Upload error.");
     } finally {
         e.target.value = ''; 
         if (window.hideLoader) window.hideLoader();
@@ -610,33 +635,33 @@ document.getElementById('upload-rx-input').addEventListener('change', async (e) 
 });
 
 async function deleteSpecificRxImage(docId, imageUrl) {
-    if(confirm("هل أنت متأكد من حذف هذه الصورة فقط؟")) {
-        if(window.showLoader) window.showLoader("جاري حذف الصورة...");
+    const isAr = getLang();
+    const msg = isAr ? "هل أنت متأكد من حذف هذه الصورة فقط؟" : "Are you sure you want to delete this image only?";
+    if(confirm(msg)) {
+        if(window.showLoader) window.showLoader(isAr ? "جاري الحذف..." : "Deleting...");
         try {
             await db.collection("Prescriptions").doc(docId).update({
                 uploadedRxUrls: firebase.firestore.FieldValue.arrayRemove(imageUrl)
             });
-        } catch(e) {
-            console.error(e);
-        } finally {
-            if(window.hideLoader) window.hideLoader();
-        }
+        } catch(e) { console.error(e); } 
+        finally { if(window.hideLoader) window.hideLoader(); }
     }
 }
 
-// ====================================================================
-// 🔴 الطباعة والأشعة 🔴
-// ====================================================================
+// ==========================================
+// الطباعة والأشعة
+// ==========================================
 
 function printSessionRx(docId) {
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "تجهيز للطباعة..." : "Preparing print...");
+    const isAr = getLang();
+    if (window.showLoader) window.showLoader(isAr ? "تجهيز للطباعة..." : "Preparing print...");
 
     db.collection("Prescriptions").doc(docId).get().then(doc => {
         if(doc.exists) {
             const p = doc.data();
             document.getElementById('print-date').innerText = p.date;
             document.getElementById('print-meds').innerText = p.medications;
-            document.getElementById('print-notes').innerText = p.notes || 'لا يوجد';
+            document.getElementById('print-notes').innerText = p.notes || (isAr ? 'لا يوجد' : 'None');
             
             db.collection("Clinics").doc(clinicId).get().then(cDoc => {
                 if(cDoc.exists) {
@@ -674,10 +699,11 @@ function encodeSessionImage(element) {
 
 async function saveSessionXRay(e) {
     e.preventDefault();
+    const isAr = getLang();
     const btn = document.getElementById('btn-save-sx');
-    btn.disabled = true; btn.innerText = "جاري الرفع...";
+    btn.disabled = true; btn.innerText = isAr ? "جاري الرفع..." : "Uploading...";
 
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري رفع المرفق..." : "Uploading...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري رفع المرفق..." : "Uploading attachment...");
 
     const data = {
         clinicId: clinicId, patientId: patientId, sessionId: sessionId,
@@ -689,25 +715,29 @@ async function saveSessionXRay(e) {
         await db.collection("XRays").add(data);
         closeModal('xrayModal'); document.querySelector('#xrayModal form').reset();
     } catch (e) { 
-        alert("حجم الصورة كبير جداً! برجاء استخدام صورة أصغر."); 
+        alert(isAr ? "حجم الصورة كبير جداً!" : "Image size is too large!"); 
     } finally { 
-        btn.disabled = false; btn.innerText = "رفع المرفق"; 
+        btn.disabled = false; btn.innerText = isAr ? "رفع المرفق" : "Upload"; 
         if (window.hideLoader) window.hideLoader();
     }
 }
 
 function loadSessionXRays() {
     db.collection("XRays").where("sessionId", "==", sessionId).onSnapshot(snap => {
+        const isAr = getLang();
         const list = document.getElementById('session-xrays-list');
         list.innerHTML = '';
-        if (snap.empty) { list.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">لا توجد مرفقات.</div>`; return; }
+        if (snap.empty) { 
+            list.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">${isAr?'لا توجد مرفقات.':'No attachments.'}</div>`; 
+            return; 
+        }
         snap.forEach(doc => {
             const x = doc.data();
             list.innerHTML += `
                 <div class="xray-card" style="padding: 10px; background: white; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
                     <a href="${x.imageBase64}" target="_blank"><img src="${x.imageBase64}" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom: 10px; border:1px solid #f1f5f9;"></a>
                     <p style="font-size: 13px; margin: 5px 0; font-weight:bold; color: #1e293b;">${x.type}</p>
-                    <button class="btn-danger" style="width:100%; padding:6px; font-size:13px; margin-top: 5px;" onclick="deleteDoc('XRays', '${doc.id}')">🗑️ حذف</button>
+                    <button class="btn-danger" style="width:100%; padding:6px; font-size:13px; margin-top: 5px;" onclick="deleteDoc('XRays', '${doc.id}')">${isAr?'🗑️ حذف':'🗑️ Delete'}</button>
                 </div>
             `;
         });
@@ -715,8 +745,10 @@ function loadSessionXRays() {
 }
 
 async function deleteDoc(collectionName, docId) {
-    if(confirm("هل أنت متأكد من الحذف النهائي؟")) {
-        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
+    const isAr = getLang();
+    const msg = isAr ? "هل أنت متأكد من الحذف النهائي؟" : "Are you sure you want to permanently delete this?";
+    if(confirm(msg)) {
+        if (window.showLoader) window.showLoader(isAr ? "جاري الحذف..." : "Deleting...");
         try { 
             await db.collection(collectionName).doc(docId).delete(); 
         } catch (e) { 
@@ -727,26 +759,19 @@ async function deleteDoc(collectionName, docId) {
     }
 }
 
-// ====================================================================
-// 🔴 5. مخطط الأسنان التفاعلي (Dental Chart) 🔴
-// ====================================================================
+// ==========================================
+// مخطط الأسنان التفاعلي (Dental Chart) 
+// ==========================================
 
 let currentSelectedTooth = null; 
 
 function renderDentalChart() {
     const upperJaw = document.getElementById('upper-jaw');
     const lowerJaw = document.getElementById('lower-jaw');
+    upperJaw.innerHTML = ''; lowerJaw.innerHTML = '';
     
-    upperJaw.innerHTML = ''; 
-    lowerJaw.innerHTML = '';
-    
-    for (let i = 1; i <= 16; i++) {
-        upperJaw.appendChild(createToothElement(i));
-    }
-    
-    for (let i = 17; i <= 32; i++) {
-        lowerJaw.appendChild(createToothElement(i));
-    }
+    for (let i = 1; i <= 16; i++) upperJaw.appendChild(createToothElement(i));
+    for (let i = 17; i <= 32; i++) lowerJaw.appendChild(createToothElement(i));
 }
 
 function createToothElement(number) {
@@ -754,48 +779,42 @@ function createToothElement(number) {
     toothDiv.className = 'tooth'; 
     toothDiv.id = `tooth-${number}`; 
     toothDiv.innerText = number; 
-    
-    toothDiv.onclick = function() {
-        openToothModal(number);
-    };
-    
+    toothDiv.onclick = function() { openToothModal(number); };
     return toothDiv; 
 }
 
 function openToothModal(toothNumber) {
     currentSelectedTooth = toothNumber; 
-    document.getElementById('selected-tooth-title').innerText = `اختر حالة السِنة رقم (${toothNumber})`;
+    const isAr = getLang();
+    document.getElementById('selected-tooth-title').innerText = isAr ? `اختر حالة السِنة رقم (${toothNumber})` : `Select status for tooth (${toothNumber})`;
     openModal('toothStatusModal'); 
 }
 
-// 🔴 2. دالة الحفظ (عشان تبعت للفايربيز) 🔴
 async function saveToothStatus(statusType) {
     if (!currentSelectedTooth) return; 
+    const isAr = getLang();
     
-    // 1. تلوين السِنة في الشاشة قدام الدكتور
     const toothElement = document.getElementById(`tooth-${currentSelectedTooth}`);
     toothElement.classList.remove('status-decay', 'status-extracted', 'status-crown');
-    if (statusType !== 'normal') {
-        toothElement.classList.add(`status-${statusType}`);
-    }
+    if (statusType !== 'normal') toothElement.classList.add(`status-${statusType}`);
+    
     closeModal('toothStatusModal');
 
-    // 2. إرسال البيانات لقاعدة بيانات الفايربيز
-    if (window.showLoader) window.showLoader("جاري حفظ حالة السِنة...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري حفظ الحالة..." : "Saving status...");
     try {
         await db.collection("Sessions").doc(sessionId).update({
             [`dentalChart.${currentSelectedTooth}`]: statusType
         });
     } catch (e) {
         console.error(e);
-        alert("❌ حدث خطأ أثناء حفظ حالة السِنة.");
+        alert(isAr ? "❌ حدث خطأ أثناء حفظ حالة السِنة." : "❌ Error saving tooth status.");
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
 }
 
 window.onload = () => {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    const isAr = getLang();
+    document.body.dir = isAr ? 'rtl' : 'ltr';
     firebase.auth().onAuthStateChanged((user) => { if (user) loadSessionDetails(); });
 };
