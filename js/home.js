@@ -1,15 +1,58 @@
 // js/home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
 
-// 🚀 رقم إصدار ذكي: يتغير أوتوماتيكياً كل ساعة واحدة لضمان السرعة والتحديث معاً
 const SMART_VERSION = Math.floor(Date.now() / 3600000); 
 
-// 1. دالة التنقل بين الصفحات في الـ Iframe (تم تصليح مشكلة الـ ID 🛠️)
+// 🔴 دالة تفعيل الوضع الليلي 🔴
+function applyTheme(themeName) {
+    document.body.setAttribute('data-theme', themeName);
+    localStorage.setItem('niva_theme', themeName);
+    
+    const themeBtn = document.getElementById('btn-theme');
+    if (themeName === 'dark') {
+        themeBtn.innerText = '☀️';
+        themeBtn.title = 'الوضع الفاتح';
+    } else {
+        themeBtn.innerText = '🌙';
+        themeBtn.title = 'الوضع الليلي';
+    }
+
+    // إرسال الثيم للـ iframe عشان الصفحات الداخلية تقلب ألوانها
+    const frame = document.getElementById('content-frame');
+    if (frame && frame.contentWindow) {
+        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: themeName }, '*');
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = document.body.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    applyTheme(newTheme);
+}
+
+// استرجاع الثيم عند التحميل
+document.addEventListener('DOMContentLoaded', () => {
+    const savedTheme = localStorage.getItem('niva_theme') || 'light';
+    applyTheme(savedTheme);
+});
+
+
+// 1. دالة التنقل بين الصفحات في الـ Iframe (مع اللودر اللي طلبته المرة اللي فاتت)
 function loadPage(pageUrl, clickedLi) {
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فتح الصفحة..." : "Loading page...");
+    
     let finalUrl = pageUrl.includes('?') 
         ? `${pageUrl}&v=${SMART_VERSION}` 
         : `${pageUrl}?v=${SMART_VERSION}`;
 
-    document.getElementById('content-frame').src = finalUrl;
+    const frame = document.getElementById('content-frame');
+    frame.src = finalUrl;
+    
+    frame.onload = function() {
+        if (window.hideLoader) window.hideLoader();
+        // إرسال الثيم الحالي للصفحة الجديدة أول ما تفتح
+        const currentTheme = document.body.getAttribute('data-theme');
+        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: currentTheme }, '*');
+    };
     
     if (clickedLi) {
         const allLinks = document.querySelectorAll('#nav-links li');
@@ -34,7 +77,7 @@ function switchAppLanguage(lang) {
     }
 }
 
-// 3. الترجمة الخاصة بالهيكل الخارجي
+// 3. الترجمة الخاصة بالهيكل الخارجي (مُحدثة بالدعم الفني)
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -43,7 +86,8 @@ function updatePageContent(lang) {
             navFinances: "الحسابات والمصروفات",
             navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
-            alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام."
+            alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
+            navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال عبر واتساب"
         },
         en: {
             header: "Dashboard",
@@ -51,7 +95,8 @@ function updatePageContent(lang) {
             navFinances: "Finances",
             navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
-            alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension."
+            alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension.",
+            navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send via WhatsApp"
         }
     };
     const c = t[lang] || t.ar;
@@ -62,6 +107,13 @@ function updatePageContent(lang) {
     setTxt('nav-finances', c.navFinances);
     setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
     
+    // ترجمات الدعم الفني
+    setTxt('nav-support', c.navSupport); setTxt('mod-support-title', c.modSupTitle);
+    setTxt('mod-support-desc', c.modSupDesc); setTxt('btn-support-send', c.btnSupSend);
+    
+    const msgBox = document.getElementById('support_message');
+    if(msgBox) msgBox.placeholder = lang === 'ar' ? "اكتب تفاصيل المشكلة أو طلبك هنا..." : "Type issue details or request here...";
+
     window.homeLang = c;
 }
 
@@ -70,7 +122,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
 
-        // --- إضافة اللودر هنا ---
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تهيئة النظام..." : "Initializing...");
 
         try {
@@ -85,7 +136,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 applyRoles(role);
                 loadClinicBranding(clinicId);
                 
-                // تشغيل فحص التنبيهات والاشتراكات للعيادة فقط
                 if(role !== 'superadmin' && clinicId !== 'default') {
                     checkSubscriptionAlert(clinicId);
                 }
@@ -93,7 +143,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
         } catch (error) {
             console.error("خطأ في جلب بيانات المستخدم:", error);
         } finally {
-            // --- إخفاء اللودر هنا ---
             if (window.hideLoader) window.hideLoader();
         }
     } else {
@@ -101,16 +150,13 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// 5. دالة فحص التنبيهات والحظر الإجباري (Billing Alerts & Paywall)
 async function checkSubscriptionAlert(clinicId) {
     try {
-        // نستخدم onSnapshot عشان لو الادمن جددله وهو فاتح الشاشة تروح فوراً
         db.collection("Clinics").doc(clinicId).onSnapshot((clinicDoc) => {
             if (clinicDoc.exists) {
                 const cData = clinicDoc.data();
                 const now = new Date();
                 
-                // 1. لو الحساب موقوف من الأدمن
                 if (cData.status === 'suspended') {
                     showPaywallBlocker();
                     return;
@@ -119,11 +165,9 @@ async function checkSubscriptionAlert(clinicId) {
                 if (cData.nextPaymentDate) {
                     const nextPayDate = cData.nextPaymentDate.toDate();
                     
-                    // 2. لو الاشتراك خلص (نظهر شاشة الحظر)
                     if (now > nextPayDate) {
                         showPaywallBlocker();
                     } 
-                    // 3. لو لسه مخلصش (نخفي شاشة الحظر لو موجودة، ونشغل التحذير بتاعك لو قرب يخلص)
                     else {
                         hidePaywallBlocker();
 
@@ -133,7 +177,7 @@ async function checkSubscriptionAlert(clinicId) {
                         if (diffDays >= 0 && diffDays <= 3) {
                             showBillingAlert(diffDays);
                         } else {
-                            hideBillingAlert(); // إخفاء التحذير لو جدد لأكتر من 3 أيام
+                            hideBillingAlert(); 
                         }
                     }
                 }
@@ -144,9 +188,6 @@ async function checkSubscriptionAlert(clinicId) {
     }
 }
 
-// =============================================================
-// 🔴 دوال إظهار شاشة الحظر الإجبارية (عند انتهاء الاشتراك) 🔴
-// =============================================================
 function showPaywallBlocker() {
     let blocker = document.getElementById('paywall-blocker');
     if (!blocker) {
@@ -175,11 +216,7 @@ function hidePaywallBlocker() {
     if (blocker) blocker.remove();
 }
 
-// =============================================================
-// دوال التحذير المبكر (بتاعتك كما هي)
-// =============================================================
 function showBillingAlert(daysLeft) {
-    // منع تكرار التحذير لو موجود
     if(document.getElementById('billing-alert-banner')) return;
 
     const lang = localStorage.getItem('preferredLang') || 'ar';
@@ -200,8 +237,6 @@ function hideBillingAlert() {
     if(alertDiv) alertDiv.remove();
 }
 
-
-// 6. دالة جلب لوجو واسم العيادة
 async function loadClinicBranding(clinicId) {
     if (clinicId === 'default' || !clinicId) return; 
 
@@ -227,7 +262,6 @@ async function loadClinicBranding(clinicId) {
     }
 }
 
-// 7. توزيع الصلاحيات (مع حجب الحسابات عن الممرضة)
 function applyRoles(role) {
     const r = role.toLowerCase();
     
@@ -253,7 +287,6 @@ function applyRoles(role) {
     }
 }
 
-// 8. إضافة طبقة خلفية عائمة (Overlay)
 document.addEventListener('DOMContentLoaded', () => {
     let overlay = document.createElement('div');
     overlay.id = 'mobile-overlay';
@@ -262,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(overlay);
 });
 
-// 9. التحكم في القائمة الجانبية (UI)
 function toggleSidebar() { 
     document.getElementById('sidebar').classList.toggle('active'); 
     document.getElementById('mobile-overlay').classList.toggle('active');
@@ -278,46 +310,79 @@ window.onload = () => {
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
 };
-// =========================================================================
-// 🔴 نظام الأمان المتقدم: الخروج التلقائي عند الخمول (حماية من الهيستوري) 🔴
-// =========================================================================
 
-const IDLE_TIMEOUT_MINUTES = 30; // تقدر تخليها 15 أو 30 دقيقة براحتك
+// =========================================================================
+// 🔴 نظام الدعم الفني (Tech Support) 🔴
+// =========================================================================
+function openSupportModal() {
+    document.getElementById('support_message').value = '';
+    document.getElementById('supportModal').style.display = 'flex';
+}
+
+function closeSupportModal() {
+    document.getElementById('supportModal').style.display = 'none';
+}
+
+function sendSupportWhatsApp() {
+    const msg = document.getElementById('support_message').value.trim();
+    if (!msg) {
+        alert(document.body.dir === 'rtl' ? "برجاء كتابة الرسالة أولاً!" : "Please write a message first!");
+        return;
+    }
+
+    const myWhatsAppNumber = "201000000000"; // 🔴 ضع رقمك هنا بالصيغة الدولية 🔴
+    const clinicName = document.getElementById('txt-clinic-name').innerText;
+    const userEmail = document.getElementById('userEmail').innerText;
+    const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
+
+    const fullMessage = `*طلب دعم فني من NivaDent*\n\nالعيادة: ${clinicName}\nالإيميل: ${userEmail}\nكود العيادة: ${clinicId}\n\n*الرسالة:*\n${msg}`;
+    
+    const whatsappUrl = `https://wa.me/${myWhatsAppNumber}?text=${encodeURIComponent(fullMessage)}`;
+    window.open(whatsappUrl, '_blank');
+    closeSupportModal();
+}
+
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('supportModal');
+    if (event.target === modal) {
+        closeSupportModal();
+    }
+});
+
+
+// =========================================================================
+// نظام الأمان المتقدم: الخروج التلقائي عند الخمول
+// =========================================================================
+const IDLE_TIMEOUT_MINUTES = 30; 
 let idleTime = 0;
 
-// 1. تصفير العداد لما المستخدم يتحرك أو يكتب
 function resetIdleTime() {
     idleTime = 0;
     localStorage.setItem('lastActiveNiva', Date.now());
 }
 
-// مراقبة أي حركة على الشاشة (ماوس، كيبورد، تاتش)
 window.onload = resetIdleTime;
 document.onmousemove = resetIdleTime;
 document.onkeypress = resetIdleTime;
-document.ontouchstart = resetIdleTime; // عشان الموبايل والتابلت
+document.ontouchstart = resetIdleTime;
 
-// 2. فحص كل دقيقة وهو فاتح الشاشة
 setInterval(() => {
     idleTime++;
     if (idleTime >= IDLE_TIMEOUT_MINUTES) {
         forceSecurityLogout("تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
     }
-}, 60000); // 60000 ملي ثانية = دقيقة
+}, 60000); 
 
-// 3. الفحص الفوري أول ما يفتح (عشان لو جابها من الهيستوري أو الـ Restore)
 function checkHistoryRestore() {
     const lastActive = localStorage.getItem('lastActiveNiva');
     if (lastActive) {
         const diffMinutes = (Date.now() - lastActive) / (1000 * 60);
-        // لو فتحها من الهيستوري بعد ما الوقت عدى، هنطرده
         if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
             forceSecurityLogout("انتهت الجلسة للأمان. يرجى تسجيل الدخول مرة أخرى.");
         }
     }
 }
 
-// 4. دالة الطرد (تسجيل الخروج الإجباري)
 function forceSecurityLogout(msg) {
     if(firebase.auth().currentUser) {
         firebase.auth().signOut().then(() => {
@@ -328,6 +393,4 @@ function forceSecurityLogout(msg) {
         });
     }
 }
-
-// استدعاء فحص الهيستوري فوراً مع تحميل الصفحة
 checkHistoryRestore();
