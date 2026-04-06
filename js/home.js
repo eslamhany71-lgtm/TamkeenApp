@@ -330,7 +330,7 @@ function sendSupportWhatsApp() {
         return;
     }
 
-    const myWhatsAppNumber = "201000000000"; // 🔴 ضع رقمك هنا بالصيغة الدولية 🔴
+    const myWhatsAppNumber = "0201149079451"; // 🔴 ضع رقمك هنا بالصيغة الدولية 🔴
     const clinicName = document.getElementById('txt-clinic-name').innerText;
     const userEmail = document.getElementById('userEmail').innerText;
     const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
