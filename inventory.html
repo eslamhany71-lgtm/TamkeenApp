@@ -1,1 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/inventory.css?v=' + currentHour + '">');
+    </script>
+    <link rel="icon" href="data:,">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
 
+    <div class="page-header">
+        <div class="page-title">
+            <h1 id="txt-title">المخزون الطبي</h1>
+            <p id="txt-subtitle">إدارة مستهلكات العيادة، الخامات، وتنبيهات النواقص</p>
+        </div>
+        <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="searchInput" class="search-box" oninput="searchInventory()" placeholder="بحث باسم الخامة أو القسم..." style="min-width: 250px;">
+            <button class="btn-primary" onclick="openItemModal()" id="btn-add-item">➕ إضافة صنف للمخزن</button>
+        </div>
+    </div>
+
+    <div class="stats-container">
+        <div class="stat-card" style="border-right: 4px solid #0284c7;">
+            <h3 id="txt-stat-total">إجمالي الأصناف</h3>
+            <p class="stat-value" id="stat-total-items" style="color: #0284c7;">0</p>
+        </div>
+        <div class="stat-card" style="border-right: 4px solid #f59e0b; background: #fffbeb;">
+            <h3 id="txt-stat-low" style="color: #d97706;">نواقص (أوشك على الانتهاء)</h3>
+            <p class="stat-value" id="stat-low-stock" style="color: #d97706;">0</p>
+        </div>
+        <div class="stat-card" style="border-right: 4px solid #ef4444; background: #fef2f2;">
+            <h3 id="txt-stat-exp" style="color: #dc2626;">صلاحية منتهية / قريبة</h3>
+            <p class="stat-value" id="stat-expiring" style="color: #dc2626;">0</p>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table id="inventoryTable">
+            <thead>
+                <tr>
+                    <th id="th-name">اسم الخامة / الصنف</th>
+                    <th id="th-category">القسم</th>
+                    <th id="th-qty" style="text-align: center;">الرصيد الحالي</th>
+                    <th id="th-exp">تاريخ الصلاحية</th>
+                    <th id="th-status" style="text-align: center;">حالة المخزون</th>
+                    <th id="th-actions" style="text-align: center;">إجراءات (سحب / إضافة)</th>
+                </tr>
+            </thead>
+            <tbody id="inventoryBody">
+                <tr><td colspan="6" style="text-align: center;">جاري تحميل المخزون...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <datalist id="dental-catalog"></datalist>
+
+    <div id="itemModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-modal" onclick="closeModal('itemModal')">&times;</span>
+            <h2 id="modal-title">إضافة صنف جديد</h2>
+            
+            <form id="itemForm" onsubmit="saveItem(event)">
+                <input type="hidden" id="item_id">
+                
+                <div class="form-group">
+                    <label id="lbl-item-name">اسم الخامة (اختر من القائمة أو اكتب جديد)</label>
+                    <input type="text" id="item_name" list="dental-catalog" placeholder="مثال: كومبوزيت، بنج، جوانتي..." required autocomplete="off">
+                </div>
+
+                <div class="form-group">
+                    <label id="lbl-item-cat">القسم</label>
+                    <select id="item_category" required>
+                        <option value="مستهلكات عامة">مستهلكات عامة (Gloves, Masks...)</option>
+                        <option value="تخدير وحقن">تخدير وحقن (Anesthesia)</option>
+                        <option value="حشو تجميلي">حشو تجميلي (Composite, Bond...)</option>
+                        <option value="علاج جذور">علاج جذور (Endo Files, Gutta...)</option>
+                        <option value="تركيبات ومقاسات">تركيبات ومقاسات (Impression...)</option>
+                        <option value="جراحة">جراحة (Surgical)</option>
+                        <option value="أخرى">أخرى (Other)</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label id="lbl-item-qty">الكمية الافتتاحية</label>
+                        <input type="number" id="item_qty" required min="0" value="1">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label id="lbl-item-unit">الوحدة</label>
+                        <select id="item_unit">
+                            <option value="علبة">علبة (Box)</option>
+                            <option value="أمبول">أمبول (Ampoule)</option>
+                            <option value="قطعة">قطعة (Piece)</option>
+                            <option value="كيس">كيس (Pack)</option>
+                            <option value="زجاجة">زجاجة (Bottle)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label id="lbl-item-alert" style="color: #d97706;">الحد الأدنى للتنبيه</label>
+                        <input type="number" id="item_min_alert" required min="0" value="5" title="السيستم هينبهك لو الكمية وصلت للرقم ده">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label id="lbl-item-exp">تاريخ الصلاحية (اختياري)</label>
+                        <input type="date" id="item_exp">
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-save-item" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 16px;">حفظ الصنف</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="stockActionModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-modal" onclick="closeModal('stockActionModal')">&times;</span>
+            <h2 id="stock-modal-title">تعديل الرصيد</h2>
+            <h3 id="stock-item-name" style="color: #0284c7; margin-top: 0;">...</h3>
+            <p id="stock-current-qty" style="color: #64748b; font-weight: bold; margin-bottom: 20px;">الرصيد الحالي: <span style="font-size: 20px; color: #0f172a;">--</span></p>
+
+            <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                <label id="lbl-stock-amount" style="display: block; margin-bottom: 10px; font-weight: bold;">أدخل الكمية:</label>
+                <input type="number" id="stock_amount" class="search-box" style="font-size: 20px; text-align: center; font-weight: bold;" min="1" value="1">
+                
+                <div id="stock-cost-container" style="display: none; margin-top: 15px; text-align: right;">
+                    <label id="lbl-stock-cost" style="color: #10b981; font-weight: bold; font-size: 13px;">إجمالي التكلفة / سعر الشراء (ج.م):</label>
+                    <input type="number" id="stock_cost" class="search-box" min="0" value="0" placeholder="عشان تتخصم من الحسابات كـ مصروفات">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" style="flex: 1; background: #10b981; border-color: #059669; justify-content: center; padding: 12px;" onclick="executeStockAction('add')" id="btn-stock-add">📥 إضافة (توريد)</button>
+                <button class="btn-primary" style="flex: 1; background: #f59e0b; border-color: #d97706; justify-content: center; padding: 12px;" onclick="executeStockAction('consume')" id="btn-stock-consume">📤 سحب (استهلاك)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/lang-manager.js" onerror="console.log('No lang manager found.')"></script>
+    <script src="js/inventory.js"></script>
+</body>
+</html>
