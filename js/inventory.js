@@ -5,7 +5,10 @@ let currentStockItemId = null;
 let currentStockItemName = "";
 let currentStockItemQty = 0;
 
-// 🔴 الكتالوج الطبي الذكي (A to Z) 🔴
+// 🔴 متغير لتخزين نوع الفلتر الحالي 🔴
+let activeFilter = 'all';
+
+// الكتالوج الطبي الذكي (A to Z)
 const dentalCatalog = [
     "بنج - أرتيكين (Articaine)", "بنج - ليدوكايين (Lidocaine)", "بنج - ميبيفاكين (Mepivacaine بدون أدرينالين)",
     "إبر بنج قصيرة (Short Needles)", "إبر بنج طويلة (Long Needles)", "سرنجة بنج معدن (Carpule Syringe)",
@@ -59,7 +62,6 @@ function updatePageContent(lang) {
     window.invLang = c;
 }
 
-// تعبئة الكتالوج الذكي
 function populateCatalog() {
     const dataList = document.getElementById('dental-catalog');
     if (!dataList) return;
@@ -78,7 +80,7 @@ function openItemModal() {
     document.getElementById('itemForm').reset();
     document.getElementById('item_id').value = '';
     document.getElementById('modal-title').innerText = window.invLang.mTitle;
-    document.getElementById('item_qty').disabled = false; // السماح بكتابة كمية في الصنف الجديد
+    document.getElementById('item_qty').disabled = false; 
     openModal('itemModal');
 }
 
@@ -101,7 +103,7 @@ async function saveItem(e) {
 
     try {
         if (itemId) {
-            delete data.qty; // تعديل الصنف مش بيغير الكمية (عشان الدقة المالية). السحب والإضافة ليهم زرار مخصوص.
+            delete data.qty; 
             await db.collection("Inventory").doc(itemId).update(data);
         } else {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -116,7 +118,6 @@ async function saveItem(e) {
     }
 }
 
-// 🔴 فتح نافذة السحب أو التوريد
 function openStockActionModal(id, name, currentQty, actionType) {
     currentStockItemId = id;
     currentStockItemName = name;
@@ -134,17 +135,16 @@ function openStockActionModal(id, name, currentQty, actionType) {
     if (actionType === 'add') {
         btnAdd.style.display = 'flex';
         btnConsume.style.display = 'none';
-        costContainer.style.display = 'block'; // نظهر حقل الفلوس وقت التوريد
+        costContainer.style.display = 'block'; 
     } else {
         btnAdd.style.display = 'none';
         btnConsume.style.display = 'flex';
-        costContainer.style.display = 'none'; // نخفي الفلوس وقت السحب
+        costContainer.style.display = 'none'; 
     }
 
     openModal('stockActionModal');
 }
 
-// 🔴 تنفيذ السحب أو الإضافة مع ربط الحسابات
 async function executeStockAction(type) {
     const amount = Number(document.getElementById('stock_amount').value);
     const cost = Number(document.getElementById('stock_cost').value) || 0;
@@ -165,7 +165,6 @@ async function executeStockAction(type) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 🔴 لو التوريد ليه تكلفة، تتسجل فوراً كمصروفات في فايربيز 🔴
         if (type === 'add' && cost > 0) {
             const today = new Date().toISOString().split('T')[0];
             await db.collection("Finances").add({
@@ -195,7 +194,7 @@ function editItem(id) {
     document.getElementById('item_name').value = item.name;
     document.getElementById('item_category').value = item.category;
     document.getElementById('item_qty').value = item.qty;
-    document.getElementById('item_qty').disabled = true; // منع التعديل اليدوي، لازم يستعمل التوريد والسحب
+    document.getElementById('item_qty').disabled = true; 
     document.getElementById('item_unit').value = item.unit;
     document.getElementById('item_min_alert').value = item.minAlert;
     document.getElementById('item_exp').value = item.expiryDate || '';
@@ -218,7 +217,6 @@ async function deleteItem(id) {
     }
 }
 
-// جلب المخزون ورسم الجدول وحساب التنبيهات
 function loadInventory() {
     if (!currentClinicId) return;
 
@@ -249,23 +247,69 @@ function loadInventory() {
             }
         });
 
-        // تحديث كروت الإحصائيات
         document.getElementById('stat-total-items').innerText = totalItems;
         document.getElementById('stat-low-stock').innerText = lowStockCount;
         document.getElementById('stat-expiring').innerText = expiringCount;
 
-        renderInventoryTable();
+        // 🔴 تطبيق الفلتر الحالي والبحث مع بعض
+        applyCurrentFilterAndSearch();
     });
 }
 
-function renderInventoryTable(dataToRender = inventoryData) {
+// 🔴 دالة تحديد نوع الفلتر وتغيير شكل الكروت
+function filterInventory(type) {
+    activeFilter = type;
+    
+    // تظبيط شكل الكروت (تفتيح اللي مش متداس وتغميق اللي متداس)
+    document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active-stat'));
+    document.getElementById(`card-${type}`).classList.add('active-stat');
+    
+    applyCurrentFilterAndSearch();
+}
+
+// 🔴 دالة البحث النصي
+function searchInventory() {
+    applyCurrentFilterAndSearch();
+}
+
+// 🔴 الدالة المركزية اللي بتطبق الفلتر (النواقص أو الصلاحية) زائد البحث (لو موجود)
+function applyCurrentFilterAndSearch() {
+    const input = document.getElementById('searchInput').value.trim().toLowerCase();
+    let filteredData = inventoryData;
+
+    // 1. تطبيق البحث النصي
+    if (input) {
+        filteredData = filteredData.filter(i => 
+            (i.name && i.name.toLowerCase().includes(input)) || 
+            (i.category && i.category.toLowerCase().includes(input))
+        );
+    }
+
+    // 2. تطبيق الفلتر الخاص بالكروت
+    const now = new Date();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+    if (activeFilter === 'low') {
+        filteredData = filteredData.filter(item => item.qty <= item.minAlert);
+    } else if (activeFilter === 'exp') {
+        filteredData = filteredData.filter(item => {
+            if (!item.expiryDate) return false;
+            const expDate = new Date(item.expiryDate);
+            return (expDate.getTime() - now.getTime() < thirtyDaysMs);
+        });
+    }
+
+    renderInventoryTable(filteredData);
+}
+
+function renderInventoryTable(dataToRender) {
     const tbody = document.getElementById('inventoryBody');
     tbody.innerHTML = '';
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const isAr = lang === 'ar';
 
     if (dataToRender.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${isAr ? 'لا يوجد أصناف في المخزن حالياً' : 'Inventory is empty'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${isAr ? 'لا توجد أصناف مطابقة للبحث أو الفلتر' : 'No items match your filter/search'}</td></tr>`;
         return;
     }
 
@@ -276,7 +320,6 @@ function renderInventoryTable(dataToRender = inventoryData) {
         let statusHtml = '';
         let rowStyle = '';
         
-        // حساب حالة التنبيه
         let isLow = item.qty <= item.minAlert;
         let isExpiring = false;
         let isExpired = false;
@@ -323,24 +366,11 @@ function renderInventoryTable(dataToRender = inventoryData) {
     });
 }
 
-function searchInventory() {
-    const input = document.getElementById('searchInput').value.trim().toLowerCase();
-    if (!input) {
-        renderInventoryTable(inventoryData);
-        return;
-    }
-    const filtered = inventoryData.filter(i => 
-        (i.name && i.name.toLowerCase().includes(input)) || 
-        (i.category && i.category.toLowerCase().includes(input))
-    );
-    renderInventoryTable(filtered);
-}
-
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     
-    populateCatalog(); // تجهيز الكتالوج الذكي
+    populateCatalog(); 
     
     if(window.translations) updatePageContent(lang);
     else setTimeout(() => updatePageContent(lang), 500);
