@@ -1,5 +1,6 @@
 const db = firebase.firestore();
 let allClinicsList = []; 
+let clinicUsersUnsubscribe = null; // 🔴 متغير لحفظ المراقب اللحظي عشان نقفله لما المودال يتقفل 🔴
 
 function updatePageContent(lang) {
     const t = {
@@ -90,33 +91,17 @@ async function openClinicDetailsModal(clinicId) {
     document.getElementById('det-clinic-pkg').innerText = pkgLabel;
 
     document.getElementById('clinicDetailsModal').style.display = 'flex';
-    
     const tbody = document.getElementById('det-users-body');
     tbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">${isAr ? 'جاري تجميع بيانات المستخدمين ومراقبة النشاط...' : 'Fetching users activity...'}</td></tr>`;
 
-    if (window.showLoader) window.showLoader(isAr ? "جاري سحب السجلات..." : "Fetching logs...");
-
     try {
-        const [usersSnap, adminCodesSnap, invitesSnap] = await Promise.all([
-            db.collection("Users").where("clinicId", "==", clinicId).get(),
+        // 1. هنجيب الأكواد المعلقة مرة واحدة الأول
+        const [adminCodesSnap, invitesSnap] = await Promise.all([
             db.collection("clinicId").where("clinicId", "==", clinicId).get(),
             db.collection("InviteCodes").where("clinicId", "==", clinicId).get()
         ]);
 
-        let staffList = [];
-
-        // 🔴 دمج حقول (isOnline) و (lastLogin) في بيانات المستخدمين
-        usersSnap.forEach(doc => {
-            const u = doc.data();
-            staffList.push({ 
-                name: u.name || '---', 
-                identifier: u.email || doc.id, 
-                role: u.role, 
-                status: 'active',
-                isOnline: u.isOnline || false, 
-                lastLogin: u.lastLogin || null 
-            });
-        });
+        let pendingUsers = [];
 
         adminCodesSnap.forEach(doc => {
             const a = doc.data();
@@ -124,14 +109,11 @@ async function openClinicDetailsModal(clinicId) {
                 phoneFound = a.phone;
                 if (detPhone) detPhone.innerText = phoneFound;
             }
-
             if (!a.activated) {
-                staffList.push({ 
+                pendingUsers.push({ 
                     name: 'مدير العيادة (الأدمن)', 
                     identifier: `كود التفعيل: ${doc.id}`, 
-                    role: 'admin', 
-                    status: 'pending',
-                    isOnline: false, lastLogin: null 
+                    role: 'admin', status: 'pending', isOnline: false, lastLogin: null 
                 });
             }
         });
@@ -141,73 +123,98 @@ async function openClinicDetailsModal(clinicId) {
         invitesSnap.forEach(doc => {
             const inv = doc.data();
             if (!inv.activated) {
-                staffList.push({ 
+                pendingUsers.push({ 
                     name: inv.name || 'ممرضة', 
                     identifier: `كود الدعوة: ${doc.id}`, 
-                    role: inv.role, 
-                    status: 'pending',
-                    isOnline: false, lastLogin: null 
+                    role: inv.role, status: 'pending', isOnline: false, lastLogin: null 
                 });
             }
         });
 
-        tbody.innerHTML = '';
-        
-        if (staffList.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">لا يوجد مستخدمين مسجلين أو أكواد معلقة.</td></tr>';
-        } else {
-            staffList.forEach(u => {
-                let roleAr = u.role === 'admin' ? 'أدمن (طبيب)' : (u.role === 'nurse' ? 'ممرضة' : u.role);
-                let roleColor = u.role === 'admin' ? '#0284c7' : '#7c3aed';
-                let roleBg = u.role === 'admin' ? '#e0f2fe' : '#ede9fe';
-                
-                let identHtml = u.status === 'pending' 
-                    ? `<strong style="color: #dc2626;">${u.identifier}</strong>` 
-                    : `<span dir="ltr">${u.identifier}</span>`;
-
-                // 🔴 رسم أعمدة المراقبة (Activity Tracking)
-                let onlineHtml = '';
-                let lastSeenHtml = '---';
-
-                if (u.status === 'pending') {
-                    onlineHtml = `<span style="color:#d97706; font-size:12px;">⏳ لم يفعل الحساب</span>`;
-                } else {
-                    if (u.isOnline) {
-                        onlineHtml = `<span class="status-online">أونلاين</span>`;
-                        lastSeenHtml = `<span style="color:#10b981; font-weight:bold;">الآن</span>`;
-                    } else {
-                        onlineHtml = `<span style="color:#94a3b8; font-size:20px;" title="أوفلاين">💤</span>`;
-                        if (u.lastLogin) {
-                            try {
-                                const d = typeof u.lastLogin.toDate === 'function' ? u.lastLogin.toDate() : new Date(u.lastLogin);
-                                lastSeenHtml = `<span class="status-offline" dir="ltr">${d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')} ${d.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour:'2-digit', minute:'2-digit'})}</span>`;
-                            } catch(e) { lastSeenHtml = '---'; }
-                        } else {
-                            lastSeenHtml = `<span class="status-offline">لم يسجل دخول مسبقاً</span>`;
-                        }
-                    }
-                }
-
-                tbody.innerHTML += `
-                    <tr>
-                        <td style="font-weight: bold; color: #334155;">${u.name}</td>
-                        <td style="text-align: right;">${identHtml}</td>
-                        <td><span style="background: ${roleBg}; color: ${roleColor}; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: bold;">${roleAr}</span></td>
-                        <td style="text-align: center;">${onlineHtml}</td>
-                        <td>${lastSeenHtml}</td>
-                    </tr>
-                `;
-            });
+        // 🔴 2. السحر هنا: مراقبة المستخدمين النشطين لحظة بلحظة (Real-time) 🔴
+        if (clinicUsersUnsubscribe) {
+            clinicUsersUnsubscribe(); // قفل المراقب القديم لو كان شغال
         }
+
+        clinicUsersUnsubscribe = db.collection("Users").where("clinicId", "==", clinicId)
+            .onSnapshot(usersSnap => {
+                let staffList = [...pendingUsers]; // نضيف عليهم المعلقين
+
+                usersSnap.forEach(doc => {
+                    const u = doc.data();
+                    staffList.push({ 
+                        name: u.name || '---', 
+                        identifier: u.email || doc.id, 
+                        role: u.role, 
+                        status: 'active',
+                        isOnline: u.isOnline || false, 
+                        lastLogin: u.lastLogin || null 
+                    });
+                });
+
+                tbody.innerHTML = '';
+                
+                if (staffList.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">لا يوجد مستخدمين مسجلين أو أكواد معلقة.</td></tr>';
+                } else {
+                    staffList.forEach(u => {
+                        let roleAr = u.role === 'admin' ? 'أدمن (طبيب)' : (u.role === 'nurse' ? 'ممرضة' : u.role);
+                        let roleColor = u.role === 'admin' ? '#0284c7' : '#7c3aed';
+                        let roleBg = u.role === 'admin' ? '#e0f2fe' : '#ede9fe';
+                        
+                        let identHtml = u.status === 'pending' 
+                            ? `<strong style="color: #dc2626;">${u.identifier}</strong>` 
+                            : `<span dir="ltr">${u.identifier}</span>`;
+
+                        let onlineHtml = '';
+                        let lastSeenHtml = '---';
+
+                        if (u.status === 'pending') {
+                            onlineHtml = `<span style="color:#d97706; font-size:12px;">⏳ لم يفعل الحساب</span>`;
+                        } else {
+                            if (u.isOnline) {
+                                onlineHtml = `<span class="status-online">أونلاين</span>`;
+                                lastSeenHtml = `<span style="color:#10b981; font-weight:bold;">الآن</span>`;
+                            } else {
+                                onlineHtml = `<span style="color:#94a3b8; font-size:20px;" title="أوفلاين">💤</span>`;
+                                if (u.lastLogin) {
+                                    try {
+                                        const d = typeof u.lastLogin.toDate === 'function' ? u.lastLogin.toDate() : new Date(u.lastLogin);
+                                        lastSeenHtml = `<span class="status-offline" dir="ltr">${d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')} ${d.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour:'2-digit', minute:'2-digit'})}</span>`;
+                                    } catch(e) { lastSeenHtml = '---'; }
+                                } else {
+                                    lastSeenHtml = `<span class="status-offline">لم يسجل دخول مسبقاً</span>`;
+                                }
+                            }
+                        }
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td style="font-weight: bold; color: #334155;">${u.name}</td>
+                                <td style="text-align: right;">${identHtml}</td>
+                                <td><span style="background: ${roleBg}; color: ${roleColor}; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: bold;">${roleAr}</span></td>
+                                <td style="text-align: center;">${onlineHtml}</td>
+                                <td>${lastSeenHtml}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
     } catch (e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">حدث خطأ في تحميل بيانات المستخدمين والنشاط.</td></tr>';
-    } finally {
-        if (window.hideLoader) window.hideLoader();
     }
 }
 
-function closeClinicDetailsModal() { document.getElementById('clinicDetailsModal').style.display = 'none'; }
+// 🔴 إيقاف المراقبة لتوفير باقة الفايربيز عند قفل المودال 🔴
+function closeClinicDetailsModal() { 
+    document.getElementById('clinicDetailsModal').style.display = 'none'; 
+    if (clinicUsersUnsubscribe) {
+        clinicUsersUnsubscribe();
+        clinicUsersUnsubscribe = null;
+    }
+}
 
 function openClinicModal() {
     document.getElementById('clinicForm').reset();
@@ -282,6 +289,11 @@ document.addEventListener('DOMContentLoaded', () => {
     modals.forEach(modal => {
         modal.addEventListener('click', function(event) {
             if (event.target === this) {
+                // لو المودال اللي بيتقفل هو بتاع العيادة، أقفل المراقب
+                if (this.id === 'clinicDetailsModal' && clinicUsersUnsubscribe) {
+                    clinicUsersUnsubscribe();
+                    clinicUsersUnsubscribe = null;
+                }
                 this.style.display = 'none';
             }
         });
