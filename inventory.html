@@ -29,15 +29,15 @@
     </div>
 
     <div class="stats-container">
-        <div class="stat-card" style="border-right: 4px solid #0284c7;">
+        <div class="stat-card active-stat" id="card-all" style="border-right: 4px solid #0284c7;" onclick="filterInventory('all')">
             <h3 id="txt-stat-total">إجمالي الأصناف</h3>
             <p class="stat-value" id="stat-total-items" style="color: #0284c7;">0</p>
         </div>
-        <div class="stat-card" style="border-right: 4px solid #f59e0b; background: #fffbeb;">
+        <div class="stat-card" id="card-low" style="border-right: 4px solid #f59e0b; background: #fffbeb;" onclick="filterInventory('low')">
             <h3 id="txt-stat-low" style="color: #d97706;">نواقص (أوشك على الانتهاء)</h3>
             <p class="stat-value" id="stat-low-stock" style="color: #d97706;">0</p>
         </div>
-        <div class="stat-card" style="border-right: 4px solid #ef4444; background: #fef2f2;">
+        <div class="stat-card" id="card-exp" style="border-right: 4px solid #ef4444; background: #fef2f2;" onclick="filterInventory('exp')">
             <h3 id="txt-stat-exp" style="color: #dc2626;">صلاحية منتهية / قريبة</h3>
             <p class="stat-value" id="stat-expiring" style="color: #dc2626;">0</p>
         </div>
