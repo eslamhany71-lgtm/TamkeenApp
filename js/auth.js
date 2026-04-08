@@ -34,29 +34,30 @@ function requestNotificationPermission() {
     }
 }
 
-// 🔴 تحديث دالة الخروج (Logout) لتسجيل حالة الأوفلاين 🔴
+// 🔴 تحديث قوي لدالة الخروج: انتظار التحديث قبل قطع الاتصال 🔴
 async function logout() {
     const currentUser = auth.currentUser;
-    if (currentUser) {
+    if (currentUser && currentUser.email) {
         try {
+            // إجبار المتصفح ينتظر الرد من الداتابيز عشان نضمن إن الحالة بقت أوفلاين
             await db.collection("Users").doc(currentUser.email).update({
                 isOnline: false,
-                lastLogin: firebase.firestore.FieldValue.serverTimestamp() // نحدث آخر ظهور وقت الخروج برضه
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
             });
         } catch (e) { console.error("Error setting offline status:", e); }
     }
     
-    auth.signOut().then(() => {
-        sessionStorage.clear();
-        window.location.href = "index.html";
-    });
+    // بعد التحديث بنجاح، يتم تسجيل الخروج
+    await auth.signOut();
+    sessionStorage.clear();
+    localStorage.removeItem('lastActiveNiva');
+    window.location.href = "index.html";
 }
 
-// محاولة تسجيل الخروج عند إغلاق المتصفح أو التابة فجأة
+// محاولة أفضل لتسجيل الخروج عند إغلاق المتصفح أو التابة فجأة
 window.addEventListener('beforeunload', () => {
     const currentUser = auth.currentUser;
     if (currentUser && window.location.pathname.includes("home.html")) {
-        // نستخدم navigator.sendBeacon أو طريقة سريعة لتحديث الداتا بيز (لأن async/await مش مضمونة وقت القفل)
         db.collection("Users").doc(currentUser.email).update({
             isOnline: false
         }).catch(()=>{});
@@ -85,28 +86,23 @@ async function loginById() {
 
     isLoginInProgress = true; 
     
-    // إظهار اللودر الذكي
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحقق من البيانات..." : "Checking credentials...");
 
     try {
         let loginEmail = rawInput;
         let usedCode = rawInput;
 
-        // 1. لو كاتب كود مش إيميل (زي الدكتور)
         if (!rawInput.includes('@')) {
             const empDoc = await db.collection("clinicId").doc(rawInput).get();
             if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
             loginEmail = empDoc.data().email;
         }
 
-        // إجبار المتصفح على الخروج عند الإغلاق
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
-        // 2. تسجيل الدخول الفعلي
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
         const actualEmail = userCredential.user.email;
 
-        // 3. جلب داتا اليوزر
         const userDoc = await db.collection("Users").doc(actualEmail).get();
         if (!userDoc.exists) throw { code: 'custom/user-not-found' };
         
@@ -115,7 +111,6 @@ async function loginById() {
         const finalRole = userData.role;
         if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
 
-        // 4. الفحص الإجباري لحالة العيادة
         if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -143,13 +138,12 @@ async function loginById() {
             }
         }
 
-        // 🔴 5. تسجيل حركة الدخول وحالة الأونلاين في الداتا بيز 🔴
+        // تسجيل حالة الدخول
         await db.collection("Users").doc(actualEmail).update({
             isOnline: true,
             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 6. الحفظ والتحويل
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
@@ -183,7 +177,7 @@ async function loginById() {
 }
 
 // ==========================================
-// 🔴 3. دوال تفعيل حساب الموظف (الممرضة) 🔴
+// 3. دوال تفعيل حساب الموظف (الممرضة)
 // ==========================================
 
 function openStaffModal() {
@@ -208,7 +202,6 @@ async function activateStaffAccount(e) {
     const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
     const newPassword = document.getElementById('staffPassword').value.trim();
 
-    // إظهار اللودر الذكي
     if (window.showLoader) window.showLoader("جاري فحص الكود...");
 
     try {
@@ -236,7 +229,6 @@ async function activateStaffAccount(e) {
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
-        // 🔴 التحديث: إضافة الأونلاين وآخر ظهور وقت إنشاء الحساب ودخوله
         await db.collection("Users").doc(newEmail).set({
             name: inviteData.name,
             email: newEmail,
