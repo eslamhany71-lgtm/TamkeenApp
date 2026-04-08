@@ -16,6 +16,11 @@
         .btn-nurse:hover { background-color: #7c3aed; }
         .clinic-link { color: #0ea5e9; text-decoration: none; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; display: inline-block; padding: 4px 0;}
         .clinic-link:hover { color: #0284c7; text-decoration: underline; }
+        /* 🔴 ستايلات حالة الأونلاين 🔴 */
+        .status-online { display: inline-flex; align-items: center; gap: 5px; color: #10b981; font-weight: bold; background: #dcfce7; padding: 4px 8px; border-radius: 6px; font-size: 12px; border: 1px solid #bbf7d0;}
+        .status-online::before { content: ''; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 5px #10b981; animation: blink 1.5s infinite; }
+        .status-offline { color: #64748b; font-size: 13px; font-weight: 500; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -72,7 +77,7 @@
     </div>
 
     <div id="clinicDetailsModal" class="modal">
-        <div class="modal-content" style="max-width: 750px;">
+        <div class="modal-content" style="max-width: 850px;">
             <span class="close-modal" onclick="closeClinicDetailsModal()">&times;</span>
             <h2 id="mod-det-title" style="margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; color: #0f172a;">تفاصيل العيادة والمستخدمين</h2>
             
@@ -84,19 +89,20 @@
                 <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">نوع الباقة</strong> <span id="det-clinic-pkg" style="color: #10b981; font-weight: bold;">---</span></div>
             </div>
 
-            <h3 style="margin-top: 0; color: #0f172a; font-size: 18px; margin-bottom: 15px;">👥 فريق العمل والمستخدمين (Users)</h3>
+            <h3 style="margin-top: 0; color: #0f172a; font-size: 18px; margin-bottom: 15px;">👥 فريق العمل والمستخدمين (Users & Activity)</h3>
             <div class="table-container" style="max-height: 350px; overflow-y: auto; margin-top: 0; box-shadow: none; border: 1px solid #e2e8f0;">
                 <table style="width: 100%; margin: 0;">
                     <thead style="position: sticky; top: 0; z-index: 1;">
                         <tr>
                             <th style="background: #f1f5f9;">اسم المستخدم</th>
-                            <th style="background: #f1f5f9;">البريد الإلكتروني / الكود</th>
-                            <th style="background: #f1f5f9;">الصلاحية (Role)</th>
-                            <th style="background: #f1f5f9;">حالة الحساب</th>
+                            <th style="background: #f1f5f9;">البريد / الكود</th>
+                            <th style="background: #f1f5f9;">الصلاحية</th>
+                            <th style="background: #f1f5f9; text-align: center;">متصل الآن؟</th>
+                            <th style="background: #f1f5f9;">آخر ظهور</th>
                         </tr>
                     </thead>
                     <tbody id="det-users-body">
-                        <tr><td colspan="4" style="text-align: center;">جاري تحميل المستخدمين...</td></tr>
+                        <tr><td colspan="5" style="text-align: center;">جاري تحميل المستخدمين...</td></tr>
                     </tbody>
                 </table>
             </div>
