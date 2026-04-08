@@ -33,14 +33,17 @@
             </div>
 
             <ul class="nav-links" id="nav-links">
-                <li class="active" onclick="loadPage('dashboard.html', this)">
+                <li class="active" onclick="loadPage('dashboard.html', this)" id="nav-item-dash">
                     <a href="javascript:void(0)"><span class="icon">📊</span> <span id="nav-dash">الداشبورد</span></a>
                 </li>
-                <li onclick="loadPage('patients.html', this)">
+                <li onclick="loadPage('patients.html', this)" id="nav-item-patients">
                     <a href="javascript:void(0)"><span class="icon">🩻</span> <span id="nav-patients">المرضى والأشعة</span></a>
                 </li>
-                <li onclick="loadPage('calendar.html', this)">
+                <li onclick="loadPage('calendar.html', this)" id="nav-item-calendar">
                     <a href="javascript:void(0)"><span class="icon">📅</span> <span id="nav-calendar">المواعيد والتقويم</span></a>
+                </li>
+                <li onclick="loadPage('inventory.html', this)" id="nav-item-inventory">
+                    <a href="javascript:void(0)"><span class="icon">📦</span> <span id="nav-inventory">المخزون الطبي</span></a>
                 </li>
                 <li id="nav-finances-li" onclick="loadPage('finances.html', this)">
                     <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والمصروفات</span></a>
