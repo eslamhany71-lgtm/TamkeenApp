@@ -34,12 +34,35 @@ function requestNotificationPermission() {
     }
 }
 
-function logout() {
+// 🔴 تحديث دالة الخروج (Logout) لتسجيل حالة الأوفلاين 🔴
+async function logout() {
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+        try {
+            await db.collection("Users").doc(currentUser.email).update({
+                isOnline: false,
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp() // نحدث آخر ظهور وقت الخروج برضه
+            });
+        } catch (e) { console.error("Error setting offline status:", e); }
+    }
+    
     auth.signOut().then(() => {
         sessionStorage.clear();
         window.location.href = "index.html";
     });
 }
+
+// محاولة تسجيل الخروج عند إغلاق المتصفح أو التابة فجأة
+window.addEventListener('beforeunload', () => {
+    const currentUser = auth.currentUser;
+    if (currentUser && window.location.pathname.includes("home.html")) {
+        // نستخدم navigator.sendBeacon أو طريقة سريعة لتحديث الداتا بيز (لأن async/await مش مضمونة وقت القفل)
+        db.collection("Users").doc(currentUser.email).update({
+            isOnline: false
+        }).catch(()=>{});
+    }
+});
+
 
 // 2. دالة تسجيل الدخول (صاروخية) 🚀
 async function loginById() {
@@ -62,7 +85,7 @@ async function loginById() {
 
     isLoginInProgress = true; 
     
-    // 🔴 إظهار اللودر الذكي 🔴
+    // إظهار اللودر الذكي
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحقق من البيانات..." : "Checking credentials...");
 
     try {
@@ -120,7 +143,13 @@ async function loginById() {
             }
         }
 
-        // 5. الحفظ والتحويل
+        // 🔴 5. تسجيل حركة الدخول وحالة الأونلاين في الداتا بيز 🔴
+        await db.collection("Users").doc(actualEmail).update({
+            isOnline: true,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 6. الحفظ والتحويل
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
@@ -128,7 +157,6 @@ async function loginById() {
         window.location.href = "home.html"; 
 
     } catch (error) {
-        // 🔴 إخفاء اللودر في حالة حدوث خطأ 🔴
         if (window.hideLoader) window.hideLoader();
         
         await auth.signOut().catch(()=>{}); 
@@ -180,7 +208,7 @@ async function activateStaffAccount(e) {
     const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
     const newPassword = document.getElementById('staffPassword').value.trim();
 
-    // 🔴 إظهار اللودر الذكي 🔴
+    // إظهار اللودر الذكي
     if (window.showLoader) window.showLoader("جاري فحص الكود...");
 
     try {
@@ -208,13 +236,16 @@ async function activateStaffAccount(e) {
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
+        // 🔴 التحديث: إضافة الأونلاين وآخر ظهور وقت إنشاء الحساب ودخوله
         await db.collection("Users").doc(newEmail).set({
             name: inviteData.name,
             email: newEmail,
             role: inviteData.role, 
             clinicId: inviteData.clinicId,
             empCode: inviteCode,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            isOnline: true,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         await db.collection("InviteCodes").doc(inviteCode).update({
@@ -305,7 +336,6 @@ async function activateAccount() {
         return; 
     }
 
-    // 🔴 إظهار اللودر الذكي 🔴
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...");
 
     try {
