@@ -101,6 +101,7 @@ function updatePageContent(lang) {
             header: "لوحة التحكم",
             navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
             navFinances: "الحسابات والمصروفات",
+            navInventory: "المخزون الطبي", // 🔴 إضافة ترجمة المخزون
             navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
             alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
@@ -110,6 +111,7 @@ function updatePageContent(lang) {
             header: "Dashboard",
             navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
             navFinances: "Finances",
+            navInventory: "Medical Inventory", // 🔴 إضافة ترجمة المخزون
             navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
             alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension.",
@@ -122,6 +124,7 @@ function updatePageContent(lang) {
     setTxt('txt-header', c.header);
     setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
     setTxt('nav-finances', c.navFinances);
+    setTxt('nav-inventory', c.navInventory); // 🔴 تعيين النص للمخزون
     setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
     
     // ترجمات الدعم الفني
@@ -157,7 +160,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
                     checkSubscriptionAlert(clinicId);
                 }
 
-                // 🔴 اللمسة السحرية: استرجاع الصفحة الأخيرة بعد الـ Refresh
+                // استرجاع الصفحة الأخيرة بعد الـ Refresh
                 const lastPage = sessionStorage.getItem('lastOpenedPage');
                 const lastNavId = sessionStorage.getItem('lastActiveNavId');
                 
@@ -165,8 +168,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
                     const navLi = lastNavId ? document.getElementById(lastNavId) : null;
                     loadPage(lastPage, navLi);
                 } else {
-                    // لو مفيش صفحة متسجلة، افتح الداشبورد عادي
-                    loadPage('dashboard.html', document.getElementById('nav-dash').parentElement);
+                    loadPage('dashboard.html', document.getElementById('nav-item-dash'));
                 }
             }
         } catch (error) {
@@ -297,13 +299,16 @@ function applyRoles(role) {
     const settingsLi = document.getElementById('nav-settings-li');
     const superAdminLi = document.getElementById('nav-super-admin');
     const financesLi = document.getElementById('nav-finances-li');
+    const inventoryLi = document.getElementById('nav-item-inventory'); // 🔴 التحكم في المخزون
     
     if (settingsLi) settingsLi.style.display = 'none';
     if (superAdminLi) superAdminLi.style.display = 'none';
     if (financesLi) financesLi.style.display = 'block';
+    if (inventoryLi) inventoryLi.style.display = 'block'; // المخزون ظاهر للكل افتراضياً
 
     if (r === 'nurse') {
         if (financesLi) financesLi.style.display = 'none';
+        // الممرضة بتشوف المخزون عشان تسحب أو تبلغ النواقص
     }
 
     if (r === 'doctor' || r === 'admin') {
@@ -359,7 +364,7 @@ function sendSupportWhatsApp() {
         return;
     }
 
-    const myWhatsAppNumber = "0201149079451"; // 🔴 ضع رقمك هنا بالصيغة الدولية 🔴
+    const myWhatsAppNumber = "0201149079451"; 
     const clinicName = document.getElementById('txt-clinic-name').innerText;
     const userEmail = document.getElementById('userEmail').innerText;
     const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
