@@ -85,14 +85,24 @@ async function openClinicDetailsModal(clinicId) {
     let phoneFound = clinic.phone1 || clinic.adminPhone || null;
     if (detPhone) detPhone.innerText = phoneFound || 'جاري البحث...';
 
+    // 🔴 تجهيز وعرض تاريخ إنشاء العيادة 🔴
+    let clinicCreatedStr = '---';
+    if (clinic.createdAt) {
+        const cd = typeof clinic.createdAt.toDate === 'function' ? clinic.createdAt.toDate() : new Date(clinic.createdAt);
+        clinicCreatedStr = cd.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+    }
+
     document.getElementById('det-clinic-name').innerText = clinic.clinicName;
     document.getElementById('det-clinic-code').innerText = clinic.accessCode || '---';
     document.getElementById('det-clinic-email').innerText = clinic.adminEmail || '---';
     document.getElementById('det-clinic-pkg').innerText = pkgLabel;
+    
+    const detCreated = document.getElementById('det-clinic-created');
+    if (detCreated) detCreated.innerText = clinicCreatedStr;
 
     document.getElementById('clinicDetailsModal').style.display = 'flex';
     const tbody = document.getElementById('det-users-body');
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center;">${isAr ? 'جاري تجميع بيانات المستخدمين ومراقبة النشاط...' : 'Fetching users activity...'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${isAr ? 'جاري تجميع بيانات المستخدمين ومراقبة النشاط...' : 'Fetching users activity...'}</td></tr>`;
 
     try {
         const [adminCodesSnap, invitesSnap] = await Promise.all([
@@ -101,6 +111,9 @@ async function openClinicDetailsModal(clinicId) {
         ]);
 
         let pendingUsers = [];
+
+        // تاريخ افتراضي لو الداتا قديمة ومفيهاش تاريخ عشان السورت ميضربش
+        let fallbackDate = clinic.createdAt ? (typeof clinic.createdAt.toDate === 'function' ? clinic.createdAt.toDate() : new Date(clinic.createdAt)) : new Date(0);
 
         adminCodesSnap.forEach(doc => {
             const a = doc.data();
@@ -112,7 +125,8 @@ async function openClinicDetailsModal(clinicId) {
                 pendingUsers.push({ 
                     name: 'مدير العيادة (الأدمن)', 
                     identifier: `كود التفعيل: ${doc.id}`, 
-                    role: 'admin', status: 'pending', isOnline: false, lastLogin: null 
+                    role: 'admin', status: 'pending', isOnline: false, lastLogin: null,
+                    createdAt: fallbackDate // 🔴 حفظ تاريخ الإنشاء للترتيب 
                 });
             }
         });
@@ -122,10 +136,12 @@ async function openClinicDetailsModal(clinicId) {
         invitesSnap.forEach(doc => {
             const inv = doc.data();
             if (!inv.activated) {
+                let invDate = inv.createdAt ? (typeof inv.createdAt.toDate === 'function' ? inv.createdAt.toDate() : new Date(inv.createdAt)) : fallbackDate;
                 pendingUsers.push({ 
                     name: inv.name || 'ممرضة', 
                     identifier: `كود الدعوة: ${doc.id}`, 
-                    role: inv.role, status: 'pending', isOnline: false, lastLogin: null 
+                    role: inv.role, status: 'pending', isOnline: false, lastLogin: null,
+                    createdAt: invDate // 🔴 حفظ تاريخ الإنشاء للترتيب
                 });
             }
         });
@@ -134,31 +150,32 @@ async function openClinicDetailsModal(clinicId) {
             clinicUsersUnsubscribe(); 
         }
 
-        // 🔴 السر هنا: دمج بيانات المعلقين مع النشطين ورسم الجدول بالكامل في كل مرة يلقط تغيير
         clinicUsersUnsubscribe = db.collection("Users").where("clinicId", "==", clinicId)
             .onSnapshot(usersSnap => {
-                // بنعمل نسخة جديدة من المعلقين في كل لقطة (Snapshot)
                 let staffList = [...pendingUsers]; 
 
                 usersSnap.forEach(doc => {
                     const u = doc.data();
+                    let uDate = u.createdAt ? (typeof u.createdAt.toDate === 'function' ? u.createdAt.toDate() : new Date(u.createdAt)) : fallbackDate;
                     staffList.push({ 
                         name: u.name || '---', 
                         identifier: u.email || doc.id, 
                         role: u.role, 
                         status: 'active',
                         isOnline: u.isOnline || false, 
-                        lastLogin: u.lastLogin || null 
+                        lastLogin: u.lastLogin || null,
+                        createdAt: uDate // 🔴 حفظ تاريخ الإنشاء للترتيب
                     });
                 });
 
-                // نمسح الجدول بالكامل
+                // 🔴 السحر هنا: ترتيب المصفوفة من الأحدث للأقدم 🔴
+                staffList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
                 tbody.innerHTML = '';
                 
                 if (staffList.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b;">لا يوجد مستخدمين مسجلين أو أكواد معلقة.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b;">لا يوجد مستخدمين مسجلين أو أكواد معلقة.</td></tr>';
                 } else {
-                    // ونرسمه تاني بالبيانات الجديدة
                     staffList.forEach(u => {
                         let roleAr = u.role === 'admin' ? 'أدمن (طبيب)' : (u.role === 'nurse' ? 'ممرضة' : u.role);
                         let roleColor = u.role === 'admin' ? '#0284c7' : '#7c3aed';
@@ -190,11 +207,18 @@ async function openClinicDetailsModal(clinicId) {
                             }
                         }
 
+                        // تجهيز شكل عمود تاريخ الانضمام
+                        let joinDateHtml = '---';
+                        if (u.createdAt.getTime() !== 0) {
+                            joinDateHtml = `<span dir="ltr" style="color: #475569; font-size: 13px;">${u.createdAt.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')}</span>`;
+                        }
+
                         tbody.innerHTML += `
                             <tr>
                                 <td style="font-weight: bold; color: #334155;">${u.name}</td>
                                 <td style="text-align: right;">${identHtml}</td>
                                 <td><span style="background: ${roleBg}; color: ${roleColor}; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: bold;">${roleAr}</span></td>
+                                <td style="text-align: center;">${joinDateHtml}</td>
                                 <td style="text-align: center;">${onlineHtml}</td>
                                 <td>${lastSeenHtml}</td>
                             </tr>
@@ -205,7 +229,7 @@ async function openClinicDetailsModal(clinicId) {
 
     } catch (e) {
         console.error(e);
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">حدث خطأ في تحميل بيانات المستخدمين والنشاط.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل بيانات المستخدمين والنشاط.</td></tr>';
     }
 }
 
