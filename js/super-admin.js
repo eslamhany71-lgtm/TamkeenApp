@@ -85,7 +85,6 @@ async function openClinicDetailsModal(clinicId) {
     let phoneFound = clinic.phone1 || clinic.adminPhone || null;
     if (detPhone) detPhone.innerText = phoneFound || 'جاري البحث...';
 
-    // 🔴 تجهيز وعرض تاريخ إنشاء العيادة 🔴
     let clinicCreatedStr = '---';
     if (clinic.createdAt) {
         const cd = typeof clinic.createdAt.toDate === 'function' ? clinic.createdAt.toDate() : new Date(clinic.createdAt);
@@ -100,6 +99,13 @@ async function openClinicDetailsModal(clinicId) {
     const detCreated = document.getElementById('det-clinic-created');
     if (detCreated) detCreated.innerText = clinicCreatedStr;
 
+    // 🔴 تحديث قيمة السعر في المودال 🔴
+    const priceDisplay = document.getElementById('det-clinic-price');
+    if (priceDisplay) priceDisplay.innerText = clinic.subPrice || 0;
+    
+    const hiddenId = document.getElementById('current-det-clinic-id');
+    if (hiddenId) hiddenId.value = clinic.id;
+
     document.getElementById('clinicDetailsModal').style.display = 'flex';
     const tbody = document.getElementById('det-users-body');
     tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${isAr ? 'جاري تجميع بيانات المستخدمين ومراقبة النشاط...' : 'Fetching users activity...'}</td></tr>`;
@@ -112,7 +118,6 @@ async function openClinicDetailsModal(clinicId) {
 
         let pendingUsers = [];
 
-        // تاريخ افتراضي لو الداتا قديمة ومفيهاش تاريخ عشان السورت ميضربش
         let fallbackDate = clinic.createdAt ? (typeof clinic.createdAt.toDate === 'function' ? clinic.createdAt.toDate() : new Date(clinic.createdAt)) : new Date(0);
 
         adminCodesSnap.forEach(doc => {
@@ -126,7 +131,7 @@ async function openClinicDetailsModal(clinicId) {
                     name: 'مدير العيادة (الأدمن)', 
                     identifier: `كود التفعيل: ${doc.id}`, 
                     role: 'admin', status: 'pending', isOnline: false, lastLogin: null,
-                    createdAt: fallbackDate // 🔴 حفظ تاريخ الإنشاء للترتيب 
+                    createdAt: fallbackDate 
                 });
             }
         });
@@ -141,7 +146,7 @@ async function openClinicDetailsModal(clinicId) {
                     name: inv.name || 'ممرضة', 
                     identifier: `كود الدعوة: ${doc.id}`, 
                     role: inv.role, status: 'pending', isOnline: false, lastLogin: null,
-                    createdAt: invDate // 🔴 حفظ تاريخ الإنشاء للترتيب
+                    createdAt: invDate 
                 });
             }
         });
@@ -164,11 +169,10 @@ async function openClinicDetailsModal(clinicId) {
                         status: 'active',
                         isOnline: u.isOnline || false, 
                         lastLogin: u.lastLogin || null,
-                        createdAt: uDate // 🔴 حفظ تاريخ الإنشاء للترتيب
+                        createdAt: uDate 
                     });
                 });
 
-                // 🔴 السحر هنا: ترتيب المصفوفة من الأحدث للأقدم 🔴
                 staffList.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
                 tbody.innerHTML = '';
@@ -207,7 +211,6 @@ async function openClinicDetailsModal(clinicId) {
                             }
                         }
 
-                        // تجهيز شكل عمود تاريخ الانضمام
                         let joinDateHtml = '---';
                         if (u.createdAt.getTime() !== 0) {
                             joinDateHtml = `<span dir="ltr" style="color: #475569; font-size: 13px;">${u.createdAt.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')}</span>`;
@@ -230,6 +233,39 @@ async function openClinicDetailsModal(clinicId) {
     } catch (e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل بيانات المستخدمين والنشاط.</td></tr>';
+    }
+}
+
+// 🔴 دالة تعديل سعر الاشتراك 🔴
+async function editClinicPrice() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const currentPriceStr = document.getElementById('det-clinic-price').innerText;
+    const clinicId = document.getElementById('current-det-clinic-id').value;
+    
+    if (!clinicId) return;
+
+    let newPrice = prompt(isAr ? "أدخل قيمة الاشتراك الجديدة (ج.م):" : "Enter new subscription price (EGP):", currentPriceStr);
+    
+    if (newPrice !== null && newPrice.trim() !== "") {
+        const numPrice = Number(newPrice);
+        if (!isNaN(numPrice) && numPrice >= 0) {
+            
+            if (window.showLoader) window.showLoader(isAr ? "جاري التحديث..." : "Updating price...");
+            try {
+                await db.collection("Clinics").doc(clinicId).update({
+                    subPrice: numPrice
+                });
+                document.getElementById('det-clinic-price').innerText = numPrice;
+            } catch (err) {
+                console.error(err);
+                alert(isAr ? "حدث خطأ أثناء التحديث" : "Error updating price");
+            } finally {
+                if (window.hideLoader) window.hideLoader();
+            }
+            
+        } else {
+            alert(isAr ? "برجاء إدخال رقم صحيح." : "Please enter a valid number.");
+        }
     }
 }
 
@@ -336,6 +372,10 @@ async function saveNewClinic(e) {
     const plan = document.getElementById('clinic_plan').value; 
     const packageType = document.getElementById('clinic_package').value; 
     
+    // 🔴 سحب قيمة الاشتراك من الفورم 🔴
+    const subPriceInput = document.getElementById('clinic_sub_price');
+    const subPrice = subPriceInput && subPriceInput.value ? Number(subPriceInput.value) : 0;
+    
     const phoneInput = document.getElementById('clinic_phone');
     const adminPhone = phoneInput && phoneInput.value.trim() !== "" ? phoneInput.value.trim() : "01000000000";
 
@@ -353,6 +393,7 @@ async function saveNewClinic(e) {
             clinicName: clinicName,
             status: plan,
             package: packageType, 
+            subPrice: subPrice, // 🔴 حفظ السعر في الداتابيز 🔴
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             nextPaymentDate: nextPayDate,
             logoUrl: "",
