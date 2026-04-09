@@ -306,7 +306,6 @@ function applyRoles(role) {
     if (r === 'superadmin') {
         if (settingsLi) settingsLi.style.display = 'block';
         if (superAdminLi) superAdminLi.style.display = 'block';
-        // 🔴 تم إزالة كود إخفاء المساعد الذكي للسوبر أدمن عشان تقدر تجربه بنفسك 🔴
     }
 }
 
@@ -404,7 +403,6 @@ function appendToAIChat(text, isUser = false) {
 async function askAI(promptType) {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const clinicId = sessionStorage.getItem('clinicId');
-    if (!clinicId || clinicId === 'default') return;
 
     let userMsg = "";
     if (promptType === 'income') userMsg = isAr ? "كم إجمالي إيرادات العيادة اليوم؟" : "What is today's total income?";
@@ -414,8 +412,17 @@ async function askAI(promptType) {
     else if (promptType === 'tomorrow') userMsg = isAr ? "ما هي مواعيد عيادة الغد؟" : "What are tomorrow's appointments?";
     else if (promptType === 'inventory') userMsg = isAr ? "هل يوجد نواقص في المخزن الطبي؟" : "Are there any inventory shortages?";
 
+    // 🔴 أولاً بنعرض رسالة المستخدم عشان يعرف إن الزرار استجاب 🔴
     appendToAIChat(userMsg, true);
     
+    // 🔴 لو الحساب سوبر أدمن، هنفهمه إن ده بيشتغل مع الدكاترة بس 🔴
+    if (!clinicId || clinicId === 'default') {
+        setTimeout(() => {
+            appendToAIChat(isAr ? "⚠️ <strong>تنبيه:</strong> أنا مساعد ذكي مخصص لقراءة بيانات العيادات فقط. أنت الآن مسجل دخول بحساب (الإدارة المركزية). قم بالدخول بحساب عيادة (طبيب/ممرضة) لتجربة استخراج الأرقام الحقيقية! 🚀" : "⚠️ <strong>Alert:</strong> AI reads clinic data only. Please login with a clinic account to test.", false);
+        }, 500);
+        return;
+    }
+
     const loadingId = "ai-loading-" + Date.now();
     appendToAIChat(`<span id="${loadingId}" style="color:#64748b;">⏳ ${isAr ? 'جاري الفحص السريع...' : 'Checking data...'}</span>`);
 
