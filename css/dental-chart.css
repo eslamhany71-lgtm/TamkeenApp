@@ -1,0 +1,109 @@
+/* css/dental-chart.css - NivaDent Advanced Dental Chart */
+
+.dental-chart-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    padding: 20px 0;
+    width: 100%;
+}
+
+.jaw-row {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 8px;
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.jaw-title {
+    text-align: center;
+    color: #64748b;
+    font-weight: 800;
+    margin-bottom: 10px;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.tooth-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.tooth-wrapper:hover {
+    transform: translateY(-5px);
+}
+
+.tooth-num {
+    font-size: 13px;
+    font-weight: 800;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+}
+
+.tooth-wrapper:hover .tooth-num {
+    background: #e0f2fe;
+    color: #0284c7;
+    border-color: #bae6fd;
+}
+
+/* 🔴 ستايل الـ SVG الأساسي للسِنة 🔴 */
+.tooth-svg {
+    width: 45px;
+    height: 60px;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.1));
+}
+
+.tooth-shape {
+    fill: #ffffff;
+    stroke: #94a3b8;
+    stroke-width: 3;
+    transition: all 0.3s ease;
+}
+
+/* 🔴 الحالات الطبية (Magic Colors) 🔴 */
+
+/* 1. سليم (Normal) */
+.status-normal .tooth-shape { fill: #ffffff; stroke: #cbd5e1; }
+
+/* 2. تسوس (Decay) */
+.status-decay .tooth-shape { fill: #fef08a; stroke: #eab308; }
+.status-decay .tooth-decay-spot { display: block !important; }
+
+/* 3. حشو (Filled) */
+.status-filled .tooth-shape { fill: #f8fafc; stroke: #94a3b8; }
+.status-filled .tooth-filling { display: block !important; }
+
+/* 4. طربوش (Crown) */
+.status-crown .tooth-shape { fill: #e0e7ff; stroke: #4f46e5; stroke-width: 4; }
+
+/* 5. زراعة (Implant) */
+.status-implant .tooth-shape { fill: #f1f5f9; stroke: #64748b; stroke-dasharray: 4; }
+.status-implant .tooth-implant-screw { display: block !important; }
+
+/* 6. مخلوع (Extracted) */
+.status-extracted .tooth-shape { opacity: 0.3; fill: #fecaca; stroke: #ef4444; }
+.status-extracted .tooth-cross { display: block !important; }
+
+
+/* موبايل ريسبونسيف */
+@media (max-width: 768px) {
+    .tooth-svg { width: 35px; height: 45px; }
+    .jaw-row { gap: 4px; padding: 15px 10px; }
+    .tooth-num { font-size: 11px; padding: 2px 5px; }
+}
