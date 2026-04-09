@@ -20,6 +20,9 @@
         .status-online::before { content: ''; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 5px #10b981; animation: blink 1.5s infinite; }
         .status-offline { color: #64748b; font-size: 13px; font-weight: 500; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        /* 🔴 زرار تعديل السعر الصغير 🔴 */
+        .btn-edit-price { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; padding: 2px 5px; font-size: 12px; margin-inline-start: 5px; color: #475569; transition: 0.2s; }
+        .btn-edit-price:hover { background: #e2e8f0; color: #0284c7; border-color: #94a3b8; }
     </style>
 </head>
 <body>
@@ -87,6 +90,13 @@
                 <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">رقم الموبايل الأساسي</strong> <span id="det-clinic-phone" dir="ltr" style="color: #475569; font-weight: bold;">---</span></div>
                 <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">نوع الباقة</strong> <span id="det-clinic-pkg" style="color: #10b981; font-weight: bold;">---</span></div>
                 <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">تاريخ الإنشاء</strong> <span id="det-clinic-created" style="color: #0f172a; font-weight: bold;" dir="ltr">---</span></div>
+                
+                <div style="grid-column: span 2; background: #fffbeb; padding: 10px; border-radius: 8px; border: 1px solid #fde68a;">
+                    <strong style="color: #d97706; font-size: 13px; display: inline-block; margin-bottom: 4px;">قيمة الاشتراك المتفق عليها:</strong> 
+                    <span id="det-clinic-price" style="color: #0f172a; font-weight: bold; font-size: 16px; margin-inline-start: 5px;">0</span> <span style="font-size: 12px; color: #64748b;">ج.م</span>
+                    <button class="btn-edit-price" id="btn-edit-clinic-price" onclick="editClinicPrice()" title="تعديل السعر">✏️ تعديل</button>
+                    <input type="hidden" id="current-det-clinic-id">
+                </div>
             </div>
 
             <h3 style="margin-top: 0; color: #0f172a; font-size: 18px; margin-bottom: 15px;">👥 فريق العمل والمستخدمين (مرتب من الأحدث للأقدم)</h3>
@@ -132,14 +142,21 @@
                     <input type="tel" id="clinic_phone" required dir="ltr" style="text-align: left;" placeholder="01xxxxxxxxx">
                 </div>
 
-                <div class="form-group">
-                    <label id="lbl-c-pkg">باقة الاشتراك</label>
-                    <select id="clinic_package">
-                        <option value="trial_7" id="opt-pkg-t7">تجريبي (7 أيام)</option>
-                        <option value="trial_14" id="opt-pkg-t14">تجريبي (14 يوم)</option>
-                        <option value="monthly" id="opt-pkg-month" selected>شهري (Monthly)</option>
-                        <option value="yearly" id="opt-pkg-year">سنوي (Yearly)</option>
-                    </select>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label id="lbl-c-pkg">باقة الاشتراك</label>
+                        <select id="clinic_package">
+                            <option value="trial_7" id="opt-pkg-t7">تجريبي (7 أيام)</option>
+                            <option value="trial_14" id="opt-pkg-t14">تجريبي (14 يوم)</option>
+                            <option value="monthly" id="opt-pkg-month" selected>شهري (Monthly)</option>
+                            <option value="yearly" id="opt-pkg-year">سنوي (Yearly)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label id="lbl-c-price">قيمة الاشتراك (ج.م)</label>
+                        <input type="number" id="clinic_sub_price" value="0" min="0" required placeholder="مثال: 500">
+                    </div>
                 </div>
 
                 <div class="form-group">
