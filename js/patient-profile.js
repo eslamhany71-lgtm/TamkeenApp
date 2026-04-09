@@ -9,8 +9,6 @@ let currentUserDisplayName = "مستخدم غير معروف";
 
 const SESSIONS_PER_PAGE = 50;
 let lastVisibleProfileSession = null;
-
-// 🔴 متغير جديد عشان نضمن إن الجلسات تتحمل مرة واحدة بس مش كل ما الدين يتغير
 let isInitialLoad = true;
 
 function getLang() {
@@ -32,7 +30,16 @@ function openModal(id) {
     if(id === 'labOrderModal') {
         document.getElementById('lab_date').value = new Date().toISOString().split('T')[0];
     }
+    if(id === 'installmentModal') {
+        document.getElementById('inst_start_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('inst_total').value = '';
+        document.getElementById('inst_down_payment').value = '';
+        document.getElementById('inst_remaining').value = '';
+        document.getElementById('inst_count').value = '1';
+        document.getElementById('inst_value_display').innerText = '0 ج.م';
+    }
 }
+
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -41,7 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 🔴 التحديث السحري: استخدام onSnapshot للمراقبة اللحظية (Real-time)
 function loadPatientData() {
     const isAr = getLang();
     if (!patientId || !clinicId) {
@@ -51,7 +57,6 @@ function loadPatientData() {
 
     if (isInitialLoad && window.showLoader) window.showLoader(isAr ? "جاري تحميل ملف المريض..." : "Loading patient profile...");
 
-    // onSnapshot بتفضل تراقب ملف المريض، أي تغيير في الدين هيظهر فوراً بدون ريفريش
     db.collection("Patients").doc(patientId).onSnapshot(doc => {
         if (doc.exists) {
             const p = doc.data();
@@ -78,7 +83,6 @@ function loadPatientData() {
             }
         }
         
-        // لو دي أول مرة نفتح الصفحة، حمل الجلسات والمعامل، بعدين شيل اللودر
         if (isInitialLoad) {
             loadPatientSessions(); 
             loadLabOrders(); 
@@ -92,9 +96,129 @@ function loadPatientData() {
 }
 
 // ==========================================
-// أكواد إدارة المعامل (Lab Management)
+// 🔴 أكواد نظام التقسيط (Installment Plans) 🔴
 // ==========================================
 
+function calcInstallments() {
+    const total = Number(document.getElementById('inst_total').value) || 0;
+    const downPayment = Number(document.getElementById('inst_down_payment').value) || 0;
+    const count = Number(document.getElementById('inst_count').value) || 1;
+
+    const remaining = Math.max(0, total - downPayment);
+    document.getElementById('inst_remaining').value = remaining;
+
+    const valPerSession = remaining > 0 ? (remaining / count).toFixed(2) : 0;
+    document.getElementById('inst_value_display').innerText = `${valPerSession} ج.م`;
+}
+
+async function saveInstallmentPlan(e) {
+    e.preventDefault();
+    const isAr = getLang();
+    const btn = document.getElementById('btn-save-installment');
+    btn.disabled = true;
+
+    if (window.showLoader) window.showLoader(isAr ? "جاري جدولة الأقساط..." : "Scheduling Plan...");
+
+    const planName = document.getElementById('inst_plan_name').value.trim();
+    const total = Number(document.getElementById('inst_total').value) || 0;
+    const downPayment = Number(document.getElementById('inst_down_payment').value) || 0;
+    const payMethod = document.getElementById('inst_pay_method').value;
+    const startDateStr = document.getElementById('inst_start_date').value;
+    const remaining = Number(document.getElementById('inst_remaining').value) || 0;
+    const count = Number(document.getElementById('inst_count').value) || 1;
+    const interval = document.getElementById('inst_interval').value;
+
+    const valPerSession = remaining > 0 ? (remaining / count) : 0;
+
+    try {
+        // استخدام Batch عشان لو النت قطع في النص الداتا متضربش
+        const batch = db.batch();
+        const financeRef = db.collection("Finances");
+        const sessionsRef = db.collection("Sessions");
+        const patientRef = db.collection("Patients").doc(patientId);
+
+        // 1. تسجيل المقدم لو موجود
+        if (downPayment > 0) {
+            // أ. جلسة المقدم
+            const downSessRef = sessionsRef.doc();
+            batch.set(downSessRef, {
+                clinicId: clinicId, patientId: patientId, date: startDateStr,
+                procedure: `مقدم خطة: ${planName}`, tooth: "", notes: "دفعة مقدمة لخطة علاج",
+                total: downPayment, paid: downPayment, remaining: 0,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // ب. إيراد الخزنة للمقدم
+            const downFinRef = financeRef.doc();
+            batch.set(downFinRef, {
+                clinicId: clinicId, patientId: patientId, type: 'income', 
+                category: isAr ? 'مقدم خطة علاج' : 'Plan Down Payment',
+                amount: downPayment, date: startDateStr, paymentMethod: payMethod,
+                notes: isAr ? `مقدم خطة: ${planName}` : `Down payment: ${planName}`,
+                createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // 2. جدولة الأقساط (توليد جلسات مستقبلية)
+        if (remaining > 0) {
+            let currentDate = new Date(startDateStr);
+            
+            for (let i = 1; i <= count; i++) {
+                // حساب تاريخ القسط القادم بناءً على الاختيار
+                if (interval === 'monthly') {
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                } else if (interval === 'weekly') {
+                    currentDate.setDate(currentDate.getDate() + 7);
+                }
+
+                const instDateStr = currentDate.toISOString().split('T')[0];
+
+                // أ. جلسة القسط (في الانتظار)
+                const instSessRef = sessionsRef.doc();
+                batch.set(instSessRef, {
+                    clinicId: clinicId, patientId: patientId, date: instDateStr,
+                    procedure: `قسط رقم (${i}) - ${planName}`, tooth: "", notes: "قسط مجدول أوتوماتيكياً",
+                    total: valPerSession, paid: 0, remaining: valPerSession,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp() // أو ممكن نحط تاريخ مميز لو حبينا
+                });
+
+                // ب. تسجيل كمديونية في الحسابات
+                const instFinRef = financeRef.doc();
+                batch.set(instFinRef, {
+                    clinicId: clinicId, patientId: patientId, type: 'debt', 
+                    category: isAr ? 'قسط خطة علاج' : 'Plan Installment',
+                    amount: valPerSession, date: instDateStr,
+                    notes: isAr ? `قسط (${i}): ${planName}` : `Installment (${i}): ${planName}`,
+                    createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+
+            // 3. زيادة المديونية الإجمالية للمريض في بروفايله
+            batch.update(patientRef, { totalDebt: firebase.firestore.FieldValue.increment(remaining) });
+        }
+
+        // تنفيذ كل السحر المحاسبي دفعة واحدة
+        await batch.commit();
+
+        closeModal('installmentModal');
+        document.getElementById('installmentForm').reset();
+        alert(isAr ? `✅ تم جدولة الخطة وحفظ ${count} أقساط بنجاح!` : `✅ Plan scheduled with ${count} installments successfully!`);
+        
+        // لو عملنا batch commit محتاجين نعمل reload للـ sessions عشان تظهر
+        loadPatientSessions();
+
+    } catch (error) {
+        console.error(error);
+        alert(isAr ? "❌ خطأ أثناء الجدولة." : "❌ Error scheduling plan.");
+    } finally {
+        btn.disabled = false;
+        if (window.hideLoader) window.hideLoader();
+    }
+}
+
+// ==========================================
+// أكواد إدارة المعامل 
+// ==========================================
 async function saveLabOrder(e) {
     e.preventDefault();
     const isAr = getLang();
@@ -107,6 +231,7 @@ async function saveLabOrder(e) {
     const workType = document.getElementById('lab_work_type').value;
     const labName = document.getElementById('lab_name').value;
     const orderDate = document.getElementById('lab_date').value;
+    const paymentMethod = document.getElementById('lab_pay_method').value; 
 
     const labData = {
         clinicId: clinicId, patientId: patientId, date: orderDate,
@@ -121,7 +246,7 @@ async function saveLabOrder(e) {
         if (labCost > 0) {
             await db.collection("Finances").add({
                 clinicId: clinicId, patientId: patientId, type: 'expense', category: isAr ? 'مصروفات معمل' : 'Lab Expense',
-                amount: labCost, date: orderDate,
+                amount: labCost, date: orderDate, paymentMethod: paymentMethod, 
                 notes: isAr ? `تكلفة معمل: ${labName} - للمريض: ${currentPatientName}` : `Lab Cost: ${labName} - Patient: ${currentPatientName}`,
                 createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -129,7 +254,7 @@ async function saveLabOrder(e) {
 
         closeModal('labOrderModal');
         document.querySelector('#labOrderModal form').reset();
-        alert(isAr ? "✅ تم إرسال الطلب بنجاح!" : "✅ Order sent successfully!");
+        alert(isAr ? "✅ تم إرسال الطلب بنجاح وتوثيق المصروفات!" : "✅ Order sent and expenses recorded!");
         
     } catch (error) {
         console.error(error);
@@ -193,7 +318,7 @@ async function markLabOrderDelivered(orderId) {
 }
 
 // ==========================================
-// الجلسات الأساسية 
+// الجلسات الأساسية والسداد
 // ==========================================
 
 function calculateRemaining(mode = 'add') {
@@ -220,6 +345,7 @@ async function saveSession(e, isEditMode) {
     const remainingAmount = Number(document.getElementById(`${prefix}remaining`).value) || 0;
     const sessionDate = document.getElementById(`${prefix}date`).value;
     const procedureName = document.getElementById(`${prefix}procedure`).value;
+    const paymentMethod = document.getElementById(`${prefix}pay_method`).value;
 
     const data = {
         clinicId: clinicId, patientId: patientId, date: sessionDate,
@@ -234,10 +360,23 @@ async function saveSession(e, isEditMode) {
             const docId = document.getElementById('edit_sess_id').value;
             const oldSession = loadedPatientSessions.find(s => s.id === docId);
             const oldRemaining = oldSession ? (oldSession.remaining || 0) : 0;
+            const oldPaid = oldSession ? (oldSession.paid || 0) : 0;
+            
             const debtDiff = remainingAmount - oldRemaining;
+            const paidDiff = paidAmount - oldPaid;
 
             await db.collection("Sessions").doc(docId).update(data);
             
+            if (paidDiff !== 0) {
+                await db.collection("Finances").add({
+                    clinicId: clinicId, patientId: patientId, type: paidDiff > 0 ? 'income' : 'expense', 
+                    category: isAr ? 'تعديل دفعة جلسة' : 'Session Payment Adjustment',
+                    amount: Math.abs(paidDiff), date: sessionDate, paymentMethod: paymentMethod, 
+                    notes: isAr ? `تسوية حساب: ${procedureName}` : `Payment Adjust: ${procedureName}`,
+                    createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+
             if (debtDiff !== 0) {
                 await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(debtDiff) });
                 await db.collection("Finances").add({
@@ -256,7 +395,8 @@ async function saveSession(e, isEditMode) {
             if (paidAmount > 0) {
                 await db.collection("Finances").add({
                     clinicId: clinicId, patientId: patientId, type: 'income', category: isAr ? 'كشف / جلسة' : 'Session Income',
-                    amount: paidAmount, date: sessionDate, notes: isAr ? `إيراد جلسة: ${procedureName}` : `Income: ${procedureName}`,
+                    amount: paidAmount, date: sessionDate, paymentMethod: paymentMethod, 
+                    notes: isAr ? `إيراد جلسة: ${procedureName}` : `Income: ${procedureName}`,
                     createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
             }
@@ -285,13 +425,34 @@ async function saveSession(e, isEditMode) {
     }
 }
 
-async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
-    const isAr = getLang();
-    const amountStr = prompt(isAr ? `المتبقي: ${currentRemaining}\nأدخل السداد:` : `Remaining: ${currentRemaining}\nEnter payment:`, currentRemaining);
-    if (amountStr === null) return; 
+function openPaymentModal(sessionId, currentPaid, currentRemaining) {
+    document.getElementById('pay_sess_id').value = sessionId;
+    document.getElementById('pay_sess_current_paid').value = currentPaid;
+    document.getElementById('pay_sess_remaining').innerText = currentRemaining;
     
-    const amountToPay = Number(amountStr);
-    if (isNaN(amountToPay) || amountToPay <= 0 || amountToPay > currentRemaining) return;
+    document.getElementById('pay_amount').value = currentRemaining; 
+    document.getElementById('pay_amount').max = currentRemaining; 
+    
+    openModal('paymentModal');
+}
+
+async function executePayment(e) {
+    e.preventDefault();
+    const isAr = getLang();
+    const btn = document.getElementById('btn-execute-payment');
+    btn.disabled = true;
+
+    const sessionId = document.getElementById('pay_sess_id').value;
+    const currentPaid = Number(document.getElementById('pay_sess_current_paid').value);
+    const amountToPay = Number(document.getElementById('pay_amount').value);
+    const paymentMethod = document.getElementById('pay_method').value;
+    const currentRemaining = Number(document.getElementById('pay_sess_remaining').innerText);
+
+    if (isNaN(amountToPay) || amountToPay <= 0 || amountToPay > currentRemaining) {
+        alert(isAr ? "المبلغ غير صحيح!" : "Invalid amount!");
+        btn.disabled = false;
+        return;
+    }
 
     if (window.showLoader) window.showLoader(isAr ? "تسجيل السداد..." : "Processing...");
 
@@ -300,15 +461,21 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
         const newRemaining = currentRemaining - amountToPay;
         const today = new Date().toISOString().split('T')[0];
 
+        // 1. تحديث الجلسة
         await db.collection("Sessions").doc(sessionId).update({ paid: newPaid, remaining: newRemaining });
+        
+        // 2. تحديث ديون المريض
         await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(-amountToPay) });
 
+        // 3. إضافة إيراد للخزنة 
         await db.collection("Finances").add({
             clinicId: clinicId, patientId: patientId, type: 'income', category: isAr ? 'سداد مديونية' : 'Debt Payment',
-            amount: amountToPay, date: today, notes: isAr ? `سداد جزء من مديونية` : `Debt payment`,
+            amount: amountToPay, date: today, paymentMethod: paymentMethod, 
+            notes: isAr ? `سداد جزء من مديونية جلسة / قسط` : `Session debt payment`,
             createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 4. تسجيل خصم من الديون
         await db.collection("Finances").add({
             clinicId: clinicId, patientId: patientId, type: 'debt', category: isAr ? 'سداد مديونية' : 'Debt Payment',
             amount: -amountToPay, date: today, notes: isAr ? `خصم مديونية مسددة` : `Deduct paid debt`,
@@ -319,7 +486,16 @@ async function paySessionDebt(sessionId, currentPaid, currentRemaining) {
         if(idx !== -1) { loadedPatientSessions[idx].paid = newPaid; loadedPatientSessions[idx].remaining = newRemaining; }
         renderPatientSessionsTable();
 
-    } catch (error) { console.error(error); } finally { if (window.hideLoader) window.hideLoader(); }
+        closeModal('paymentModal');
+        alert(isAr ? "✅ تم سداد المبلغ وتسميعه في الخزنة بنجاح!" : "✅ Payment recorded successfully!");
+
+    } catch (error) { 
+        console.error(error); 
+        alert(isAr ? "❌ خطأ في السداد" : "Error");
+    } finally { 
+        btn.disabled = false;
+        if (window.hideLoader) window.hideLoader(); 
+    }
 }
 
 function getAccurateTime(timestamp) {
@@ -393,7 +569,7 @@ function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
 
         let payBtnHtml = '';
         if (remaining > 0) {
-            payBtnHtml = `<button class="btn-action" style="background:#10b981; color:white; border-color:#059669;" onclick="paySessionDebt('${s.id}', ${paid}, ${remaining})">💰 ${isAr ? 'سداد' : 'Pay'}</button>`;
+            payBtnHtml = `<button class="btn-action" style="background:#10b981; color:white; border-color:#059669;" onclick="openPaymentModal('${s.id}', ${paid}, ${remaining})">💰 ${isAr ? 'سداد' : 'Pay'}</button>`;
         }
 
         const toothLabel = isAr ? 'السن:' : 'Tooth:';
