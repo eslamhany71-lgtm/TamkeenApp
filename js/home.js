@@ -306,10 +306,7 @@ function applyRoles(role) {
     if (r === 'superadmin') {
         if (settingsLi) settingsLi.style.display = 'block';
         if (superAdminLi) superAdminLi.style.display = 'block';
-        
-        // إخفاء المساعد الذكي لو ده سوبر أدمن
-        const aiBtn = document.querySelector('.niva-ai-float-btn');
-        if(aiBtn) aiBtn.style.display = 'none';
+        // 🔴 تم إزالة كود إخفاء المساعد الذكي للسوبر أدمن عشان تقدر تجربه بنفسك 🔴
     }
 }
 
@@ -386,11 +383,11 @@ function toggleAIPanel() {
     
     if (panel.style.display === 'flex') {
         panel.style.display = 'none';
-        triggerBtn.innerHTML = '🤖'; // يرجع أيقونة الروبوت
+        triggerBtn.innerHTML = '🤖'; 
         triggerBtn.classList.remove('open');
     } else {
         panel.style.display = 'flex';
-        triggerBtn.innerHTML = '❌'; // يتغير لعلامة الإغلاق
+        triggerBtn.innerHTML = '❌'; 
         triggerBtn.classList.add('open');
     }
 }
@@ -401,7 +398,7 @@ function appendToAIChat(text, isUser = false) {
     msgDiv.className = isUser ? 'user-msg' : 'ai-msg';
     msgDiv.innerHTML = text;
     chatBody.appendChild(msgDiv);
-    chatBody.scrollTop = chatBody.scrollHeight; // النزول لآخر رسالة
+    chatBody.scrollTop = chatBody.scrollHeight; 
 }
 
 async function askAI(promptType) {
@@ -425,7 +422,6 @@ async function askAI(promptType) {
     try {
         const todayStr = new Date().toISOString().split('T')[0];
         
-        // حساب تاريخ بكره
         const tomorrowDate = new Date();
         tomorrowDate.setDate(tomorrowDate.getDate() + 1);
         const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
@@ -459,7 +455,7 @@ async function askAI(promptType) {
             if (snap.size === 0) {
                 aiResponse = isAr ? "✨ ممتاز! لا يوجد مرضى عليهم مديونيات للعيادة." : "✨ Great! No patients with outstanding debts.";
             } else {
-                let topList = patientsList.slice(0, 3).join('<br> - '); // نعرض 3 بس عشان منزحمش الشات
+                let topList = patientsList.slice(0, 3).join('<br> - '); 
                 let moreHtml = patientsList.length > 3 ? `<br><small>...و ${patientsList.length - 3} مرضى آخرين (راجع صفحة المرضى).</small>` : "";
                 aiResponse = isAr ? `💸 إجمالي الديون المستحقة للعيادة هو: <strong>${totalDebts} ج.م</strong> موزع على ${snap.size} مريض.<br><strong>أبرز المتعثرين:</strong><br> - ${topList} ${moreHtml}` : `💸 Total debts owed to clinic: <strong>${totalDebts} EGP</strong> across ${snap.size} patients.`;
             }
@@ -502,7 +498,6 @@ async function askAI(promptType) {
             }
         }
 
-        // إزالة اللودينج وإضافة الرد
         const loadingElement = document.getElementById(loadingId);
         if(loadingElement && loadingElement.parentElement) loadingElement.parentElement.remove();
         appendToAIChat(aiResponse, false);
