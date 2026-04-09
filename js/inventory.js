@@ -5,10 +5,8 @@ let currentStockItemId = null;
 let currentStockItemName = "";
 let currentStockItemQty = 0;
 
-// 🔴 متغير لتخزين نوع الفلتر الحالي 🔴
 let activeFilter = 'all';
 
-// الكتالوج الطبي الذكي (A to Z)
 const dentalCatalog = [
     "بنج - أرتيكين (Articaine)", "بنج - ليدوكايين (Lidocaine)", "بنج - ميبيفاكين (Mepivacaine بدون أدرينالين)",
     "إبر بنج قصيرة (Short Needles)", "إبر بنج طويلة (Long Needles)", "سرنجة بنج معدن (Carpule Syringe)",
@@ -81,20 +79,28 @@ function openItemModal() {
     document.getElementById('item_id').value = '';
     document.getElementById('modal-title').innerText = window.invLang.mTitle;
     document.getElementById('item_qty').disabled = false; 
+    document.getElementById('item_initial_cost').value = '0';
+    document.getElementById('item_initial_pay_method').value = 'cash';
     openModal('itemModal');
 }
 
+// 🔴 دالة إضافة الصنف (ترمي مصروف في الخزنة لو المورد أخد فلوس) 🔴
 async function saveItem(e) {
     e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     if (window.showLoader) window.showLoader(isAr ? "جاري الحفظ..." : "Saving...");
 
     const itemId = document.getElementById('item_id').value;
+    const itemName = document.getElementById('item_name').value.trim();
+    const initialQty = Number(document.getElementById('item_qty').value);
+    const initialCost = Number(document.getElementById('item_initial_cost').value) || 0;
+    const payMethod = document.getElementById('item_initial_pay_method').value;
+
     const data = {
         clinicId: currentClinicId,
-        name: document.getElementById('item_name').value.trim(),
+        name: itemName,
         category: document.getElementById('item_category').value,
-        qty: Number(document.getElementById('item_qty').value),
+        qty: initialQty,
         unit: document.getElementById('item_unit').value,
         minAlert: Number(document.getElementById('item_min_alert').value),
         expiryDate: document.getElementById('item_exp').value || null,
@@ -108,6 +114,22 @@ async function saveItem(e) {
         } else {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection("Inventory").add(data);
+
+            // لو دي أول مرة بيسجل صنف جديد وكتب إنه دافع فلوس، تتخصم من الخزنة
+            if (initialCost > 0) {
+                const today = new Date().toISOString().split('T')[0];
+                await db.collection("Finances").add({
+                    clinicId: currentClinicId,
+                    type: 'expense',
+                    category: isAr ? 'مشتريات خامات ومخزون' : 'Inventory Purchase',
+                    amount: initialCost,
+                    date: today,
+                    paymentMethod: payMethod, // 🔴 حفظ طريقة الدفع
+                    notes: isAr ? `توريد أول كمية (${initialQty}) للصنف: ${itemName}` : `Initial stock (${initialQty}) for: ${itemName}`,
+                    createdBy: "Admin",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
         }
         closeModal('itemModal');
     } catch (err) {
@@ -127,6 +149,7 @@ function openStockActionModal(id, name, currentQty, actionType) {
     document.getElementById('stock-current-qty').querySelector('span').innerText = currentQty;
     document.getElementById('stock_amount').value = 1;
     document.getElementById('stock_cost').value = 0;
+    document.getElementById('stock_pay_method').value = 'cash'; // افتراضي كاش
 
     const btnAdd = document.getElementById('btn-stock-add');
     const btnConsume = document.getElementById('btn-stock-consume');
@@ -145,9 +168,11 @@ function openStockActionModal(id, name, currentQty, actionType) {
     openModal('stockActionModal');
 }
 
+// 🔴 دالة توريد الرصيد المحدثة (مع طريقة الدفع) 🔴
 async function executeStockAction(type) {
     const amount = Number(document.getElementById('stock_amount').value);
     const cost = Number(document.getElementById('stock_cost').value) || 0;
+    const payMethod = document.getElementById('stock_pay_method').value; // 🔴 سحب طريقة الدفع
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
     if (!amount || amount <= 0 || (type === 'consume' && amount > currentStockItemQty)) {
@@ -165,6 +190,7 @@ async function executeStockAction(type) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 🔴 رمي التكلفة في الخزنة مع طريقة الدفع 🔴
         if (type === 'add' && cost > 0) {
             const today = new Date().toISOString().split('T')[0];
             await db.collection("Finances").add({
@@ -173,7 +199,9 @@ async function executeStockAction(type) {
                 category: isAr ? 'مشتريات خامات ومخزون' : 'Inventory Purchase',
                 amount: cost,
                 date: today,
+                paymentMethod: payMethod, // 🔴 الخزنة هتسمع طريقة الدفع من هنا
                 notes: isAr ? `توريد كمية (${amount}) للصنف: ${currentStockItemName}` : `Stock added (${amount}) for: ${currentStockItemName}`,
+                createdBy: "Admin",
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
@@ -198,6 +226,9 @@ function editItem(id) {
     document.getElementById('item_unit').value = item.unit;
     document.getElementById('item_min_alert').value = item.minAlert;
     document.getElementById('item_exp').value = item.expiryDate || '';
+
+    // إخفاء مربع الفلوس لأننا بنعدل بيانات مش بنضيف رصيد
+    document.getElementById('item_initial_cost').parentElement.parentElement.style.display = 'none';
 
     document.getElementById('modal-title').innerText = window.invLang.mTitleEdit;
     openModal('itemModal');
@@ -251,33 +282,27 @@ function loadInventory() {
         document.getElementById('stat-low-stock').innerText = lowStockCount;
         document.getElementById('stat-expiring').innerText = expiringCount;
 
-        // 🔴 تطبيق الفلتر الحالي والبحث مع بعض
         applyCurrentFilterAndSearch();
     });
 }
 
-// 🔴 دالة تحديد نوع الفلتر وتغيير شكل الكروت
 function filterInventory(type) {
     activeFilter = type;
     
-    // تظبيط شكل الكروت (تفتيح اللي مش متداس وتغميق اللي متداس)
     document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active-stat'));
     document.getElementById(`card-${type}`).classList.add('active-stat');
     
     applyCurrentFilterAndSearch();
 }
 
-// 🔴 دالة البحث النصي
 function searchInventory() {
     applyCurrentFilterAndSearch();
 }
 
-// 🔴 الدالة المركزية اللي بتطبق الفلتر (النواقص أو الصلاحية) زائد البحث (لو موجود)
 function applyCurrentFilterAndSearch() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
     let filteredData = inventoryData;
 
-    // 1. تطبيق البحث النصي
     if (input) {
         filteredData = filteredData.filter(i => 
             (i.name && i.name.toLowerCase().includes(input)) || 
@@ -285,7 +310,6 @@ function applyCurrentFilterAndSearch() {
         );
     }
 
-    // 2. تطبيق الفلتر الخاص بالكروت
     const now = new Date();
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
 
