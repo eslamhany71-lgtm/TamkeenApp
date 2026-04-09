@@ -15,7 +15,8 @@
         /* ستايلات حقول الحسابات */
         .finance-box-modal { display: flex; gap: 10px; background: #f0fdf4; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #bbf7d0; flex-wrap: wrap;}
         .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
-        .finance-box-modal input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold;}
+        .finance-box-modal input, .finance-box-modal select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold; outline: none;}
+        .finance-box-modal input:focus, .finance-box-modal select:focus { border-color: #10b981; }
         .finance-box-modal input[readonly] { background: #e2e8f0; color: #ef4444; }
         
         /* ستايل المربعات الطبية */
@@ -115,17 +116,25 @@
                 </div>
 
                 <div class="finance-box-modal">
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1; min-width: 80px;">
                         <label id="lbl-app-total" style="font-size: 13px;">الإجمالي</label>
                         <input type="number" id="app_total" value="0" required oninput="calcCalRemaining()">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1; min-width: 80px;">
                         <label id="lbl-app-paid" style="font-size: 13px;">المدفوع</label>
                         <input type="number" id="app_paid" value="0" required oninput="calcCalRemaining()">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1; min-width: 80px;">
                         <label id="lbl-app-rem" style="font-size: 13px;">المتبقي</label>
                         <input type="number" id="app_remaining" value="0" readonly>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 120px;">
+                        <label style="font-size: 13px;">طريقة الدفع</label>
+                        <select id="app_pay_method" required>
+                            <option value="cash">💵 كاش</option>
+                            <option value="wallet">📱 محفظة</option>
+                            <option value="instapay">🏦 إنستاباي</option>
+                        </select>
                     </div>
                 </div>
 
@@ -154,6 +163,7 @@
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-type">🩺 نوع الكشف:</strong> <span id="det_type"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-history">📋 التاريخ الطبي:</strong> <span id="det_history" style="color: #d97706; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-finance">💰 الحساب (مدفوع / إجمالي):</strong> <span id="det_finance" style="color: #10b981; font-weight: bold;"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>💳 طريقة الدفع:</strong> <span id="det_pay_method" style="color: #475569; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-notes">📝 ملاحظات:</strong> <span id="det_notes"></span></p>
                 <p style="margin: 0; font-size: 16px;"><strong class="lbl-det-status">📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
             </div>
