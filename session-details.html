@@ -8,6 +8,7 @@
     <script>
         var currentHour = Math.floor(Date.now() / 3600000);
         document.write('<link rel="stylesheet" href="css/patient-profile.css?v=' + currentHour + '">');
+        document.write('<link rel="stylesheet" href="css/dental-chart.css?v=' + currentHour + '">');
     </script>
     <link rel="icon" href="data:,"> 
     
@@ -48,31 +49,6 @@
         @media screen {
             .print-only { display: none; }
         }
-
-        /* 🔴 تصميم مخطط الأسنان */
-        .dental-chart { background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
-        .jaw { display: flex; justify-content: center; gap: 5px; margin-bottom: 15px; flex-wrap: wrap; }
-        .tooth { 
-            width: 40px; 
-            height: 50px; 
-            background: white; 
-            border: 2px solid #cbd5e1; 
-            border-radius: 8px 8px 20px 20px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-weight: bold; 
-            font-size: 14px; 
-            cursor: pointer; 
-            transition: 0.2s; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
-        }
-        .tooth:hover { border-color: #0ea5e9; transform: translateY(-2px); }
-
-        /* ألوان الحالات الطبية */
-        .status-decay { background: #fef08a; border-color: #eab308; } /* تسوس */
-        .status-extracted { background: #fecaca; border-color: #ef4444; color: white; text-decoration: line-through; } /* مخلوع */
-        .status-crown { background: #e0e7ff; border-color: #6366f1; } /* طربوش */
     </style>
 </head>
 <body>
@@ -127,9 +103,8 @@
             </div>
 
             <div class="dental-chart no-print">
-                <h3 id="txt-chart-title" style="margin: 0 0 15px 0; color: #0f172a; text-align: center;">🦷 مخطط الأسنان الطبي</h3>
-                <div id="upper-jaw" class="jaw"></div> 
-                <div id="lower-jaw" class="jaw"></div> 
+                <h3 id="txt-chart-title" style="margin: 0 0 15px 0; color: #0f172a; text-align: center;">🦷 مخطط الأسنان الطبي (Interactive Chart)</h3>
+                <div id="dental-chart-wrapper" style="display: flex; justify-content: center; overflow-x: auto; padding-bottom: 10px;"></div>
             </div>
 
             <div style="display: flex; gap: 20px; flex-wrap: wrap;">
@@ -164,21 +139,15 @@
     <div id="toothStatusModal" class="modal no-print">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
             <span class="close-modal" onclick="closeModal('toothStatusModal')">&times;</span>
-            <h2 id="selected-tooth-title">اختر حالة السِنة رقم (--)</h2>
-            
-            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-                <button class="btn-primary" style="background: #eab308; justify-content: center;" onclick="saveToothStatus('decay')">🟡 تسوس (Decay)</button>
-                <button class="btn-primary" style="background: #ef4444; justify-content: center;" onclick="saveToothStatus('extracted')">🔴 خلع (Extracted)</button>
-                <button class="btn-primary" style="background: #6366f1; justify-content: center;" onclick="saveToothStatus('crown')">🔵 طربوش (Crown)</button>
-                <button class="btn-primary" style="background: #94a3b8; justify-content: center;" onclick="saveToothStatus('normal')">⚪ سليم (مسح الحالة)</button>
-            </div>
+            <h2 id="selected-tooth-title">إجراءات السِنة (--)</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;" id="tooth-actions-grid"></div>
         </div>
     </div>
 
     <div id="editSessionModal" class="modal no-print">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 650px;">
             <span class="close-modal" onclick="closeModal('editSessionModal')">&times;</span>
-            <h2 id="modal-edit-sess-title">تعديل بيانات الجلسة</h2>
+            <h2 id="modal-edit-sess-title">تعديل بيانات الجلسة والمحاسبة</h2>
             <form onsubmit="updateSession(event)">
                 <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
                     <div class="form-group" style="flex: 1; min-width: 200px; margin-bottom: 0;">
@@ -194,21 +163,30 @@
                     <label id="lbl-sess-proc">الإجراء الطبي</label>
                     <input type="text" id="es_procedure" class="search-box" required>
                 </div>
-                <div class="finance-box finance-box-edit" style="flex-wrap: wrap;">
-                    <div class="form-group" style="flex: 1; min-width: 120px;">
+                
+                <div class="finance-box finance-box-edit" style="flex-wrap: wrap; background: #fff7ed; padding: 15px; border-radius: 8px; border: 1px solid #fed7aa; display: flex; gap: 10px; margin-bottom: 15px;">
+                    <div class="form-group" style="flex: 1; min-width: 100px; margin-bottom: 0;">
                         <label id="lbl-sess-total">الإجمالي</label>
                         <input type="number" id="es_total" class="search-box" required oninput="calcEditRemaining()">
                     </div>
-                    <div class="form-group" style="flex: 1; min-width: 120px;">
-                        <label id="lbl-sess-paid">المدفوع</label>
+                    <div class="form-group" style="flex: 1; min-width: 100px; margin-bottom: 0;">
+                        <label id="lbl-sess-paid">المدفوع الكلي</label>
                         <input type="number" id="es_paid" class="search-box" required oninput="calcEditRemaining()">
                     </div>
-                    <div class="form-group" style="flex: 1; min-width: 120px;">
+                    <div class="form-group" style="flex: 1; min-width: 100px; margin-bottom: 0;">
                         <label id="lbl-sess-remaining">المتبقي</label>
                         <input type="number" id="es_remaining" class="search-box" readonly style="background: #e2e8f0; font-weight: bold; color: #ef4444;">
                     </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                        <label>طريقة الدفع (لأي فرق)</label>
+                        <select id="es_pay_method" class="search-box" required>
+                            <option value="cash">💵 كاش</option>
+                            <option value="wallet">📱 محفظة</option>
+                            <option value="instapay">🏦 إنستاباي</option>
+                        </select>
+                    </div>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; background: #ea580c; justify-content: center;" id="btn-update-session">حفظ التعديلات</button>
+                <button type="submit" class="btn-primary" style="width: 100%; background: #ea580c; justify-content: center; font-size: 16px; padding: 12px;" id="btn-update-session">حفظ التعديلات والتسويات</button>
             </form>
         </div>
     </div>
@@ -217,7 +195,6 @@
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeModal('smartRxModal')">&times;</span>
             <h2>إصدار / تعديل الروشتة</h2>
-            
             <div class="form-group" style="background: #fdf4ff; padding: 10px; border-radius: 8px; border: 1px solid #f5d0fe;">
                 <label style="color: #a21caf;">📑 استيراد من روشتة جاهزة (اختياري):</label>
                 <div style="display: flex; gap: 10px;">
@@ -227,7 +204,6 @@
                     <button type="button" class="btn-action" style="background: white; border: 1px solid #e879f9; color: #a21caf;" onclick="openTemplateManager()" title="إدارة القوالب الجاهزة">⚙️</button>
                 </div>
             </div>
-            
             <div class="smart-rx-container">
                 <div class="form-group" style="margin-bottom: 0;">
                     <label>بحث عن دواء (الاسم أو القسم)</label>
@@ -238,16 +214,13 @@
                     </div>
                 </div>
             </div>
-
             <div id="selected-drugs-list" style="min-height: 120px; margin-bottom: 20px; max-height: 250px; overflow-y: auto; padding-right: 5px;">
                 <div class="empty-state" style="padding: 30px;">لم يتم اختيار أدوية بعد. ابحث في الأعلى واختر العلاج.</div>
             </div>
-
             <div class="form-group">
                 <label>تعليمات عامة للمريض (اختياري)</label>
                 <input type="text" id="rx_general_notes" class="search-box" placeholder="مثال: مضمضة دافئة بماء وملح">
             </div>
-
             <button type="button" class="btn-primary" style="width: 100%; background: #10b981; justify-content: center; font-size: 16px; padding: 12px;" onclick="saveSmartPrescription()">حفظ وإصدار الروشتة</button>
         </div>
     </div>
@@ -256,14 +229,12 @@
         <div class="modal-content" style="max-width: 450px;">
             <span class="close-modal" onclick="closeModal('addDrugModal')">&times;</span>
             <h2 id="modal-drug-title" style="margin-top: 0; font-size: 20px;">إضافة علاج جديد للعيادة</h2>
-            
             <div style="display: flex; gap: 10px; margin-bottom: 20px; background: #eef2ff; padding: 10px; border-radius: 8px;">
                 <input type="file" id="excel_drug_upload" accept=".xlsx, .xls" style="display: none;" onchange="importDrugsFromExcel(this)">
                 <button type="button" class="btn-action" style="flex: 1; background: white; color: #4338ca; border: 1px solid #a5b4fc; font-weight: bold;" onclick="document.getElementById('excel_drug_upload').click()">📥 استيراد من إكسيل</button>
                 <button type="button" class="btn-action" style="flex: 1; background: white; color: #0284c7; border: 1px solid #bae6fd; font-weight: bold;" onclick="downloadDrugsTemplate()">📄 تحميل قالب الإكسيل</button>
             </div>
             <div style="text-align: center; margin-bottom: 15px; color: #64748b; font-weight: bold;">-- أو إضافة يدوية --</div>
-
             <form onsubmit="saveNewDrugToPharmacy(event)">
                 <div class="form-group">
                     <label>القسم (مثال: مضاد حيوي، مسكن)</label>
@@ -291,7 +262,6 @@
                 <input type="text" id="tpl_name" class="search-box" placeholder="اكتب اسم القالب...">
             </div>
             <button class="btn-primary" style="width: 100%; justify-content: center; margin-bottom: 20px;" onclick="saveCurrentRxAsTemplate()">حفظ الروشتة الحالية كقالب 💾</button>
-            
             <h3 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">القوالب المحفوظة:</h3>
             <div id="templates-list-container">
                 <div class="empty-state">لا يوجد قوالب محفوظة.</div>
@@ -330,7 +300,6 @@
                 <img id="print-clinic-logo" src="" class="print-logo" style="display: none;">
             </div>
         </div>
-        
         <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <div class="print-info-row">
                 <div style="flex: 2;"><strong>الاسم (Name):</strong> <span id="print-patient-name" style="font-weight: bold; font-size: 18px;">---</span></div>
@@ -341,17 +310,14 @@
                 <div style="flex: 1; text-align: left;"><strong>التشخيص (Diag):</strong> <span id="print-patient-diag">---</span></div>
             </div>
         </div>
-
         <div class="print-rx-body">
             <h2 style="font-size: 35px; color: #0f172a; margin: 0 0 20px 0; border-bottom: 2px solid #0284c7; display: inline-block; padding-bottom: 5px; padding-right: 20px;">Rx</h2>
             <div id="print-meds" style="white-space: pre-wrap; font-size: 20px; line-height: 2.2; direction: ltr; text-align: left; padding-left: 30px; font-weight: bold; color: #1e293b;"></div>
-            
             <div style="margin-top: 40px;">
                 <strong style="color: #ef4444; font-size: 18px;">التعليمات (Notes):</strong> 
                 <p id="print-notes" style="margin-top: 10px; font-size: 16px; line-height: 1.8;"></p>
             </div>
         </div>
-
         <div class="print-footer">
             <span id="print-clinic-address">---</span> | 📞 <span id="print-clinic-phone" dir="ltr">---</span>
         </div>
@@ -362,6 +328,7 @@
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
         document.write('<script src="js/lang-manager.js?v=' + h + '"><\/script>');
         document.write('<script src="js/session-details.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/dental-chart.js?v=' + h + '"><\/script>');
     </script>
 </body>
 </html>
