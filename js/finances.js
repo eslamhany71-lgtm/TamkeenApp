@@ -8,13 +8,13 @@ let currentUserDisplayName = "مستخدم غير معروف";
 function updatePageContent(lang) {
     const t = {
         ar: {
-            title: "الحسابات والمصروفات", sub: "إدارة الخزنة، الإيرادات اليومية، المصروفات، والمديونيات",
+            title: "المركز المالي والمحاسبي", sub: "إدارة الخزنة، البنوك، الإيرادات اليومية، المصروفات، والمديونيات",
             btnInc: "إضافة إيراد", btnExp: "إضافة مصروف", btnPrint: "طباعة التقرير",
             totInc: "إجمالي الإيرادات", totExp: "إجمالي المصروفات", net: "صافي الربح", debt: "إجمالي الديون الخارجية",
             ledger: "دفتر الخزنة وحركات الديون",
             thDate: "التاريخ والوقت", thType: "النوع", thCat: "البند", thAmount: "المبلغ", thNotes: "البيان", thAct: "إجراءات",
             mInc: "تسجيل إيراد جديد", mExp: "تسجيل مصروف جديد",
-            lAmt: "المبلغ", lDate: "التاريخ", lCat: "البند", lNotes: "البيان / تفاصيل", btnSave: "حفظ العملية",
+            lAmt: "المبلغ", lDate: "التاريخ", lCat: "البند", lNotes: "البيان / تفاصيل", btnSave: "حفظ العملية في الدفتر",
             catInc1: "كشف / جلسة مريض", catInc2: "دفعة مقدمة", catInc3: "إيرادات أخرى",
             catExp1: "مستلزمات طبية", catExp2: "معمل أسنان", catExp3: "رواتب ومكافآت", catExp4: "فواتير (كهرباء/إيجار)", catExp5: "مصروفات أخرى",
             bInc: "إيراد", bExp: "مصروف", bDebt: "مديونية", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مطابقة للبحث.",
@@ -22,7 +22,7 @@ function updatePageContent(lang) {
             optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", optDebt: "مديونيات", btnSearch: "🔍 بحث"
         },
         en: {
-            title: "Finances & Expenses", sub: "Manage treasury, daily income, expenses, and debts",
+            title: "Financial & Accounting Center", sub: "Manage treasury, banks, income, expenses, and debts",
             btnInc: "Add Income", btnExp: "Add Expense", btnPrint: "Print Report",
             totInc: "Total Income", totExp: "Total Expenses", net: "Net Profit", debt: "Total Debts",
             ledger: "Treasury & Debts Ledger",
@@ -71,12 +71,14 @@ function setDefaultDates() {
 
 function setQuickFilter(type) {
     document.getElementById('filter_type').value = type;
+    document.getElementById('filter_method').value = 'all'; // تصفير طريقة الدفع عند النقر السريع
     loadFinances();
 }
 
 function resetFilters() {
     document.getElementById('search_text').value = '';
     document.getElementById('filter_type').value = 'all';
+    document.getElementById('filter_method').value = 'all';
     setDefaultDates();
     loadFinances();
 }
@@ -85,6 +87,7 @@ function openTransactionModal(type) {
     document.getElementById('transactionForm').reset();
     document.getElementById('trans_date').value = new Date().toISOString().split('T')[0];
     document.getElementById('trans_type').value = type;
+    document.getElementById('trans_method').value = 'cash'; // افتراضي كاش
     
     const select = document.getElementById('trans_category');
     select.innerHTML = '';
@@ -128,6 +131,7 @@ async function saveTransaction(e) {
         amount: Number(document.getElementById('trans_amount').value),
         date: document.getElementById('trans_date').value,
         category: document.getElementById('trans_category').value,
+        paymentMethod: document.getElementById('trans_method').value, // 🔴 حفظ طريقة الدفع 🔴
         notes: document.getElementById('trans_notes').value.trim(),
         isManual: true, 
         createdBy: currentUserDisplayName,
@@ -154,14 +158,11 @@ function getAccurateTime(timestamp) {
     return new Date(timestamp).getTime();
 }
 
-// 🔴 التحديث الجذري هنا لفرز التواريخ 🔴
 function sortDataLocally(dataArray) {
     dataArray.sort((a, b) => {
         const dateA = a.date || "";
         const dateB = b.date || "";
-        // يقارن التاريخ المكتوب الأول عشان يخلي الجديد فوق
         if (dateA !== dateB) return dateB.localeCompare(dateA); 
-        // لو نفس اليوم، يرتب باللي دخل الأول
         return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
     });
 }
@@ -174,7 +175,7 @@ async function loadFinances() {
     const dateTo = document.getElementById('date_to').value;
 
     const tbody = document.getElementById('financesBody');
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">جاري تجميع البيانات...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">جاري تجميع البيانات...</td></tr>';
     
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري سحب دفتر الحسابات..." : "Loading finances...");
 
@@ -201,24 +202,69 @@ async function loadFinances() {
         
         filterTransactionsLocally();
 
+        // 🔴 حساب الأرصدة التراكمية (لكل طرق الدفع بشكل عام مش بالفترة) 🔴
+        calculateOverallBalances();
+
     } catch (error) {
         console.error("Error loading finances:", error);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل البيانات.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">حدث خطأ في تحميل البيانات.</td></tr>';
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
 }
 
+// 🔴 حساب الرصيد الصافي للدرج والبنوك 🔴
+async function calculateOverallBalances() {
+    if (!clinicId) return;
+    try {
+        const snap = await db.collection("Finances").where("clinicId", "==", clinicId).get();
+        let netCash = 0, netWallet = 0, netBank = 0;
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            const method = d.paymentMethod || 'cash'; // القديم نعتبره كاش
+            const amt = Number(d.amount) || 0;
+
+            if (d.type === 'income') {
+                if (method === 'cash') netCash += amt;
+                else if (method === 'wallet') netWallet += amt;
+                else if (method === 'instapay') netBank += amt;
+            } else if (d.type === 'expense') {
+                if (method === 'cash') netCash -= amt;
+                else if (method === 'wallet') netWallet -= amt;
+                else if (method === 'instapay') netBank -= amt;
+            }
+        });
+
+        document.getElementById('stat-bal-cash').innerText = netCash.toLocaleString();
+        document.getElementById('stat-bal-wallet').innerText = netWallet.toLocaleString();
+        document.getElementById('stat-bal-bank').innerText = netBank.toLocaleString();
+
+    } catch (error) {
+        console.error("Error calculating balances:", error);
+    }
+}
+
 function filterTransactionsLocally() {
     const searchText = document.getElementById('search_text').value.trim().toLowerCase();
+    const filterMethod = document.getElementById('filter_method').value; // فلتر طريقة الدفع
     
     let dataToRender = allTransactionsForEdit;
+    
     if (searchText) {
-        dataToRender = allTransactionsForEdit.filter(item => 
+        dataToRender = dataToRender.filter(item => 
             (item.notes && item.notes.toLowerCase().includes(searchText)) || 
             (item.category && item.category.toLowerCase().includes(searchText)) ||
             (item.createdBy && item.createdBy.toLowerCase().includes(searchText))
         );
+    }
+
+    if (filterMethod !== 'all') {
+        dataToRender = dataToRender.filter(item => {
+            // القديم يعتبر cash
+            const method = item.paymentMethod || 'cash';
+            return method === filterMethod;
+        });
     }
     
     renderFinancesTable(dataToRender);
@@ -233,7 +279,7 @@ function renderFinancesTable(dataArray) {
     let totalDebt = 0;
 
     if(dataArray.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
     }
 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -273,6 +319,13 @@ function renderFinancesTable(dataArray) {
             createdByHtml = `<div style="margin-top: 5px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${f.createdBy}</span></div>`;
         }
 
+        // 🔴 ترجمة وعرض طريقة الدفع 🔴
+        let methodHtml = '';
+        const methodVal = f.paymentMethod || 'cash';
+        if (methodVal === 'cash') methodHtml = '💵 نقدي';
+        else if (methodVal === 'wallet') methodHtml = '📱 محفظة';
+        else if (methodVal === 'instapay') methodHtml = '🏦 بنكي';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
@@ -287,7 +340,7 @@ function renderFinancesTable(dataArray) {
                 ${createdByHtml}
             </td>
             <td class="amount-text" style="color: ${amountColor}; font-weight: bold;" dir="ltr">${amountSign} ${f.amount}</td>
-            <td>${f.notes || '---'}</td>
+            <td style="color: #475569; font-weight: bold; font-size: 13px;">${methodHtml}</td> <td>${f.notes || '---'}</td>
             <td class="no-print" style="text-align: center;">
                 <button class="btn-primary" style="background:#f59e0b; padding: 5px 10px; font-size:12px; margin-right:5px;" onclick="openEditTrans('${f.id}')">✏️</button>
                 <button class="btn-danger" style="padding: 5px 10px; font-size:12px;" onclick="deleteTransaction('${f.id}')">🗑️</button>
@@ -315,6 +368,7 @@ function openEditTrans(docId) {
     document.getElementById('edit_trans_id').value = trans.id;
     document.getElementById('edit_trans_amount').value = trans.amount;
     document.getElementById('edit_trans_date').value = trans.date;
+    document.getElementById('edit_trans_method').value = trans.paymentMethod || 'cash';
     document.getElementById('edit_trans_notes').value = trans.notes;
     
     document.getElementById('editTransactionModal').style.display = 'flex';
@@ -325,6 +379,7 @@ async function updateTransaction(e) {
     const docId = document.getElementById('edit_trans_id').value;
     const newAmount = Number(document.getElementById('edit_trans_amount').value);
     const newDate = document.getElementById('edit_trans_date').value;
+    const newMethod = document.getElementById('edit_trans_method').value;
     const newNotes = document.getElementById('edit_trans_notes').value;
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
@@ -333,6 +388,7 @@ async function updateTransaction(e) {
         await db.collection("Finances").doc(docId).update({
             amount: newAmount,
             date: newDate,
+            paymentMethod: newMethod,
             notes: newNotes
         });
         closeEditTransactionModal();
