@@ -1,12 +1,12 @@
-// js/dental-chart.js - NivaDent Advanced Interactive Dental Chart
+// js/dental-chart.js - NivaDent Advanced 5-Surfaces Dental Chart
 
-// الترقيم العالمي للأسنان (FDI Notation)
+// الترقيم العالمي (FDI)
 const upperTeethArr = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
 const lowerTeethArr = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
 let currentSelectedToothId = null;
+let currentSelectedPart = null; // 'root', 'center', 'top', 'bottom', 'left', 'right', أو 'whole'
 
-// 1. الدالة الأساسية اللي بتبني الخريطة وبترسم الـ SVGs
 function buildAdvancedDentalChart() {
     const wrapper = document.getElementById('dental-chart-wrapper');
     if (!wrapper) return;
@@ -14,11 +14,11 @@ function buildAdvancedDentalChart() {
     wrapper.innerHTML = `
         <div class="dental-chart-container">
             <div style="width: 100%;">
-                <div class="jaw-title">الفك العلوي (Upper Jaw)</div>
+                <div class="jaw-title">الفك العلوي (Maxillary)</div>
                 <div class="jaw-row" id="upper-jaw-container"></div>
             </div>
             <div style="width: 100%;">
-                <div class="jaw-title">الفك السفلي (Lower Jaw)</div>
+                <div class="jaw-title">الفك السفلي (Mandibular)</div>
                 <div class="jaw-row" id="lower-jaw-container"></div>
             </div>
         </div>
@@ -27,123 +27,236 @@ function buildAdvancedDentalChart() {
     const upperContainer = document.getElementById('upper-jaw-container');
     const lowerContainer = document.getElementById('lower-jaw-container');
 
-    // رسم الفك العلوي
-    upperTeethArr.forEach(num => {
-        upperContainer.appendChild(createToothSVGElement(num, 'upper'));
-    });
+    upperTeethArr.forEach(num => upperContainer.appendChild(createComplexToothSVG(num, 'upper')));
+    lowerTeethArr.forEach(num => lowerContainer.appendChild(createComplexToothSVG(num, 'lower')));
 
-    // رسم الفك السفلي (هنعكس الـ SVG عشان الجدور تبقى لتحت)
-    lowerTeethArr.forEach(num => {
-        lowerContainer.appendChild(createToothSVGElement(num, 'lower'));
-    });
-
-    // لو في داتا جاية من الجلسة القديمة، نلونها فوراً
+    // لو في داتا جاية من الجلسة القديمة
     if (typeof sessionData !== 'undefined' && sessionData && sessionData.dentalChart) {
         updateChartWithData(sessionData.dentalChart);
     }
 }
 
-// 2. مصنع رسم السِنة (SVG Factory)
-function createToothSVGElement(num, jawType) {
+// ==========================================
+// مصنع إحداثيات الـ SVG (السر كله هنا)
+// ==========================================
+function createComplexToothSVG(num, jawType) {
     const wrapper = document.createElement('div');
-    wrapper.className = `tooth-wrapper status-normal`;
+    wrapper.className = `tooth-wrapper`;
     wrapper.id = `tooth-wrap-${num}`;
-    wrapper.onclick = () => openToothInteractiveModal(num);
 
+    // تحديد هل دي سِنة أمامية (قاطع/ناب) ولا ضرس (خلفي)
+    const isMolar = [18,17,16,15,14, 24,25,26,27,28, 48,47,46,45,44, 34,35,36,37,38].includes(num);
     const isLower = jawType === 'lower';
-    // لفة بسيطة للفك السفلي عشان الجدور تبص لتحت
+    
+    // الفك السفلي بنلفه عشان الجدور تبص لتحت
     const transformStyle = isLower ? `transform: rotate(180deg);` : ``;
 
+    let svgContent = '';
+
+    // 1. رسم الجذر (Root)
+    if (isMolar) {
+        // ضرس (بجذرين أو تلاتة)
+        svgContent += `<path id="t${num}-root" class="tooth-part" d="M 25 50 C 15 20, 20 0, 35 0 C 45 20, 40 40, 50 50 C 60 40, 55 20, 65 0 C 80 0, 85 20, 75 50 Z" onclick="openToothPartModal(${num}, 'root')" />`;
+    } else {
+        // سِنة أمامية (بجذر واحد)
+        svgContent += `<path id="t${num}-root" class="tooth-part" d="M 30 50 C 30 20, 40 0, 50 0 C 60 0, 70 20, 70 50 Z" onclick="openToothPartModal(${num}, 'root')" />`;
+    }
+
+    // 2. رسم التاج (Crown) متقسم لـ 5 أسطح
+    // المربع الخارجي للتاج
+    const crownY = 52; // بداية التاج من تحت الجذر
+    
+    // السطح العلوي (Top/Buccal)
+    svgContent += `<path id="t${num}-top" class="tooth-part" d="M 20 ${crownY} L 80 ${crownY} L 65 ${crownY+12} L 35 ${crownY+12} Z" onclick="openToothPartModal(${num}, 'top')" />`;
+    
+    // السطح السفلي (Bottom/Lingual)
+    svgContent += `<path id="t${num}-bottom" class="tooth-part" d="M 35 ${crownY+36} L 65 ${crownY+36} L 80 ${crownY+48} L 20 ${crownY+48} Z" onclick="openToothPartModal(${num}, 'bottom')" />`;
+    
+    // السطح الأيسر (Left/Mesial-Distal)
+    svgContent += `<path id="t${num}-left" class="tooth-part" d="M 20 ${crownY} L 35 ${crownY+12} L 35 ${crownY+36} L 20 ${crownY+48} Z" onclick="openToothPartModal(${num}, 'left')" />`;
+    
+    // السطح الأيمن (Right/Distal-Mesial)
+    svgContent += `<path id="t${num}-right" class="tooth-part" d="M 80 ${crownY} L 65 ${crownY+12} L 65 ${crownY+36} L 80 ${crownY+48} Z" onclick="openToothPartModal(${num}, 'right')" />`;
+    
+    // السطح الأوسط (Center/Occlusal-Incisal)
+    svgContent += `<rect id="t${num}-center" class="tooth-part" x="35" y="${crownY+12}" width="30" height="24" onclick="openToothPartModal(${num}, 'center')" />`;
+
+    // 3. علامات الخلع والزراعة (مخفية افتراضياً، هتظهر بالـ JS لما ندي السِنة كلاس معين)
+    svgContent += `<g id="t${num}-extract-mark" display="none">
+        <line x1="10" y1="10" x2="90" y2="90" stroke="#ef4444" stroke-width="8" stroke-linecap="round"/>
+        <line x1="90" y1="10" x2="10" y2="90" stroke="#ef4444" stroke-width="8" stroke-linecap="round"/>
+    </g>`;
+
+    svgContent += `<g id="t${num}-implant-mark" display="none">
+        <rect x="40" y="10" width="20" height="80" fill="#94a3b8" rx="5"/>
+        <line x1="30" y1="30" x2="70" y2="30" stroke="#cbd5e1" stroke-width="4"/>
+        <line x1="30" y1="50" x2="70" y2="50" stroke="#cbd5e1" stroke-width="4"/>
+        <line x1="30" y1="70" x2="70" y2="70" stroke="#cbd5e1" stroke-width="4"/>
+    </g>`;
+
+
     wrapper.innerHTML = `
-        <div class="tooth-num">${num}</div>
-        <svg viewBox="0 0 100 100" class="tooth-svg" style="${transformStyle}">
-            <path class="tooth-shape" d="M 20 30 C 20 5, 80 5, 80 30 C 80 50, 70 60, 65 80 C 60 100, 55 100, 55 80 C 55 70, 45 70, 45 80 C 45 100, 40 100, 35 80 C 30 60, 20 50, 20 30 Z" />
-            
-            <circle class="tooth-filling" cx="50" cy="30" r="12" fill="#3b82f6" display="none" />
-            
-            <circle class="tooth-decay-spot" cx="40" cy="25" r="8" fill="#ca8a04" display="none" />
-            <circle class="tooth-decay-spot" cx="60" cy="35" r="6" fill="#854d0e" display="none" />
-
-            <path class="tooth-implant-screw" d="M 40 50 L 60 50 L 55 90 L 45 90 Z" fill="#94a3b8" display="none" />
-            <rect class="tooth-implant-screw" x="35" y="45" width="30" height="8" fill="#64748b" display="none" rx="2"/>
-
-            <path class="tooth-cross" d="M 15 15 L 85 85 M 85 15 L 15 85" stroke="#ef4444" stroke-width="10" stroke-linecap="round" display="none" />
+        <div class="tooth-num" onclick="openToothPartModal(${num}, 'whole')">${num}</div>
+        <svg viewBox="0 0 100 110" class="tooth-svg" style="${transformStyle}">
+            ${svgContent}
         </svg>
     `;
 
     return wrapper;
 }
 
-// 3. فتح المودال لعرض الإجراءات المتاحة للسِنة دي
-function openToothInteractiveModal(toothNum) {
+// ==========================================
+// التفاعل (المودال)
+// ==========================================
+function openToothPartModal(toothNum, part) {
     currentSelectedToothId = toothNum;
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    currentSelectedPart = part;
     
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const titleEl = document.getElementById('selected-tooth-title');
-    if(titleEl) titleEl.innerText = isAr ? `إجراءات السِنة رقم (${toothNum})` : `Tooth (${toothNum}) Actions`;
+    
+    // ترجمة الجزء اللي داس عليه عشان الدكتور يبقى فاهم
+    let partNameAr = "";
+    if (part === 'root') partNameAr = "الجذر (Root)";
+    else if (part === 'center') partNameAr = "المنتصف (Occlusal)";
+    else if (part === 'top') partNameAr = "العلوي (Buccal)";
+    else if (part === 'bottom') partNameAr = "السفلي (Lingual)";
+    else if (part === 'left' || part === 'right') partNameAr = "الجانبي (Mesial/Distal)";
+    else if (part === 'whole') partNameAr = "السِنة بالكامل";
+
+    if(titleEl) titleEl.innerText = isAr ? `إجراءات ${partNameAr} للسِنة (${toothNum})` : `Tooth (${toothNum}) - ${part}`;
     
     const grid = document.getElementById('tooth-actions-grid');
     if(!grid) return;
 
-    // زراير الحالات الشيك
-    grid.innerHTML = `
-        <button class="btn-primary" style="background: #eab308; justify-content: center; padding: 12px; font-size: 15px;" onclick="saveToothStatusInChart('decay')">🟡 تسوس (Decay)</button>
-        <button class="btn-primary" style="background: #3b82f6; justify-content: center; padding: 12px; font-size: 15px;" onclick="saveToothStatusInChart('filled')">🔵 حشو (Filled)</button>
-        <button class="btn-primary" style="background: #6366f1; justify-content: center; padding: 12px; font-size: 15px;" onclick="saveToothStatusInChart('crown')">👑 طربوش (Crown)</button>
-        <button class="btn-primary" style="background: #475569; justify-content: center; padding: 12px; font-size: 15px;" onclick="saveToothStatusInChart('implant')">🔩 زراعة (Implant)</button>
-        <button class="btn-primary" style="background: #ef4444; justify-content: center; padding: 12px; font-size: 15px;" onclick="saveToothStatusInChart('extracted')">🔴 خلع (Extracted)</button>
-        <button class="btn-primary" style="background: #cbd5e1; color: #0f172a; justify-content: center; padding: 12px; font-size: 15px;" onclick="saveToothStatusInChart('normal')">⚪ سليم (Normal)</button>
-    `;
+    // بنعرض زراير مختلفة حسب هو داس على إيه (التاج ولا الجدر ولا السِنة كلها)
+    if (part === 'whole') {
+        grid.innerHTML = `
+            <button class="btn-primary" style="background: #ef4444; padding: 12px;" onclick="saveToothStatusInChart('extracted')">🔴 خلع (Extract)</button>
+            <button class="btn-primary" style="background: #64748b; padding: 12px;" onclick="saveToothStatusInChart('implant')">🔩 زراعة (Implant)</button>
+            <button class="btn-primary" style="background: #8b5cf6; padding: 12px;" onclick="saveToothStatusInChart('crown')">👑 طربوش (Crown)</button>
+            <button class="btn-primary" style="background: #cbd5e1; color: #0f172a; padding: 12px; grid-column: span 2;" onclick="saveToothStatusInChart('normal')">⚪ مسح الحالة (Clear All)</button>
+        `;
+    } else if (part === 'root') {
+        grid.innerHTML = `
+            <button class="btn-primary" style="background: #ec4899; padding: 12px;" onclick="saveToothStatusInChart('endo')">💖 حشو عصب (Endo)</button>
+            <button class="btn-primary" style="background: #cbd5e1; color: #0f172a; padding: 12px;" onclick="saveToothStatusInChart('normal')">⚪ سليم (Clear)</button>
+        `;
+    } else {
+        // أسطح التاج
+        grid.innerHTML = `
+            <button class="btn-primary" style="background: #eab308; padding: 12px;" onclick="saveToothStatusInChart('decay')">🟡 تسوس (Decay)</button>
+            <button class="btn-primary" style="background: #3b82f6; padding: 12px;" onclick="saveToothStatusInChart('filled')">🔵 حشو (Fill)</button>
+            <button class="btn-primary" style="background: #cbd5e1; color: #0f172a; padding: 12px; grid-column: span 2;" onclick="saveToothStatusInChart('normal')">⚪ سليم (Clear)</button>
+        `;
+    }
 
-    // دالة closeModal موجودة في session-details.js
     if(typeof closeModal === 'function') {
         document.getElementById('toothStatusModal').style.display = 'flex';
     }
 }
 
-// 4. حفظ الحالة في الفايربيز وتحديث الرسمة
+// ==========================================
+// الحفظ في الفايربيز وتلوين الخريطة
+// ==========================================
 async function saveToothStatusInChart(status) {
-    if (!currentSelectedToothId) return;
+    if (!currentSelectedToothId || !currentSelectedPart) return;
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     
-    // إغلاق المودال وتحديث الرؤية فوراً (عشان اليوزر ميحسش بتأخير)
     if(typeof closeModal === 'function') closeModal('toothStatusModal');
-    updateSingleToothVisual(currentSelectedToothId, status);
+    
+    updateSingleToothVisual(currentSelectedToothId, currentSelectedPart, status);
 
-    // لو الـ sessionId موجود (من session-details.js)، نحفظ في الداتا بيز
+    // مفتاح الحفظ في الفايربيز (عشان نحفظ حالة كل سطح لوحده)
+    // مثال: dentalChart.16_center = 'decay'
+    const dbKey = `dentalChart.${currentSelectedToothId}_${currentSelectedPart}`;
+
     if (typeof sessionId !== 'undefined' && sessionId) {
         if (window.showLoader) window.showLoader(isAr ? "جاري حفظ الحالة..." : "Saving status...");
         try {
-            await db.collection("Sessions").doc(sessionId).update({
-                [`dentalChart.${currentSelectedToothId}`]: status
-            });
+            // لو السِنة كلها اتخلعت، نمسح حالات الأسطح بتاعتها الأول عشان النضافة
+            if (currentSelectedPart === 'whole' && status !== 'normal') {
+                const updates = {};
+                ['root', 'top', 'bottom', 'left', 'right', 'center'].forEach(p => {
+                    updates[`dentalChart.${currentSelectedToothId}_${p}`] = firebase.firestore.FieldValue.delete();
+                });
+                updates[`dentalChart.${currentSelectedToothId}_whole`] = status;
+                await db.collection("Sessions").doc(sessionId).update(updates);
+            } else {
+                await db.collection("Sessions").doc(sessionId).update({
+                    [dbKey]: status === 'normal' ? firebase.firestore.FieldValue.delete() : status
+                });
+            }
         } catch(e) {
             console.error(e);
-            alert(isAr ? "حدث خطأ أثناء حفظ حالة السِنة." : "Error saving tooth status.");
         } finally {
             if (window.hideLoader) window.hideLoader();
         }
     }
 }
 
-// 5. تحديث لون سِنة واحدة
-function updateSingleToothVisual(toothNum, status) {
-    const toothWrapper = document.getElementById(`tooth-wrap-${toothNum}`);
-    if (toothWrapper) {
-        toothWrapper.className = `tooth-wrapper status-${status}`;
+function updateSingleToothVisual(toothNum, part, status) {
+    const wrapper = document.getElementById(`tooth-wrap-${toothNum}`);
+    const partEl = document.getElementById(`t${toothNum}-${part}`);
+    const extractMark = document.getElementById(`t${toothNum}-extract-mark`);
+    const implantMark = document.getElementById(`t${toothNum}-implant-mark`);
+
+    if (!wrapper) return;
+
+    // لو الشغل على السِنة بالكامل (خلع/زراعة/طربوش)
+    if (part === 'whole') {
+        // تنظيف الكلاسات القديمة
+        wrapper.classList.remove('tooth-extracted', 'tooth-implant');
+        extractMark.setAttribute('display', 'none');
+        implantMark.setAttribute('display', 'none');
+
+        // تنظيف ألوان الأسطح لو هيعمل طربوش مثلاً
+        ['root', 'top', 'bottom', 'left', 'right', 'center'].forEach(p => {
+            const el = document.getElementById(`t${toothNum}-${p}`);
+            if(el) el.className = 'tooth-part'; // يرجع سليم
+        });
+
+        if (status === 'extracted') {
+            wrapper.classList.add('tooth-extracted');
+            extractMark.setAttribute('display', 'block');
+        } else if (status === 'implant') {
+            wrapper.classList.add('tooth-implant');
+            implantMark.setAttribute('display', 'block');
+        } else if (status === 'crown') {
+            ['top', 'bottom', 'left', 'right', 'center'].forEach(p => {
+                const el = document.getElementById(`t${toothNum}-${p}`);
+                if(el) el.classList.add('status-crown');
+            });
+        }
+        return;
+    }
+
+    // لو الشغل على سطح معين (Center, Top, Root...)
+    if (partEl) {
+        partEl.className = 'tooth-part'; // مسح القديم
+        if (status !== 'normal') {
+            partEl.classList.add(`status-${status}`);
+        }
     }
 }
 
-// 6. تحديث الخريطة كلها (بتقرأ من الداتا بيز)
+// تلوين الخريطة كلها من داتا الفايربيز
 function updateChartWithData(chartDataObj) {
     if (!chartDataObj) return;
     
-    // تصفير كل الأسنان للوضع الطبيعي الأول
-    const allTeeth = document.querySelectorAll('.tooth-wrapper');
-    allTeeth.forEach(el => el.className = 'tooth-wrapper status-normal');
+    // تصفير الخريطة بالكامل أولاً
+    document.querySelectorAll('.tooth-part').forEach(el => el.className = 'tooth-part');
+    document.querySelectorAll('.tooth-wrapper').forEach(el => el.classList.remove('tooth-extracted', 'tooth-implant'));
+    document.querySelectorAll('[id$="-extract-mark"]').forEach(el => el.setAttribute('display', 'none'));
+    document.querySelectorAll('[id$="-implant-mark"]').forEach(el => el.setAttribute('display', 'none'));
 
-    // تلوين الأسنان اللي ليها حالات محفوظة
-    for (const [toothNum, status] of Object.entries(chartDataObj)) {
-        updateSingleToothVisual(toothNum, status);
+    for (const [key, status] of Object.entries(chartDataObj)) {
+        // Key بيكون مثلا: "16_center" أو "21_whole"
+        const parts = key.split('_');
+        if (parts.length === 2) {
+            const toothNum = parts[0];
+            const partName = parts[1];
+            updateSingleToothVisual(toothNum, partName, status);
+        }
     }
 }
