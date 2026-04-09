@@ -2,7 +2,6 @@
 
 const SMART_VERSION = Math.floor(Date.now() / 3600000); 
 
-// 🔴 دالة تفعيل الوضع الليلي 🔴
 function applyTheme(themeName) {
     document.body.setAttribute('data-theme', themeName);
     localStorage.setItem('niva_theme', themeName);
@@ -16,7 +15,6 @@ function applyTheme(themeName) {
         themeBtn.title = 'الوضع الليلي';
     }
 
-    // إرسال الثيم للـ iframe عشان الصفحات الداخلية تقلب ألوانها
     const frame = document.getElementById('content-frame');
     if (frame && frame.contentWindow) {
         frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: themeName }, '*');
@@ -29,14 +27,11 @@ function toggleTheme() {
     applyTheme(newTheme);
 }
 
-// استرجاع الثيم عند التحميل
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('niva_theme') || 'light';
     applyTheme(savedTheme);
 });
 
-
-// 🔴 1. دالة التنقل (تم التعديل لحفظ مسار الصفحة في الـ SessionStorage) 🔴
 function loadPage(pageUrl, clickedLi) {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فتح الصفحة..." : "Loading page...");
     
@@ -49,25 +44,20 @@ function loadPage(pageUrl, clickedLi) {
     
     frame.onload = function() {
         if (window.hideLoader) window.hideLoader();
-        // إرسال الثيم الحالي للصفحة الجديدة أول ما تفتح
         const currentTheme = document.body.getAttribute('data-theme');
         frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: currentTheme }, '*');
     };
     
-    // حفظ مسار الصفحة والزرار المفعل في القائمة عشان نرجعله بعد الريفريش
     sessionStorage.setItem('lastOpenedPage', pageUrl);
 
     if (clickedLi) {
         const allLinks = document.querySelectorAll('#nav-links li');
         allLinks.forEach(li => li.classList.remove('active'));
         clickedLi.classList.add('active');
-        // حفظ الـ id بتاع الـ Li عشان نرجعه active بعد الريفريش
         if(clickedLi.id) {
             sessionStorage.setItem('lastActiveNavId', clickedLi.id);
         }
     } else {
-        // لو مفيش clickedLi اتبعت (زي لما بنفتح تفاصيل مريض من جوه صفحة تانية)
-        // بنحاول نعلم على آخر زرار كان متسجل إنه نشط
         const lastNavId = sessionStorage.getItem('lastActiveNavId');
         if (lastNavId) {
             const allLinks = document.querySelectorAll('#nav-links li');
@@ -84,7 +74,6 @@ function loadPage(pageUrl, clickedLi) {
     }
 }
 
-// 2. دالة تغيير لغة النظام
 function switchAppLanguage(lang) {
     setLanguage(lang); 
     updatePageContent(lang); 
@@ -94,28 +83,29 @@ function switchAppLanguage(lang) {
     }
 }
 
-// 3. الترجمة الخاصة بالهيكل الخارجي
 function updatePageContent(lang) {
     const t = {
         ar: {
             header: "لوحة التحكم",
             navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
             navFinances: "الحسابات والمصروفات",
-            navInventory: "المخزون الطبي", // 🔴 إضافة ترجمة المخزون
+            navInventory: "المخزون الطبي", 
             navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
             alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
-            navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال عبر واتساب"
+            navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال عبر واتساب",
+            aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم؟"
         },
         en: {
             header: "Dashboard",
             navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
             navFinances: "Finances",
-            navInventory: "Medical Inventory", // 🔴 إضافة ترجمة المخزون
+            navInventory: "Medical Inventory", 
             navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
             alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension.",
-            navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send via WhatsApp"
+            navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send via WhatsApp",
+            aiTitle: "Niva Assistant", aiWelcome: "Hello Doctor! 👋 I'm Niva, your smart assistant. How can I help you today?"
         }
     };
     const c = t[lang] || t.ar;
@@ -124,20 +114,20 @@ function updatePageContent(lang) {
     setTxt('txt-header', c.header);
     setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
     setTxt('nav-finances', c.navFinances);
-    setTxt('nav-inventory', c.navInventory); // 🔴 تعيين النص للمخزون
+    setTxt('nav-inventory', c.navInventory); 
     setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
     
-    // ترجمات الدعم الفني
     setTxt('nav-support', c.navSupport); setTxt('mod-support-title', c.modSupTitle);
     setTxt('mod-support-desc', c.modSupDesc); setTxt('btn-support-send', c.btnSupSend);
     
+    setTxt('ai-title', c.aiTitle); setTxt('ai-welcome-msg', c.aiWelcome);
+
     const msgBox = document.getElementById('support_message');
     if(msgBox) msgBox.placeholder = lang === 'ar' ? "اكتب تفاصيل المشكلة أو طلبك هنا..." : "Type issue details or request here...";
 
     window.homeLang = c;
 }
 
-// 4. مراقب الصلاحيات وجلب بيانات العيادة (مع استرجاع الصفحة المحفوظة)
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -160,7 +150,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
                     checkSubscriptionAlert(clinicId);
                 }
 
-                // استرجاع الصفحة الأخيرة بعد الـ Refresh
                 const lastPage = sessionStorage.getItem('lastOpenedPage');
                 const lastNavId = sessionStorage.getItem('lastActiveNavId');
                 
@@ -299,16 +288,15 @@ function applyRoles(role) {
     const settingsLi = document.getElementById('nav-settings-li');
     const superAdminLi = document.getElementById('nav-super-admin');
     const financesLi = document.getElementById('nav-finances-li');
-    const inventoryLi = document.getElementById('nav-item-inventory'); // 🔴 التحكم في المخزون
+    const inventoryLi = document.getElementById('nav-item-inventory'); 
     
     if (settingsLi) settingsLi.style.display = 'none';
     if (superAdminLi) superAdminLi.style.display = 'none';
     if (financesLi) financesLi.style.display = 'block';
-    if (inventoryLi) inventoryLi.style.display = 'block'; // المخزون ظاهر للكل افتراضياً
+    if (inventoryLi) inventoryLi.style.display = 'block'; 
 
     if (r === 'nurse') {
         if (financesLi) financesLi.style.display = 'none';
-        // الممرضة بتشوف المخزون عشان تسحب أو تبلغ النواقص
     }
 
     if (r === 'doctor' || r === 'admin') {
@@ -318,6 +306,10 @@ function applyRoles(role) {
     if (r === 'superadmin') {
         if (settingsLi) settingsLi.style.display = 'block';
         if (superAdminLi) superAdminLi.style.display = 'block';
+        
+        // إخفاء المساعد الذكي لو ده سوبر أدمن
+        const aiBtn = document.querySelector('.niva-ai-float-btn');
+        if(aiBtn) aiBtn.style.display = 'none';
     }
 }
 
@@ -346,7 +338,7 @@ window.onload = () => {
 };
 
 // =========================================================================
-// 🔴 نظام الدعم الفني (Tech Support) 🔴
+// الدعم الفني
 // =========================================================================
 function openSupportModal() {
     document.getElementById('support_message').value = '';
@@ -385,7 +377,115 @@ window.addEventListener('click', function(event) {
 
 
 // =========================================================================
-// نظام الأمان المتقدم: الخروج التلقائي عند الخمول
+// 🔴 المساعد الذكي Niva AI 🔴
+// =========================================================================
+
+function toggleAIPanel() {
+    const panel = document.getElementById('niva-ai-panel');
+    if (panel.style.display === 'flex') {
+        panel.style.display = 'none';
+    } else {
+        panel.style.display = 'flex';
+    }
+}
+
+function appendToAIChat(text, isUser = false) {
+    const chatBody = document.getElementById('niva-ai-chat');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = isUser ? 'user-msg' : 'ai-msg';
+    msgDiv.innerHTML = text;
+    chatBody.appendChild(msgDiv);
+    chatBody.scrollTop = chatBody.scrollHeight; // النزول لآخر رسالة
+}
+
+async function askAI(promptType) {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const clinicId = sessionStorage.getItem('clinicId');
+    if (!clinicId || clinicId === 'default') return;
+
+    let userMsg = "";
+    if (promptType === 'income') userMsg = isAr ? "كم إجمالي إيرادات العيادة اليوم؟" : "What is today's total income?";
+    else if (promptType === 'appointments') userMsg = isAr ? "ما هو موقف مواعيد اليوم؟" : "What is today's appointment status?";
+    else if (promptType === 'inventory') userMsg = isAr ? "هل يوجد نواقص في المخزن الطبي؟" : "Are there any inventory shortages?";
+
+    // عرض سؤال المستخدم
+    appendToAIChat(userMsg, true);
+    
+    // عرض جاري التفكير
+    const loadingId = "ai-loading-" + Date.now();
+    appendToAIChat(`<span id="${loadingId}" style="color:#64748b;">⏳ ${isAr ? 'جاري الفحص...' : 'Checking data...'}</span>`);
+
+    try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        let aiResponse = "";
+
+        if (promptType === 'income') {
+            const snap = await db.collection("Finances")
+                .where("clinicId", "==", clinicId)
+                .where("date", "==", todayStr)
+                .where("type", "==", "income")
+                .get();
+            
+            let total = 0;
+            snap.forEach(doc => total += Number(doc.data().amount));
+            
+            aiResponse = isAr 
+                ? `✅ إجمالي المبالغ المحصلة اليوم هو: <strong>${total} ج.م</strong> من إجمالي ${snap.size} عملية توريد.`
+                : `✅ Today's total collected income is: <strong>${total} EGP</strong> from ${snap.size} transactions.`;
+        } 
+        
+        else if (promptType === 'appointments') {
+            const snap = await db.collection("Appointments")
+                .where("clinicId", "==", clinicId)
+                .where("date", "==", todayStr)
+                .get();
+            
+            let total = snap.size;
+            let completed = 0;
+            let pending = 0;
+            let cancelled = 0;
+
+            snap.forEach(doc => {
+                const s = doc.data().status;
+                if (s === 'completed') completed++;
+                else if (s === 'cancelled') cancelled++;
+                else pending++;
+            });
+
+            aiResponse = isAr 
+                ? `📅 إجمالي حجوزات اليوم: <strong>${total}</strong><br>✔️ اكتمل: ${completed}<br>⏳ في الانتظار: ${pending}<br>🚫 ملغي: ${cancelled}`
+                : `📅 Total appointments today: <strong>${total}</strong><br>✔️ Completed: ${completed}<br>⏳ Pending: ${pending}<br>🚫 Cancelled: ${cancelled}`;
+        }
+
+        else if (promptType === 'inventory') {
+            const snap = await db.collection("Inventory").where("clinicId", "==", clinicId).get();
+            let shortages = [];
+            snap.forEach(doc => {
+                const item = doc.data();
+                if (item.qty <= item.minAlert) shortages.push(item.name);
+            });
+
+            if (shortages.length === 0) {
+                aiResponse = isAr ? "📦 المخزون في أمان! لا توجد نواقص حالياً." : "📦 Inventory is safe! No shortages currently.";
+            } else {
+                aiResponse = isAr 
+                    ? `🚨 <strong>تحذير!</strong> يوجد ${shortages.length} أصناف أوشكت على الانتهاء:<br> - ${shortages.join('<br> - ')}`
+                    : `🚨 <strong>Warning!</strong> ${shortages.length} items are running low:<br> - ${shortages.join('<br> - ')}`;
+            }
+        }
+
+        // إزالة رسالة اللودينج وعرض الرد
+        document.getElementById(loadingId).parentElement.remove();
+        appendToAIChat(aiResponse, false);
+
+    } catch (error) {
+        console.error(error);
+        document.getElementById(loadingId).parentElement.remove();
+        appendToAIChat(isAr ? "❌ حدث خطأ أثناء سحب البيانات. يرجى المحاولة لاحقاً." : "❌ Error fetching data. Please try again.", false);
+    }
+}
+
+
 // =========================================================================
 const IDLE_TIMEOUT_MINUTES = 30; 
 let idleTime = 0;
