@@ -94,8 +94,30 @@ function updateChart(pending, completed, cancelled) {
 }
 
 function updateTotalRevenue() {
-    const total = todayRevenueData.reduce((sum, item) => sum + Number(item.amount), 0);
+    let total = 0;
+    let cash = 0;
+    let wallet = 0;
+    let bank = 0;
+
+    todayRevenueData.forEach(item => {
+        const amt = Number(item.amount) || 0;
+        total += amt;
+        const method = item.paymentMethod || 'cash';
+        if (method === 'cash') cash += amt;
+        else if (method === 'wallet') wallet += amt;
+        else if (method === 'instapay') bank += amt;
+    });
+
     document.getElementById('stat-revenue').innerText = total;
+
+    // تحديث كروت المودال التفصيلي
+    const elCash = document.getElementById('rev-total-cash');
+    const elWallet = document.getElementById('rev-total-wallet');
+    const elBank = document.getElementById('rev-total-bank');
+    
+    if(elCash) elCash.innerText = cash;
+    if(elWallet) elWallet.innerText = wallet;
+    if(elBank) elBank.innerText = bank;
 }
 
 function loadDashboardStats() {
@@ -174,6 +196,7 @@ function openNewAppModal() {
     document.getElementById('new_app_paid').value = '0';
     document.getElementById('new_app_remaining').value = '0';
     document.getElementById('new_app_notes').value = '';
+    document.getElementById('new_app_pay_method').value = 'cash';
     
     document.getElementById('newAppModal').style.display = 'flex';
 }
@@ -184,6 +207,7 @@ function calcNewAppRemaining() {
     document.getElementById('new_app_remaining').value = Math.max(0, t - p);
 }
 
+// 🔴 حفظ الموعد السريع بالطريقة المحاسبية 🔴
 async function saveNewAppointment(e) {
     e.preventDefault();
     if(!clinicId) return;
@@ -200,6 +224,7 @@ async function saveNewAppointment(e) {
         total: Number(document.getElementById('new_app_total').value) || 0,
         paid: Number(document.getElementById('new_app_paid').value) || 0,
         remaining: Number(document.getElementById('new_app_remaining').value) || 0,
+        payMethod: document.getElementById('new_app_pay_method').value, // 🔴 حفظ طريقة الدفع
         notes: document.getElementById('new_app_notes').value.trim(),
         status: 'pending',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -281,128 +306,12 @@ function openAppDetails(app) {
 async function updateAppStatus(newStatus) {
     if(!currentSelectedApp) return;
 
-    if (newStatus === 'completed') {
-        await processFullCompletionLogic();
-        return;
-    }
-
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحديث..." : "Updating...");
     try {
         await db.collection("Appointments").doc(currentSelectedApp.id).update({ status: newStatus });
         closeModal('appDetailsModal');
     } catch(e) { 
         console.error("Error updating status:", e); 
-    } finally {
-        if (window.hideLoader) window.hideLoader();
-    }
-}
-
-// 🔴 اللوجيك الشامل المحدث (التحقق من الاسم والرقم لمنع تداخل أفراد العائلة) 🔴
-async function processFullCompletionLogic() {
-    const appId = currentSelectedApp.id;
-    const props = currentSelectedApp; 
-    const currentPayDate = getLocalTodayString(); 
-
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إتمام الحجز وتكوين الملف..." : "Completing and creating profile...");
-
-    try {
-        await db.collection("Appointments").doc(appId).update({ status: 'completed' });
-
-        const patientPhone = props.phone || "غير مسجل";
-        const paidAmount = Number(props.paid) || 0;
-        const remainingAmount = Number(props.remaining) || 0;
-
-        const existingPatientQuery = await db.collection("Patients")
-            .where("clinicId", "==", clinicId)
-            .where("phone", "==", patientPhone)
-            .get();
-
-        let patientId = null;
-        let matchedPatientDoc = null;
-
-        // 🔴 التعديل هنا: مش بنكتفي إن الرقم موجود، لازم الاسم كمان يتطابق 🔴
-        if (!existingPatientQuery.empty) {
-            existingPatientQuery.forEach(doc => {
-                if (doc.data().name.trim() === props.patientName.trim()) {
-                    matchedPatientDoc = doc;
-                }
-            });
-        }
-
-        if (!matchedPatientDoc) {
-            // مريض جديد (أو أخو المريض بنفس الرقم)
-            let historyArray = [];
-            if(props.history && props.history.length > 0) {
-                historyArray = props.history.split(',').map(item => item.trim()).filter(i => i);
-            }
-            const newPat = await db.collection("Patients").add({
-                clinicId: clinicId,
-                name: props.patientName,
-                phone: patientPhone,
-                age: props.age || '',
-                gender: props.gender || '',
-                medicalHistory: historyArray,
-                notes: props.notes || '', 
-                totalDebt: remainingAmount,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            patientId = newPat.id;
-        } else {
-            // مريض متسجل فعلياً (نفس الرقم والاسم)
-            patientId = matchedPatientDoc.id;
-            if (remainingAmount > 0) {
-                await db.collection("Patients").doc(patientId).update({
-                    totalDebt: firebase.firestore.FieldValue.increment(remainingAmount)
-                });
-            }
-        }
-
-        // إنشاء الجلسة في ملف المريض
-        await db.collection("Sessions").add({
-            clinicId: clinicId,
-            patientId: patientId,
-            date: currentPayDate, 
-            procedure: props.type || "كشف / إجراء",
-            total: props.total || 0,
-            paid: paidAmount,
-            remaining: remainingAmount,
-            notes: props.notes || "",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        // تسجيل الإيرادات
-        if (paidAmount > 0) {
-            await db.collection("Finances").add({
-                clinicId: clinicId,
-                patientId: patientId,
-                type: 'income',
-                category: 'كشف / جلسة',
-                amount: paidAmount,
-                date: currentPayDate, 
-                notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-
-        // تسجيل المديونية
-        if (remainingAmount > 0) {
-            await db.collection("Finances").add({
-                clinicId: clinicId,
-                patientId: patientId,
-                type: 'debt', 
-                category: 'متبقي كشف / جلسة',
-                amount: remainingAmount,
-                date: currentPayDate,
-                notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-
-        alert("✅ تم إتمام الحجز، وتوليد الإيرادات والملف الطبي بنجاح!");
-        closeModal('appDetailsModal');
-    } catch(e) {
-        console.error(e);
-        alert("حدث خطأ أثناء العملية");
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
@@ -461,6 +370,7 @@ function goToPatientProfile() {
     }
 }
 
+// 🔴 عرض الإيرادات التفصيلية 🔴
 function openRevenueModal() {
     const container = document.getElementById('revenueContainer');
     container.innerHTML = '';
@@ -472,7 +382,12 @@ function openRevenueModal() {
             li.className = 'data-list-li';
             li.onclick = () => openRevDetails(rev); 
             const lang = localStorage.getItem('preferredLang') || 'ar';
-            li.innerHTML = `<span style="font-weight: bold; font-size: 15px;">📝 ${rev.notes || (lang==='ar'?'إيراد عيادة':'Clinic Revenue')}</span><span class="data-badge green">💰 ${rev.amount}</span>`;
+            
+            let methodIcon = '💵';
+            if(rev.paymentMethod === 'wallet') methodIcon = '📱';
+            if(rev.paymentMethod === 'instapay') methodIcon = '🏦';
+
+            li.innerHTML = `<span style="font-weight: bold; font-size: 15px;">${methodIcon} ${rev.notes || (lang==='ar'?'إيراد عيادة':'Clinic Revenue')}</span><span class="data-badge green">💰 ${rev.amount}</span>`;
             container.appendChild(li);
         });
     }
@@ -502,6 +417,11 @@ function openRevDetails(rev) {
     document.getElementById('rdet_cat').innerText = rev.category || '---';
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.getElementById('rdet_notes').innerText = rev.notes || (lang === 'ar' ? 'لا يوجد' : 'None');
+
+    let methodStr = "نقدي";
+    if(rev.paymentMethod === 'wallet') methodStr = "محفظة";
+    if(rev.paymentMethod === 'instapay') methodStr = "إنستاباي / بنكي";
+    document.getElementById('rdet_method').innerText = methodStr;
     
     document.getElementById('revDetailsModal').style.display = 'flex';
 }
