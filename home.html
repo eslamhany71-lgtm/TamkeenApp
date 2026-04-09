@@ -22,7 +22,7 @@
         .niva-ai-float-btn {
             position: fixed;
             bottom: 30px;
-            left: 30px; /* على الشمال عشان ميتعارضش مع القوائم */
+            left: 30px;
             width: 60px;
             height: 60px;
             background: linear-gradient(135deg, #0284c7, #8b5cf6);
@@ -39,6 +39,7 @@
             animation: float 3s ease-in-out infinite;
         }
         .niva-ai-float-btn:hover { transform: scale(1.1); }
+        .niva-ai-float-btn.open { background: #ef4444; box-shadow: 0 10px 20px rgba(239, 68, 68, 0.4); animation: none; font-size: 24px;}
         
         .niva-ai-panel {
             position: fixed;
@@ -67,8 +68,6 @@
             align-items: center;
         }
         .niva-ai-header h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-        .niva-ai-close { cursor: pointer; font-size: 20px; transition: 0.2s; }
-        .niva-ai-close:hover { color: #fca5a5; }
 
         .niva-ai-body {
             padding: 15px;
@@ -104,6 +103,10 @@
             font-family: inherit;
         }
         .ai-prompt-btn:hover { background: #bae6fd; }
+        
+        /* لون مختلف لزراير الفلوس والمصروفات */
+        .ai-prompt-btn.btn-finance { background: #fef3c7; color: #d97706; border-color: #fde68a; }
+        .ai-prompt-btn.btn-finance:hover { background: #fde68a; }
 
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
         @keyframes popUp { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
@@ -197,20 +200,22 @@
         </div>
     </div>
 
-    <div class="niva-ai-float-btn" onclick="toggleAIPanel()" title="المساعد الذكي Niva AI">🤖</div>
+    <div class="niva-ai-float-btn" id="niva-btn-trigger" onclick="toggleAIPanel()" title="المساعد الذكي Niva AI">🤖</div>
     
     <div class="niva-ai-panel" id="niva-ai-panel">
         <div class="niva-ai-header">
             <h3>🤖 <span id="ai-title">Niva Assistant</span></h3>
-            <span class="niva-ai-close" onclick="toggleAIPanel()">&times;</span>
-        </div>
+            </div>
         <div class="niva-ai-body" id="niva-ai-chat">
             <div class="ai-msg" id="ai-welcome-msg">مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم؟</div>
         </div>
         <div class="niva-ai-prompts" id="niva-ai-prompts">
-            <button class="ai-prompt-btn" onclick="askAI('income')">💰 إيرادات اليوم</button>
             <button class="ai-prompt-btn" onclick="askAI('appointments')">📅 مواعيد اليوم</button>
+            <button class="ai-prompt-btn" onclick="askAI('tomorrow')">🔮 مواعيد الغد</button>
             <button class="ai-prompt-btn" onclick="askAI('inventory')">📦 نواقص المخزون</button>
+            <button class="ai-prompt-btn btn-finance" onclick="askAI('income')">💰 إيرادات اليوم</button>
+            <button class="ai-prompt-btn btn-finance" onclick="askAI('expenses')">📉 مصروفات اليوم</button>
+            <button class="ai-prompt-btn btn-finance" onclick="askAI('debts')">💸 المرضى المتعثرين (الديون)</button>
         </div>
     </div>
 
