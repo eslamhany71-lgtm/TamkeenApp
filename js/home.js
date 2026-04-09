@@ -382,10 +382,16 @@ window.addEventListener('click', function(event) {
 
 function toggleAIPanel() {
     const panel = document.getElementById('niva-ai-panel');
+    const triggerBtn = document.getElementById('niva-btn-trigger');
+    
     if (panel.style.display === 'flex') {
         panel.style.display = 'none';
+        triggerBtn.innerHTML = '🤖'; // يرجع أيقونة الروبوت
+        triggerBtn.classList.remove('open');
     } else {
         panel.style.display = 'flex';
+        triggerBtn.innerHTML = '❌'; // يتغير لعلامة الإغلاق
+        triggerBtn.classList.add('open');
     }
 }
 
@@ -405,56 +411,80 @@ async function askAI(promptType) {
 
     let userMsg = "";
     if (promptType === 'income') userMsg = isAr ? "كم إجمالي إيرادات العيادة اليوم؟" : "What is today's total income?";
+    else if (promptType === 'expenses') userMsg = isAr ? "كم إجمالي مصروفات العيادة اليوم؟" : "What is today's total expenses?";
+    else if (promptType === 'debts') userMsg = isAr ? "من هم المرضى المتعثرين؟ وما هو إجمالي الديون؟" : "Who are the defaulting patients? Total debts?";
     else if (promptType === 'appointments') userMsg = isAr ? "ما هو موقف مواعيد اليوم؟" : "What is today's appointment status?";
+    else if (promptType === 'tomorrow') userMsg = isAr ? "ما هي مواعيد عيادة الغد؟" : "What are tomorrow's appointments?";
     else if (promptType === 'inventory') userMsg = isAr ? "هل يوجد نواقص في المخزن الطبي؟" : "Are there any inventory shortages?";
 
-    // عرض سؤال المستخدم
     appendToAIChat(userMsg, true);
     
-    // عرض جاري التفكير
     const loadingId = "ai-loading-" + Date.now();
-    appendToAIChat(`<span id="${loadingId}" style="color:#64748b;">⏳ ${isAr ? 'جاري الفحص...' : 'Checking data...'}</span>`);
+    appendToAIChat(`<span id="${loadingId}" style="color:#64748b;">⏳ ${isAr ? 'جاري الفحص السريع...' : 'Checking data...'}</span>`);
 
     try {
         const todayStr = new Date().toISOString().split('T')[0];
+        
+        // حساب تاريخ بكره
+        const tomorrowDate = new Date();
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+        const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
+
         let aiResponse = "";
 
         if (promptType === 'income') {
-            const snap = await db.collection("Finances")
-                .where("clinicId", "==", clinicId)
-                .where("date", "==", todayStr)
-                .where("type", "==", "income")
-                .get();
-            
+            const snap = await db.collection("Finances").where("clinicId", "==", clinicId).where("date", "==", todayStr).where("type", "==", "income").get();
             let total = 0;
             snap.forEach(doc => total += Number(doc.data().amount));
-            
-            aiResponse = isAr 
-                ? `✅ إجمالي المبالغ المحصلة اليوم هو: <strong>${total} ج.م</strong> من إجمالي ${snap.size} عملية توريد.`
-                : `✅ Today's total collected income is: <strong>${total} EGP</strong> from ${snap.size} transactions.`;
+            aiResponse = isAr ? `✅ إجمالي المبالغ المحصلة اليوم هو: <strong>${total} ج.م</strong> من ${snap.size} عملية توريد.` : `✅ Today's total collected income is: <strong>${total} EGP</strong> from ${snap.size} transactions.`;
         } 
         
-        else if (promptType === 'appointments') {
-            const snap = await db.collection("Appointments")
-                .where("clinicId", "==", clinicId)
-                .where("date", "==", todayStr)
-                .get();
+        else if (promptType === 'expenses') {
+            const snap = await db.collection("Finances").where("clinicId", "==", clinicId).where("date", "==", todayStr).where("type", "==", "expense").get();
+            let total = 0;
+            snap.forEach(doc => total += Number(doc.data().amount));
+            aiResponse = isAr ? `📉 إجمالي المصروفات المسجلة اليوم هو: <strong style="color:#dc2626;">${total} ج.م</strong> في ${snap.size} بند.` : `📉 Today's total expenses are: <strong style="color:#dc2626;">${total} EGP</strong> in ${snap.size} items.`;
+        }
+        
+        else if (promptType === 'debts') {
+            const snap = await db.collection("Patients").where("clinicId", "==", clinicId).where("totalDebt", ">", 0).get();
+            let totalDebts = 0;
+            let patientsList = [];
+            snap.forEach(doc => {
+                let d = doc.data();
+                totalDebts += Number(d.totalDebt);
+                patientsList.push(`${d.name} (${d.totalDebt} ج.م)`);
+            });
             
-            let total = snap.size;
-            let completed = 0;
-            let pending = 0;
-            let cancelled = 0;
+            if (snap.size === 0) {
+                aiResponse = isAr ? "✨ ممتاز! لا يوجد مرضى عليهم مديونيات للعيادة." : "✨ Great! No patients with outstanding debts.";
+            } else {
+                let topList = patientsList.slice(0, 3).join('<br> - '); // نعرض 3 بس عشان منزحمش الشات
+                let moreHtml = patientsList.length > 3 ? `<br><small>...و ${patientsList.length - 3} مرضى آخرين (راجع صفحة المرضى).</small>` : "";
+                aiResponse = isAr ? `💸 إجمالي الديون المستحقة للعيادة هو: <strong>${totalDebts} ج.م</strong> موزع على ${snap.size} مريض.<br><strong>أبرز المتعثرين:</strong><br> - ${topList} ${moreHtml}` : `💸 Total debts owed to clinic: <strong>${totalDebts} EGP</strong> across ${snap.size} patients.`;
+            }
+        }
 
+        else if (promptType === 'appointments') {
+            const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", todayStr).get();
+            let total = snap.size, completed = 0, pending = 0, cancelled = 0;
             snap.forEach(doc => {
                 const s = doc.data().status;
                 if (s === 'completed') completed++;
                 else if (s === 'cancelled') cancelled++;
                 else pending++;
             });
-
-            aiResponse = isAr 
-                ? `📅 إجمالي حجوزات اليوم: <strong>${total}</strong><br>✔️ اكتمل: ${completed}<br>⏳ في الانتظار: ${pending}<br>🚫 ملغي: ${cancelled}`
-                : `📅 Total appointments today: <strong>${total}</strong><br>✔️ Completed: ${completed}<br>⏳ Pending: ${pending}<br>🚫 Cancelled: ${cancelled}`;
+            aiResponse = isAr ? `📅 إجمالي حجوزات اليوم: <strong>${total}</strong><br>✔️ اكتمل: ${completed}<br>⏳ في الانتظار: ${pending}<br>🚫 ملغي: ${cancelled}` : `📅 Total appointments today: <strong>${total}</strong><br>✔️ Completed: ${completed}<br>⏳ Pending: ${pending}<br>🚫 Cancelled: ${cancelled}`;
+        }
+        
+        else if (promptType === 'tomorrow') {
+            const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", tomorrowStr).get();
+            let total = snap.size;
+            if (total === 0) {
+                aiResponse = isAr ? "لا توجد أي حجوزات مسجلة لغدٍ حتى الآن. 🏖️" : "No appointments scheduled for tomorrow yet. 🏖️";
+            } else {
+                aiResponse = isAr ? `🔮 يوجد <strong>${total} كشوفات</strong> مسجلة غداً. يرجى التنبيه على السكرتارية لتأكيد المواعيد.` : `🔮 There are <strong>${total} appointments</strong> scheduled for tomorrow.`;
+            }
         }
 
         else if (promptType === 'inventory') {
@@ -468,19 +498,19 @@ async function askAI(promptType) {
             if (shortages.length === 0) {
                 aiResponse = isAr ? "📦 المخزون في أمان! لا توجد نواقص حالياً." : "📦 Inventory is safe! No shortages currently.";
             } else {
-                aiResponse = isAr 
-                    ? `🚨 <strong>تحذير!</strong> يوجد ${shortages.length} أصناف أوشكت على الانتهاء:<br> - ${shortages.join('<br> - ')}`
-                    : `🚨 <strong>Warning!</strong> ${shortages.length} items are running low:<br> - ${shortages.join('<br> - ')}`;
+                aiResponse = isAr ? `🚨 <strong>تحذير!</strong> يوجد ${shortages.length} أصناف أوشكت على الانتهاء:<br> - ${shortages.join('<br> - ')}` : `🚨 <strong>Warning!</strong> ${shortages.length} items are running low:<br> - ${shortages.join('<br> - ')}`;
             }
         }
 
-        // إزالة رسالة اللودينج وعرض الرد
-        document.getElementById(loadingId).parentElement.remove();
+        // إزالة اللودينج وإضافة الرد
+        const loadingElement = document.getElementById(loadingId);
+        if(loadingElement && loadingElement.parentElement) loadingElement.parentElement.remove();
         appendToAIChat(aiResponse, false);
 
     } catch (error) {
         console.error(error);
-        document.getElementById(loadingId).parentElement.remove();
+        const loadingElement = document.getElementById(loadingId);
+        if(loadingElement && loadingElement.parentElement) loadingElement.parentElement.remove();
         appendToAIChat(isAr ? "❌ حدث خطأ أثناء سحب البيانات. يرجى المحاولة لاحقاً." : "❌ Error fetching data. Please try again.", false);
     }
 }
