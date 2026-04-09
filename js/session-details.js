@@ -10,13 +10,11 @@ let patientName = "المريض";
 let patientAge = "---";
 let clinicPharmacy = []; 
 
-// متغيرات الروشتات
 let sessionPrescriptions = {}; 
 let currentPrescriptionDrugs = []; 
 let activePrescriptionDocId = null; 
 let editDrugId = null; 
 
-// دالة لمعرفة اللغة الحالية
 function getLang() {
     return (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 }
@@ -60,17 +58,8 @@ async function loadSessionDetails() {
             document.getElementById('sd-remaining').innerText = sessionData.remaining || 0;
             document.getElementById('sd-notes').innerText = sessionData.notes || (isAr ? 'لا يوجد' : 'None');
 
-            // قراءة بيانات الأسنان وتلوينها
-            if (sessionData.dentalChart) {
-                for (const [toothNum, status] of Object.entries(sessionData.dentalChart)) {
-                    const toothEl = document.getElementById(`tooth-${toothNum}`);
-                    if (toothEl) {
-                        toothEl.classList.remove('status-decay', 'status-extracted', 'status-crown');
-                        if (status !== 'normal') {
-                            toothEl.classList.add(`status-${status}`);
-                        }
-                    }
-                }
+            if (typeof updateChartWithData === "function") {
+                updateChartWithData(sessionData.dentalChart || {});
             }
         }
     });
@@ -79,7 +68,10 @@ async function loadSessionDetails() {
     loadSessionPrescription();
     loadClinicPharmacy();
     loadRxTemplates(); 
-    renderDentalChart();
+    
+    if (typeof buildAdvancedDentalChart === "function") {
+        setTimeout(buildAdvancedDentalChart, 300); 
+    }
 }
 
 function openEditSessionModal() {
@@ -90,6 +82,7 @@ function openEditSessionModal() {
     document.getElementById('es_total').value = sessionData.total || 0;
     document.getElementById('es_paid').value = sessionData.paid || 0;
     document.getElementById('es_remaining').value = sessionData.remaining || 0;
+    document.getElementById('es_pay_method').value = 'cash'; // Default
     openModal('editSessionModal');
 }
 
@@ -99,40 +92,85 @@ function calcEditRemaining() {
     document.getElementById('es_remaining').value = Math.max(0, t - p);
 }
 
+// 🔴 تحديث دالة التعديل عشان تسجل الفروقات المالية بطريقة الدفع 🔴
 async function updateSession(e) {
     e.preventDefault();
     const isAr = getLang();
-    if (window.showLoader) window.showLoader(isAr ? "جاري التحديث..." : "Updating...");
+    if (window.showLoader) window.showLoader(isAr ? "جاري التحديث وتسوية الحسابات..." : "Updating finances...");
+
+    const newTotal = Number(document.getElementById('es_total').value);
+    const newPaid = Number(document.getElementById('es_paid').value);
+    const newRemaining = Number(document.getElementById('es_remaining').value);
+    const newProcedure = document.getElementById('es_procedure').value;
+    const newDate = document.getElementById('es_date').value;
+    const payMethod = document.getElementById('es_pay_method').value; 
 
     const data = {
-        date: document.getElementById('es_date').value,
+        date: newDate,
         nextAppointment: document.getElementById('es_next_date').value || null,
-        procedure: document.getElementById('es_procedure').value,
-        total: Number(document.getElementById('es_total').value),
-        paid: Number(document.getElementById('es_paid').value),
-        remaining: Number(document.getElementById('es_remaining').value)
+        procedure: newProcedure,
+        total: newTotal,
+        paid: newPaid,
+        remaining: newRemaining
     };
+
     try {
+        const oldRemaining = sessionData.remaining || 0;
+        const oldPaid = sessionData.paid || 0;
+        
+        const debtDiff = newRemaining - oldRemaining;
+        const paidDiff = newPaid - oldPaid;
+
         await db.collection("Sessions").doc(sessionId).update(data);
+
+        // 1. لو الدكتور أو السكرتير زود الفلوس المدفوعة أثناء التعديل
+        if (paidDiff !== 0) {
+            await db.collection("Finances").add({
+                clinicId: clinicId, patientId: patientId, 
+                type: paidDiff > 0 ? 'income' : 'expense', // لو الفلوس زادت يبقى income، لو نقصت تبقى مرتجعات (expense)
+                category: isAr ? 'تعديل دفعة جلسة' : 'Session Payment Adjustment',
+                amount: Math.abs(paidDiff), 
+                date: newDate, 
+                paymentMethod: payMethod, // 🔴 الخزنة هتسمع طريقة الدفع هنا
+                notes: isAr ? `تسوية حساب جلسة: ${newProcedure}` : `Payment Adjust: ${newProcedure}`,
+                createdBy: currentUserDisplayName || "Admin", 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // 2. لو إجمالي الجلسة اتغير فبقى فيه فرق في المديونية للمريض
+        if (debtDiff !== 0) {
+            await db.collection("Patients").doc(patientId).update({ 
+                totalDebt: firebase.firestore.FieldValue.increment(debtDiff) 
+            });
+            await db.collection("Finances").add({
+                clinicId: clinicId, patientId: patientId, type: 'debt', 
+                category: isAr ? 'تعديل مديونية جلسة' : 'Session Debt Adjustment',
+                amount: debtDiff, date: newDate, 
+                notes: isAr ? `تسوية ديون: ${newProcedure}` : `Debt Adjust: ${newProcedure}`,
+                createdBy: currentUserDisplayName || "Admin", 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
         closeModal('editSessionModal');
     } catch(e) { 
         console.error(e); 
+        alert(isAr ? "❌ حدث خطأ" : "❌ Error");
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
 }
 
 // ==========================================
-// إدارة الأدوية 
+// إدارة الأدوية والروشتات
 // ==========================================
 
 function loadClinicPharmacy() {
     db.collection("Pharmacy").where("clinicId", "==", clinicId).onSnapshot(snap => {
         clinicPharmacy = [];
         snap.forEach(doc => clinicPharmacy.push({ id: doc.id, ...doc.data() }));
-        if(document.getElementById('drug-search').value.length > 0) {
-            searchDrugs();
-        }
+        if(document.getElementById('drug-search').value.length > 0) searchDrugs();
     });
 }
 
@@ -173,11 +211,8 @@ async function deleteDrugFromPharmacy(drugId, event) {
             await db.collection("Pharmacy").doc(drugId).delete();
             document.getElementById('search-results-box').style.display = 'none';
             document.getElementById('drug-search').value = '';
-        } catch(e) { 
-            console.error(e); 
-        } finally {
-            if (window.hideLoader) window.hideLoader();
-        }
+        } catch(e) { console.error(e); } 
+        finally { if (window.hideLoader) window.hideLoader(); }
     }
 }
 
@@ -212,11 +247,8 @@ async function saveNewDrugToPharmacy(e) {
         closeModal('addDrugModal');
         document.getElementById('drug-search').value = data.name;
         searchDrugs(); 
-    } catch(e) { 
-        console.error(e); 
-    } finally {
-        if (window.hideLoader) window.hideLoader();
-    }
+    } catch(e) { console.error(e); } 
+    finally { if (window.hideLoader) window.hideLoader(); }
 }
 
 function searchDrugs() {
@@ -321,10 +353,6 @@ function importDrugsFromExcel(input) {
     };
     reader.readAsArrayBuffer(file);
 }
-
-// ==========================================
-// الروشتة الذكية 
-// ==========================================
 
 function addDrugToPrescriptionList(drug) {
     const isAr = getLang();
@@ -497,16 +525,9 @@ async function saveSmartPrescription() {
             await db.collection("Prescriptions").add(data);
         }
         closeModal('smartRxModal');
-    } catch(e) { 
-        console.error(e); 
-    } finally {
-        if (window.hideLoader) window.hideLoader();
-    }
+    } catch(e) { console.error(e); } 
+    finally { if (window.hideLoader) window.hideLoader(); }
 }
-
-// ==========================================
-// المرفقات والروشتات
-// ==========================================
 
 function attachImageToRx(docId) {
     activePrescriptionDocId = docId; 
@@ -648,10 +669,6 @@ async function deleteSpecificRxImage(docId, imageUrl) {
     }
 }
 
-// ==========================================
-// الطباعة والأشعة
-// ==========================================
-
 function printSessionRx(docId) {
     const isAr = getLang();
     if (window.showLoader) window.showLoader(isAr ? "تجهيز للطباعة..." : "Preparing print...");
@@ -751,65 +768,8 @@ async function deleteDoc(collectionName, docId) {
         if (window.showLoader) window.showLoader(isAr ? "جاري الحذف..." : "Deleting...");
         try { 
             await db.collection(collectionName).doc(docId).delete(); 
-        } catch (e) { 
-            console.error(e); 
-        } finally {
-            if (window.hideLoader) window.hideLoader();
-        }
-    }
-}
-
-// ==========================================
-// مخطط الأسنان التفاعلي (Dental Chart) 
-// ==========================================
-
-let currentSelectedTooth = null; 
-
-function renderDentalChart() {
-    const upperJaw = document.getElementById('upper-jaw');
-    const lowerJaw = document.getElementById('lower-jaw');
-    upperJaw.innerHTML = ''; lowerJaw.innerHTML = '';
-    
-    for (let i = 1; i <= 16; i++) upperJaw.appendChild(createToothElement(i));
-    for (let i = 17; i <= 32; i++) lowerJaw.appendChild(createToothElement(i));
-}
-
-function createToothElement(number) {
-    const toothDiv = document.createElement('div'); 
-    toothDiv.className = 'tooth'; 
-    toothDiv.id = `tooth-${number}`; 
-    toothDiv.innerText = number; 
-    toothDiv.onclick = function() { openToothModal(number); };
-    return toothDiv; 
-}
-
-function openToothModal(toothNumber) {
-    currentSelectedTooth = toothNumber; 
-    const isAr = getLang();
-    document.getElementById('selected-tooth-title').innerText = isAr ? `اختر حالة السِنة رقم (${toothNumber})` : `Select status for tooth (${toothNumber})`;
-    openModal('toothStatusModal'); 
-}
-
-async function saveToothStatus(statusType) {
-    if (!currentSelectedTooth) return; 
-    const isAr = getLang();
-    
-    const toothElement = document.getElementById(`tooth-${currentSelectedTooth}`);
-    toothElement.classList.remove('status-decay', 'status-extracted', 'status-crown');
-    if (statusType !== 'normal') toothElement.classList.add(`status-${statusType}`);
-    
-    closeModal('toothStatusModal');
-
-    if (window.showLoader) window.showLoader(isAr ? "جاري حفظ الحالة..." : "Saving status...");
-    try {
-        await db.collection("Sessions").doc(sessionId).update({
-            [`dentalChart.${currentSelectedTooth}`]: statusType
-        });
-    } catch (e) {
-        console.error(e);
-        alert(isAr ? "❌ حدث خطأ أثناء حفظ حالة السِنة." : "❌ Error saving tooth status.");
-    } finally {
-        if (window.hideLoader) window.hideLoader();
+        } catch (e) { console.error(e); } 
+        finally { if (window.hideLoader) window.hideLoader(); }
     }
 }
 
