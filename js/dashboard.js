@@ -110,7 +110,6 @@ function updateTotalRevenue() {
 
     document.getElementById('stat-revenue').innerText = total;
 
-    // تحديث كروت المودال التفصيلي
     const elCash = document.getElementById('rev-total-cash');
     const elWallet = document.getElementById('rev-total-wallet');
     const elBank = document.getElementById('rev-total-bank');
@@ -185,47 +184,132 @@ function loadDashboardStats() {
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
+// 🔴 البحث الذكي في مودال الداشبورد 🔴
+function searchExistingPatientsDash() {
+    const input = document.getElementById('search_patient_input').value.trim().toLowerCase();
+    const resultsBox = document.getElementById('patient-search-results');
+    resultsBox.innerHTML = '';
+
+    if (input.length === 0) {
+        resultsBox.style.display = 'none';
+        return;
+    }
+
+    const filtered = allPatientsData.filter(p => 
+        (p.name && p.name.toLowerCase().includes(input)) || 
+        (p.phone && p.phone.includes(input))
+    );
+
+    if (filtered.length > 0) {
+        filtered.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'patient-result-item';
+            div.innerHTML = `<span class="patient-result-name">${p.name}</span><span class="patient-result-phone" dir="ltr">${p.phone || ''}</span>`;
+            div.onclick = () => fillPatientDataDash(p);
+            resultsBox.appendChild(div);
+        });
+        resultsBox.style.display = 'block';
+    } else {
+        resultsBox.style.display = 'none';
+    }
+}
+
+function fillPatientDataDash(p) {
+    document.getElementById('search_patient_input').value = p.name;
+    document.getElementById('patient-search-results').style.display = 'none';
+
+    document.getElementById('app_name').value = p.name || '';
+    document.getElementById('app_phone').value = p.phone || '';
+    document.getElementById('app_age').value = p.age || '';
+    
+    if(p.gender) document.getElementById('app_gender').value = p.gender;
+
+    document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
+    let remainingNotes = [];
+    if(p.medicalHistory && Array.isArray(p.medicalHistory)) {
+        p.medicalHistory.forEach(part => {
+            const cb = document.querySelector(`.med-history-cb[value="${part}"]`);
+            if(cb) cb.checked = true;
+            else remainingNotes.push(part);
+        });
+    }
+    document.getElementById('app_history').value = remainingNotes.join(' ، ');
+}
+
+document.addEventListener('click', function(e) {
+    const searchBox = document.getElementById('smart-search-container');
+    if (searchBox && !searchBox.contains(e.target)) {
+        const results = document.getElementById('patient-search-results');
+        if(results) results.style.display = 'none';
+    }
+});
+
+// 🔴 فتح المودال الشامل 🔴
 function openNewAppModal() {
     const today = getLocalTodayString(); 
-    document.getElementById('new_app_name').value = '';
-    document.getElementById('new_app_phone').value = '';
-    document.getElementById('new_app_date').value = today;
-    document.getElementById('new_app_time').value = '18:00';
-    document.getElementById('new_app_type').value = '';
-    document.getElementById('new_app_total').value = '0';
-    document.getElementById('new_app_paid').value = '0';
-    document.getElementById('new_app_remaining').value = '0';
-    document.getElementById('new_app_notes').value = '';
-    document.getElementById('new_app_pay_method').value = 'cash';
+    document.getElementById('search_patient_input').value = '';
+    document.getElementById('patient-search-results').style.display = 'none';
+    
+    document.getElementById('app_name').value = '';
+    document.getElementById('app_phone').value = '';
+    document.getElementById('app_age').value = '';
+    document.getElementById('app_gender').value = 'ذكر';
+    document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
+    document.getElementById('app_history').value = '';
+    
+    document.getElementById('app_date').value = today;
+    document.getElementById('app_time').value = '18:00';
+    document.getElementById('app_type').value = '';
+    
+    document.getElementById('app_total').value = '0';
+    document.getElementById('app_paid').value = '0';
+    document.getElementById('app_remaining').value = '0';
+    document.getElementById('app_pay_method').value = 'cash';
+    document.getElementById('app_notes').value = '';
     
     document.getElementById('newAppModal').style.display = 'flex';
 }
 
 function calcNewAppRemaining() {
-    const t = Number(document.getElementById('new_app_total').value) || 0;
-    const p = Number(document.getElementById('new_app_paid').value) || 0;
-    document.getElementById('new_app_remaining').value = Math.max(0, t - p);
+    const t = Number(document.getElementById('app_total').value) || 0;
+    const p = Number(document.getElementById('app_paid').value) || 0;
+    document.getElementById('app_remaining').value = Math.max(0, t - p);
 }
 
-// 🔴 حفظ الموعد السريع بالطريقة المحاسبية 🔴
+// 🔴 حفظ الموعد بكل التفاصيل من الداشبورد 🔴
 async function saveNewAppointment(e) {
     e.preventDefault();
     if(!clinicId) return;
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حجز الموعد..." : "Booking...");
 
+    let historyArr = [];
+    document.querySelectorAll('.med-history-cb:checked').forEach(cb => historyArr.push(cb.value));
+    const otherHistory = document.getElementById('app_history').value.trim();
+    if(otherHistory) historyArr.push(otherHistory);
+    const finalHistory = historyArr.join(' ، ');
+
+    const typeVal = document.getElementById('app_type').value.trim();
+    let eventColor = '#0284C7'; 
+    if (typeVal.includes('استشارة') || typeVal.toLowerCase().includes('follow')) eventColor = '#f59e0b'; 
+    if (typeVal.includes('جلسة') || typeVal.toLowerCase().includes('session')) eventColor = '#10b981';
+
     const data = {
         clinicId: clinicId,
-        patientName: document.getElementById('new_app_name').value.trim(),
-        phone: document.getElementById('new_app_phone').value.trim() || 'غير مسجل',
-        date: document.getElementById('new_app_date').value,
-        time: document.getElementById('new_app_time').value || '12:00',
-        type: document.getElementById('new_app_type').value.trim(),
-        total: Number(document.getElementById('new_app_total').value) || 0,
-        paid: Number(document.getElementById('new_app_paid').value) || 0,
-        remaining: Number(document.getElementById('new_app_remaining').value) || 0,
-        payMethod: document.getElementById('new_app_pay_method').value, // 🔴 حفظ طريقة الدفع
-        notes: document.getElementById('new_app_notes').value.trim(),
+        patientName: document.getElementById('app_name').value.trim(),
+        phone: document.getElementById('app_phone').value.trim() || 'غير مسجل',
+        age: document.getElementById('app_age').value,
+        gender: document.getElementById('app_gender').value,
+        history: finalHistory,
+        date: document.getElementById('app_date').value,
+        time: document.getElementById('app_time').value || '12:00',
+        type: typeVal,
+        total: Number(document.getElementById('app_total').value) || 0,
+        paid: Number(document.getElementById('app_paid').value) || 0,
+        remaining: Number(document.getElementById('app_remaining').value) || 0,
+        payMethod: document.getElementById('app_pay_method').value, 
+        notes: document.getElementById('app_notes').value.trim(),
+        color: eventColor,
         status: 'pending',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -370,7 +454,6 @@ function goToPatientProfile() {
     }
 }
 
-// 🔴 عرض الإيرادات التفصيلية 🔴
 function openRevenueModal() {
     const container = document.getElementById('revenueContainer');
     container.innerHTML = '';
