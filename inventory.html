@@ -117,6 +117,23 @@
                     </div>
                 </div>
 
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label style="color: #10b981; font-weight: bold; font-size: 13px;">تكلفة الشراء المبدئية (ج.م)</label>
+                            <input type="number" id="item_initial_cost" class="search-box" min="0" value="0">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label style="font-size: 13px; font-weight: bold;">طريقة الدفع</label>
+                            <select id="item_initial_pay_method" class="search-box">
+                                <option value="cash">💵 نقدي (كاش)</option>
+                                <option value="wallet">📱 محفظة إلكترونية</option>
+                                <option value="instapay">🏦 إنستاباي / بنك</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" id="btn-save-item" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 16px;">حفظ الصنف</button>
             </form>
         </div>
@@ -129,13 +146,20 @@
             <h3 id="stock-item-name" style="color: #0284c7; margin-top: 0;">...</h3>
             <p id="stock-current-qty" style="color: #64748b; font-weight: bold; margin-bottom: 20px;">الرصيد الحالي: <span style="font-size: 20px; color: #0f172a;">--</span></p>
 
-            <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+            <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; text-align: right;">
                 <label id="lbl-stock-amount" style="display: block; margin-bottom: 10px; font-weight: bold;">أدخل الكمية:</label>
-                <input type="number" id="stock_amount" class="search-box" style="font-size: 20px; text-align: center; font-weight: bold;" min="1" value="1">
+                <input type="number" id="stock_amount" class="search-box" style="font-size: 20px; text-align: center; font-weight: bold; width: 100%;" min="1" value="1">
                 
-                <div id="stock-cost-container" style="display: none; margin-top: 15px; text-align: right;">
+                <div id="stock-cost-container" style="display: none; margin-top: 15px;">
                     <label id="lbl-stock-cost" style="color: #10b981; font-weight: bold; font-size: 13px;">إجمالي التكلفة / سعر الشراء (ج.م):</label>
-                    <input type="number" id="stock_cost" class="search-box" min="0" value="0" placeholder="عشان تتخصم من الحسابات كـ مصروفات">
+                    <input type="number" id="stock_cost" class="search-box" style="width: 100%;" min="0" value="0" placeholder="لتُخصم من الخزنة كـ مصروفات">
+                    
+                    <label style="color: #0f172a; font-weight: bold; font-size: 13px; margin-top: 10px; display: block;">سُدِدت الفاتورة عن طريق:</label>
+                    <select id="stock_pay_method" class="search-box" style="width: 100%;">
+                        <option value="cash">💵 نقدي من الخزنة</option>
+                        <option value="wallet">📱 محفظة فودافون كاش</option>
+                        <option value="instapay">🏦 تحويل بنكي / إنستاباي</option>
+                    </select>
                 </div>
             </div>
 
