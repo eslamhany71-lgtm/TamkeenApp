@@ -3,7 +3,6 @@ let currentClinicId = sessionStorage.getItem('clinicId');
 let calendar; 
 let currentEditAppId = null; 
 
-// 🔴 متغير لتخزين قائمة المرضى للبحث السريع
 let allClinicPatients = [];
 
 function updatePageContent(lang) {
@@ -40,7 +39,6 @@ function updatePageContent(lang) {
     setTxt('lbl-app-time', c.lTime); setTxt('lbl-app-type', c.lType); setTxt('lbl-app-notes', c.lNotes);
     setTxt('btn-save', c.btnSave);
     
-    // التحديثات الجديدة للترجمة
     setTxt('lbl-search-patient', c.lblSearch); setPlh('search_patient_input', c.searchPlh);
     setTxt('lbl-app-phone', c.lblPhone); setTxt('lbl-app-age', c.lblAge); setTxt('lbl-app-gender', c.lblGender);
     setTxt('lbl-app-history-title', c.lblHistoryTitle);
@@ -69,19 +67,19 @@ function openAppointmentModal() {
     
     document.getElementById('search_patient_input').value = '';
     document.getElementById('patient-search-results').style.display = 'none';
-    document.getElementById('smart-search-container').style.display = 'block'; // نظهر البحث في الإضافة
+    document.getElementById('smart-search-container').style.display = 'block'; 
 
     document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
     
     document.getElementById('app_total').value = '0';
     document.getElementById('app_paid').value = '0';
     document.getElementById('app_remaining').value = '0';
+    document.getElementById('app_pay_method').value = 'cash'; // افتراضي
     
     document.getElementById('modal-title').innerText = window.calendarLang.mTitle;
     document.getElementById('btn-save').innerText = window.calendarLang.btnSave;
     document.getElementById('appointmentModal').style.display = 'flex';
     
-    // 🔴 تحميل المرضى للبحث الذكي إذا لم يتم تحميلهم 🔴
     if (allClinicPatients.length === 0) {
         loadAllPatientsForSearch();
     }
@@ -93,8 +91,6 @@ function closeAppDetailsModal() { document.getElementById('appDetailsModal').sty
 // =========================================================================
 // 🔴 البحث الذكي عن المريض 🔴
 // =========================================================================
-
-// جلب كل المرضى من القاعدة عشان البحث السريع
 function loadAllPatientsForSearch() {
     if (!currentClinicId) return;
     db.collection("Patients").where("clinicId", "==", currentClinicId).get().then(snap => {
@@ -105,7 +101,6 @@ function loadAllPatientsForSearch() {
     }).catch(err => console.error("Error loading patients for search:", err));
 }
 
-// وظيفة البحث عند الكتابة
 function searchExistingPatients() {
     const input = document.getElementById('search_patient_input').value.trim().toLowerCase();
     const resultsBox = document.getElementById('patient-search-results');
@@ -129,7 +124,6 @@ function searchExistingPatients() {
                 <span class="patient-result-name">${p.name}</span>
                 <span class="patient-result-phone" dir="ltr">${p.phone || ''}</span>
             `;
-            // لما نضغط على اسم المريض، نملا البيانات ونقفل القائمة
             div.onclick = () => fillPatientData(p);
             resultsBox.appendChild(div);
         });
@@ -139,7 +133,6 @@ function searchExistingPatients() {
     }
 }
 
-// ملء بيانات المريض في الفورم
 function fillPatientData(patientData) {
     document.getElementById('search_patient_input').value = patientData.name;
     document.getElementById('patient-search-results').style.display = 'none';
@@ -158,7 +151,6 @@ function fillPatientData(patientData) {
         }
     }
 
-    // تظبيط المربعات الطبية
     document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
     let remainingNotes = [];
     if(patientData.medicalHistory && Array.isArray(patientData.medicalHistory)) {
@@ -171,7 +163,6 @@ function fillPatientData(patientData) {
     document.getElementById('app_history').value = remainingNotes.join(' ، ');
 }
 
-// إخفاء القائمة لو المستخدم ضغط براها
 document.addEventListener('click', function(e) {
     const searchBox = document.getElementById('smart-search-container');
     if (searchBox && !searchBox.contains(e.target)) {
@@ -221,6 +212,12 @@ function initCalendar() {
             const paid = props.paid || 0;
             const total = props.total || 0;
             document.getElementById('det_finance').innerText = `${paid} / ${total}`;
+
+            // 🔴 عرض طريقة الدفع في التفاصيل 🔴
+            let methodStr = "نقدي";
+            if(props.payMethod === 'wallet') methodStr = "محفظة";
+            if(props.payMethod === 'instapay') methodStr = "إنستاباي / بنكي";
+            document.getElementById('det_pay_method').innerText = methodStr;
 
             document.getElementById('det_notes').innerText = props.notes || (lang === 'ar' ? 'لا يوجد ملاحظات' : 'No notes');
             
@@ -347,6 +344,7 @@ async function saveAppointment(e) {
         total: Number(document.getElementById('app_total').value) || 0,
         paid: Number(document.getElementById('app_paid').value) || 0,
         remaining: Number(document.getElementById('app_remaining').value) || 0,
+        payMethod: document.getElementById('app_pay_method').value, // 🔴 حفظ طريقة الدفع
         notes: document.getElementById('app_notes').value.trim(),
         color: eventColor,
         status: 'pending' 
@@ -369,6 +367,7 @@ async function saveAppointment(e) {
     }
 }
 
+// 🔴 تحديث دالة إتمام الموعد (رمي الإيرادات بالخزنة وطريقة الدفع) 🔴
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -387,6 +386,7 @@ async function markAppAsCompleted() {
         const patientPhone = props.phone || "غير مسجل";
         const paidAmount = Number(props.paid) || 0;
         const remainingAmount = Number(props.remaining) || 0;
+        const paymentMethod = props.payMethod || 'cash'; // سحب طريقة الدفع من الموعد
 
         const existingPatientQuery = await db.collection("Patients")
             .where("clinicId", "==", currentClinicId)
@@ -446,6 +446,7 @@ async function markAppAsCompleted() {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
+        // 🔴 رمي الإيراد في الخزنة مع طريقة الدفع 🔴
         if (paidAmount > 0) {
             await db.collection("Finances").add({
                 clinicId: currentClinicId,
@@ -454,6 +455,7 @@ async function markAppAsCompleted() {
                 category: 'كشف / جلسة',
                 amount: paidAmount,
                 date: currentPayDate,
+                paymentMethod: paymentMethod, // السر هنا
                 notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -493,7 +495,6 @@ async function openEditModal() {
     const props = JSON.parse(rawData);
     
     try {
-        // إخفاء مربع البحث في وضع التعديل
         document.getElementById('smart-search-container').style.display = 'none';
 
         document.getElementById('app_name').value = props.patientName;
@@ -521,6 +522,8 @@ async function openEditModal() {
         document.getElementById('app_total').value = props.total || '0';
         document.getElementById('app_paid').value = props.paid || '0';
         document.getElementById('app_remaining').value = props.remaining || '0';
+        // 🔴 استدعاء طريقة الدفع في التعديل 🔴
+        document.getElementById('app_pay_method').value = props.payMethod || 'cash';
 
         document.getElementById('modal-title').innerText = window.calendarLang.mTitleEdit;
         document.getElementById('btn-save').innerText = window.calendarLang.btnUpdate;
@@ -534,7 +537,7 @@ async function cancelAppointment() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     if (!appId) return;
 
-    if (confirm(window.calendarLang.confDel)) { // Using confDel as a generic confirm for now, can be updated later
+    if (confirm(window.calendarLang.confDel)) { 
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الإلغاء..." : "Cancelling...");
         try {
             await db.collection("Appointments").doc(appId).update({ status: 'cancelled' });
@@ -608,7 +611,8 @@ function loadAppointments() {
                     age: data.age, gender: data.gender, history: data.history,
                     type: data.type, notes: data.notes, status: data.status,
                     date: data.date, time: safeTime, total: data.total,
-                    paid: data.paid, remaining: data.remaining
+                    paid: data.paid, remaining: data.remaining,
+                    payMethod: data.payMethod || 'cash' // 🔴 إرسالها لخصائص الإيفنت
                 }
             });
         });
@@ -622,7 +626,6 @@ window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     
-    // تأكد إن القاموس اتحمل قبل ما نحدث الصفحة
     if(window.translations) {
         updatePageContent(lang);
     } else {
