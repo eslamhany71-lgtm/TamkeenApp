@@ -15,6 +15,9 @@ const ASSETS_TO_CACHE = [
     '/settings.html',
     '/super-admin.html',
     '/404.html',
+    '/home.html',
+    '/inventory.html',
+    
     
     // الصور
     '/assets/logo.png',
@@ -29,6 +32,8 @@ const ASSETS_TO_CACHE = [
     '/css/calendar.css',
     '/css/settings.css',
     '/css/super-admin.css',
+    '/css/dental-chart.css',
+    '/css/inventory.css',
     
     // ملفات السكريبت المحلية
     '/js/firebase-config.js',
@@ -44,6 +49,9 @@ const ASSETS_TO_CACHE = [
     '/js/settings.js',
     '/js/super-admin.js',
     '/js/backup.js',
+    '/js/dental-chart.js',
+    '/js/inventory.js',
+    
 
     // 🔴 المكتبات والروابط الخارجية الأساسية 🔴
     'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap', // الخطوط
