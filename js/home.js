@@ -373,7 +373,7 @@ window.addEventListener('click', function(event) {
 
 
 // =========================================================================
-// 🔴 المساعد الذكي Niva AI 🔴
+// المساعد الذكي Niva AI
 // =========================================================================
 
 function toggleAIPanel() {
@@ -412,10 +412,8 @@ async function askAI(promptType) {
     else if (promptType === 'tomorrow') userMsg = isAr ? "ما هي مواعيد عيادة الغد؟" : "What are tomorrow's appointments?";
     else if (promptType === 'inventory') userMsg = isAr ? "هل يوجد نواقص في المخزن الطبي؟" : "Are there any inventory shortages?";
 
-    // 🔴 أولاً بنعرض رسالة المستخدم عشان يعرف إن الزرار استجاب 🔴
     appendToAIChat(userMsg, true);
     
-    // 🔴 لو الحساب سوبر أدمن، هنفهمه إن ده بيشتغل مع الدكاترة بس 🔴
     if (!clinicId || clinicId === 'default') {
         setTimeout(() => {
             appendToAIChat(isAr ? "⚠️ <strong>تنبيه:</strong> أنا مساعد ذكي مخصص لقراءة بيانات العيادات فقط. أنت الآن مسجل دخول بحساب (الإدارة المركزية). قم بالدخول بحساب عيادة (طبيب/ممرضة) لتجربة استخراج الأرقام الحقيقية! 🚀" : "⚠️ <strong>Alert:</strong> AI reads clinic data only. Please login with a clinic account to test.", false);
@@ -517,32 +515,36 @@ async function askAI(promptType) {
     }
 }
 
-
 // =========================================================================
-const IDLE_TIMEOUT_MINUTES = 30; 
-let idleTime = 0;
+// 🔴 الأمان: إغلاق الجلسة في حالة الخمول أو إغلاق المتصفح (تحديث الـ Sleep Mode) 🔴
+// =========================================================================
 
-function resetIdleTime() {
-    idleTime = 0;
+const IDLE_TIMEOUT_MINUTES = 30; 
+
+function updateLastActiveTime() {
     localStorage.setItem('lastActiveNiva', Date.now());
 }
 
-window.onload = resetIdleTime;
-document.onmousemove = resetIdleTime;
-document.onkeypress = resetIdleTime;
-document.ontouchstart = resetIdleTime;
+window.onload = updateLastActiveTime;
+document.onmousemove = updateLastActiveTime;
+document.onkeypress = updateLastActiveTime;
+document.ontouchstart = updateLastActiveTime;
 
+// العداد الجديد اللي بيطرح الوقت (عشان يتجنب فخ وضع السكون)
 setInterval(() => {
-    idleTime++;
-    if (idleTime >= IDLE_TIMEOUT_MINUTES) {
-        forceSecurityLogout("تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
+    const lastActive = localStorage.getItem('lastActiveNiva');
+    if (lastActive) {
+        const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
+        if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
+            forceSecurityLogout("تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
+        }
     }
 }, 60000); 
 
 function checkHistoryRestore() {
     const lastActive = localStorage.getItem('lastActiveNiva');
     if (lastActive) {
-        const diffMinutes = (Date.now() - lastActive) / (1000 * 60);
+        const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
         if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
             forceSecurityLogout("انتهت الجلسة للأمان. يرجى تسجيل الدخول مرة أخرى.");
         }
@@ -551,6 +553,11 @@ function checkHistoryRestore() {
 
 function forceSecurityLogout(msg) {
     if(firebase.auth().currentUser) {
+        // تحديث الأونلاين قبل الطرد
+        db.collection("Users").doc(firebase.auth().currentUser.email).update({
+            isOnline: false
+        }).catch(()=>{});
+
         firebase.auth().signOut().then(() => {
             sessionStorage.clear();
             localStorage.removeItem('lastActiveNiva');
