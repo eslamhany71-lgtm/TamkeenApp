@@ -1,4 +1,4 @@
-// auth.js - نسخة NivaDent السحابية (Multi-Tenant & Dental SaaS) - نسخة السرعة الصاروخية
+// auth.js - نسخة NivaDent السحابية (Multi-Tenant & Dental SaaS) - نسخة السرعة الصاروخية والأمان
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -34,12 +34,10 @@ function requestNotificationPermission() {
     }
 }
 
-// 🔴 تحديث قوي لدالة الخروج: انتظار التحديث قبل قطع الاتصال 🔴
 async function logout() {
     const currentUser = auth.currentUser;
     if (currentUser && currentUser.email) {
         try {
-            // إجبار المتصفح ينتظر الرد من الداتابيز عشان نضمن إن الحالة بقت أوفلاين
             await db.collection("Users").doc(currentUser.email).update({
                 isOnline: false,
                 lastLogin: firebase.firestore.FieldValue.serverTimestamp()
@@ -47,17 +45,17 @@ async function logout() {
         } catch (e) { console.error("Error setting offline status:", e); }
     }
     
-    // بعد التحديث بنجاح، يتم تسجيل الخروج
     await auth.signOut();
     sessionStorage.clear();
     localStorage.removeItem('lastActiveNiva');
     window.location.href = "index.html";
 }
 
-// محاولة أفضل لتسجيل الخروج عند إغلاق المتصفح أو التابة فجأة
+// 🔴 مراقب قفل التابة أو المتصفح فجأة 🔴
 window.addEventListener('beforeunload', () => {
     const currentUser = auth.currentUser;
     if (currentUser && window.location.pathname.includes("home.html")) {
+        // تحديث حالة الأونلاين (Fire-and-forget)
         db.collection("Users").doc(currentUser.email).update({
             isOnline: false
         }).catch(()=>{});
@@ -98,6 +96,7 @@ async function loginById() {
             loginEmail = empDoc.data().email;
         }
 
+        // 🔴 الأمان: تحديد نوع الجلسة (تتقفل مع قفل المتصفح) 🔴
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
@@ -138,7 +137,6 @@ async function loginById() {
             }
         }
 
-        // تسجيل حالة الدخول
         await db.collection("Users").doc(actualEmail).update({
             isOnline: true,
             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
@@ -176,10 +174,7 @@ async function loginById() {
     }
 }
 
-// ==========================================
 // 3. دوال تفعيل حساب الموظف (الممرضة)
-// ==========================================
-
 function openStaffModal() {
     document.getElementById('staffInviteCode').value = '';
     document.getElementById('staffEmail').value = '';
@@ -272,9 +267,7 @@ async function activateStaffAccount(e) {
     }
 }
 
-// ==========================================
 // 4. باقي دوال استعادة الباسورد وتفعيل العيادة (Doctor)
-// ==========================================
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
