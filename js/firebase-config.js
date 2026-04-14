@@ -273,120 +273,141 @@ window.addEventListener('message', function(event) {
     }
 });
 // =======================================================
-// 🔴 THE ULTIMATE MOBILE FIX (Layout, Touch, Zoom & iframe) 🔴
+// 🔴 PURE STRUCTURAL MOBILE FIX (100% Reliable Layout) 🔴
 // =======================================================
-(function applyUltimateMobileFixes() {
-    // 1. حرية الزووم والتكبير
+(function applyCleanMobileFix() {
+    // 1. تظبيط مقاس الشاشة والسماح بالزووم المريح
     let viewport = document.querySelector("meta[name=viewport]");
     if (!viewport) { 
         viewport = document.createElement('meta'); 
         viewport.name = "viewport"; 
         document.head.appendChild(viewport); 
     }
-    viewport.content = "width=device-width, initial-scale=1.0";
+    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=5.0";
 
-    const ultimateMobileCSS = `
+    // تنظيف أي محاولات قديمة
+    const oldStyles = document.querySelectorAll('style[data-mobile-fix]');
+    oldStyles.forEach(s => s.remove());
+
+    const css = `
         @media (max-width: 768px) {
-            /* 🔴 1. الهيكل الأساسي (منع الكسر والاهتزاز) */
-            html, body { 
-                width: 100vw !important; 
-                overflow-x: hidden !important; /* منع سكرول الصفحة كلها بالعرض */
-                position: relative !important; 
+            /* أساسيات الشاشة */
+            * { box-sizing: border-box !important; }
+            html, body {
+                width: 100vw !important;
+                overflow-x: hidden !important;
                 margin: 0 !important;
                 padding: 0 !important;
             }
-            *, *::before, *::after { box-sizing: border-box !important; }
 
-            /* 🔴 2. شاشة الدخول (Index) */
-            .split-layout { 
-                display: flex !important; 
-                flex-direction: column-reverse !important; 
+            /* 🔴 1. شاشة الدخول (Index.html) */
+            .split-layout {
+                display: flex !important;
+                flex-direction: column-reverse !important;
                 height: auto !important;
                 min-height: 100vh !important;
             }
             .brand-side { display: none !important; }
             .form-side { width: 100% !important; padding: 20px !important; }
 
-            /* 🔴 3. إصلاح الشاشة البيضاء (Home.html) */
+            /* 🔴 2. الشاشة الأم (Home.html) - الهيكل الخرساني */
             .app-wrapper {
-                display: block !important; /* إلغاء الفليكس اللي كان بيخفي الشاشة */
+                display: flex !important;
+                flex-direction: column !important;
+                height: 100dvh !important; /* بياخد طول شاشة الموبايل بالظبط */
                 width: 100vw !important;
+                overflow: hidden !important; /* الصفحة الأم مش بتعمل سكرول */
             }
-            
-            /* القائمة الجانبية تطير بره الشاشة عشان توسع للداشبورد */
+
             .sidebar {
                 position: fixed !important;
                 top: 0 !important;
-                right: -320px !important; /* مخفية يمين */
-                width: 260px !important;
-                height: 100vh !important;
-                z-index: 9999 !important;
+                right: -120% !important; /* مخفية تماماً */
+                width: 280px !important;
+                height: 100% !important;
+                z-index: 99999 !important;
                 transition: right 0.3s ease !important;
-                box-shadow: -2px 0 15px rgba(0,0,0,0.4) !important;
             }
             .sidebar.active, .sidebar.open { right: 0 !important; }
 
-            /* الداشبورد تاخد الشاشة كلها */
             .main-content {
+                display: flex !important;
+                flex-direction: column !important;
+                flex: 1 !important; /* بياخد الشاشة كلها */
                 width: 100vw !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                overflow: hidden !important;
             }
-            
-            /* تظبيط الشريط العلوي */
+
             .topbar {
                 display: flex !important;
+                flex-wrap: wrap !important;
                 justify-content: space-between !important;
-                width: 100vw !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 60px !important;
                 padding: 10px 15px !important;
             }
-            .menu-toggle { display: block !important; }
-            .desktop-toggle { display: none !important; }
 
-            /* الـ iframe ياخد بقية الشاشة وتشوفه بوضوح */
+            /* 🔴 3. الـ iframe العنيد (هيتفرد غصب عنه دلوقتي) */
             .content-frame, iframe {
-                width: 100vw !important;
-                height: calc(100vh - 70px) !important;
+                flex: 1 !important; /* بياخد باقي المساحة تحت الـ Topbar */
+                width: 100% !important;
+                height: 100% !important;
                 border: none !important;
                 display: block !important;
             }
 
-            /* 🔴 4. الصفحات الداخلية (الجداول والمودالات) */
-            .page-header, .stats-container, .table-container, .kpi-grid, .page-title {
-                width: calc(100% - 20px) !important; 
-                margin-left: 10px !important;
-                margin-right: 10px !important;
+            /* 🔴 4. الصفحات الداخلية اللي جوه الـ iframe (السكرول الحقيقي) */
+            body { overflow-y: auto !important; -webkit-overflow-scrolling: touch !important; }
+
+            .page-header { padding: 15px !important; }
+            .header-actions {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 10px !important;
+                margin-top: 10px !important;
+                width: 100% !important;
             }
-            
+            .header-actions input, .header-actions button { width: 100% !important; margin: 0 !important; }
+
+            /* 🔴 5. علاج الكروت المقطوعة اللي في الصورة 🔴 */
             .kpi-grid, .stats-container {
                 display: flex !important;
                 flex-direction: column !important;
+                padding: 0 15px !important;
+                gap: 15px !important;
+                height: auto !important; /* عشان الكروت تتفرد بالطول براحتها */
+            }
+            .stat-card, .kpi-card {
+                width: 100% !important;
+                height: auto !important;
+                min-height: 120px !important; /* مساحة مناسبة لمحتوى الكارت */
+                margin: 0 !important;
             }
 
+            /* الجداول والمودال */
             .table-container {
+                width: calc(100% - 30px) !important;
+                margin: 15px !important;
                 overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch !important; /* سكرول عرضي ناعم للجدول بس */
+                -webkit-overflow-scrolling: touch !important;
             }
-            table { min-width: 650px !important; }
+            table { min-width: 600px !important; }
 
             .modal-content {
                 width: 95% !important;
                 margin: 20px auto !important;
-                padding: 15px !important;
+                padding: 20px 15px !important;
                 max-height: 85vh !important;
                 overflow-y: auto !important;
             }
-
-            input, select, button { font-size: 16px !important; }
         }
     `;
 
-    // تنظيف تام للنسخ القديمة
-    const oldStyles = document.querySelectorAll('style[data-mobile-fix]');
-    oldStyles.forEach(s => s.remove());
-
-    const styleTag = document.createElement('style');
-    styleTag.setAttribute('data-mobile-fix', 'true');
-    styleTag.innerHTML = ultimateMobileCSS;
-    document.head.appendChild(styleTag);
+    const style = document.createElement('style');
+    style.setAttribute('data-mobile-fix', 'true');
+    style.innerHTML = css;
+    document.head.appendChild(style);
 })();
