@@ -9,10 +9,13 @@ let activeFilter = 'all';
 
 let barcodeBuffer = "";
 let barcodeTimeout = null;
+
+// 🔴 متغيرات الكاميرا والـ Flag السحري 🔴
 let html5QrcodeScanner = null;
+let isCameraRunning = false; 
 
 // =========================================================
-// 🔴 دوال الباركود (الكاميرا مع بديل الإدخال اليدوي) 🔴
+// 🔴 دوال الباركود (الكاميرا مع البديل اليدوي الآمن) 🔴
 // =========================================================
 
 // الدالة الأساسية اللي بتستقبل الكود
@@ -30,14 +33,21 @@ function handleBarcodeScan(scannedCode) {
     }
 }
 
-// دالة فتح الكاميرا (أو البديل اليدوي لو الكاميرا فشلت)
+// دالة البديل اليدوي
+window.fallbackToManualScan = function() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const code = prompt(isAr ? "الكاميرا غير متاحة.\nأدخل رقم الباركود يدوياً أو استخدم مسدس الباركود (USB):" : "Camera unavailable.\nEnter barcode manually or use USB scanner:");
+    if (code && code.trim() !== "") {
+        handleBarcodeScan(code.trim());
+    }
+};
+
 window.openCameraScanner = function() {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const modal = document.getElementById('cameraScannerModal');
     
-    // محاولة مبدئية للتأكد من وجود دعم للكاميرا في المتصفح
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.warn("Camera not supported or denied. Falling back to manual prompt.");
+        console.warn("Camera not supported. Falling back to manual prompt.");
         fallbackToManualScan();
         return;
     }
@@ -48,36 +58,39 @@ window.openCameraScanner = function() {
     const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
     
     const onScanSuccess = (decodedText, decodedResult) => {
-        html5QrcodeScanner.stop().then(() => {
-            closeCameraScanner();
-            handleBarcodeScan(decodedText.trim());
-        }).catch(err => console.error("Error stopping scanner", err));
+        if (isCameraRunning) {
+            html5QrcodeScanner.stop().then(() => {
+                isCameraRunning = false;
+                html5QrcodeScanner.clear();
+                closeCameraScanner();
+                handleBarcodeScan(decodedText.trim());
+            }).catch(err => console.error("Error stopping scanner", err));
+        }
     };
 
     html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
+    .then(() => {
+        // 🔴 الكاميرا اشتغلت فعلاً 🔴
+        isCameraRunning = true; 
+    })
     .catch((err) => {
+        // 🔴 الكاميرا رفضت، نقفل المودال بدون ما نضرب Error ونفتح اليدوي 🔴
         console.warn("Camera failed to start:", err);
-        // 🔴 لو الكاميرا رفضت تفتح، نقفل المودال ونفتح الإدخال اليدوي 🔴
-        closeCameraScanner();
+        document.getElementById('cameraScannerModal').style.display = 'none';
         fallbackToManualScan();
     });
-};
-
-// دالة البديل اليدوي
-window.fallbackToManualScan = function() {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
-    const code = prompt(isAr ? "الكاميرا غير متاحة.\nأدخل رقم الباركود يدوياً أو استخدم مسدس الباركود (USB):" : "Camera unavailable.\nEnter barcode manually or use USB scanner:");
-    if (code && code.trim() !== "") {
-        handleBarcodeScan(code.trim());
-    }
 };
 
 window.closeCameraScanner = function() {
     const modal = document.getElementById('cameraScannerModal');
     modal.style.display = 'none';
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().catch(err => console.log("Scanner already stopped"));
-        html5QrcodeScanner.clear();
+    
+    // 🔴 نتأكد إن الكاميرا شغالة فعلاً قبل ما نطلب منها تقف 🔴
+    if (html5QrcodeScanner && isCameraRunning) {
+        html5QrcodeScanner.stop().then(() => {
+            isCameraRunning = false;
+            html5QrcodeScanner.clear();
+        }).catch(err => console.log(err));
     }
 };
 
