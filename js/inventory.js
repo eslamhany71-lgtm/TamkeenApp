@@ -12,40 +12,10 @@ let barcodeTimeout = null;
 let html5QrcodeScanner = null;
 
 // =========================================================
-// 🔴 دوال الباركود (مسدس يدوي + كاميرا) 🔴
+// 🔴 دوال الباركود (الكاميرا مع بديل الإدخال اليدوي) 🔴
 // =========================================================
 
-window.openCameraScanner = function() {
-    const modal = document.getElementById('cameraScannerModal');
-    modal.style.display = 'flex';
-
-    html5QrcodeScanner = new Html5Qrcode("reader");
-    const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
-    
-    const onScanSuccess = (decodedText, decodedResult) => {
-        html5QrcodeScanner.stop().then(() => {
-            closeCameraScanner();
-            handleBarcodeScan(decodedText.trim());
-        }).catch(err => console.error("Error stopping scanner", err));
-    };
-
-    html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
-    .catch((err) => {
-        console.error("Camera error", err);
-        alert(document.body.dir === 'rtl' ? "تعذر فتح الكاميرا، يرجى إعطاء الصلاحية للمتصفح." : "Could not open camera. Please grant permissions.");
-        closeCameraScanner();
-    });
-};
-
-window.closeCameraScanner = function() {
-    const modal = document.getElementById('cameraScannerModal');
-    modal.style.display = 'none';
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().catch(err => console.log("Scanner already stopped"));
-        html5QrcodeScanner.clear();
-    }
-};
-
+// الدالة الأساسية اللي بتستقبل الكود
 function handleBarcodeScan(scannedCode) {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const foundItem = inventoryData.find(item => item.barcode === scannedCode);
@@ -60,6 +30,58 @@ function handleBarcodeScan(scannedCode) {
     }
 }
 
+// دالة فتح الكاميرا (أو البديل اليدوي لو الكاميرا فشلت)
+window.openCameraScanner = function() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const modal = document.getElementById('cameraScannerModal');
+    
+    // محاولة مبدئية للتأكد من وجود دعم للكاميرا في المتصفح
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn("Camera not supported or denied. Falling back to manual prompt.");
+        fallbackToManualScan();
+        return;
+    }
+
+    modal.style.display = 'flex';
+
+    html5QrcodeScanner = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+    
+    const onScanSuccess = (decodedText, decodedResult) => {
+        html5QrcodeScanner.stop().then(() => {
+            closeCameraScanner();
+            handleBarcodeScan(decodedText.trim());
+        }).catch(err => console.error("Error stopping scanner", err));
+    };
+
+    html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
+    .catch((err) => {
+        console.warn("Camera failed to start:", err);
+        // 🔴 لو الكاميرا رفضت تفتح، نقفل المودال ونفتح الإدخال اليدوي 🔴
+        closeCameraScanner();
+        fallbackToManualScan();
+    });
+};
+
+// دالة البديل اليدوي
+window.fallbackToManualScan = function() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const code = prompt(isAr ? "الكاميرا غير متاحة.\nأدخل رقم الباركود يدوياً أو استخدم مسدس الباركود (USB):" : "Camera unavailable.\nEnter barcode manually or use USB scanner:");
+    if (code && code.trim() !== "") {
+        handleBarcodeScan(code.trim());
+    }
+};
+
+window.closeCameraScanner = function() {
+    const modal = document.getElementById('cameraScannerModal');
+    modal.style.display = 'none';
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().catch(err => console.log("Scanner already stopped"));
+        html5QrcodeScanner.clear();
+    }
+};
+
+// مراقب مسدس الباركود اللي شغال في الخلفية (USB Scanner)
 document.addEventListener('keydown', function(e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 'Enter' && barcodeBuffer.length > 2) {
