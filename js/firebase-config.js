@@ -273,94 +273,120 @@ window.addEventListener('message', function(event) {
     }
 });
 // =======================================================
-// 🔴 FREEDOM MOBILE FIX (Touch + Zoom Enabled & Layout Fixed) 🔴
+// 🔴 THE ULTIMATE MOBILE FIX (Layout, Touch, Zoom & iframe) 🔴
 // =======================================================
-(function applyFreeMobileFixes() {
-    // 1. تحرير الزووم بالكامل (السماح للمستخدم بالتكبير والتصغير براحته)
+(function applyUltimateMobileFixes() {
+    // 1. حرية الزووم والتكبير
     let viewport = document.querySelector("meta[name=viewport]");
     if (!viewport) { 
         viewport = document.createElement('meta'); 
         viewport.name = "viewport"; 
         document.head.appendChild(viewport); 
     }
-    // السر هنا: شلنا القيود وسيبنا الشاشة تتنفس وتستجيب لصباع اليوزر
     viewport.content = "width=device-width, initial-scale=1.0";
 
-    const freeMobileCSS = `
+    const ultimateMobileCSS = `
         @media (max-width: 768px) {
-            /* 🔴 1. تحرير الشاشة وإلغاء القيود اللي جمدت التاتش وخنقت الزووم 🔴 */
+            /* 🔴 1. الهيكل الأساسي (منع الكسر والاهتزاز) */
             html, body { 
-                /* شلنا overflow: hidden عشان لما تعمل زووم تقدر تسحب يمين وشمال براحتك */
-                width: 100% !important; 
-                height: auto !important; 
+                width: 100vw !important; 
+                overflow-x: hidden !important; /* منع سكرول الصفحة كلها بالعرض */
                 position: relative !important; 
+                margin: 0 !important;
+                padding: 0 !important;
             }
+            *, *::before, *::after { box-sizing: border-box !important; }
 
-            /* 🔴 2. إصلاح شاشة الدخول (فك العصرة اللي في الصورة) 🔴 */
+            /* 🔴 2. شاشة الدخول (Index) */
             .split-layout { 
                 display: flex !important; 
                 flex-direction: column-reverse !important; 
                 height: auto !important;
                 min-height: 100vh !important;
             }
-            
-            .brand-side { 
-                display: none !important; /* إخفاء الجزء الأزرق لتوفير مساحة */
+            .brand-side { display: none !important; }
+            .form-side { width: 100% !important; padding: 20px !important; }
+
+            /* 🔴 3. إصلاح الشاشة البيضاء (Home.html) */
+            .app-wrapper {
+                display: block !important; /* إلغاء الفليكس اللي كان بيخفي الشاشة */
+                width: 100vw !important;
             }
             
-            .form-side { 
-                width: 100% !important; 
-                padding: 30px 20px !important;
+            /* القائمة الجانبية تطير بره الشاشة عشان توسع للداشبورد */
+            .sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                right: -320px !important; /* مخفية يمين */
+                width: 260px !important;
+                height: 100vh !important;
+                z-index: 9999 !important;
+                transition: right 0.3s ease !important;
+                box-shadow: -2px 0 15px rgba(0,0,0,0.4) !important;
+            }
+            .sidebar.active, .sidebar.open { right: 0 !important; }
+
+            /* الداشبورد تاخد الشاشة كلها */
+            .main-content {
+                width: 100vw !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            
+            /* تظبيط الشريط العلوي */
+            .topbar {
+                display: flex !important;
+                justify-content: space-between !important;
+                width: 100vw !important;
+                padding: 10px 15px !important;
+            }
+            .menu-toggle { display: block !important; }
+            .desktop-toggle { display: none !important; }
+
+            /* الـ iframe ياخد بقية الشاشة وتشوفه بوضوح */
+            .content-frame, iframe {
+                width: 100vw !important;
+                height: calc(100vh - 70px) !important;
+                border: none !important;
+                display: block !important;
+            }
+
+            /* 🔴 4. الصفحات الداخلية (الجداول والمودالات) */
+            .page-header, .stats-container, .table-container, .kpi-grid, .page-title {
+                width: calc(100% - 20px) !important; 
+                margin-left: 10px !important;
+                margin-right: 10px !important;
+            }
+            
+            .kpi-grid, .stats-container {
                 display: flex !important;
                 flex-direction: column !important;
-                justify-content: center !important;
             }
 
-            /* تكبير حقول الإدخال عشان التاتش يلقط بسهولة */
-            input, select, button {
-                font-size: 16px !important; /* بيمنع زووم الآيفون التلقائي المزعج بس بيسمح بزووم اليوزر */
-                padding: 15px !important; 
-                margin-bottom: 15px !important;
-                z-index: 10 !important; 
-                position: relative !important;
-            }
-
-            /* 🔴 3. إصلاح الداشبورد والـ iframe 🔴 */
-            .app-wrapper { 
-                display: block !important; 
-                width: 100% !important;
-            }
-
-            .main-content {
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 10px !important;
-                padding-top: 60px !important; /* مساحة للـ Topbar */
-            }
-
-            .content-frame, iframe {
-                width: 100% !important;
-                height: calc(100vh - 80px) !important;
-                border: none !important;
-            }
-
-            /* 🔴 4. إصلاح الجداول (عشان متكسرش الشاشة) 🔴 */
             .table-container {
                 overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch !important; /* سكرول ناعم جداً */
-                width: 100% !important;
-                margin-bottom: 20px !important;
+                -webkit-overflow-scrolling: touch !important; /* سكرول عرضي ناعم للجدول بس */
             }
-            table { min-width: 600px !important; }
+            table { min-width: 650px !important; }
+
+            .modal-content {
+                width: 95% !important;
+                margin: 20px auto !important;
+                padding: 15px !important;
+                max-height: 85vh !important;
+                overflow-y: auto !important;
+            }
+
+            input, select, button { font-size: 16px !important; }
         }
     `;
 
-    // تنظيف أي ستايلات قديمة عملناها عشان نضمن إن الكود ده بس اللي شغال
+    // تنظيف تام للنسخ القديمة
     const oldStyles = document.querySelectorAll('style[data-mobile-fix]');
     oldStyles.forEach(s => s.remove());
 
     const styleTag = document.createElement('style');
     styleTag.setAttribute('data-mobile-fix', 'true');
-    styleTag.innerHTML = freeMobileCSS;
+    styleTag.innerHTML = ultimateMobileCSS;
     document.head.appendChild(styleTag);
 })();
