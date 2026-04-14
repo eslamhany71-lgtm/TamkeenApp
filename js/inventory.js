@@ -7,9 +7,104 @@ let currentStockItemQty = 0;
 
 let activeFilter = 'all';
 
-// 🔴 متغيرات مراقب الباركود 🔴
 let barcodeBuffer = "";
 let barcodeTimeout = null;
+
+// 🔴 متغير مكتبة الكاميرا 🔴
+let html5QrcodeScanner = null;
+
+// =========================================================
+// 🔴 دوال الباركود (مسدس يدوي + كاميرا) 🔴
+// =========================================================
+
+// دالة فتح مودال الكاميرا وتشغيلها
+window.openCameraScanner = function() {
+    const modal = document.getElementById('cameraScannerModal');
+    modal.style.display = 'flex';
+
+    // تهيئة قارئ الباركود (بنديله إعدادات إنه يقرأ كل الصيغ)
+    html5QrcodeScanner = new Html5Qrcode("reader");
+    
+    const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+    
+    // الدالة اللي هتتنفذ أول ما يلقط الكود
+    const onScanSuccess = (decodedText, decodedResult) => {
+        // اقفل الكاميرا الأول عشان متلقطش مرتين
+        html5QrcodeScanner.stop().then(() => {
+            closeCameraScanner();
+            // ابعت الكود للدالة الأساسية بتاعتنا اللي بتوزع الشغل
+            handleBarcodeScan(decodedText.trim());
+        }).catch(err => {
+            console.error("Error stopping scanner", err);
+        });
+    };
+
+    const onScanFailure = (error) => {
+        // أخطاء متجاهلة، لأنه بيعمل Scan 10 مرات في الثانية وبيفشل لحد ما يلقط
+    };
+
+    // تشغيل الكاميرا الخلفية (environment)
+    html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+    .catch((err) => {
+        console.error("Camera error", err);
+        alert(document.body.dir === 'rtl' ? "تعذر فتح الكاميرا، يرجى إعطاء الصلاحية للمتصفح." : "Could not open camera. Please grant permissions.");
+        closeCameraScanner();
+    });
+};
+
+// دالة قفل مودال الكاميرا وإيقافها
+window.closeCameraScanner = function() {
+    const modal = document.getElementById('cameraScannerModal');
+    modal.style.display = 'none';
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().catch(err => console.log("Scanner already stopped"));
+        html5QrcodeScanner.clear();
+    }
+};
+
+// الدالة الأساسية اللي بتستقبل الكود (من المسدس أو الكاميرا)
+function handleBarcodeScan(scannedCode) {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    
+    const foundItem = inventoryData.find(item => item.barcode === scannedCode);
+
+    if (foundItem) {
+        // لو موجود نورد رصيد
+        openStockActionModal(foundItem.id, foundItem.name, foundItem.qty, 'add');
+    } else {
+        // لو جديد نضيفه
+        openItemModal();
+        document.getElementById('item_barcode').value = scannedCode;
+        
+        alert(isAr ? `تم التقاط باركود جديد (${scannedCode}). برجاء استكمال بيانات الصنف.` : `New barcode detected (${scannedCode}). Please complete item details.`);
+        
+        setTimeout(() => {
+            document.getElementById('item_name').focus();
+        }, 300);
+    }
+}
+
+// مراقب مسدس الباركود (USB Scanner)
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (e.key === 'Enter' && barcodeBuffer.length > 2) {
+        handleBarcodeScan(barcodeBuffer);
+        barcodeBuffer = ""; 
+        return;
+    }
+
+    if (e.key !== 'Enter' && e.key !== 'Shift') {
+        barcodeBuffer += e.key;
+    }
+
+    clearTimeout(barcodeTimeout);
+    barcodeTimeout = setTimeout(() => {
+        barcodeBuffer = "";
+    }, 100);
+});
+
+// =========================================================
 
 const dentalCatalog = [
     "بنج - أرتيكين (Articaine)", "بنج - ليدوكايين (Lidocaine)", "بنج - ميبيفاكين (Mepivacaine بدون أدرينالين)",
@@ -39,7 +134,7 @@ function updatePageContent(lang) {
             sTitle: "تعديل الرصيد", sAmount: "أدخل الكمية:", sCost: "إجمالي التكلفة / سعر الشراء (ج.م):", btnAddStock: "📥 إضافة (توريد)", btnConsume: "📤 سحب (استهلاك)",
             stGood: "متوفر", stLow: "نواقص", stExp: "منتهي الصلاحية", stExpSoon: "ينتهي قريباً",
             msgDel: "هل أنت متأكد من حذف هذا الصنف؟", msgStockErr: "الكمية المدخلة غير صحيحة أو أكبر من الرصيد المتاح!",
-            btnBarcode: "📱 مسح بالباركود"
+            btnBarcode: "📷 مسح بالكاميرا (سكان)", camTitle: "📷 ماسح الباركود", camSub: "قم بتوجيه الكاميرا نحو باركود المنتج (Barcode أو QR Code)"
         },
         en: {
             title: "Medical Inventory", sub: "Manage clinic supplies, materials, and shortage alerts", btnAdd: "➕ Add New Item", searchPlh: "Search item or category...",
@@ -49,7 +144,7 @@ function updatePageContent(lang) {
             sTitle: "Adjust Stock", sAmount: "Enter Quantity:", sCost: "Total Purchase Cost (EGP):", btnAddStock: "📥 Add Stock", btnConsume: "📤 Consume",
             stGood: "In Stock", stLow: "Low Stock", stExp: "Expired", stExpSoon: "Expiring Soon",
             msgDel: "Are you sure you want to delete this item?", msgStockErr: "Invalid quantity or exceeds available stock!",
-            btnBarcode: "📱 Scan Barcode"
+            btnBarcode: "📷 Scan with Camera", camTitle: "📷 Barcode Scanner", camSub: "Point camera at the product barcode or QR Code"
         }
     };
     const c = t[lang] || t.ar;
@@ -63,6 +158,7 @@ function updatePageContent(lang) {
     setTxt('lbl-item-name', c.lName); setTxt('lbl-item-cat', c.lCat); setTxt('lbl-item-qty', c.lQty); setTxt('lbl-item-unit', c.lUnit); setTxt('lbl-item-alert', c.lAlert); setTxt('lbl-item-exp', c.lExp); setTxt('btn-save-item', c.btnSave);
     setTxt('stock-modal-title', c.sTitle); setTxt('lbl-stock-amount', c.sAmount); setTxt('lbl-stock-cost', c.sCost); setTxt('btn-stock-add', c.btnAddStock); setTxt('btn-stock-consume', c.btnConsume);
     setTxt('btn-manual-barcode', c.btnBarcode);
+    setTxt('cam-modal-title', c.camTitle); setTxt('cam-modal-sub', c.camSub);
 
     window.invLang = c;
 }
@@ -84,7 +180,7 @@ function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function openItemModal() {
     document.getElementById('itemForm').reset();
     document.getElementById('item_id').value = '';
-    document.getElementById('item_barcode').value = ''; // 🔴 تفريغ الباركود
+    document.getElementById('item_barcode').value = ''; 
     document.getElementById('modal-title').innerText = window.invLang.mTitle;
     document.getElementById('item_qty').disabled = false; 
     document.getElementById('item_initial_cost').value = '0';
@@ -92,7 +188,6 @@ function openItemModal() {
     openModal('itemModal');
 }
 
-// 🔴 دالة الحفظ المحدثة (لحفظ الباركود) 🔴
 async function saveItem(e) {
     e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -103,7 +198,7 @@ async function saveItem(e) {
     const initialQty = Number(document.getElementById('item_qty').value);
     const initialCost = Number(document.getElementById('item_initial_cost').value) || 0;
     const payMethod = document.getElementById('item_initial_pay_method').value;
-    const barcode = document.getElementById('item_barcode').value.trim(); // 🔴 سحب الباركود
+    const barcode = document.getElementById('item_barcode').value.trim(); 
 
     const data = {
         clinicId: currentClinicId,
@@ -113,7 +208,7 @@ async function saveItem(e) {
         unit: document.getElementById('item_unit').value,
         minAlert: Number(document.getElementById('item_min_alert').value),
         expiryDate: document.getElementById('item_exp').value || null,
-        barcode: barcode || null, // 🔴 حفظ الباركود لو موجود
+        barcode: barcode || null, 
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -164,7 +259,6 @@ function openStockActionModal(id, name, currentQty, actionType) {
     const btnConsume = document.getElementById('btn-stock-consume');
     const costContainer = document.getElementById('stock-cost-container');
 
-    // 🔴 التركيز التلقائي على حقل الكمية عشان الممرضة تكتب بسرعة 🔴
     setTimeout(() => { document.getElementById('stock_amount').focus(); }, 100);
 
     if (actionType === 'add') {
@@ -236,7 +330,7 @@ function editItem(id) {
     document.getElementById('item_unit').value = item.unit;
     document.getElementById('item_min_alert').value = item.minAlert;
     document.getElementById('item_exp').value = item.expiryDate || '';
-    document.getElementById('item_barcode').value = item.barcode || ''; // 🔴 جلب الباركود المخفي
+    document.getElementById('item_barcode').value = item.barcode || ''; 
 
     document.getElementById('item_initial_cost').parentElement.parentElement.style.display = 'none';
 
@@ -317,7 +411,7 @@ function applyCurrentFilterAndSearch() {
         filteredData = filteredData.filter(i => 
             (i.name && i.name.toLowerCase().includes(input)) || 
             (i.category && i.category.toLowerCase().includes(input)) ||
-            (i.barcode && i.barcode.includes(input)) // 🔴 بحث بالباركود كمان
+            (i.barcode && i.barcode.includes(input)) 
         );
     }
 
@@ -404,67 +498,6 @@ function renderInventoryTable(dataToRender) {
     });
 }
 
-// =========================================================
-// 🔴 مراقب مسدس الباركود الذكي (Barcode Scanner Listener) 🔴
-// =========================================================
-
-document.addEventListener('keydown', function(e) {
-    // نتأكد إن الممرضة مش بتكتب جوه حقل بحث أو اسم خامة (عشان ميعملش تداخل)
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-    // مسدس الباركود بيبعت الأرقام بسرعة، وبيختم بـ Enter
-    if (e.key === 'Enter' && barcodeBuffer.length > 2) {
-        handleBarcodeScan(barcodeBuffer);
-        barcodeBuffer = ""; // تفريغ بعد الاستخدام
-        return;
-    }
-
-    // تجميع الحروف والأرقام اللي بتتبعت
-    if (e.key !== 'Enter' && e.key !== 'Shift') {
-        barcodeBuffer += e.key;
-    }
-
-    // تفريغ الذاكرة لو عدى 100 ملي ثانية (لأن المسدس بيكتب أسرع من كده بكتير)
-    clearTimeout(barcodeTimeout);
-    barcodeTimeout = setTimeout(() => {
-        barcodeBuffer = "";
-    }, 100);
-});
-
-// 🔴 دالة الباركود اليدوية (لو الممرضة معندهاش مسدس) 🔴
-function manualBarcodeScan() {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
-    const code = prompt(isAr ? "أدخل رقم الباركود الخاص بالخامة:" : "Enter barcode number:");
-    if (code && code.trim() !== "") {
-        handleBarcodeScan(code.trim());
-    }
-}
-
-// 🔴 المحلل الذكي للباركود 🔴
-function handleBarcodeScan(scannedCode) {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
-    
-    // 1. البحث عن الصنف في الداتابيز
-    const foundItem = inventoryData.find(item => item.barcode === scannedCode);
-
-    if (foundItem) {
-        // لو الصنف متسجل قبل كده، نفتح مودال التوريد عشان تزود الكمية
-        openStockActionModal(foundItem.id, foundItem.name, foundItem.qty, 'add');
-    } else {
-        // لو الصنف مش متسجل، نفتح مودال الإضافة ونكتب الباركود
-        openItemModal();
-        document.getElementById('item_barcode').value = scannedCode;
-        
-        // تنبيه صغير
-        alert(isAr ? `تم التقاط باركود جديد (${scannedCode}). برجاء استكمال بيانات الصنف.` : `New barcode detected (${scannedCode}). Please complete item details.`);
-        
-        // التركيز على حقل اسم الخامة أوتوماتيك
-        setTimeout(() => {
-            document.getElementById('item_name').focus();
-        }, 300);
-    }
-}
-
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
@@ -480,5 +513,12 @@ window.onload = () => {
 };
 
 window.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal')) e.target.style.display = 'none';
+    if (e.target.classList.contains('modal')) {
+        // لو دسنا بره مودال الكاميرا، نقفلها صح عشان ميفضلش اللمبة منورة
+        if (e.target.id === 'cameraScannerModal') {
+            closeCameraScanner();
+        } else {
+            e.target.style.display = 'none';
+        }
+    }
 });
