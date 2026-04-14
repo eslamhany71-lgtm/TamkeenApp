@@ -23,7 +23,6 @@
         .btn-edit-price { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; padding: 2px 5px; font-size: 12px; margin-inline-start: 5px; color: #475569; transition: 0.2s; }
         .btn-edit-price:hover { background: #e2e8f0; color: #0284c7; border-color: #94a3b8; }
         
-        /* 🔴 ستايلات التابات الجديدة 🔴 */
         .sa-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
         .sa-tab { padding: 10px 20px; font-size: 16px; font-weight: bold; color: #64748b; cursor: pointer; border-radius: 8px; transition: 0.3s; background: transparent; border: none; font-family: inherit;}
         .sa-tab.active { background: #0284c7; color: white; box-shadow: 0 4px 6px rgba(2,132,199,0.2);}
@@ -209,6 +208,36 @@
                 </div>
 
                 <button type="submit" class="btn-primary btn-nurse" style="width: 100%; margin-top: 10px; justify-content: center; font-size: 16px;">توليد كود الدعوة</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="upgradeTrialModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <span class="close-modal" onclick="closeUpgradeTrialModal()">&times;</span>
+            <h2 id="mod-upgrade-title" style="margin-top: 0; margin-bottom: 10px;">🚀 ترقية العيادة التجريبية</h2>
+            <p id="mod-upgrade-sub" style="color: #64748b; font-size: 14px; margin-bottom: 20px;">حدد الباقة وقيمة الاشتراك لتوليد كود الدخول الجديد للعيادة.</p>
+            
+            <form onsubmit="confirmUpgradeTrial(event)">
+                <input type="hidden" id="upg_clinic_id">
+                <input type="hidden" id="upg_clinic_name">
+                <input type="hidden" id="upg_admin_email">
+                <input type="hidden" id="upg_admin_phone">
+
+                <div class="form-group">
+                    <label id="lbl-upg-pkg">باقة الاشتراك</label>
+                    <select id="upg_package" required>
+                        <option value="monthly" id="opt-upg-month" selected>شهري (Monthly)</option>
+                        <option value="yearly" id="opt-upg-year">سنوي (Yearly)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label id="lbl-upg-price">قيمة الاشتراك (ج.م)</label>
+                    <input type="number" id="upg_price" required placeholder="مثال: 500" min="0">
+                </div>
+
+                <button type="submit" id="btn-confirm-upgrade" class="btn-primary" style="width: 100%; margin-top: 10px; justify-content: center; background: #10b981; border: none; font-size: 16px;">تأكيد الترقية وتوليد الكود</button>
             </form>
         </div>
     </div>
