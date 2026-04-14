@@ -7,6 +7,10 @@ let currentStockItemQty = 0;
 
 let activeFilter = 'all';
 
+// 🔴 متغيرات مراقب الباركود 🔴
+let barcodeBuffer = "";
+let barcodeTimeout = null;
+
 const dentalCatalog = [
     "بنج - أرتيكين (Articaine)", "بنج - ليدوكايين (Lidocaine)", "بنج - ميبيفاكين (Mepivacaine بدون أدرينالين)",
     "إبر بنج قصيرة (Short Needles)", "إبر بنج طويلة (Long Needles)", "سرنجة بنج معدن (Carpule Syringe)",
@@ -34,7 +38,8 @@ function updatePageContent(lang) {
             mTitle: "إضافة صنف جديد", mTitleEdit: "تعديل صنف", lName: "اسم الخامة (اختر أو اكتب جديد)", lCat: "القسم", lQty: "الكمية الافتتاحية", lUnit: "الوحدة", lAlert: "الحد الأدنى للتنبيه", lExp: "تاريخ الصلاحية (اختياري)", btnSave: "حفظ الصنف",
             sTitle: "تعديل الرصيد", sAmount: "أدخل الكمية:", sCost: "إجمالي التكلفة / سعر الشراء (ج.م):", btnAddStock: "📥 إضافة (توريد)", btnConsume: "📤 سحب (استهلاك)",
             stGood: "متوفر", stLow: "نواقص", stExp: "منتهي الصلاحية", stExpSoon: "ينتهي قريباً",
-            msgDel: "هل أنت متأكد من حذف هذا الصنف؟", msgStockErr: "الكمية المدخلة غير صحيحة أو أكبر من الرصيد المتاح!"
+            msgDel: "هل أنت متأكد من حذف هذا الصنف؟", msgStockErr: "الكمية المدخلة غير صحيحة أو أكبر من الرصيد المتاح!",
+            btnBarcode: "📱 مسح بالباركود"
         },
         en: {
             title: "Medical Inventory", sub: "Manage clinic supplies, materials, and shortage alerts", btnAdd: "➕ Add New Item", searchPlh: "Search item or category...",
@@ -43,7 +48,8 @@ function updatePageContent(lang) {
             mTitle: "Add New Item", mTitleEdit: "Edit Item", lName: "Item Name (Select or Type)", lCat: "Category", lQty: "Initial Qty", lUnit: "Unit", lAlert: "Min Alert Limit", lExp: "Expiry Date (Optional)", btnSave: "Save Item",
             sTitle: "Adjust Stock", sAmount: "Enter Quantity:", sCost: "Total Purchase Cost (EGP):", btnAddStock: "📥 Add Stock", btnConsume: "📤 Consume",
             stGood: "In Stock", stLow: "Low Stock", stExp: "Expired", stExpSoon: "Expiring Soon",
-            msgDel: "Are you sure you want to delete this item?", msgStockErr: "Invalid quantity or exceeds available stock!"
+            msgDel: "Are you sure you want to delete this item?", msgStockErr: "Invalid quantity or exceeds available stock!",
+            btnBarcode: "📱 Scan Barcode"
         }
     };
     const c = t[lang] || t.ar;
@@ -56,6 +62,7 @@ function updatePageContent(lang) {
     if(document.getElementById('modal-title')) setTxt('modal-title', c.mTitle);
     setTxt('lbl-item-name', c.lName); setTxt('lbl-item-cat', c.lCat); setTxt('lbl-item-qty', c.lQty); setTxt('lbl-item-unit', c.lUnit); setTxt('lbl-item-alert', c.lAlert); setTxt('lbl-item-exp', c.lExp); setTxt('btn-save-item', c.btnSave);
     setTxt('stock-modal-title', c.sTitle); setTxt('lbl-stock-amount', c.sAmount); setTxt('lbl-stock-cost', c.sCost); setTxt('btn-stock-add', c.btnAddStock); setTxt('btn-stock-consume', c.btnConsume);
+    setTxt('btn-manual-barcode', c.btnBarcode);
 
     window.invLang = c;
 }
@@ -77,6 +84,7 @@ function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 function openItemModal() {
     document.getElementById('itemForm').reset();
     document.getElementById('item_id').value = '';
+    document.getElementById('item_barcode').value = ''; // 🔴 تفريغ الباركود
     document.getElementById('modal-title').innerText = window.invLang.mTitle;
     document.getElementById('item_qty').disabled = false; 
     document.getElementById('item_initial_cost').value = '0';
@@ -84,7 +92,7 @@ function openItemModal() {
     openModal('itemModal');
 }
 
-// 🔴 دالة إضافة الصنف (ترمي مصروف في الخزنة لو المورد أخد فلوس) 🔴
+// 🔴 دالة الحفظ المحدثة (لحفظ الباركود) 🔴
 async function saveItem(e) {
     e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -95,6 +103,7 @@ async function saveItem(e) {
     const initialQty = Number(document.getElementById('item_qty').value);
     const initialCost = Number(document.getElementById('item_initial_cost').value) || 0;
     const payMethod = document.getElementById('item_initial_pay_method').value;
+    const barcode = document.getElementById('item_barcode').value.trim(); // 🔴 سحب الباركود
 
     const data = {
         clinicId: currentClinicId,
@@ -104,6 +113,7 @@ async function saveItem(e) {
         unit: document.getElementById('item_unit').value,
         minAlert: Number(document.getElementById('item_min_alert').value),
         expiryDate: document.getElementById('item_exp').value || null,
+        barcode: barcode || null, // 🔴 حفظ الباركود لو موجود
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -115,7 +125,6 @@ async function saveItem(e) {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection("Inventory").add(data);
 
-            // لو دي أول مرة بيسجل صنف جديد وكتب إنه دافع فلوس، تتخصم من الخزنة
             if (initialCost > 0) {
                 const today = new Date().toISOString().split('T')[0];
                 await db.collection("Finances").add({
@@ -124,7 +133,7 @@ async function saveItem(e) {
                     category: isAr ? 'مشتريات خامات ومخزون' : 'Inventory Purchase',
                     amount: initialCost,
                     date: today,
-                    paymentMethod: payMethod, // 🔴 حفظ طريقة الدفع
+                    paymentMethod: payMethod,
                     notes: isAr ? `توريد أول كمية (${initialQty}) للصنف: ${itemName}` : `Initial stock (${initialQty}) for: ${itemName}`,
                     createdBy: "Admin",
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -149,11 +158,14 @@ function openStockActionModal(id, name, currentQty, actionType) {
     document.getElementById('stock-current-qty').querySelector('span').innerText = currentQty;
     document.getElementById('stock_amount').value = 1;
     document.getElementById('stock_cost').value = 0;
-    document.getElementById('stock_pay_method').value = 'cash'; // افتراضي كاش
+    document.getElementById('stock_pay_method').value = 'cash'; 
 
     const btnAdd = document.getElementById('btn-stock-add');
     const btnConsume = document.getElementById('btn-stock-consume');
     const costContainer = document.getElementById('stock-cost-container');
+
+    // 🔴 التركيز التلقائي على حقل الكمية عشان الممرضة تكتب بسرعة 🔴
+    setTimeout(() => { document.getElementById('stock_amount').focus(); }, 100);
 
     if (actionType === 'add') {
         btnAdd.style.display = 'flex';
@@ -168,11 +180,10 @@ function openStockActionModal(id, name, currentQty, actionType) {
     openModal('stockActionModal');
 }
 
-// 🔴 دالة توريد الرصيد المحدثة (مع طريقة الدفع) 🔴
 async function executeStockAction(type) {
     const amount = Number(document.getElementById('stock_amount').value);
     const cost = Number(document.getElementById('stock_cost').value) || 0;
-    const payMethod = document.getElementById('stock_pay_method').value; // 🔴 سحب طريقة الدفع
+    const payMethod = document.getElementById('stock_pay_method').value; 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
 
     if (!amount || amount <= 0 || (type === 'consume' && amount > currentStockItemQty)) {
@@ -190,7 +201,6 @@ async function executeStockAction(type) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 🔴 رمي التكلفة في الخزنة مع طريقة الدفع 🔴
         if (type === 'add' && cost > 0) {
             const today = new Date().toISOString().split('T')[0];
             await db.collection("Finances").add({
@@ -199,7 +209,7 @@ async function executeStockAction(type) {
                 category: isAr ? 'مشتريات خامات ومخزون' : 'Inventory Purchase',
                 amount: cost,
                 date: today,
-                paymentMethod: payMethod, // 🔴 الخزنة هتسمع طريقة الدفع من هنا
+                paymentMethod: payMethod, 
                 notes: isAr ? `توريد كمية (${amount}) للصنف: ${currentStockItemName}` : `Stock added (${amount}) for: ${currentStockItemName}`,
                 createdBy: "Admin",
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -226,8 +236,8 @@ function editItem(id) {
     document.getElementById('item_unit').value = item.unit;
     document.getElementById('item_min_alert').value = item.minAlert;
     document.getElementById('item_exp').value = item.expiryDate || '';
+    document.getElementById('item_barcode').value = item.barcode || ''; // 🔴 جلب الباركود المخفي
 
-    // إخفاء مربع الفلوس لأننا بنعدل بيانات مش بنضيف رصيد
     document.getElementById('item_initial_cost').parentElement.parentElement.style.display = 'none';
 
     document.getElementById('modal-title').innerText = window.invLang.mTitleEdit;
@@ -306,7 +316,8 @@ function applyCurrentFilterAndSearch() {
     if (input) {
         filteredData = filteredData.filter(i => 
             (i.name && i.name.toLowerCase().includes(input)) || 
-            (i.category && i.category.toLowerCase().includes(input))
+            (i.category && i.category.toLowerCase().includes(input)) ||
+            (i.barcode && i.barcode.includes(input)) // 🔴 بحث بالباركود كمان
         );
     }
 
@@ -372,7 +383,10 @@ function renderInventoryTable(dataToRender) {
         const tr = document.createElement('tr');
         tr.style.cssText = rowStyle;
         tr.innerHTML = `
-            <td style="font-weight: bold; color: #0f172a;">${item.name}</td>
+            <td style="font-weight: bold; color: #0f172a;">
+                ${item.name}
+                ${item.barcode ? '<br><small style="color:#94a3b8; font-weight:normal;">' + item.barcode + '</small>' : ''} 
+            </td>
             <td><span style="background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-size: 12px; border: 1px solid #e2e8f0; color: #475569;">${item.category}</span></td>
             <td style="text-align: center;">${qtyDisplay}</td>
             <td style="color: ${isExpired || isExpiring ? '#dc2626' : '#475569'}; font-weight: ${isExpired || isExpiring ? 'bold' : 'normal'};" dir="ltr">${item.expiryDate || '---'}</td>
@@ -388,6 +402,67 @@ function renderInventoryTable(dataToRender) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// =========================================================
+// 🔴 مراقب مسدس الباركود الذكي (Barcode Scanner Listener) 🔴
+// =========================================================
+
+document.addEventListener('keydown', function(e) {
+    // نتأكد إن الممرضة مش بتكتب جوه حقل بحث أو اسم خامة (عشان ميعملش تداخل)
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    // مسدس الباركود بيبعت الأرقام بسرعة، وبيختم بـ Enter
+    if (e.key === 'Enter' && barcodeBuffer.length > 2) {
+        handleBarcodeScan(barcodeBuffer);
+        barcodeBuffer = ""; // تفريغ بعد الاستخدام
+        return;
+    }
+
+    // تجميع الحروف والأرقام اللي بتتبعت
+    if (e.key !== 'Enter' && e.key !== 'Shift') {
+        barcodeBuffer += e.key;
+    }
+
+    // تفريغ الذاكرة لو عدى 100 ملي ثانية (لأن المسدس بيكتب أسرع من كده بكتير)
+    clearTimeout(barcodeTimeout);
+    barcodeTimeout = setTimeout(() => {
+        barcodeBuffer = "";
+    }, 100);
+});
+
+// 🔴 دالة الباركود اليدوية (لو الممرضة معندهاش مسدس) 🔴
+function manualBarcodeScan() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const code = prompt(isAr ? "أدخل رقم الباركود الخاص بالخامة:" : "Enter barcode number:");
+    if (code && code.trim() !== "") {
+        handleBarcodeScan(code.trim());
+    }
+}
+
+// 🔴 المحلل الذكي للباركود 🔴
+function handleBarcodeScan(scannedCode) {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    
+    // 1. البحث عن الصنف في الداتابيز
+    const foundItem = inventoryData.find(item => item.barcode === scannedCode);
+
+    if (foundItem) {
+        // لو الصنف متسجل قبل كده، نفتح مودال التوريد عشان تزود الكمية
+        openStockActionModal(foundItem.id, foundItem.name, foundItem.qty, 'add');
+    } else {
+        // لو الصنف مش متسجل، نفتح مودال الإضافة ونكتب الباركود
+        openItemModal();
+        document.getElementById('item_barcode').value = scannedCode;
+        
+        // تنبيه صغير
+        alert(isAr ? `تم التقاط باركود جديد (${scannedCode}). برجاء استكمال بيانات الصنف.` : `New barcode detected (${scannedCode}). Please complete item details.`);
+        
+        // التركيز على حقل اسم الخامة أوتوماتيك
+        setTimeout(() => {
+            document.getElementById('item_name').focus();
+        }, 300);
+    }
 }
 
 window.onload = () => {
