@@ -104,7 +104,6 @@
         }
         .ai-prompt-btn:hover { background: #bae6fd; }
         
-        /* لون مختلف لزراير الفلوس والمصروفات */
         .ai-prompt-btn.btn-finance { background: #fef3c7; color: #d97706; border-color: #fde68a; }
         .ai-prompt-btn.btn-finance:hover { background: #fde68a; }
 
@@ -115,11 +114,16 @@
             .niva-ai-panel { width: 90%; left: 5%; right: 5%; bottom: 100px; }
             .niva-ai-float-btn { left: 20px; bottom: 20px; width: 50px; height: 50px; font-size: 24px; }
         }
+        
+        /* 🔴 تأثير الماوس على اللوجو عشان يبان إنه كليكابل 🔴 */
+        .sidebar-brand { cursor: pointer; transition: 0.3s; }
+        .sidebar-brand:hover { opacity: 0.8; transform: translateY(-2px); }
     </style>
 </head>
 <body data-theme="light">
     <div class="app-wrapper">
-        <aside class="sidebar" id="sidebar" style="position: relative; padding-bottom: 60px;"> <div class="sidebar-brand" id="clinic-brand-area" style="padding: 20px 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px;">
+        <aside class="sidebar" id="sidebar" style="position: relative; padding-bottom: 60px;">
+            <div class="sidebar-brand" id="clinic-brand-area" onclick="loadPage('dashboard.html', document.getElementById('nav-item-dash'))" style="padding: 20px 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px;" title="العودة للرئيسية">
                 <div id="clinic-logo-container" style="margin-bottom: 10px; display: flex; justify-content: center;">
                     <svg width="45" height="45" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect width="100" height="100" rx="20" fill="#E0F2FE"/>
