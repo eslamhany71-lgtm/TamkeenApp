@@ -273,130 +273,110 @@ window.addEventListener('message', function(event) {
     }
 });
 // =======================================================
-// 🔴 Global Mobile Fixes (Responsive, Anti-Lag & Layout Fix) 🔴
+// 🔴 THE ULTIMATE MOBILE APP TRANSFORMATION (Anti-Lag & Smart Scroll) 🔴
 // =======================================================
-(function applyGlobalMobileFixes() {
+(function transformToMobileApp() {
+    // 1. تظبيط الـ Viewport لمنع الـ Lag والزووم المزعج
     let viewport = document.querySelector("meta[name=viewport]");
-    if (!viewport) {
-        viewport = document.createElement('meta');
-        viewport.name = "viewport";
-        document.head.appendChild(viewport);
-    }
-    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0";
+    if (!viewport) { viewport = document.createElement('meta'); viewport.name = "viewport"; document.head.appendChild(viewport); }
+    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
 
-    const mobileStyles = `
-        *, *::before, *::after {
-            box-sizing: border-box !important;
-        }
-
+    const mobileAppCSS = `
         @media (max-width: 768px) {
+            /* 🔴 منع التعليق العام وتحسين اللمس */
+            * { 
+                box-sizing: border-box !important; 
+                -webkit-tap-highlight-color: transparent; /* شيل اللون الأزرق عند اللمس */
+                touch-action: manipulation; /* تسريع الاستجابة للمس */
+            }
+
             html, body { 
                 overflow-x: hidden !important; 
-                width: 100vw !important; 
-                margin: 0 !important; 
-                padding: 0 !important; 
+                width: 100% !important; 
+                height: 100% !important;
+                position: fixed; /* منع الهزة الغبية للصفحة الأم */
             }
 
-            /* 🔴 1. فك عصرة الشاشة (الهيكل الخارجي) 🔴 */
-            .app-wrapper {
-                display: block !important; /* إلغاء الفليكس اللي كان بيعصر الشاشة */
-                width: 100vw !important;
-                overflow-x: hidden !important;
+            /* 🔴 فك عصرة شاشة تسجيل الدخول (الصورة اللي بعتها) */
+            .split-layout { 
+                display: flex !important; 
+                flex-direction: column !important; /* رص فوق بعض مش جنب بعض */
+                height: 100vh !important;
+                overflow-y: auto !important;
+            }
+            .brand-side { 
+                display: none !important; /* إخفاء الجزء الأزرق التقيل في الموبايل لتقليل اللاج */
+            }
+            .form-side { 
+                width: 100% !important; 
+                padding: 40px 20px !important;
+                background: #fff !important;
             }
 
-            /* 🔴 2. القائمة الجانبية طايرة (Overlay) 🔴 */
+            /* 🔴 إصلاح الهيكل الداخلي (الداشبورد) */
+            .app-wrapper { 
+                display: block !important; 
+                height: 100vh !important; 
+            }
+
+            /* القائمة الجانبية (Sidebar) - مخفية تماماً */
             .sidebar {
                 position: fixed !important;
-                top: 0 !important;
-                bottom: 0 !important;
-                right: -300px !important; /* مخفية بره الشاشة يمين */
-                width: 260px !important;
+                top: 0;
+                right: -100% !important; /* بره الشاشة تماماً */
+                width: 80% !important;
                 height: 100vh !important;
-                z-index: 9999 !important;
-                transition: right 0.3s ease-in-out !important;
-                box-shadow: -5px 0 15px rgba(0,0,0,0.5) !important;
+                z-index: 99999 !important;
+                transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                display: block !important;
             }
+            .sidebar.active, .sidebar.open { right: 0 !important; }
 
-            /* لما تدوس على زرار القائمة تظهر */
-            .sidebar.active, .sidebar.open {
-                right: 0 !important; 
-            }
-
-            /* 🔴 3. الداشبورد تاخد الشاشة كلها 🔴 */
+            /* الداشبورد والمحتوى - فك الحصار */
             .main-content {
                 width: 100vw !important;
                 margin: 0 !important;
-                padding: 0 !important;
-                display: block !important;
+                padding-top: 60px !important; /* مسافة للـ Topbar */
+                height: 100vh !important;
+                overflow-y: auto !important; /* تفعيل السكرول هنا */
+                -webkit-overflow-scrolling: touch !important;
             }
 
+            /* إصلاح الـ iframe القاتل للسكرول */
             .content-frame, iframe {
-                width: 100vw !important;
+                width: 100% !important;
                 height: calc(100vh - 60px) !important;
                 border: none !important;
-                display: block !important;
+                pointer-events: auto !important; /* التأكد إن الزراير اللي جوه شغالة */
             }
 
-            /* 🔴 4. إصلاح الشريط العلوي المكسور 🔴 */
-            .topbar {
-                display: flex !important;
-                flex-direction: row !important; /* إجبار العناصر تبقى جنب بعض مش تحت بعض */
-                justify-content: space-between !important;
-                align-items: center !important;
-                width: 100vw !important;
-                padding: 10px 15px !important;
-                box-sizing: border-box !important;
-            }
-            .topbar-right, .topbar-left {
-                display: flex !important;
-                align-items: center !important;
-                gap: 10px !important;
+            /* 🔴 تظبيط الزراير والمدخلات (تجربة لمس حقيقية) */
+            input, button, select {
+                font-size: 16px !important; /* منع الآيفون من عمل زووم عند الكتابة */
+                min-height: 48px !important; /* مقاس صباع الإنسان القياسي */
+                margin-bottom: 10px !important;
             }
             
-            /* إظهار زرار القائمة للموبايل وإخفاء بتاع اللاب توب */
-            .menu-toggle { display: block !important; font-size: 24px !important; }
-            .desktop-toggle { display: none !important; }
-
-            /* 🔴 5. إصلاح الصفحات الداخلية (المحتوى والكروت) 🔴 */
-            .page-header, .stats-container, .table-container, .kpi-grid, .page-title {
-                width: calc(100% - 30px) !important; /* مساحة تنفس 15 بيكسل من كل جنب */
-                margin-left: 15px !important;
-                margin-right: 15px !important;
-            }
-
-            .kpi-grid, .stats-container {
-                display: flex !important;
-                flex-direction: column !important;
-                gap: 15px !important;
-            }
-
-            .stat-card, .kpi-card {
+            .topbar {
+                position: fixed !important;
+                top: 0; left: 0;
                 width: 100% !important;
-                margin: 0 !important;
+                z-index: 9998 !important;
+                height: 60px !important;
+                background: #fff !important;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
             }
 
+            /* الجداول - خليها تعيش حياتها في سكرول عرضي */
             .table-container {
                 overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch;
-            }
-            
-            table { min-width: 650px !important; } /* الجدول يسكرول بدل ما يعصر الشاشة */
-            
-            /* تظبيط زراير الـ Header */
-            .header-actions {
-                display: flex !important;
-                flex-direction: column !important;
                 width: 100% !important;
-                gap: 10px !important;
-                margin-top: 15px !important;
-            }
-            .header-actions input, .header-actions button {
-                width: 100% !important;
+                -webkit-overflow-scrolling: touch !important;
             }
         }
     `;
 
     const styleTag = document.createElement('style');
-    styleTag.innerHTML = mobileStyles;
+    styleTag.innerHTML = mobileAppCSS;
     document.head.appendChild(styleTag);
 })();
