@@ -9,42 +9,27 @@ let activeFilter = 'all';
 
 let barcodeBuffer = "";
 let barcodeTimeout = null;
-
-// 🔴 متغير مكتبة الكاميرا 🔴
 let html5QrcodeScanner = null;
 
 // =========================================================
 // 🔴 دوال الباركود (مسدس يدوي + كاميرا) 🔴
 // =========================================================
 
-// دالة فتح مودال الكاميرا وتشغيلها
 window.openCameraScanner = function() {
     const modal = document.getElementById('cameraScannerModal');
     modal.style.display = 'flex';
 
-    // تهيئة قارئ الباركود (بنديله إعدادات إنه يقرأ كل الصيغ)
     html5QrcodeScanner = new Html5Qrcode("reader");
-    
     const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
     
-    // الدالة اللي هتتنفذ أول ما يلقط الكود
     const onScanSuccess = (decodedText, decodedResult) => {
-        // اقفل الكاميرا الأول عشان متلقطش مرتين
         html5QrcodeScanner.stop().then(() => {
             closeCameraScanner();
-            // ابعت الكود للدالة الأساسية بتاعتنا اللي بتوزع الشغل
             handleBarcodeScan(decodedText.trim());
-        }).catch(err => {
-            console.error("Error stopping scanner", err);
-        });
+        }).catch(err => console.error("Error stopping scanner", err));
     };
 
-    const onScanFailure = (error) => {
-        // أخطاء متجاهلة، لأنه بيعمل Scan 10 مرات في الثانية وبيفشل لحد ما يلقط
-    };
-
-    // تشغيل الكاميرا الخلفية (environment)
-    html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+    html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
     .catch((err) => {
         console.error("Camera error", err);
         alert(document.body.dir === 'rtl' ? "تعذر فتح الكاميرا، يرجى إعطاء الصلاحية للمتصفح." : "Could not open camera. Please grant permissions.");
@@ -52,7 +37,6 @@ window.openCameraScanner = function() {
     });
 };
 
-// دالة قفل مودال الكاميرا وإيقافها
 window.closeCameraScanner = function() {
     const modal = document.getElementById('cameraScannerModal');
     modal.style.display = 'none';
@@ -62,46 +46,31 @@ window.closeCameraScanner = function() {
     }
 };
 
-// الدالة الأساسية اللي بتستقبل الكود (من المسدس أو الكاميرا)
 function handleBarcodeScan(scannedCode) {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
-    
     const foundItem = inventoryData.find(item => item.barcode === scannedCode);
 
     if (foundItem) {
-        // لو موجود نورد رصيد
         openStockActionModal(foundItem.id, foundItem.name, foundItem.qty, 'add');
     } else {
-        // لو جديد نضيفه
         openItemModal();
         document.getElementById('item_barcode').value = scannedCode;
-        
         alert(isAr ? `تم التقاط باركود جديد (${scannedCode}). برجاء استكمال بيانات الصنف.` : `New barcode detected (${scannedCode}). Please complete item details.`);
-        
-        setTimeout(() => {
-            document.getElementById('item_name').focus();
-        }, 300);
+        setTimeout(() => document.getElementById('item_name').focus(), 300);
     }
 }
 
-// مراقب مسدس الباركود (USB Scanner)
 document.addEventListener('keydown', function(e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
     if (e.key === 'Enter' && barcodeBuffer.length > 2) {
         handleBarcodeScan(barcodeBuffer);
         barcodeBuffer = ""; 
         return;
     }
-
-    if (e.key !== 'Enter' && e.key !== 'Shift') {
-        barcodeBuffer += e.key;
-    }
-
+    if (e.key !== 'Enter' && e.key !== 'Shift') barcodeBuffer += e.key;
+    
     clearTimeout(barcodeTimeout);
-    barcodeTimeout = setTimeout(() => {
-        barcodeBuffer = "";
-    }, 100);
+    barcodeTimeout = setTimeout(() => barcodeBuffer = "", 100);
 });
 
 // =========================================================
@@ -514,7 +483,6 @@ window.onload = () => {
 
 window.addEventListener('click', function(e) {
     if (e.target.classList.contains('modal')) {
-        // لو دسنا بره مودال الكاميرا، نقفلها صح عشان ميفضلش اللمبة منورة
         if (e.target.id === 'cameraScannerModal') {
             closeCameraScanner();
         } else {
