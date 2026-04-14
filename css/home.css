@@ -75,17 +75,16 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 
 /* ================= 🔴 هندسة الموبايل النظيفة 🔴 ================= */
 @media (max-width: 992px) {
-    .app-wrapper { display: block !important; } /* تدمير عصرة الفليكس بوكس */
+    .app-wrapper { display: block !important; height: 100vh !important; }
     
     .menu-toggle { display: block; }
     .desktop-toggle { display: none; }
     
-    /* إجبار القائمة الجانبية تخرج بره حسبة المساحة تماماً */
     .sidebar {
         position: fixed !important; 
         top: 0; bottom: 0; right: -300px;
         box-shadow: none; z-index: 1002;
-        height: 100dvh; max-width: 80vw;
+        height: 100vh; max-width: 80vw;
     }
     html[dir="ltr"] .sidebar { right: auto; left: -300px; }
     
@@ -94,14 +93,14 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
     
     .mobile-overlay.active { display: block; top: 0; }
 
-    /* إجبار المحتوى الرئيسي والـ iframe يأخدوا الشاشة كلها 100% */
     .main-content {
         width: 100vw !important;
         max-width: 100vw !important;
         display: block !important;
+        height: 100vh !important;
     }
 
-    .topbar { padding: 0 10px; width: 100vw !important; justify-content: space-between; gap: 5px; }
+    .topbar { padding: 0 10px; width: 100vw !important; justify-content: space-between; gap: 5px; height: 70px !important; }
     .topbar-right, .topbar-left { gap: 8px; }
     .topbar h2 { display: none; } 
 
@@ -111,6 +110,15 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
     .user-profile { padding: 2px; border: none; background: transparent; }
     .user-avatar { padding: 4px 6px; font-size: 16px; }
     .logout-btn { padding: 6px 10px; font-size: 12px; }
+
+    /* 🔴 🔴 الحل الجذري لاختفاء الجزء السفلي (فرد الـ iframe) 🔴 🔴 */
+    .content-frame {
+        height: calc(100vh - 70px) !important; /* الطول الكامل ناقص الهيدر */
+        min-height: calc(100vh - 70px) !important;
+        display: block !important;
+        overflow-y: auto !important; /* السماح بالسكرول الداخلي */
+        -webkit-overflow-scrolling: touch !important; /* سكرول ناعم جداً للآيفون */
+    }
 }
 
 /* ================= الإضافات الجديدة ================= */
