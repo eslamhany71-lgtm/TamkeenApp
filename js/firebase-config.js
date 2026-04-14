@@ -273,26 +273,27 @@ window.addEventListener('message', function(event) {
     }
 });
 // =======================================================
-// 🔴 SAFE MOBILE FIX (Restoring Touch & Layout) 🔴
+// 🔴 FREEDOM MOBILE FIX (Touch + Zoom Enabled & Layout Fixed) 🔴
 // =======================================================
-(function applySafeMobileFixes() {
+(function applyFreeMobileFixes() {
+    // 1. تحرير الزووم بالكامل (السماح للمستخدم بالتكبير والتصغير براحته)
     let viewport = document.querySelector("meta[name=viewport]");
     if (!viewport) { 
         viewport = document.createElement('meta'); 
         viewport.name = "viewport"; 
         document.head.appendChild(viewport); 
     }
-    // مساحة طبيعية بدون تجميد قاسي
-    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0";
+    // السر هنا: شلنا القيود وسيبنا الشاشة تتنفس وتستجيب لصباع اليوزر
+    viewport.content = "width=device-width, initial-scale=1.0";
 
-    const safeMobileCSS = `
+    const freeMobileCSS = `
         @media (max-width: 768px) {
-            /* 🔴 1. تحرير الشاشة وإلغاء القيود اللي جمدت التاتش 🔴 */
+            /* 🔴 1. تحرير الشاشة وإلغاء القيود اللي جمدت التاتش وخنقت الزووم 🔴 */
             html, body { 
-                overflow-x: hidden !important; 
+                /* شلنا overflow: hidden عشان لما تعمل زووم تقدر تسحب يمين وشمال براحتك */
                 width: 100% !important; 
                 height: auto !important; 
-                position: relative !important; /* إياك نستخدم fixed هنا تاني */
+                position: relative !important; 
             }
 
             /* 🔴 2. إصلاح شاشة الدخول (فك العصرة اللي في الصورة) 🔴 */
@@ -317,10 +318,10 @@ window.addEventListener('message', function(event) {
 
             /* تكبير حقول الإدخال عشان التاتش يلقط بسهولة */
             input, select, button {
-                font-size: 16px !important; /* بيمنع زووم الآيفون التلقائي المزعج */
-                padding: 15px !important; /* مساحة لمس مريحة لصباع الإيد */
+                font-size: 16px !important; /* بيمنع زووم الآيفون التلقائي المزعج بس بيسمح بزووم اليوزر */
+                padding: 15px !important; 
                 margin-bottom: 15px !important;
-                z-index: 10 !important; /* التأكد إنها فوق أي طبقة تانية */
+                z-index: 10 !important; 
                 position: relative !important;
             }
 
@@ -360,6 +361,6 @@ window.addEventListener('message', function(event) {
 
     const styleTag = document.createElement('style');
     styleTag.setAttribute('data-mobile-fix', 'true');
-    styleTag.innerHTML = safeMobileCSS;
+    styleTag.innerHTML = freeMobileCSS;
     document.head.appendChild(styleTag);
 })();
