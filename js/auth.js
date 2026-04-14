@@ -1,4 +1,4 @@
-// auth.js - نسخة NivaDent السحابية (Multi-Tenant & Dental SaaS) - نسخة السرعة الصاروخية والأمان
+// auth.js - Al Dokan ERP Cloud System - With 3-Day Trial Logic & Security
 
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -51,19 +51,16 @@ async function logout() {
     window.location.href = "index.html";
 }
 
-// 🔴 مراقب قفل التابة أو المتصفح فجأة 🔴
 window.addEventListener('beforeunload', () => {
     const currentUser = auth.currentUser;
     if (currentUser && window.location.pathname.includes("home.html")) {
-        // تحديث حالة الأونلاين (Fire-and-forget)
         db.collection("Users").doc(currentUser.email).update({
             isOnline: false
         }).catch(()=>{});
     }
 });
 
-
-// 2. دالة تسجيل الدخول (صاروخية) 🚀
+// 2. دالة تسجيل الدخول (الأساسية)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
     const passInput = document.getElementById('password');
@@ -96,7 +93,6 @@ async function loginById() {
             loginEmail = empDoc.data().email;
         }
 
-        // 🔴 الأمان: تحديد نوع الجلسة (تتقفل مع قفل المتصفح) 🔴
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
         const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
@@ -174,7 +170,97 @@ async function loginById() {
     }
 }
 
-// 3. دوال تفعيل حساب الموظف (الممرضة)
+// ==========================================
+// 🔴 إنشاء حساب تجريبي مجاني (3 أيام) 🔴
+// ==========================================
+function openTrialModal() {
+    document.getElementById('trial_clinic_name').value = '';
+    document.getElementById('trial_admin_name').value = '';
+    document.getElementById('trial_phone').value = '';
+    document.getElementById('trial_email').value = '';
+    document.getElementById('trial_password').value = '';
+    document.getElementById('trialModal').style.display = 'flex';
+}
+
+function closeTrialModal() {
+    document.getElementById('trialModal').style.display = 'none';
+}
+
+async function registerTrialAccount(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit-trial');
+    btn.disabled = true;
+    btn.innerText = "جاري إنشاء العيادة...";
+
+    const clinicName = document.getElementById('trial_clinic_name').value.trim();
+    const adminName = document.getElementById('trial_admin_name').value.trim();
+    const phone = document.getElementById('trial_phone').value.trim();
+    const email = document.getElementById('trial_email').value.trim().toLowerCase();
+    const password = document.getElementById('trial_password').value;
+
+    if (window.showLoader) window.showLoader("جاري تجهيز النظام لك...");
+
+    try {
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const actualEmail = userCredential.user.email;
+
+        // 3 أيام فترة تجريبية
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + 3);
+
+        const clinicRef = await db.collection("Clinics").add({
+            clinicName: clinicName,
+            adminEmail: actualEmail,
+            phone1: phone,
+            status: 'active',
+            planType: 'trial_3_days', 
+            nextPaymentDate: firebase.firestore.Timestamp.fromDate(expirationDate),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        const newClinicId = clinicRef.id;
+
+        await db.collection("Users").doc(actualEmail).set({
+            role: 'admin',
+            name: adminName,
+            empCode: 'TRIAL-ADMIN', 
+            email: actualEmail,
+            clinicId: newClinicId,
+            isOnline: true,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        sessionStorage.setItem('userRole', 'admin');
+        sessionStorage.setItem('empCode', 'TRIAL-ADMIN');
+        sessionStorage.setItem('clinicId', newClinicId);
+
+        isLoginInProgress = true;
+        
+        if (window.hideLoader) window.hideLoader();
+        alert(`✅ مبروك يا ${adminName}!\nتم تفعيل العيادة بنجاح. فترة التجربة هتنتهي يوم ${expirationDate.toLocaleDateString('ar-EG')}`);
+        window.location.href = "home.html";
+
+    } catch (error) {
+        console.error("Trial Registration Error:", error);
+        if (window.hideLoader) window.hideLoader();
+        btn.disabled = false;
+        btn.innerText = "إنشاء الحساب وبدء التجربة";
+        
+        if (error.code === 'auth/email-already-in-use') {
+            alert("❌ هذا البريد مسجل بالفعل في النظام.");
+        } else if (error.code === 'auth/weak-password') {
+            alert("❌ كلمة المرور ضعيفة جداً.");
+        } else {
+            alert("❌ حدث خطأ أثناء التسجيل: " + error.message);
+        }
+    }
+}
+
+// ==========================================
+// باقي دوال الممرضة والتفعيل والاستعادة
+// ==========================================
 function openStaffModal() {
     document.getElementById('staffInviteCode').value = '';
     document.getElementById('staffEmail').value = '';
@@ -189,7 +275,6 @@ function closeStaffModal() {
 async function activateStaffAccount(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-activate-staff');
-    
     btn.disabled = true;
     btn.innerText = "جاري فحص الكود والتفعيل...";
 
@@ -267,7 +352,6 @@ async function activateStaffAccount(e) {
     }
 }
 
-// 4. باقي دوال استعادة الباسورد وتفعيل العيادة (Doctor)
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
@@ -393,27 +477,27 @@ async function activateAccount() {
 function updatePageContent(lang) {
     const translations = {
         ar: {
-            title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
+            title: "تسجيل الدخول - نظام Al Dokan ERP", welcome: "أهلاً بك في Al Dokan ERP", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
             code: "البريد الإلكتروني أو كود العيادة", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "حساب جديد؟", actLink: "تفعيل حساب العيادة من هنا",
-            brandTitle: "NivaDent", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
+            brandTitle: "Al Dokan ERP", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
             feat1: "✔️ ملف طبي ذكي وأشعة", feat2: "✔️ إدارة الجلسات والمواعيد", feat3: "✔️ روشتات وحسابات دقيقة",
             forgotPass: "نسيت كلمة المرور؟", resetTitle: "استعادة كلمة المرور", resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
             btnReset: "إرسال رابط الاستعادة", emailPlaceholder: "أدخل البريد الإلكتروني",
-            actPageTitle: "تفعيل الحساب - NivaDent", actWelcome: "تفعيل حساب العيادة", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
+            actPageTitle: "تفعيل الحساب - Al Dokan ERP", actWelcome: "تفعيل حساب العيادة", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
             actCode: "كود الدخول", actPhone: "رقم الموبايل", actPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن",
-            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في NivaDent",
+            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في Al Dokan ERP",
             brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة"
         },
         en: {
-            title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
+            title: "Login - Al Dokan ERP System", welcome: "Welcome to Al Dokan ERP", subLogin: "Sign in to manage your clinic",
             code: "Email or Access Code", pass: "Password", btn: "Login", newEmp: "New Account?", actLink: "Activate clinic account here",
-            brandTitle: "NivaDent", brandDesc: "The smartest cloud system for dental practice management. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
+            brandTitle: "Al Dokan ERP", brandDesc: "The smartest cloud system for dental practice management. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
             feat1: "✔️ Smart Medical Records & X-Rays", feat2: "✔️ Appointments & Sessions Management", feat3: "✔️ E-Prescriptions & Accurate Billing",
             forgotPass: "Forgot Password?", resetTitle: "Reset Password", resetSub: "Enter your registered email, and we will send you a link to set a new password.",
             btnReset: "Send Reset Link", emailPlaceholder: "Enter email address",
-            actPageTitle: "Activate Account - NivaDent", actWelcome: "Activate Clinic Account", actSub: "Please enter the data registered with the system administration",
+            actPageTitle: "Activate Account - Al Dokan ERP", actWelcome: "Activate Clinic Account", actSub: "Please enter the data registered with the system administration",
             actCode: "Access Code", actPhone: "Mobile Number", actPass: "Choose a new password", btnAct: "Activate Account Now",
-            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to NivaDent",
+            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to Al Dokan ERP",
             brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address"
         }
     };
