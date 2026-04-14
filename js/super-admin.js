@@ -2,12 +2,14 @@ const db = firebase.firestore();
 let allClinicsList = []; 
 let clinicUsersUnsubscribe = null; 
 
+let currentActiveTab = 'active'; // 'active' أو 'trials' للفلترة
+
 function updatePageContent(lang) {
     const t = {
         ar: {
             title: "إدارة النظام المركزية (SaaS)", sub: "لوحة تحكم المالك - صلاحيات عليا", search: "بحث باسم العيادة...", btnAdd: "إضافة عيادة جديدة",
             totClinics: "العيادات النشطة", totSusp: "العيادات الموقوفة", totPatients: "المرضى (في كل النظام)",
-            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد التجديد", thName: "اسم العيادة", thEmail: "إيميل الأدمن", thStatus: "الحالة", thAction: "إجراءات",
+            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد الانتهاء", thName: "اسم العيادة", thEmail: "إيميل الأدمن", thStatus: "الحالة", thAction: "إجراءات",
             loading: "جاري تحميل البيانات...", empty: "لا توجد عيادات مسجلة حالياً.",
             mTitle: "تسجيل عيادة جديدة بالنظام", lName: "اسم العيادة / المركز الطبي", lEmail: "البريد الإلكتروني للأدمن", 
             lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.",
@@ -68,6 +70,18 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
+// 🔴 دالة تبديل التابات 🔴
+function switchMainTab(tabName) {
+    currentActiveTab = tabName;
+    document.getElementById('tab-active').classList.remove('active');
+    document.getElementById('tab-trials').classList.remove('active');
+    
+    if(tabName === 'active') document.getElementById('tab-active').classList.add('active');
+    else document.getElementById('tab-trials').classList.add('active');
+    
+    renderClinicsTable(); // نعيد رسم الجدول بناءً على التابة
+}
+
 async function openClinicDetailsModal(clinicId) {
     const clinic = allClinicsList.find(c => c.id === clinicId);
     if (!clinic) return;
@@ -78,6 +92,7 @@ async function openClinicDetailsModal(clinicId) {
     let pkgLabel = '';
     if(clinic.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
     else if(clinic.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
+    else if(clinic.planType === 'trial_3_days') pkgLabel = 'تجريبي مجاني (3 أيام)'; // للعيادات الجديدة
     else if(clinic.package === 'yearly') pkgLabel = 'اشتراك سنوي';
     else pkgLabel = 'اشتراك شهري';
 
@@ -99,7 +114,6 @@ async function openClinicDetailsModal(clinicId) {
     const detCreated = document.getElementById('det-clinic-created');
     if (detCreated) detCreated.innerText = clinicCreatedStr;
 
-    // 🔴 تحديث قيمة السعر في المودال 🔴
     const priceDisplay = document.getElementById('det-clinic-price');
     if (priceDisplay) priceDisplay.innerText = clinic.subPrice || 0;
     
@@ -236,7 +250,6 @@ async function openClinicDetailsModal(clinicId) {
     }
 }
 
-// 🔴 دالة تعديل سعر الاشتراك 🔴
 async function editClinicPrice() {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const currentPriceStr = document.getElementById('det-clinic-price').innerText;
@@ -322,8 +335,8 @@ async function saveNewUser(e) {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء كود الدعوة..." : "Generating invite code...");
 
     try {
-        const randomCode = Math.floor(1000 + Math.random() * 9000);
-        const inviteCode = `NURSE-${randomCode}`;
+        // 🔴 توليد كود الممرضة أرقام فقط (5 أرقام) 🔴
+        const inviteCode = Math.floor(10000 + Math.random() * 90000).toString();
 
         await db.collection("InviteCodes").doc(inviteCode).set({
             name: userName,
@@ -372,7 +385,6 @@ async function saveNewClinic(e) {
     const plan = document.getElementById('clinic_plan').value; 
     const packageType = document.getElementById('clinic_package').value; 
     
-    // 🔴 سحب قيمة الاشتراك من الفورم 🔴
     const subPriceInput = document.getElementById('clinic_sub_price');
     const subPrice = subPriceInput && subPriceInput.value ? Number(subPriceInput.value) : 0;
     
@@ -380,7 +392,8 @@ async function saveNewClinic(e) {
     const adminPhone = phoneInput && phoneInput.value.trim() !== "" ? phoneInput.value.trim() : "01000000000";
 
     try {
-        const accessCode = Math.floor(1000 + Math.random() * 9000).toString();
+        // 🔴 كود العيادة أرقام فقط (5 أرقام) 🔴
+        const accessCode = Math.floor(10000 + Math.random() * 90000).toString();
         const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
 
         const nextPayDate = new Date();
@@ -393,7 +406,7 @@ async function saveNewClinic(e) {
             clinicName: clinicName,
             status: plan,
             package: packageType, 
-            subPrice: subPrice, // 🔴 حفظ السعر في الداتابيز 🔴
+            subPrice: subPrice, 
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             nextPaymentDate: nextPayDate,
             logoUrl: "",
@@ -427,104 +440,181 @@ function loadClinics() {
     if (window.showLoader && allClinicsList.length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة بيانات النظام..." : "Syncing SaaS data...");
 
     db.collection("Clinics").orderBy("createdAt", "desc").onSnapshot(async (snap) => {
-        const tbody = document.getElementById('clinicsBody');
-        tbody.innerHTML = '';
         allClinicsList = []; 
-        
         let activeCount = 0;
         let suspendedCount = 0;
-
-        if (snap.empty) {
-            document.getElementById('stat-clinics').innerText = 0;
-            document.getElementById('stat-susp-clinics').innerText = 0;
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${window.superLang.empty}</td></tr>`;
-            if (window.hideLoader) window.hideLoader();
-            return;
-        }
-
-        const lang = localStorage.getItem('preferredLang') || 'ar';
-        const now = new Date();
 
         for (const doc of snap.docs) {
             const c = doc.data();
             c.id = doc.id;
             allClinicsList.push(c); 
-
-            const dateStr = c.createdAt ? c.createdAt.toDate().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US') : '---';
-            
-            let nextPayStr = "---";
-            let payStyle = "";
-            let alertBadge = "";
-
-            if (c.nextPaymentDate) {
-                const npDate = c.nextPaymentDate.toDate();
-                nextPayStr = npDate.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
-                
-                const diffTime = npDate - now;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
-                if (diffDays < 0 && c.status !== 'suspended') {
-                    payStyle = "color: red; font-weight: bold;";
-                    alertBadge = `<span style="background: red; color: white; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px;">منتهي</span>`;
-                } else if (diffDays >= 0 && diffDays <= 3 && c.status === 'active') {
-                    payStyle = "color: #d97706; font-weight: bold;";
-                    alertBadge = `<span style="background: #fef3c7; color: #d97706; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px; border: 1px solid #fde68a;">⚠️ قريباً</span>`;
-                } else {
-                    payStyle = "color: green;";
-                }
-            }
-
             if (c.status === 'active') activeCount++;
             else if (c.status === 'suspended') suspendedCount++;
-
-            let adminEmail = c.adminEmail || "---";
-            let accessCode = c.accessCode || ""; 
-
-            let pkgLabel = '';
-            if(c.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
-            else if(c.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
-            else if(c.package === 'yearly') pkgLabel = 'اشتراك سنوي';
-            else pkgLabel = 'اشتراك شهري';
-
-            let statusHtml = '';
-            if(c.status === 'active') statusHtml = `<span class="status-badge status-active">${window.superLang.sAct}</span>`;
-            else statusHtml = `<span class="status-badge status-suspended">${window.superLang.sSusp}</span>`;
-
-            let toggleBtnHtml = '';
-            if (c.status === 'suspended') {
-                toggleBtnHtml = `<button class="btn-primary" onclick="toggleSubscription('${doc.id}', 'active')" style="background:#3b82f6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">▶️ ${window.superLang.btnRenew}</button>`;
-            } else {
-                toggleBtnHtml = `<button class="btn-warning" onclick="toggleSubscription('${doc.id}', 'suspended')" style="background:#f59e0b; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">⏸️ ${window.superLang.btnCancelSub}</button>`;
-            }
-
-            let btnPkgTxt = lang === 'ar' ? "تغيير الباقة" : "Package";
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${dateStr}</td>
-                <td style="${payStyle}" dir="ltr">${nextPayStr} ${alertBadge}</td>
-                <td>
-                    <a class="clinic-link" onclick="openClinicDetailsModal('${c.id}')">🏢 ${c.clinicName}</a><br>
-                    <small style="color:gray;">الكود: ${accessCode} | الباقة: <span style="color:#3b82f6;">${pkgLabel}</span></small>
-                </td>
-                <td dir="ltr" style="text-align:start;">${adminEmail}</td>
-                <td>${statusHtml}</td>
-                <td style="text-align: center; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
-                    <button onclick="markAsPaid('${doc.id}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="إضافة شهر جديد">💰 ${window.superLang.btnPaid}</button>
-                    <button onclick="openChangePackageModal('${doc.id}')" style="background:#8b5cf6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="${btnPkgTxt}">📦 ${btnPkgTxt}</button>
-                    ${toggleBtnHtml}
-                    <button class="btn-danger" onclick="deleteClinic('${doc.id}', '${accessCode}')" style="background:#ef4444; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">🗑️ ${window.superLang.btnDelete}</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
         }
         
         document.getElementById('stat-clinics').innerText = activeCount;
         document.getElementById('stat-susp-clinics').innerText = suspendedCount;
+        
+        renderClinicsTable(); // رسم الجدول بعد تحديث الداتا
         if (window.hideLoader) window.hideLoader();
     }, () => {
         if (window.hideLoader) window.hideLoader();
     });
+}
+
+// 🔴 دالة رسم الجدول المفصولة عشان تشتغل مع التابات 🔴
+function renderClinicsTable() {
+    const tbody = document.getElementById('clinicsBody');
+    tbody.innerHTML = '';
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const now = new Date();
+
+    // فلترة العيادات حسب التابة المفتوحة
+    const filteredClinics = allClinicsList.filter(c => {
+        if (currentActiveTab === 'trials') return c.planType === 'trial_3_days';
+        return c.planType !== 'trial_3_days'; // الباقي كله في التابة الأساسية
+    });
+
+    if (filteredClinics.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${window.superLang.empty}</td></tr>`;
+        return;
+    }
+
+    filteredClinics.forEach(c => {
+        const dateStr = c.createdAt ? c.createdAt.toDate().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US') : '---';
+        
+        let nextPayStr = "---";
+        let payStyle = "";
+        let alertBadge = "";
+
+        if (c.nextPaymentDate) {
+            const npDate = c.nextPaymentDate.toDate();
+            nextPayStr = npDate.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
+            
+            const diffTime = npDate - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+            if (diffDays < 0 && c.status !== 'suspended') {
+                payStyle = "color: red; font-weight: bold;";
+                alertBadge = `<span style="background: red; color: white; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px;">منتهي</span>`;
+            } else if (diffDays >= 0 && diffDays <= 3 && c.status === 'active') {
+                payStyle = "color: #d97706; font-weight: bold;";
+                alertBadge = `<span style="background: #fef3c7; color: #d97706; padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 5px; border: 1px solid #fde68a;">⚠️ قريباً</span>`;
+            } else {
+                payStyle = "color: green;";
+            }
+        }
+
+        let adminEmail = c.adminEmail || "---";
+        let accessCode = c.accessCode || ""; 
+
+        let pkgLabel = '';
+        if(c.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
+        else if(c.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
+        else if(c.planType === 'trial_3_days') pkgLabel = 'تجريبي مجاني (3 أيام)';
+        else if(c.package === 'yearly') pkgLabel = 'اشتراك سنوي';
+        else pkgLabel = 'اشتراك شهري';
+
+        let statusHtml = '';
+        if(c.status === 'active') statusHtml = `<span class="status-badge status-active">${window.superLang.sAct}</span>`;
+        else statusHtml = `<span class="status-badge status-suspended">${window.superLang.sSusp}</span>`;
+
+        let toggleBtnHtml = '';
+        if (c.status === 'suspended') {
+            toggleBtnHtml = `<button class="btn-primary" onclick="toggleSubscription('${c.id}', 'active')" style="background:#3b82f6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">▶️ ${window.superLang.btnRenew}</button>`;
+        } else {
+            toggleBtnHtml = `<button class="btn-warning" onclick="toggleSubscription('${c.id}', 'suspended')" style="background:#f59e0b; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">⏸️ ${window.superLang.btnCancelSub}</button>`;
+        }
+
+        let btnPkgTxt = lang === 'ar' ? "تغيير الباقة" : "Package";
+
+        let actionsHtml = '';
+        
+        // 🔴 أزرار تابة التجارب المجانية (ترقية اشتراك) 🔴
+        if (currentActiveTab === 'trials') {
+            actionsHtml = `
+                <button onclick="upgradeTrialToPaid('${c.id}', '${c.clinicName}', '${adminEmail}', '${c.phone1}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer; font-weight: bold; width: 100%;">🚀 ترقية العيادة ودفع الاشتراك</button>
+            `;
+        } 
+        // 🔴 أزرار تابة العيادات الأساسية 🔴
+        else {
+            actionsHtml = `
+                <button onclick="markAsPaid('${c.id}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="إضافة شهر جديد">💰 ${window.superLang.btnPaid}</button>
+                <button onclick="openChangePackageModal('${c.id}')" style="background:#8b5cf6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="${btnPkgTxt}">📦 ${btnPkgTxt}</button>
+                ${toggleBtnHtml}
+                <button class="btn-danger" onclick="deleteClinic('${c.id}', '${accessCode}')" style="background:#ef4444; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">🗑️ ${window.superLang.btnDelete}</button>
+            `;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${dateStr}</td>
+            <td style="${payStyle}" dir="ltr">${nextPayStr} ${alertBadge}</td>
+            <td>
+                <a class="clinic-link" onclick="openClinicDetailsModal('${c.id}')">🏢 ${c.clinicName}</a><br>
+                <small style="color:gray;">الكود: ${accessCode || 'بدون'} | الباقة: <span style="color:#3b82f6;">${pkgLabel}</span></small>
+            </td>
+            <td dir="ltr" style="text-align:start;">${adminEmail}</td>
+            <td>${statusHtml}</td>
+            <td style="text-align: center; display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
+                ${actionsHtml}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// 🔴 دالة تحويل العيادة التجريبية لعيادة رسمية وتوليد كود الدخول 🔴
+async function upgradeTrialToPaid(clinicId, clinicName, adminEmail, adminPhone) {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    
+    let subPriceStr = prompt(isAr ? "أدخل قيمة الاشتراك الشهري المتفق عليه (ج.م):" : "Enter agreed monthly subscription price (EGP):", "500");
+    if (subPriceStr === null || subPriceStr.trim() === "") return;
+    
+    const subPrice = Number(subPriceStr);
+    if (isNaN(subPrice)) {
+        alert(isAr ? "برجاء إدخال رقم صحيح!" : "Please enter a valid number.");
+        return;
+    }
+
+    if (window.showLoader) window.showLoader(isAr ? "جاري ترقية العيادة وتوليد كود الدخول..." : "Upgrading clinic...");
+
+    try {
+        // توليد كود دخول أرقام فقط (5 أرقام)
+        const accessCode = Math.floor(10000 + Math.random() * 90000).toString();
+        
+        // شهر جديد من دلوقتي
+        const nextPayDate = new Date();
+        nextPayDate.setMonth(nextPayDate.getMonth() + 1);
+
+        // 1. تحديث بيانات العيادة
+        await db.collection("Clinics").doc(clinicId).update({
+            planType: firebase.firestore.FieldValue.delete(), // شيل صفة التجريبي
+            package: 'monthly',
+            subPrice: subPrice,
+            accessCode: accessCode,
+            nextPaymentDate: nextPayDate,
+            status: 'active'
+        });
+
+        // 2. إنشاء كود الدخول في كوليكشن clinicId عشان يقدر يسجل بيه لو حب
+        await db.collection("clinicId").doc(accessCode).set({
+            activated: true, // متفعل جاهز عشان ميعملش ريجستر تاني
+            name: clinicName,
+            phone: adminPhone || "",
+            email: adminEmail,
+            role: "admin",
+            clinicId: clinicId
+        });
+
+        alert(isAr ? `✅ تم ترقية العيادة بنجاح!\n\nتم توليد كود دخول جديد للدكتور:\nكود العيادة: ${accessCode}\nقيمة الاشتراك: ${subPrice} ج.م` : `✅ Clinic upgraded successfully!\nNew Code: ${accessCode}`);
+        
+    } catch (e) {
+        console.error(e);
+        alert("حدث خطأ أثناء الترقية");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
 }
 
 function openChangePackageModal(clinicId) {
