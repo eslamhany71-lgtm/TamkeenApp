@@ -2,7 +2,7 @@ const db = firebase.firestore();
 let allClinicsList = []; 
 let clinicUsersUnsubscribe = null; 
 
-let currentActiveTab = 'active'; // 'active' أو 'trials' للفلترة
+let currentActiveTab = 'active'; 
 
 function updatePageContent(lang) {
     const t = {
@@ -20,7 +20,12 @@ function updatePageContent(lang) {
             msgSuccess: "تم إنشاء العيادة بنجاح!\n\nكود الدخول: {id}\nإيميل الأدمن: {email}\n\nيرجى إرسال الكود للدكتور لتفعيل الحساب.",
             msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل متأكد من تغيير حالة العيادة؟",
             msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر؟",
-            msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً ولن يمكن استرجاعها! اكتب '1234' للتأكيد:", msgDelSuccess: "تم حذف العيادة بنجاح.", btnSaving: "جاري الإنشاء..."
+            msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً ولن يمكن استرجاعها! اكتب '1234' للتأكيد:", msgDelSuccess: "تم حذف العيادة بنجاح.", btnSaving: "جاري الإنشاء...",
+            
+            // 🔴 ترجمات مودال الترقية الجديد 🔴
+            mUpgTitle: "🚀 ترقية العيادة التجريبية", mUpgSub: "حدد الباقة وقيمة الاشتراك لتوليد كود الدخول الجديد للعيادة.",
+            lUpgPkg: "باقة الاشتراك", optUpgMonth: "شهري (Monthly)", optUpgYear: "سنوي (Yearly)",
+            lUpgPrice: "قيمة الاشتراك (ج.م)", btnConfirmUpg: "تأكيد الترقية وتوليد الكود"
         },
         en: {
             title: "Central SaaS Management", sub: "Owner Dashboard - Super Admin", search: "Search by clinic name...", btnAdd: "Add New Clinic",
@@ -36,7 +41,11 @@ function updatePageContent(lang) {
             msgSuccess: "Clinic created successfully!\n\nAccess Code: {id}\nAdmin Email: {email}\n\nPlease send this code to the doctor to activate the account.",
             msgError: "Error creating clinic!", msgConfirmToggle: "Are you sure you want to change the status?",
             msgConfirmPaid: "Confirm payment receipt and renew subscription for one month?",
-            msgWarnDel: "WARNING: This will permanently delete the clinic! Type '1234' to confirm:", msgDelSuccess: "Clinic deleted successfully.", btnSaving: "Creating..."
+            msgWarnDel: "WARNING: This will permanently delete the clinic! Type '1234' to confirm:", msgDelSuccess: "Clinic deleted successfully.", btnSaving: "Creating...",
+            
+            mUpgTitle: "🚀 Upgrade Trial Clinic", mUpgSub: "Select package and price to generate a new access code.",
+            lUpgPkg: "Subscription Package", optUpgMonth: "Monthly", optUpgYear: "Yearly",
+            lUpgPrice: "Subscription Price (EGP)", btnConfirmUpg: "Confirm Upgrade & Generate Code"
         }
     };
     const c = t[lang] || t.ar;
@@ -49,8 +58,12 @@ function updatePageContent(lang) {
     setTxt('mod-title', c.mTitle); setTxt('lbl-c-name', c.lName); setTxt('lbl-c-email', c.lEmail); setTxt('lbl-c-hint', c.lHint); 
     
     setTxt('lbl-c-pkg', c.lPkg); setTxt('opt-pkg-t7', c.optPkgT7); setTxt('opt-pkg-t14', c.optPkgT14); setTxt('opt-pkg-month', c.optPkgMonth); setTxt('opt-pkg-year', c.optPkgYear);
-    
     setTxt('lbl-c-plan', c.lPlan); setTxt('opt-active', c.optAct); setTxt('opt-susp', c.optSusp); setTxt('btn-save', c.btnSave);
+    
+    // ترجمات مودال الترقية
+    setTxt('mod-upgrade-title', c.mUpgTitle); setTxt('mod-upgrade-sub', c.mUpgSub);
+    setTxt('lbl-upg-pkg', c.lUpgPkg); setTxt('opt-upg-month', c.optUpgMonth); setTxt('opt-upg-year', c.optUpgYear);
+    setTxt('lbl-upg-price', c.lUpgPrice); setTxt('btn-confirm-upgrade', c.btnConfirmUpg);
     
     window.superLang = c;
 }
@@ -70,7 +83,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// 🔴 دالة تبديل التابات 🔴
 function switchMainTab(tabName) {
     currentActiveTab = tabName;
     document.getElementById('tab-active').classList.remove('active');
@@ -79,7 +91,7 @@ function switchMainTab(tabName) {
     if(tabName === 'active') document.getElementById('tab-active').classList.add('active');
     else document.getElementById('tab-trials').classList.add('active');
     
-    renderClinicsTable(); // نعيد رسم الجدول بناءً على التابة
+    renderClinicsTable(); 
 }
 
 async function openClinicDetailsModal(clinicId) {
@@ -92,7 +104,7 @@ async function openClinicDetailsModal(clinicId) {
     let pkgLabel = '';
     if(clinic.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
     else if(clinic.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
-    else if(clinic.planType === 'trial_3_days') pkgLabel = 'تجريبي مجاني (3 أيام)'; // للعيادات الجديدة
+    else if(clinic.planType === 'trial_3_days') pkgLabel = 'تجريبي مجاني (3 أيام)'; 
     else if(clinic.package === 'yearly') pkgLabel = 'اشتراك سنوي';
     else pkgLabel = 'اشتراك شهري';
 
@@ -335,7 +347,6 @@ async function saveNewUser(e) {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء كود الدعوة..." : "Generating invite code...");
 
     try {
-        // 🔴 توليد كود الممرضة أرقام فقط (5 أرقام) 🔴
         const inviteCode = Math.floor(10000 + Math.random() * 90000).toString();
 
         await db.collection("InviteCodes").doc(inviteCode).set({
@@ -392,7 +403,6 @@ async function saveNewClinic(e) {
     const adminPhone = phoneInput && phoneInput.value.trim() !== "" ? phoneInput.value.trim() : "01000000000";
 
     try {
-        // 🔴 كود العيادة أرقام فقط (5 أرقام) 🔴
         const accessCode = Math.floor(10000 + Math.random() * 90000).toString();
         const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
 
@@ -455,24 +465,22 @@ function loadClinics() {
         document.getElementById('stat-clinics').innerText = activeCount;
         document.getElementById('stat-susp-clinics').innerText = suspendedCount;
         
-        renderClinicsTable(); // رسم الجدول بعد تحديث الداتا
+        renderClinicsTable(); 
         if (window.hideLoader) window.hideLoader();
     }, () => {
         if (window.hideLoader) window.hideLoader();
     });
 }
 
-// 🔴 دالة رسم الجدول المفصولة عشان تشتغل مع التابات 🔴
 function renderClinicsTable() {
     const tbody = document.getElementById('clinicsBody');
     tbody.innerHTML = '';
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const now = new Date();
 
-    // فلترة العيادات حسب التابة المفتوحة
     const filteredClinics = allClinicsList.filter(c => {
         if (currentActiveTab === 'trials') return c.planType === 'trial_3_days';
-        return c.planType !== 'trial_3_days'; // الباقي كله في التابة الأساسية
+        return c.planType !== 'trial_3_days'; 
     });
 
     if (filteredClinics.length === 0) {
@@ -530,13 +538,11 @@ function renderClinicsTable() {
 
         let actionsHtml = '';
         
-        // 🔴 أزرار تابة التجارب المجانية (ترقية اشتراك) 🔴
         if (currentActiveTab === 'trials') {
             actionsHtml = `
-                <button onclick="upgradeTrialToPaid('${c.id}', '${c.clinicName}', '${adminEmail}', '${c.phone1}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer; font-weight: bold; width: 100%;">🚀 ترقية العيادة ودفع الاشتراك</button>
+                <button onclick="openUpgradeTrialModal('${c.id}', '${c.clinicName}', '${adminEmail}', '${c.phone1}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer; font-weight: bold; width: 100%;">🚀 ترقية العيادة ودفع الاشتراك</button>
             `;
         } 
-        // 🔴 أزرار تابة العيادات الأساسية 🔴
         else {
             actionsHtml = `
                 <button onclick="markAsPaid('${c.id}')" style="background:#10b981; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;" title="إضافة شهر جديد">💰 ${window.superLang.btnPaid}</button>
@@ -564,42 +570,56 @@ function renderClinicsTable() {
     });
 }
 
-// 🔴 دالة تحويل العيادة التجريبية لعيادة رسمية وتوليد كود الدخول 🔴
-async function upgradeTrialToPaid(clinicId, clinicName, adminEmail, adminPhone) {
+// 🔴 دوال مودال الترقية الجديد 🔴
+function openUpgradeTrialModal(clinicId, clinicName, adminEmail, adminPhone) {
+    document.getElementById('upg_clinic_id').value = clinicId;
+    document.getElementById('upg_clinic_name').value = clinicName;
+    document.getElementById('upg_admin_email').value = adminEmail;
+    document.getElementById('upg_admin_phone').value = adminPhone || '';
+    
+    document.getElementById('upg_package').value = 'monthly';
+    document.getElementById('upg_price').value = '';
+    
+    document.getElementById('upgradeTrialModal').style.display = 'flex';
+}
+
+function closeUpgradeTrialModal() {
+    document.getElementById('upgradeTrialModal').style.display = 'none';
+}
+
+async function confirmUpgradeTrial(e) {
+    e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const btn = document.getElementById('btn-confirm-upgrade');
+    btn.disabled = true;
     
-    let subPriceStr = prompt(isAr ? "أدخل قيمة الاشتراك الشهري المتفق عليه (ج.م):" : "Enter agreed monthly subscription price (EGP):", "500");
-    if (subPriceStr === null || subPriceStr.trim() === "") return;
-    
-    const subPrice = Number(subPriceStr);
-    if (isNaN(subPrice)) {
-        alert(isAr ? "برجاء إدخال رقم صحيح!" : "Please enter a valid number.");
-        return;
-    }
+    const clinicId = document.getElementById('upg_clinic_id').value;
+    const clinicName = document.getElementById('upg_clinic_name').value;
+    const adminEmail = document.getElementById('upg_admin_email').value;
+    const adminPhone = document.getElementById('upg_admin_phone').value;
+    const packageType = document.getElementById('upg_package').value;
+    const subPrice = Number(document.getElementById('upg_price').value);
 
     if (window.showLoader) window.showLoader(isAr ? "جاري ترقية العيادة وتوليد كود الدخول..." : "Upgrading clinic...");
 
     try {
-        // توليد كود دخول أرقام فقط (5 أرقام)
         const accessCode = Math.floor(10000 + Math.random() * 90000).toString();
         
-        // شهر جديد من دلوقتي
         const nextPayDate = new Date();
-        nextPayDate.setMonth(nextPayDate.getMonth() + 1);
+        if (packageType === 'monthly') nextPayDate.setMonth(nextPayDate.getMonth() + 1);
+        else if (packageType === 'yearly') nextPayDate.setFullYear(nextPayDate.getFullYear() + 1);
 
-        // 1. تحديث بيانات العيادة
         await db.collection("Clinics").doc(clinicId).update({
-            planType: firebase.firestore.FieldValue.delete(), // شيل صفة التجريبي
-            package: 'monthly',
+            planType: firebase.firestore.FieldValue.delete(), 
+            package: packageType,
             subPrice: subPrice,
             accessCode: accessCode,
             nextPaymentDate: nextPayDate,
             status: 'active'
         });
 
-        // 2. إنشاء كود الدخول في كوليكشن clinicId عشان يقدر يسجل بيه لو حب
         await db.collection("clinicId").doc(accessCode).set({
-            activated: true, // متفعل جاهز عشان ميعملش ريجستر تاني
+            activated: true, 
             name: clinicName,
             phone: adminPhone || "",
             email: adminEmail,
@@ -608,11 +628,12 @@ async function upgradeTrialToPaid(clinicId, clinicName, adminEmail, adminPhone) 
         });
 
         alert(isAr ? `✅ تم ترقية العيادة بنجاح!\n\nتم توليد كود دخول جديد للدكتور:\nكود العيادة: ${accessCode}\nقيمة الاشتراك: ${subPrice} ج.م` : `✅ Clinic upgraded successfully!\nNew Code: ${accessCode}`);
-        
-    } catch (e) {
-        console.error(e);
+        closeUpgradeTrialModal();
+    } catch (error) {
+        console.error(error);
         alert("حدث خطأ أثناء الترقية");
     } finally {
+        btn.disabled = false;
         if (window.hideLoader) window.hideLoader();
     }
 }
