@@ -474,30 +474,32 @@ async function activateAccount() {
     }
 }
 
+// ... (باقي أكواد auth.js كما هي في الأعلى الخاصة بالـ Login والـ Trial) ...
+
 function updatePageContent(lang) {
     const translations = {
         ar: {
-            title: "تسجيل الدخول - نظام Al Dokan ERP", welcome: "أهلاً بك في Al Dokan ERP", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
+            title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
             code: "البريد الإلكتروني أو كود العيادة", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "حساب جديد؟", actLink: "تفعيل حساب العيادة من هنا",
-            brandTitle: "Al Dokan ERP", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
+            brandTitle: "NivaDent", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان من إنتاج Al Dokan ERP. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
             feat1: "✔️ ملف طبي ذكي وأشعة", feat2: "✔️ إدارة الجلسات والمواعيد", feat3: "✔️ روشتات وحسابات دقيقة",
             forgotPass: "نسيت كلمة المرور؟", resetTitle: "استعادة كلمة المرور", resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
             btnReset: "إرسال رابط الاستعادة", emailPlaceholder: "أدخل البريد الإلكتروني",
-            actPageTitle: "تفعيل الحساب - Al Dokan ERP", actWelcome: "تفعيل حساب العيادة", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
+            actPageTitle: "تفعيل الحساب - NivaDent", actWelcome: "تفعيل حساب العيادة", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
             actCode: "كود الدخول", actPhone: "رقم الموبايل", actPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن",
-            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في Al Dokan ERP",
+            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في NivaDent",
             brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة"
         },
         en: {
-            title: "Login - Al Dokan ERP System", welcome: "Welcome to Al Dokan ERP", subLogin: "Sign in to manage your clinic",
+            title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
             code: "Email or Access Code", pass: "Password", btn: "Login", newEmp: "New Account?", actLink: "Activate clinic account here",
-            brandTitle: "Al Dokan ERP", brandDesc: "The smartest cloud system for dental practice management. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
+            brandTitle: "NivaDent", brandDesc: "The smartest cloud system for dental practice management powered by Al Dokan ERP. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
             feat1: "✔️ Smart Medical Records & X-Rays", feat2: "✔️ Appointments & Sessions Management", feat3: "✔️ E-Prescriptions & Accurate Billing",
             forgotPass: "Forgot Password?", resetTitle: "Reset Password", resetSub: "Enter your registered email, and we will send you a link to set a new password.",
             btnReset: "Send Reset Link", emailPlaceholder: "Enter email address",
-            actPageTitle: "Activate Account - Al Dokan ERP", actWelcome: "Activate Clinic Account", actSub: "Please enter the data registered with the system administration",
+            actPageTitle: "Activate Account - NivaDent", actWelcome: "Activate Clinic Account", actSub: "Please enter the data registered with the system administration",
             actCode: "Access Code", actPhone: "Mobile Number", actPass: "Choose a new password", btnAct: "Activate Account Now",
-            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to Al Dokan ERP",
+            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to NivaDent",
             brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address"
         }
     };
@@ -518,6 +520,8 @@ function updatePageContent(lang) {
     safeSetText('txt-back-str', t.backLoginStr); safeSetText('link-back-login', t.backLoginLink); safeSetText('brand-act-title', t.brandActTitle);
     safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
 }
+
+// ... (باقي الدوال كما هي) ...
 
 function togglePasswordVisibility() {
     const passInput = document.getElementById('password');
