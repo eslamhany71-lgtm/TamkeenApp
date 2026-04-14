@@ -474,10 +474,19 @@ async function activateAccount() {
     }
 }
 
+// 🔴 إضافة دوال التحكم في مودال الخصوصية في أي مكان في الملف 🔴
+function openPrivacyModal() {
+    document.getElementById('privacyModal').style.display = 'flex';
+}
+function closePrivacyModal() {
+    document.getElementById('privacyModal').style.display = 'none';
+}
+
 // ... (باقي أكواد auth.js كما هي في الأعلى الخاصة بالـ Login والـ Trial) ...
 
+// 🔴 تحديث دالة الترجمة لتشمل نصوص الخصوصية 🔴
 function updatePageContent(lang) {
-    const currentYear = new Date().getFullYear(); // بيجيب السنة أوتوماتيك
+    const currentYear = new Date().getFullYear();
     const translations = {
         ar: {
             title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
@@ -491,7 +500,6 @@ function updatePageContent(lang) {
             backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في NivaDent",
             brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة",
             
-            // 🔴 التحديثات الجديدة (التجربة وحقوق الملكية) 🔴
             staffInvite: "🔑 لدي كود دعوة (تفعيل حساب موظف)",
             btnTrialTxt: "ابدأ فترة تجريبية مجانية (3 أيام)",
             copyright: `© ${currentYear} Al Dokan ERP. جميع الحقوق محفوظة.`,
@@ -504,7 +512,19 @@ function updatePageContent(lang) {
             lTPhone: "رقم الموبايل للتواصل", pTPhone: "01xxxxxxxxx",
             lTEmail: "البريد الإلكتروني (للدخول)", pTEmail: "clinic@example.com",
             lTPass: "كلمة المرور (6 أحرف أو أكثر)", pTPass: "********",
-            btnSubmitTrial: "إنشاء الحساب وبدء التجربة"
+            btnSubmitTrial: "إنشاء الحساب وبدء التجربة",
+            
+            // 🔴 ترجمات سياسة الخصوصية 🔴
+            mPrivTitle: "سياسة الخصوصية وتأمين البيانات",
+            privH1: "1. سرية السجلات الطبية",
+            privP1: "نحن في Al Dokan ERP ندرك تماماً حساسية السجلات الطبية. جميع بيانات مرضاك (التشخيص، الأشعة، المديونيات) مشفرة ومحفوظة في قواعد بيانات سحابية آمنة لا يمكن لأي طرف ثالث الاطلاع عليها.",
+            privH2: "2. النسخ الاحتياطي التلقائي (Cloud Backup)",
+            privP2: "لا داعي للقلق من فقدان البيانات. يقوم النظام بعمل نسخ احتياطي تلقائي ولحظي للبيانات. في حالة فقدان جهازك أو تغييره، ستجد جميع بيانات عيادتك كما هي بمجرد تسجيل الدخول.",
+            privH3: "3. حقوق الملكية الفكرية",
+            privP3: "نظام NivaDent هو منتج برمجي مملوك بالكامل لشركة Al Dokan ERP. لا يجوز نسخ، إعادة بيع، أو هندسة عكسية لأي جزء من النظام دون إذن كتابي مسبق.",
+            privH4: "4. استخدام البيانات للتطوير",
+            privP4: "نحن لا نقوم ببيع أو مشاركة بيانات عيادتك مع أي جهة إعلانية. النظام يجمع فقط بعض الإحصائيات الفنية مجهولة المصدر لتحسين الأداء وسرعة النظام.",
+            btnPrivOk: "موافق ومفهوم"
         },
         en: {
             title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
@@ -518,7 +538,6 @@ function updatePageContent(lang) {
             backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to NivaDent",
             brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address",
             
-            // 🔴 New Updates (Trial & Copyright) 🔴
             staffInvite: "🔑 I have an invite code (Staff)",
             btnTrialTxt: "Start Free Trial (3 Days)",
             copyright: `© ${currentYear} Al Dokan ERP. All rights reserved.`,
@@ -531,7 +550,19 @@ function updatePageContent(lang) {
             lTPhone: "Contact Phone", pTPhone: "01xxxxxxxxx",
             lTEmail: "Email (For Login)", pTEmail: "clinic@example.com",
             lTPass: "Password (Min 6 chars)", pTPass: "********",
-            btnSubmitTrial: "Create Account & Start Trial"
+            btnSubmitTrial: "Create Account & Start Trial",
+            
+            // 🔴 Privacy Policy Translations 🔴
+            mPrivTitle: "Privacy Policy & Data Security",
+            privH1: "1. Medical Records Confidentiality",
+            privP1: "At Al Dokan ERP, we fully understand the sensitivity of medical records. All your patient data is encrypted and stored in secure cloud databases inaccessible to any third party.",
+            privH2: "2. Automatic Cloud Backup",
+            privP2: "No need to worry about data loss. The system performs automatic real-time backups. If your device is lost, you will find your clinic's data intact upon logging in.",
+            privH3: "3. Intellectual Property Rights",
+            privP3: "NivaDent is a software product fully owned by Al Dokan ERP. Copying, reselling, or reverse engineering any part of the system without prior written permission is prohibited.",
+            privH4: "4. Data Usage for Development",
+            privP4: "We do not sell or share your clinic's data with advertisers. The system only collects anonymous technical statistics to improve performance.",
+            btnPrivOk: "I Understand & Agree"
         }
     };
     const t = translations[lang] || translations['ar'];
@@ -539,6 +570,7 @@ function updatePageContent(lang) {
     const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
     const safeSetPlaceholder = (id, text) => { const el = document.getElementById(id); if (el) el.placeholder = text; };
 
+    // ... (هنا باقي دوال الـ safeSetText القديمة زي ما هي) ...
     if (document.title.includes('دخول') || document.title.includes('Login')) document.title = t.title;
     safeSetText('txt-welcome', t.welcome); safeSetText('sub-login', t.subLogin); safeSetText('lbl-code', t.code);
     safeSetText('lbl-pass', t.pass); safeSetText('btn-login', t.btn); safeSetText('txt-new', t.newEmp);
@@ -552,7 +584,6 @@ function updatePageContent(lang) {
     safeSetText('txt-back-str', t.backLoginStr); safeSetText('link-back-login', t.backLoginLink); safeSetText('brand-act-title', t.brandActTitle);
     safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
     
-    // تطبيق ترجمات الجزء الجديد
     safeSetText('txt-staff-invite', t.staffInvite);
     safeSetText('btn-trial-txt', t.btnTrialTxt);
     safeSetText('txt-copyright', t.copyright);
@@ -567,7 +598,16 @@ function updatePageContent(lang) {
     safeSetText('lbl-t-email', t.lTEmail); safeSetPlaceholder('trial_email', t.pTEmail);
     safeSetText('lbl-t-pass', t.lTPass); safeSetPlaceholder('trial_password', t.pTPass);
     safeSetText('btn-submit-trial', t.btnSubmitTrial);
+
+    // 🔴 تطبيق ترجمات سياسة الخصوصية 🔴
+    safeSetText('mod-priv-title', t.mPrivTitle);
+    safeSetText('priv-h1', t.privH1); safeSetText('priv-p1', t.privP1);
+    safeSetText('priv-h2', t.privH2); safeSetText('priv-p2', t.privP2);
+    safeSetText('priv-h3', t.privH3); safeSetText('priv-p3', t.privP3);
+    safeSetText('priv-h4', t.privH4); safeSetText('priv-p4', t.privP4);
+    safeSetText('btn-priv-ok', t.btnPrivOk);
 }
+
 // ... (باقي الدوال كما هي) ...
 
 function togglePasswordVisibility() {
