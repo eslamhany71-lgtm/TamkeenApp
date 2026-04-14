@@ -525,3 +525,75 @@ window.addEventListener('click', function(e) {
         }
     }
 });
+// =======================================================
+// 🔴 Global Mobile Fixes (Responsive & Anti-Lag) 🔴
+// =======================================================
+(function applyGlobalMobileFixes() {
+    // 1. منع الزووم التلقائي اللي بيعمل تعليق (Lag) على الموبايل
+    let viewport = document.querySelector("meta[name=viewport]");
+    if (!viewport) {
+        viewport = document.createElement('meta');
+        viewport.name = "viewport";
+        document.head.appendChild(viewport);
+    }
+    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0";
+
+    // 2. زرع أوامر الـ CSS الإجبارية للموبايل في كل الصفحات
+    const mobileStyles = `
+        @media (max-width: 768px) {
+            /* 1. منع خروج أي عنصر بره الشاشة (لمنع الكسر) */
+            html, body { overflow-x: hidden !important; width: 100%; }
+
+            /* 2. إصلاح الجداول (سحب يمين وشمال بسلاسة) */
+            .table-container {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch; /* نعومة السحب في الآيفون */
+                width: 100% !important;
+                border: 0 !important;
+                box-shadow: none !important;
+                margin-bottom: 20px;
+            }
+            table { min-width: 700px !important; } /* إجبار الجدول يفضل مفرود ويسكرول */
+
+            /* 3. تظبيط المودالات (النوافذ المنبثقة عشان متخرجش بره الشاشة) */
+            .modal-content {
+                width: 95% !important;
+                margin: 10px auto !important;
+                padding: 20px 15px !important;
+                max-height: 90vh !important;
+                overflow-y: auto !important;
+            }
+
+            /* 4. رص الكروت والزراير تحت بعض (لشاشات الإحصائيات والأزرار العلوية) */
+            .kpi-grid, .stats-container {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                gap: 10px !important;
+            }
+            .header-actions {
+                display: flex !important;
+                flex-direction: column !important;
+                width: 100% !important;
+                align-items: stretch !important;
+            }
+            .header-actions input, .header-actions button {
+                width: 100% !important;
+                margin-bottom: 5px !important;
+            }
+
+            /* 5. شاشة الدخول (تسجيل الدخول والتفعيل) */
+            .split-layout { flex-direction: column-reverse !important; }
+            .form-side, .brand-side { width: 100% !important; min-height: auto !important; padding: 20px !important; }
+            
+            /* 6. إصلاح النوافذ اللي بتستخدم Grid أو Flex بالعرض */
+            div[style*="display: grid"] { 
+                grid-template-columns: 1fr !important; /* خلي كل العواميد عمود واحد */
+            }
+        }
+    `;
+
+    const styleTag = document.createElement('style');
+    styleTag.innerHTML = mobileStyles;
+    document.head.appendChild(styleTag);
+})();
