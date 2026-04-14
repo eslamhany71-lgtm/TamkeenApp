@@ -28,6 +28,10 @@
             font-family: inherit;
         }
         .btn-trial:hover { background: #d97706; transform: translateY(-2px); }
+        
+        /* 🔴 ستايل مودال الخصوصية 🔴 */
+        .privacy-content p { line-height: 1.8; color: #475569; margin-bottom: 15px; font-size: 14.5px; }
+        .privacy-content h3 { color: #0f172a; margin-top: 25px; margin-bottom: 10px; font-size: 17px; }
     </style>
 </head>
 <body>
@@ -95,7 +99,7 @@
 
                 <div style="text-align: center; margin-top: 35px; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px;">
                     <span id="txt-copyright">© 2026 Al Dokan ERP. جميع الحقوق محفوظة.</span><br>
-                    <a href="#" id="link-privacy" style="color: #0284c7; text-decoration: none; display: inline-block; margin-top: 5px;">سياسة الخصوصية والتأمين (Privacy Policy)</a>
+                    <a href="#" onclick="openPrivacyModal()" id="link-privacy" style="color: #0284c7; text-decoration: none; display: inline-block; margin-top: 5px;">سياسة الخصوصية والتأمين (Privacy Policy)</a>
                 </div>
                 
             </div>
@@ -128,6 +132,31 @@
                     <span id="txt-powered">Powered by</span> <strong style="color: white;">Al Dokan ERP</strong>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="privacyModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+        <div class="modal-content" style="background: white; width: 90%; max-width: 600px; max-height: 85vh; overflow-y: auto; padding: 30px; border-radius: 16px; position: relative;">
+            <span class="close-modal" onclick="closePrivacyModal()" style="position: absolute; top: 15px; left: 20px; font-size: 24px; cursor: pointer; color: #64748b;">&times;</span>
+            <h2 id="mod-priv-title" style="margin-top: 0; color: #0f172a; text-align: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">سياسة الخصوصية وتأمين البيانات</h2>
+            
+            <div class="privacy-content" style="text-align: start;">
+                <h3 id="priv-h1">1. سرية السجلات الطبية</h3>
+                <p id="priv-p1">نحن في Al Dokan ERP ندرك تماماً حساسية السجلات الطبية. جميع بيانات مرضاك (التشخيص، الأشعة، المديونيات) مشفرة ومحفوظة في قواعد بيانات سحابية آمنة لا يمكن لأي طرف ثالث الاطلاع عليها.</p>
+                
+                <h3 id="priv-h2">2. النسخ الاحتياطي التلقائي (Cloud Backup)</h3>
+                <p id="priv-p2">لا داعي للقلق من فقدان البيانات. يقوم النظام بعمل نسخ احتياطي تلقائي ولحظي للبيانات. في حالة فقدان جهازك أو تغييره، ستجد جميع بيانات عيادتك كما هي بمجرد تسجيل الدخول.</p>
+                
+                <h3 id="priv-h3">3. حقوق الملكية الفكرية</h3>
+                <p id="priv-p3">نظام NivaDent هو منتج برمجي مملوك بالكامل لشركة Al Dokan ERP. لا يجوز نسخ، إعادة بيع، أو هندسة عكسية لأي جزء من النظام دون إذن كتابي مسبق.</p>
+                
+                <h3 id="priv-h4">4. استخدام البيانات للتطوير</h3>
+                <p id="priv-p4">نحن لا نقوم ببيع أو مشاركة بيانات عيادتك مع أي جهة إعلانية. النظام يجمع فقط بعض الإحصائيات الفنية مجهولة المصدر لتحسين الأداء وسرعة النظام.</p>
+            </div>
+            
+            <button onclick="closePrivacyModal()" id="btn-priv-ok" style="width: 100%; background: #0284c7; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; font-family: inherit;">
+                موافق ومفهوم
+            </button>
         </div>
     </div>
 
