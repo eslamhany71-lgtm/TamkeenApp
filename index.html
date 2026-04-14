@@ -83,15 +83,21 @@
                     </div>
                     
                     <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 5px;">
-                        <a href="#" onclick="openStaffModal()" style="color: #10b981; text-decoration: none; font-size: 15px; font-weight: bold;">🔑 لدي كود دعوة (تفعيل حساب موظف)</a>
+                        <a href="#" onclick="openStaffModal()" style="color: #10b981; text-decoration: none; font-size: 15px; font-weight: bold;"><span id="txt-staff-invite">🔑 لدي كود دعوة (تفعيل حساب موظف)</span></a>
                     </div>
 
                     <div style="margin-top: 15px;">
                         <button type="button" class="btn-trial" onclick="openTrialModal()">
-                            🚀 ابدأ فترة تجريبية مجانية (3 أيام)
+                            🚀 <span id="btn-trial-txt">ابدأ فترة تجريبية مجانية (3 أيام)</span>
                         </button>
                     </div>
                 </div>
+
+                <div style="text-align: center; margin-top: 35px; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 15px;">
+                    <span id="txt-copyright">© 2026 Al Dokan ERP. جميع الحقوق محفوظة.</span><br>
+                    <a href="#" id="link-privacy" style="color: #0284c7; text-decoration: none; display: inline-block; margin-top: 5px;">سياسة الخصوصية والتأمين (Privacy Policy)</a>
+                </div>
+                
             </div>
         </div>
 
@@ -119,7 +125,7 @@
                 </div>
                 
                 <div style="margin-top: 50px; text-align: center; color: #94a3b8; font-size: 14px;">
-                    Powered by <strong>Al Dokan ERP</strong>
+                    <span id="txt-powered">Powered by</span> <strong style="color: white;">Al Dokan ERP</strong>
                 </div>
             </div>
         </div>
@@ -128,29 +134,29 @@
     <div id="trialModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
         <div class="modal-content" style="background: white; width: 90%; max-width: 500px; padding: 30px; border-radius: 16px; position: relative;">
             <span class="close-modal" onclick="closeTrialModal()" style="position: absolute; top: 15px; left: 20px; font-size: 24px; cursor: pointer; color: #64748b;">&times;</span>
-            <h2 style="margin-top: 0; color: #0f172a; text-align: center;">🚀 إنشاء حساب تجريبي</h2>
-            <p style="text-align: center; color: #64748b; margin-bottom: 25px;">جرب النظام بكامل مميزاته مجاناً لمدة 3 أيام</p>
+            <h2 id="mod-trial-title" style="margin-top: 0; color: #0f172a; text-align: center;">🚀 إنشاء حساب تجريبي</h2>
+            <p id="mod-trial-sub" style="text-align: center; color: #64748b; margin-bottom: 25px;">جرب النظام بكامل مميزاته مجاناً لمدة 3 أيام</p>
             
             <form onsubmit="registerTrialAccount(event)">
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">اسم العيادة</label>
-                    <input type="text" id="trial_clinic_name" required placeholder="مثال: عيادة النور لطب الأسنان" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-family: inherit;">
+                    <label id="lbl-t-clinic" style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">اسم العيادة</label>
+                    <input type="text" id="trial_clinic_name" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-family: inherit;">
                 </div>
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">اسم الطبيب / المدير</label>
-                    <input type="text" id="trial_admin_name" required placeholder="الاسم بالكامل" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-family: inherit;">
+                    <label id="lbl-t-admin" style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">اسم الطبيب / المدير</label>
+                    <input type="text" id="trial_admin_name" required style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-family: inherit;">
                 </div>
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">رقم الموبايل للتواصل</label>
-                    <input type="tel" id="trial_phone" required placeholder="01xxxxxxxxx" dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
+                    <label id="lbl-t-phone" style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">رقم الموبايل للتواصل</label>
+                    <input type="tel" id="trial_phone" required dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
                 </div>
                 <div class="form-group" style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">البريد الإلكتروني (للدخول)</label>
-                    <input type="email" id="trial_email" required placeholder="clinic@example.com" dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
+                    <label id="lbl-t-email" style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">البريد الإلكتروني (للدخول)</label>
+                    <input type="email" id="trial_email" required dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
                 </div>
                 <div class="form-group" style="margin-bottom: 25px;">
-                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">كلمة المرور (6 أحرف أو أكثر)</label>
-                    <input type="password" id="trial_password" required placeholder="********" dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
+                    <label id="lbl-t-pass" style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">كلمة المرور (6 أحرف أو أكثر)</label>
+                    <input type="password" id="trial_password" required dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
                 </div>
                 
                 <button type="submit" id="btn-submit-trial" style="width: 100%; background: #10b981; color: white; border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; font-family: inherit;">
