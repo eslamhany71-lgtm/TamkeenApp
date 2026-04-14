@@ -273,25 +273,7 @@ window.addEventListener('message', function(event) {
     }
 });
 // =======================================================
-// 🔴 Global Favicon (NivaDent Logo) - يتم حقنه في كل الصفحات 🔴
-// =======================================================
-(function setGlobalFavicon() {
-    // اللوجو مبرمج كـ SVG Data URI عشان مش نحتاج ملف صورة خارجي
-    const nivaDentLogo = 'data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="20" fill="%23E0F2FE"/><path d="M30 40C30 28.9543 38.9543 20 50 20C61.0457 20 70 28.9543 70 40V60C70 65.5228 65.5228 70 60 70C54.4772 70 50 65.5228 50 60C50 65.5228 45.5228 70 40 70C34.4772 70 30 65.5228 30 60V40Z" fill="%230284C7"/><path d="M50 20C38.9543 20 30 28.9543 30 40V60C30 65.5228 34.4772 70 40 70C45.5228 70 50 65.5228 50 60V20Z" fill="%230EA5E9"/><circle cx="50" cy="50" r="8" fill="%23FFFFFF"/></svg>';
-    
-    // البحث عن أي أيقونة قديمة وحذفها
-    let existingLinks = document.querySelectorAll("link[rel~='icon']");
-    existingLinks.forEach(link => link.remove());
-
-    // إنشاء الأيقونة الجديدة وحقنها في رأس الصفحة
-    let link = document.createElement('link');
-    link.rel = 'icon';
-    link.type = 'image/svg+xml';
-    link.href = nivaDentLogo;
-    document.head.appendChild(link);
-})();
-// =======================================================
-// 🔴 Global Mobile Fixes (Responsive & Anti-Lag) 🔴
+// 🔴 Global Mobile Fixes (Responsive, Anti-Lag & Perfect Edges) 🔴
 // =======================================================
 (function applyGlobalMobileFixes() {
     // 1. منع الزووم التلقائي اللي بيعمل تعليق (Lag) على الموبايل
@@ -305,55 +287,81 @@ window.addEventListener('message', function(event) {
 
     // 2. زرع أوامر الـ CSS الإجبارية للموبايل في كل الصفحات
     const mobileStyles = `
-        @media (max-width: 768px) {
-            /* 1. منع خروج أي عنصر بره الشاشة (لمنع الكسر) */
-            html, body { overflow-x: hidden !important; width: 100%; }
+        /* 🔴 الحل السحري للحواف المتأكلة 🔴 */
+        *, *::before, *::after {
+            box-sizing: border-box !important;
+        }
 
-            /* 2. إصلاح الجداول (سحب يمين وشمال بسلاسة) */
+        @media (max-width: 768px) {
+            html, body { 
+                overflow-x: hidden !important; 
+                width: 100% !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+            }
+
+            /* إعطاء مساحة تنفس للمحتوى عشان مايلزقش في الشاشة */
+            .main-content, .page-header, .stats-container, .split-layout {
+                padding-left: 15px !important;
+                padding-right: 15px !important;
+                width: 100% !important;
+            }
+
+            /* إصلاح الجداول (سحب يمين وشمال بسلاسة ومساحة تنفس) */
             .table-container {
                 overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch; /* نعومة السحب في الآيفون */
-                width: 100% !important;
+                -webkit-overflow-scrolling: touch; 
+                width: calc(100% - 30px) !important; /* خصمنا مساحة التنفس */
+                margin: 0 15px 20px 15px !important; /* مسافة يمين وشمال */
                 border: 0 !important;
                 box-shadow: none !important;
-                margin-bottom: 20px;
             }
-            table { min-width: 700px !important; } /* إجبار الجدول يفضل مفرود ويسكرول */
+            table { 
+                min-width: 700px !important; 
+            }
 
-            /* 3. تظبيط المودالات (النوافذ المنبثقة عشان متخرجش بره الشاشة) */
+            /* تظبيط المودالات عشان تبقى شيك وفي النص */
             .modal-content {
-                width: 95% !important;
-                margin: 10px auto !important;
+                width: 90% !important;
+                margin: 20px auto !important;
                 padding: 20px 15px !important;
-                max-height: 90vh !important;
+                max-height: 85vh !important;
                 overflow-y: auto !important;
+                border-radius: 12px !important;
             }
 
-            /* 4. رص الكروت والزراير تحت بعض (لشاشات الإحصائيات والأزرار العلوية) */
+            /* رص الكروت والزراير تحت بعض بمسافات مريحة */
             .kpi-grid, .stats-container {
                 display: flex !important;
                 flex-direction: column !important;
-                width: 100% !important;
-                gap: 10px !important;
+                gap: 15px !important;
             }
+            
             .header-actions {
                 display: flex !important;
                 flex-direction: column !important;
                 width: 100% !important;
-                align-items: stretch !important;
+                gap: 10px !important;
+                margin-top: 10px !important;
             }
+            
             .header-actions input, .header-actions button {
                 width: 100% !important;
-                margin-bottom: 5px !important;
+                margin: 0 !important;
             }
 
-            /* 5. شاشة الدخول (تسجيل الدخول والتفعيل) */
+            /* شاشة الدخول (تسجيل الدخول والتفعيل) */
             .split-layout { flex-direction: column-reverse !important; }
-            .form-side, .brand-side { width: 100% !important; min-height: auto !important; padding: 20px !important; }
+            .form-side, .brand-side { 
+                width: 100% !important; 
+                min-height: auto !important; 
+                padding: 30px 20px !important; 
+            }
             
-            /* 6. إصلاح النوافذ اللي بتستخدم Grid أو Flex بالعرض */
+            /* إصلاح النوافذ المزدوجة (زي خانات السعر والباقة جنب بعض) */
             div[style*="display: grid"] { 
-                grid-template-columns: 1fr !important; /* خلي كل العواميد عمود واحد */
+                grid-template-columns: 1fr !important; 
+                gap: 15px !important;
             }
         }
     `;
