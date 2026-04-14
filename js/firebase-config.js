@@ -273,110 +273,93 @@ window.addEventListener('message', function(event) {
     }
 });
 // =======================================================
-// 🔴 THE ULTIMATE MOBILE APP TRANSFORMATION (Anti-Lag & Smart Scroll) 🔴
+// 🔴 SAFE MOBILE FIX (Restoring Touch & Layout) 🔴
 // =======================================================
-(function transformToMobileApp() {
-    // 1. تظبيط الـ Viewport لمنع الـ Lag والزووم المزعج
+(function applySafeMobileFixes() {
     let viewport = document.querySelector("meta[name=viewport]");
-    if (!viewport) { viewport = document.createElement('meta'); viewport.name = "viewport"; document.head.appendChild(viewport); }
-    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+    if (!viewport) { 
+        viewport = document.createElement('meta'); 
+        viewport.name = "viewport"; 
+        document.head.appendChild(viewport); 
+    }
+    // مساحة طبيعية بدون تجميد قاسي
+    viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0";
 
-    const mobileAppCSS = `
+    const safeMobileCSS = `
         @media (max-width: 768px) {
-            /* 🔴 منع التعليق العام وتحسين اللمس */
-            * { 
-                box-sizing: border-box !important; 
-                -webkit-tap-highlight-color: transparent; /* شيل اللون الأزرق عند اللمس */
-                touch-action: manipulation; /* تسريع الاستجابة للمس */
-            }
-
+            /* 🔴 1. تحرير الشاشة وإلغاء القيود اللي جمدت التاتش 🔴 */
             html, body { 
                 overflow-x: hidden !important; 
                 width: 100% !important; 
-                height: 100% !important;
-                position: fixed; /* منع الهزة الغبية للصفحة الأم */
+                height: auto !important; 
+                position: relative !important; /* إياك نستخدم fixed هنا تاني */
             }
 
-            /* 🔴 فك عصرة شاشة تسجيل الدخول (الصورة اللي بعتها) */
+            /* 🔴 2. إصلاح شاشة الدخول (فك العصرة اللي في الصورة) 🔴 */
             .split-layout { 
                 display: flex !important; 
-                flex-direction: column !important; /* رص فوق بعض مش جنب بعض */
-                height: 100vh !important;
-                overflow-y: auto !important;
-            }
-            .brand-side { 
-                display: none !important; /* إخفاء الجزء الأزرق التقيل في الموبايل لتقليل اللاج */
-            }
-            .form-side { 
-                width: 100% !important; 
-                padding: 40px 20px !important;
-                background: #fff !important;
-            }
-
-            /* 🔴 إصلاح الهيكل الداخلي (الداشبورد) */
-            .app-wrapper { 
-                display: block !important; 
-                height: 100vh !important; 
-            }
-
-            /* القائمة الجانبية (Sidebar) - مخفية تماماً */
-            .sidebar {
-                position: fixed !important;
-                top: 0;
-                right: -100% !important; /* بره الشاشة تماماً */
-                width: 80% !important;
-                height: 100vh !important;
-                z-index: 99999 !important;
-                transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-                display: block !important;
-            }
-            .sidebar.active, .sidebar.open { right: 0 !important; }
-
-            /* الداشبورد والمحتوى - فك الحصار */
-            .main-content {
-                width: 100vw !important;
-                margin: 0 !important;
-                padding-top: 60px !important; /* مسافة للـ Topbar */
-                height: 100vh !important;
-                overflow-y: auto !important; /* تفعيل السكرول هنا */
-                -webkit-overflow-scrolling: touch !important;
-            }
-
-            /* إصلاح الـ iframe القاتل للسكرول */
-            .content-frame, iframe {
-                width: 100% !important;
-                height: calc(100vh - 60px) !important;
-                border: none !important;
-                pointer-events: auto !important; /* التأكد إن الزراير اللي جوه شغالة */
-            }
-
-            /* 🔴 تظبيط الزراير والمدخلات (تجربة لمس حقيقية) */
-            input, button, select {
-                font-size: 16px !important; /* منع الآيفون من عمل زووم عند الكتابة */
-                min-height: 48px !important; /* مقاس صباع الإنسان القياسي */
-                margin-bottom: 10px !important;
+                flex-direction: column-reverse !important; 
+                height: auto !important;
+                min-height: 100vh !important;
             }
             
-            .topbar {
-                position: fixed !important;
-                top: 0; left: 0;
-                width: 100% !important;
-                z-index: 9998 !important;
-                height: 60px !important;
-                background: #fff !important;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+            .brand-side { 
+                display: none !important; /* إخفاء الجزء الأزرق لتوفير مساحة */
+            }
+            
+            .form-side { 
+                width: 100% !important; 
+                padding: 30px 20px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
             }
 
-            /* الجداول - خليها تعيش حياتها في سكرول عرضي */
+            /* تكبير حقول الإدخال عشان التاتش يلقط بسهولة */
+            input, select, button {
+                font-size: 16px !important; /* بيمنع زووم الآيفون التلقائي المزعج */
+                padding: 15px !important; /* مساحة لمس مريحة لصباع الإيد */
+                margin-bottom: 15px !important;
+                z-index: 10 !important; /* التأكد إنها فوق أي طبقة تانية */
+                position: relative !important;
+            }
+
+            /* 🔴 3. إصلاح الداشبورد والـ iframe 🔴 */
+            .app-wrapper { 
+                display: block !important; 
+                width: 100% !important;
+            }
+
+            .main-content {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 10px !important;
+                padding-top: 60px !important; /* مساحة للـ Topbar */
+            }
+
+            .content-frame, iframe {
+                width: 100% !important;
+                height: calc(100vh - 80px) !important;
+                border: none !important;
+            }
+
+            /* 🔴 4. إصلاح الجداول (عشان متكسرش الشاشة) 🔴 */
             .table-container {
                 overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important; /* سكرول ناعم جداً */
                 width: 100% !important;
-                -webkit-overflow-scrolling: touch !important;
+                margin-bottom: 20px !important;
             }
+            table { min-width: 600px !important; }
         }
     `;
 
+    // تنظيف أي ستايلات قديمة عملناها عشان نضمن إن الكود ده بس اللي شغال
+    const oldStyles = document.querySelectorAll('style[data-mobile-fix]');
+    oldStyles.forEach(s => s.remove());
+
     const styleTag = document.createElement('style');
-    styleTag.innerHTML = mobileAppCSS;
+    styleTag.setAttribute('data-mobile-fix', 'true');
+    styleTag.innerHTML = safeMobileCSS;
     document.head.appendChild(styleTag);
 })();
