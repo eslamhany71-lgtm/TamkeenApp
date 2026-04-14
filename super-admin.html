@@ -20,9 +20,14 @@
         .status-online::before { content: ''; width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 5px #10b981; animation: blink 1.5s infinite; }
         .status-offline { color: #64748b; font-size: 13px; font-weight: 500; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-        /* 🔴 زرار تعديل السعر الصغير 🔴 */
         .btn-edit-price { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; cursor: pointer; padding: 2px 5px; font-size: 12px; margin-inline-start: 5px; color: #475569; transition: 0.2s; }
         .btn-edit-price:hover { background: #e2e8f0; color: #0284c7; border-color: #94a3b8; }
+        
+        /* 🔴 ستايلات التابات الجديدة 🔴 */
+        .sa-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
+        .sa-tab { padding: 10px 20px; font-size: 16px; font-weight: bold; color: #64748b; cursor: pointer; border-radius: 8px; transition: 0.3s; background: transparent; border: none; font-family: inherit;}
+        .sa-tab.active { background: #0284c7; color: white; box-shadow: 0 4px 6px rgba(2,132,199,0.2);}
+        .sa-tab:hover:not(.active) { background: #f1f5f9; color: #0f172a;}
     </style>
 </head>
 <body>
@@ -60,12 +65,17 @@
         </div>
     </div>
 
+    <div class="sa-tabs">
+        <button class="sa-tab active" id="tab-active" onclick="switchMainTab('active')">العيادات النشطة والموقوفة</button>
+        <button class="sa-tab" id="tab-trials" onclick="switchMainTab('trials')">🚀 التجارب المجانية (Trials)</button>
+    </div>
+
     <div class="table-container">
         <table id="clinicsTable">
             <thead>
                 <tr>
                     <th id="th-date">تاريخ الاشتراك</th>
-                    <th id="th-next-pay">ميعاد التجديد</th>
+                    <th id="th-next-pay">ميعاد التجديد / الانتهاء</th>
                     <th id="th-name">اسم العيادة</th>
                     <th id="th-email">إيميل الأدمن (الدكتور)</th>
                     <th id="th-status">حالة الحساب</th>
