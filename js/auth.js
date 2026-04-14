@@ -1,8 +1,9 @@
-// auth.js - Al Dokan ERP Cloud System - With 3-Day Trial Logic & Security
+// auth.js - Al Dokan ERP Cloud System - Full Security & Fixed Premature Redirect
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// المتغير ده هو حارس البوابة، بيمنع التحويل قبل ما الداتا تترفع
 let isLoginInProgress = false; 
 
 // 1. مراقب الحالة
@@ -171,7 +172,7 @@ async function loginById() {
 }
 
 // ==========================================
-// 🔴 إنشاء حساب تجريبي مجاني (3 أيام) 🔴
+// 🔴 إنشاء حساب تجريبي مجاني (3 أيام) - تم الإصلاح الجذري 🔴
 // ==========================================
 function openTrialModal() {
     document.getElementById('trial_clinic_name').value = '';
@@ -200,15 +201,21 @@ async function registerTrialAccount(e) {
 
     if (window.showLoader) window.showLoader("جاري تجهيز النظام لك...");
 
+    // 🔴 الحل السحري: إيقاف التحويل المبكر فوراً قبل لمس الداتابيز 🔴
+    isLoginInProgress = true;
+
     try {
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        
+        // 1. إنشاء الحساب
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const actualEmail = userCredential.user.email;
 
-        // 3 أيام فترة تجريبية
+        // 2. حساب موعد الانتهاء (3 أيام من الآن)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 3);
 
+        // 3. إنشاء العيادة في النظام
         const clinicRef = await db.collection("Clinics").add({
             clinicName: clinicName,
             adminEmail: actualEmail,
@@ -221,6 +228,7 @@ async function registerTrialAccount(e) {
 
         const newClinicId = clinicRef.id;
 
+        // 4. حفظ بيانات الدكتور في كوليكشن المستخدمين
         await db.collection("Users").doc(actualEmail).set({
             role: 'admin',
             name: adminName,
@@ -232,18 +240,23 @@ async function registerTrialAccount(e) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 5. تهيئة الجلسة
         sessionStorage.setItem('userRole', 'admin');
         sessionStorage.setItem('empCode', 'TRIAL-ADMIN');
         sessionStorage.setItem('clinicId', newClinicId);
 
-        isLoginInProgress = true;
-        
         if (window.hideLoader) window.hideLoader();
         alert(`✅ مبروك يا ${adminName}!\nتم تفعيل العيادة بنجاح. فترة التجربة هتنتهي يوم ${expirationDate.toLocaleDateString('ar-EG')}`);
+        
+        // 6. التحويل الآمن للوحة التحكم
         window.location.href = "home.html";
 
     } catch (error) {
         console.error("Trial Registration Error:", error);
+        
+        // في حالة الخطأ، نرجع المتغير لـ false عشان يقدر يكتب داتا تانية
+        isLoginInProgress = false; 
+        
         if (window.hideLoader) window.hideLoader();
         btn.disabled = false;
         btn.innerText = "إنشاء الحساب وبدء التجربة";
@@ -259,7 +272,7 @@ async function registerTrialAccount(e) {
 }
 
 // ==========================================
-// باقي دوال الممرضة والتفعيل والاستعادة
+// دوال تفعيل حساب موظف (الممرضة)
 // ==========================================
 function openStaffModal() {
     document.getElementById('staffInviteCode').value = '';
@@ -352,6 +365,9 @@ async function activateStaffAccount(e) {
     }
 }
 
+// ==========================================
+// باقي دوال استعادة الباسورد والتفعيل الأساسي
+// ==========================================
 function openResetModal() {
     const emailInput = document.getElementById('resetEmailInput');
     const modal = document.getElementById('resetModal');
@@ -434,6 +450,7 @@ async function activateAccount() {
         if(window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء الحساب..." : "Creating account...");
         if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
 
+        isLoginInProgress = true;
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
 
         await auth.createUserWithEmailAndPassword(realEmail, pass);
@@ -461,6 +478,7 @@ async function activateAccount() {
 
     } catch (error) {
         if(window.hideLoader) window.hideLoader();
+        isLoginInProgress = false;
         if(msg) {
             const isRtl = document.body.dir === 'rtl';
             if (error.code === 'auth/email-already-in-use') {
@@ -474,7 +492,7 @@ async function activateAccount() {
     }
 }
 
-// 🔴 إضافة دوال التحكم في مودال الخصوصية في أي مكان في الملف 🔴
+// 🔴 دوال الترجمة ومودال الخصوصية 🔴
 function openPrivacyModal() {
     document.getElementById('privacyModal').style.display = 'flex';
 }
@@ -482,9 +500,6 @@ function closePrivacyModal() {
     document.getElementById('privacyModal').style.display = 'none';
 }
 
-// ... (باقي أكواد auth.js كما هي في الأعلى الخاصة بالـ Login والـ Trial) ...
-
-// 🔴 تحديث دالة الترجمة لتشمل نصوص الخصوصية 🔴
 function updatePageContent(lang) {
     const currentYear = new Date().getFullYear();
     const translations = {
@@ -514,7 +529,6 @@ function updatePageContent(lang) {
             lTPass: "كلمة المرور (6 أحرف أو أكثر)", pTPass: "********",
             btnSubmitTrial: "إنشاء الحساب وبدء التجربة",
             
-            // 🔴 ترجمات سياسة الخصوصية 🔴
             mPrivTitle: "سياسة الخصوصية وتأمين البيانات",
             privH1: "1. سرية السجلات الطبية",
             privP1: "نحن في Al Dokan ERP ندرك تماماً حساسية السجلات الطبية. جميع بيانات مرضاك (التشخيص، الأشعة، المديونيات) مشفرة ومحفوظة في قواعد بيانات سحابية آمنة لا يمكن لأي طرف ثالث الاطلاع عليها.",
@@ -552,7 +566,6 @@ function updatePageContent(lang) {
             lTPass: "Password (Min 6 chars)", pTPass: "********",
             btnSubmitTrial: "Create Account & Start Trial",
             
-            // 🔴 Privacy Policy Translations 🔴
             mPrivTitle: "Privacy Policy & Data Security",
             privH1: "1. Medical Records Confidentiality",
             privP1: "At Al Dokan ERP, we fully understand the sensitivity of medical records. All your patient data is encrypted and stored in secure cloud databases inaccessible to any third party.",
@@ -570,7 +583,6 @@ function updatePageContent(lang) {
     const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
     const safeSetPlaceholder = (id, text) => { const el = document.getElementById(id); if (el) el.placeholder = text; };
 
-    // ... (هنا باقي دوال الـ safeSetText القديمة زي ما هي) ...
     if (document.title.includes('دخول') || document.title.includes('Login')) document.title = t.title;
     safeSetText('txt-welcome', t.welcome); safeSetText('sub-login', t.subLogin); safeSetText('lbl-code', t.code);
     safeSetText('lbl-pass', t.pass); safeSetText('btn-login', t.btn); safeSetText('txt-new', t.newEmp);
@@ -599,7 +611,6 @@ function updatePageContent(lang) {
     safeSetText('lbl-t-pass', t.lTPass); safeSetPlaceholder('trial_password', t.pTPass);
     safeSetText('btn-submit-trial', t.btnSubmitTrial);
 
-    // 🔴 تطبيق ترجمات سياسة الخصوصية 🔴
     safeSetText('mod-priv-title', t.mPrivTitle);
     safeSetText('priv-h1', t.privH1); safeSetText('priv-p1', t.privP1);
     safeSetText('priv-h2', t.privH2); safeSetText('priv-p2', t.privP2);
@@ -607,8 +618,6 @@ function updatePageContent(lang) {
     safeSetText('priv-h4', t.privH4); safeSetText('priv-p4', t.privP4);
     safeSetText('btn-priv-ok', t.btnPrivOk);
 }
-
-// ... (باقي الدوال كما هي) ...
 
 function togglePasswordVisibility() {
     const passInput = document.getElementById('password');
