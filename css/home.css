@@ -1,13 +1,36 @@
-/* css/home.css - Master Shell Styles */
+/* css/home.css - Master Shell Styles (Solid Architecture) */
 
-body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f1f5f9; overflow: hidden; transition: background-color 0.3s ease, color 0.3s ease; }
+* { box-sizing: border-box; }
 
-.app-wrapper { display: flex; height: 100vh; overflow: hidden; position: relative; }
+body { 
+    margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; 
+    background: #f1f5f9; 
+    /* 🔴 الصفحة الأم مش بتسكرول أبداً عشان متعملش تعارض مع الـ iframe 🔴 */
+    overflow: hidden; 
+    width: 100vw;
+    height: 100dvh; /* dvh بيظبط مقاس شاشة الموبايل بالظبط حتى مع شريط المتصفح */
+    transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+/* 🔴 الغلاف الخارجي الصلب 🔴 */
+.app-wrapper { 
+    display: flex; 
+    width: 100vw;
+    height: 100dvh; 
+    overflow: hidden; 
+    position: relative; 
+}
 
 /* ================= القائمة الجانبية (Sidebar) ================= */
 .sidebar {
-    width: 260px; background: #0f172a; color: #fff; display: flex; flex-direction: column;
-    transition: all 0.3s ease; position: relative; z-index: 1000;
+    width: 260px; 
+    background: #0f172a; 
+    color: #fff; 
+    display: flex; 
+    flex-direction: column;
+    transition: all 0.3s ease; 
+    position: relative; 
+    z-index: 1000;
 }
 .sidebar.collapsed { width: 80px; }
 
@@ -40,12 +63,21 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 .sidebar.collapsed .nav-links a { justify-content: center; padding: 15px 0; }
 
 /* ================= المحتوى الرئيسي والهيدر ================= */
-.main-content { flex: 1; display: flex; flex-direction: column; transition: 0.3s; width: 100%; overflow: hidden; }
+.main-content { 
+    flex: 1; 
+    display: flex; 
+    flex-direction: column; 
+    transition: 0.3s; 
+    width: 100%; 
+    height: 100dvh;
+    overflow: hidden; /* المحتوى الأساسي لا يسكرول، الـ iframe هو اللي بيسكرول */
+}
 
 .topbar {
     background: #fff; height: 70px; display: flex; justify-content: space-between; align-items: center;
-    padding: 0 25px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 1005; position: relative;
+    padding: 0 25px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 100; position: relative;
     box-sizing: border-box; transition: background-color 0.3s ease, border-color 0.3s ease;
+    flex-shrink: 0; /* بيمنع الشريط العلوي إنه يتعصر */
 }
 
 .topbar-right, .topbar-left { display: flex; align-items: center; gap: 15px; }
@@ -65,29 +97,48 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
 .logout-btn:hover { background: #dc2626; }
 
-.content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; transition: background-color 0.3s ease; }
+/* 🔴 الـ iframe اللي بيعرض الصفحات 🔴 */
+.content-frame { 
+    flex: 1; 
+    width: 100%; 
+    height: calc(100dvh - 70px); /* بياخد بقية المساحة تحت الهيدر بالظبط */
+    border: none; 
+    background: #f1f5f9; 
+    transition: background-color 0.3s ease; 
+    display: block;
+}
 
 .mobile-overlay {
     display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1001; backdrop-filter: blur(2px);
 }
 
-/* ================= تظبيط الموبايل (Mobile Responsive) ================= */
+/* ================= 🔴 هندسة الموبايل النظيفة 100% 🔴 ================= */
 @media (max-width: 992px) {
     .menu-toggle { display: block; }
-    .desktop-toggle { display: block; font-size: 20px; padding: 2px; }
+    .desktop-toggle { display: none; }
     
     .sidebar {
-        position: fixed; top: 70px; bottom: 0; right: -260px;
-        box-shadow: -5px 0 15px rgba(0,0,0,0.1); z-index: 1002;
+        position: fixed; 
+        top: 0; 
+        bottom: 0; 
+        right: -300px; /* مخفية بالكامل */
+        height: 100dvh;
+        width: 280px;
+        max-width: 80vw;
+        box-shadow: none; /* بنشيل الشادو عشان ميعملش خط أسود وهي مقفولة */
+        z-index: 1002;
     }
-    html[dir="ltr"] .sidebar { right: auto; left: -260px; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+    html[dir="ltr"] .sidebar { right: auto; left: -300px; }
     
-    .sidebar.active { right: 0; }
-    html[dir="ltr"] .sidebar.active { left: 0; }
+    .sidebar.active { 
+        right: 0; 
+        box-shadow: -5px 0 15px rgba(0,0,0,0.5); 
+    }
+    html[dir="ltr"] .sidebar.active { left: 0; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
     
-    .mobile-overlay.active { display: block; top: 70px; }
+    .mobile-overlay.active { display: block; top: 0; }
 
-    .topbar { padding: 0 10px; width: 100%; justify-content: space-between; gap: 5px; }
+    .topbar { padding: 0 10px; width: 100vw; justify-content: space-between; gap: 5px; }
     .topbar-right, .topbar-left { gap: 8px; }
     
     .topbar h2 { display: none; } 
@@ -102,9 +153,7 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
     .logout-btn { padding: 6px 10px; font-size: 12px; }
 }
 
-/* ================= الإضافات الجديدة (بدون المساس بالقديم) ================= */
-
-/* 1. زرار الثيم (الوضع الليلي) */
+/* ================= الإضافات الجديدة ================= */
 .btn-theme {
     background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; font-size: 18px; 
     border-radius: 50%; width: 35px; height: 35px; display: flex; justify-content: center; 
@@ -112,7 +161,6 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 }
 .btn-theme:hover { background: #e2e8f0; transform: scale(1.1); }
 
-/* 2. مودال الدعم الفني */
 .support-modal { display: none; position: fixed; z-index: 10000; inset: 0; background-color: rgba(15, 23, 42, 0.8); align-items: center; justify-content: center; backdrop-filter: blur(6px); }
 .support-modal-content { background: #ffffff; border-radius: 20px; width: 90%; max-width: 500px; padding: 35px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative; text-align: right; direction: rtl; transition: background-color 0.3s ease;}
 html[dir="ltr"] .support-modal-content { text-align: left; direction: ltr; }
@@ -122,7 +170,7 @@ html[dir="ltr"] .support-close { right: 25px; left: auto; }
 .btn-whatsapp { background: #25d366; color: white; transition: 0.3s; }
 .btn-whatsapp:hover { background: #1da851; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3); }
 
-/* 3. 🔴 سحر الوضع الليلي (Dark Mode Overrides) 🔴 */
+/* سحر الوضع الليلي */
 [data-theme="dark"] body { background: #0f172a; }
 [data-theme="dark"] .topbar { background: #1e293b; border-bottom: 1px solid #334155; box-shadow: none; }
 [data-theme="dark"] .topbar h2 { color: #f8fafc; }
@@ -137,8 +185,6 @@ html[dir="ltr"] .support-close { right: 25px; left: auto; }
 html[dir="ltr"][data-theme="dark"] .sidebar { border-left: none; border-right: 1px solid #1e293b; }
 [data-theme="dark"] .lang-btn { color: #94a3b8; }
 [data-theme="dark"] .lang-btn:hover { color: #38bdf8; }
-
-/* الوضع الليلي لمودال الدعم الفني */
 [data-theme="dark"] .support-modal-content { background: #1e293b; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
 [data-theme="dark"] #mod-support-title { color: #f8fafc; border-color: #334155; }
 [data-theme="dark"] #mod-support-desc { color: #94a3b8; }
