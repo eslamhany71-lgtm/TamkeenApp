@@ -3,12 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="txt-title">تسجيل الدخول - نظام NivaDent</title>
+    <title id="txt-title">تسجيل الدخول - نظام Al Dokan ERP</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <style>
+        .btn-trial {
+            width: 100%;
+            background: #f59e0b;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+            font-family: inherit;
+        }
+        .btn-trial:hover { background: #d97706; transform: translateY(-2px); }
+    </style>
 </head>
 <body>
     <div class="split-layout">
@@ -28,7 +48,7 @@
                     </svg>
                 </div>
 
-                <h3 id="txt-welcome">أهلاً بك في NivaDent</h3>
+                <h3 id="txt-welcome">أهلاً بك في Al Dokan ERP</h3>
                 <p class="sub-text" id="sub-login">قم بتسجيل الدخول لإدارة عيادتك</p>
                 
                 <div class="input-group">
@@ -65,6 +85,12 @@
                     <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 5px;">
                         <a href="#" onclick="openStaffModal()" style="color: #10b981; text-decoration: none; font-size: 15px; font-weight: bold;">🔑 لدي كود دعوة (تفعيل حساب موظف)</a>
                     </div>
+
+                    <div style="margin-top: 15px;">
+                        <button type="button" class="btn-trial" onclick="openTrialModal()">
+                            🚀 ابدأ فترة تجريبية مجانية (3 أيام)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -80,17 +106,53 @@
                             <circle cx="50" cy="50" r="8" fill="#FFFFFF"/>
                         </svg>
                         <span style="font-size: 36px; font-weight: 800; color: #FFFFFF; letter-spacing: -0.5px; font-family: 'Tajawal', sans-serif;">
-                            Niva<span style="color: #38BDF8;">Dent</span>
+                            Al Dokan <span style="color: #38BDF8;">ERP</span>
                         </span>
                     </div>
                 </div>
-                <h1 id="txt-brand" style="display: none;">NivaDent</h1> <p id="brand-desc">النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.</p>
+                <h1 id="txt-brand" style="display: none;">Al Dokan ERP</h1> 
+                <p id="brand-desc">النظام السحابي الأذكى لإدارة عيادات طب الأسنان. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.</p>
                 <div class="features">
                     <span id="feat-1">✔️ ملف طبي ذكي وأشعة</span>
                     <span id="feat-2">✔️ إدارة الجلسات والمواعيد</span>
                     <span id="feat-3">✔️ روشتات وحسابات دقيقة</span>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="trialModal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+        <div class="modal-content" style="background: white; width: 90%; max-width: 500px; padding: 30px; border-radius: 16px; position: relative;">
+            <span class="close-modal" onclick="closeTrialModal()" style="position: absolute; top: 15px; left: 20px; font-size: 24px; cursor: pointer; color: #64748b;">&times;</span>
+            <h2 style="margin-top: 0; color: #0f172a; text-align: center;">🚀 إنشاء حساب تجريبي</h2>
+            <p style="text-align: center; color: #64748b; margin-bottom: 25px;">جرب النظام بكامل مميزاته مجاناً لمدة 3 أيام</p>
+            
+            <form onsubmit="registerTrialAccount(event)">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">اسم العيادة</label>
+                    <input type="text" id="trial_clinic_name" required placeholder="مثال: عيادة النور لطب الأسنان" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-family: inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">اسم الطبيب / المدير</label>
+                    <input type="text" id="trial_admin_name" required placeholder="الاسم بالكامل" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-family: inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">رقم الموبايل للتواصل</label>
+                    <input type="tel" id="trial_phone" required placeholder="01xxxxxxxxx" dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">البريد الإلكتروني (للدخول)</label>
+                    <input type="email" id="trial_email" required placeholder="clinic@example.com" dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
+                </div>
+                <div class="form-group" style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #334155; font-size: 14px;">كلمة المرور (6 أحرف أو أكثر)</label>
+                    <input type="password" id="trial_password" required placeholder="********" dir="ltr" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; text-align: left; font-family: inherit;">
+                </div>
+                
+                <button type="submit" id="btn-submit-trial" style="width: 100%; background: #10b981; color: white; border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; font-family: inherit;">
+                    إنشاء الحساب وبدء التجربة
+                </button>
+            </form>
         </div>
     </div>
 
