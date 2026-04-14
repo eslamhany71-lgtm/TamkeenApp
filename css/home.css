@@ -1,36 +1,15 @@
-/* css/home.css - Master Shell Styles (Solid Architecture) */
+/* css/home.css - Master Shell Styles */
 
 * { box-sizing: border-box; }
 
-body { 
-    margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; 
-    background: #f1f5f9; 
-    /* 🔴 الصفحة الأم مش بتسكرول أبداً عشان متعملش تعارض مع الـ iframe 🔴 */
-    overflow: hidden; 
-    width: 100vw;
-    height: 100dvh; /* dvh بيظبط مقاس شاشة الموبايل بالظبط حتى مع شريط المتصفح */
-    transition: background-color 0.3s ease, color 0.3s ease; 
-}
+body { margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; background: #f1f5f9; overflow: hidden; transition: background-color 0.3s ease, color 0.3s ease; }
 
-/* 🔴 الغلاف الخارجي الصلب 🔴 */
-.app-wrapper { 
-    display: flex; 
-    width: 100vw;
-    height: 100dvh; 
-    overflow: hidden; 
-    position: relative; 
-}
+.app-wrapper { display: flex; height: 100vh; overflow: hidden; position: relative; width: 100vw; }
 
 /* ================= القائمة الجانبية (Sidebar) ================= */
 .sidebar {
-    width: 260px; 
-    background: #0f172a; 
-    color: #fff; 
-    display: flex; 
-    flex-direction: column;
-    transition: all 0.3s ease; 
-    position: relative; 
-    z-index: 1000;
+    width: 260px; background: #0f172a; color: #fff; display: flex; flex-direction: column;
+    transition: all 0.3s ease; position: relative; z-index: 1000; flex-shrink: 0;
 }
 .sidebar.collapsed { width: 80px; }
 
@@ -63,21 +42,12 @@ html[dir="ltr"] .nav-links li.active a { border-left-color: #38BDF8; border-righ
 .sidebar.collapsed .nav-links a { justify-content: center; padding: 15px 0; }
 
 /* ================= المحتوى الرئيسي والهيدر ================= */
-.main-content { 
-    flex: 1; 
-    display: flex; 
-    flex-direction: column; 
-    transition: 0.3s; 
-    width: 100%; 
-    height: 100dvh;
-    overflow: hidden; /* المحتوى الأساسي لا يسكرول، الـ iframe هو اللي بيسكرول */
-}
+.main-content { flex: 1; display: flex; flex-direction: column; transition: 0.3s; width: 100%; overflow: hidden; }
 
 .topbar {
     background: #fff; height: 70px; display: flex; justify-content: space-between; align-items: center;
     padding: 0 25px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); z-index: 100; position: relative;
     box-sizing: border-box; transition: background-color 0.3s ease, border-color 0.3s ease;
-    flex-shrink: 0; /* بيمنع الشريط العلوي إنه يتعصر */
 }
 
 .topbar-right, .topbar-left { display: flex; align-items: center; gap: 15px; }
@@ -97,59 +67,49 @@ html[dir="ltr"] .user-profile { padding: 5px 5px 5px 15px; }
 .logout-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
 .logout-btn:hover { background: #dc2626; }
 
-/* 🔴 الـ iframe اللي بيعرض الصفحات 🔴 */
-.content-frame { 
-    flex: 1; 
-    width: 100%; 
-    height: calc(100dvh - 70px); /* بياخد بقية المساحة تحت الهيدر بالظبط */
-    border: none; 
-    background: #f1f5f9; 
-    transition: background-color 0.3s ease; 
-    display: block;
-}
+.content-frame { flex: 1; width: 100%; border: none; background: #f1f5f9; transition: background-color 0.3s ease; display: block; }
 
 .mobile-overlay {
     display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); z-index: 1001; backdrop-filter: blur(2px);
 }
 
-/* ================= 🔴 هندسة الموبايل النظيفة 100% 🔴 ================= */
+/* ================= 🔴 هندسة الموبايل النظيفة 🔴 ================= */
 @media (max-width: 992px) {
+    .app-wrapper { display: block !important; } /* تدمير عصرة الفليكس بوكس */
+    
     .menu-toggle { display: block; }
     .desktop-toggle { display: none; }
     
+    /* إجبار القائمة الجانبية تخرج بره حسبة المساحة تماماً */
     .sidebar {
-        position: fixed; 
-        top: 0; 
-        bottom: 0; 
-        right: -300px; /* مخفية بالكامل */
-        height: 100dvh;
-        width: 280px;
-        max-width: 80vw;
-        box-shadow: none; /* بنشيل الشادو عشان ميعملش خط أسود وهي مقفولة */
-        z-index: 1002;
+        position: fixed !important; 
+        top: 0; bottom: 0; right: -300px;
+        box-shadow: none; z-index: 1002;
+        height: 100dvh; max-width: 80vw;
     }
     html[dir="ltr"] .sidebar { right: auto; left: -300px; }
     
-    .sidebar.active { 
-        right: 0; 
-        box-shadow: -5px 0 15px rgba(0,0,0,0.5); 
-    }
+    .sidebar.active { right: 0; box-shadow: -5px 0 15px rgba(0,0,0,0.5); }
     html[dir="ltr"] .sidebar.active { left: 0; box-shadow: 5px 0 15px rgba(0,0,0,0.5); }
     
     .mobile-overlay.active { display: block; top: 0; }
 
-    .topbar { padding: 0 10px; width: 100vw; justify-content: space-between; gap: 5px; }
+    /* إجبار المحتوى الرئيسي والـ iframe يأخدوا الشاشة كلها 100% */
+    .main-content {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        display: block !important;
+    }
+
+    .topbar { padding: 0 10px; width: 100vw !important; justify-content: space-between; gap: 5px; }
     .topbar-right, .topbar-left { gap: 8px; }
-    
     .topbar h2 { display: none; } 
 
     .lang-switch { font-size: 12px; }
     .lang-btn { font-size: 12px; }
-
     .user-email { display: none; }
     .user-profile { padding: 2px; border: none; background: transparent; }
     .user-avatar { padding: 4px 6px; font-size: 16px; }
-
     .logout-btn { padding: 6px 10px; font-size: 12px; }
 }
 
