@@ -273,10 +273,9 @@ window.addEventListener('message', function(event) {
     }
 });
 // =======================================================
-// 🔴 Global Mobile Fixes (Responsive, Anti-Lag & Perfect Edges) 🔴
+// 🔴 Global Mobile Fixes (Responsive, Anti-Lag & Layout Fix) 🔴
 // =======================================================
 (function applyGlobalMobileFixes() {
-    // 1. منع الزووم التلقائي اللي بيعمل تعليق (Lag) على الموبايل
     let viewport = document.querySelector("meta[name=viewport]");
     if (!viewport) {
         viewport = document.createElement('meta');
@@ -285,9 +284,7 @@ window.addEventListener('message', function(event) {
     }
     viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0";
 
-    // 2. زرع أوامر الـ CSS الإجبارية للموبايل في كل الصفحات
     const mobileStyles = `
-        /* 🔴 الحل السحري للحواف المتأكلة 🔴 */
         *, *::before, *::after {
             box-sizing: border-box !important;
         }
@@ -295,73 +292,106 @@ window.addEventListener('message', function(event) {
         @media (max-width: 768px) {
             html, body { 
                 overflow-x: hidden !important; 
-                width: 100% !important; 
+                width: 100vw !important; 
                 margin: 0 !important; 
                 padding: 0 !important; 
             }
 
-            /* إعطاء مساحة تنفس للمحتوى عشان مايلزقش في الشاشة */
-            .main-content, .page-header, .stats-container, .split-layout {
-                padding-left: 15px !important;
-                padding-right: 15px !important;
-                width: 100% !important;
+            /* 🔴 1. فك عصرة الشاشة (الهيكل الخارجي) 🔴 */
+            .app-wrapper {
+                display: block !important; /* إلغاء الفليكس اللي كان بيعصر الشاشة */
+                width: 100vw !important;
+                overflow-x: hidden !important;
             }
 
-            /* إصلاح الجداول (سحب يمين وشمال بسلاسة ومساحة تنفس) */
-            .table-container {
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch; 
-                width: calc(100% - 30px) !important; /* خصمنا مساحة التنفس */
-                margin: 0 15px 20px 15px !important; /* مسافة يمين وشمال */
-                border: 0 !important;
-                box-shadow: none !important;
-            }
-            table { 
-                min-width: 700px !important; 
-            }
-
-            /* تظبيط المودالات عشان تبقى شيك وفي النص */
-            .modal-content {
-                width: 90% !important;
-                margin: 20px auto !important;
-                padding: 20px 15px !important;
-                max-height: 85vh !important;
-                overflow-y: auto !important;
-                border-radius: 12px !important;
+            /* 🔴 2. القائمة الجانبية طايرة (Overlay) 🔴 */
+            .sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                right: -300px !important; /* مخفية بره الشاشة يمين */
+                width: 260px !important;
+                height: 100vh !important;
+                z-index: 9999 !important;
+                transition: right 0.3s ease-in-out !important;
+                box-shadow: -5px 0 15px rgba(0,0,0,0.5) !important;
             }
 
-            /* رص الكروت والزراير تحت بعض بمسافات مريحة */
+            /* لما تدوس على زرار القائمة تظهر */
+            .sidebar.active, .sidebar.open {
+                right: 0 !important; 
+            }
+
+            /* 🔴 3. الداشبورد تاخد الشاشة كلها 🔴 */
+            .main-content {
+                width: 100vw !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: block !important;
+            }
+
+            .content-frame, iframe {
+                width: 100vw !important;
+                height: calc(100vh - 60px) !important;
+                border: none !important;
+                display: block !important;
+            }
+
+            /* 🔴 4. إصلاح الشريط العلوي المكسور 🔴 */
+            .topbar {
+                display: flex !important;
+                flex-direction: row !important; /* إجبار العناصر تبقى جنب بعض مش تحت بعض */
+                justify-content: space-between !important;
+                align-items: center !important;
+                width: 100vw !important;
+                padding: 10px 15px !important;
+                box-sizing: border-box !important;
+            }
+            .topbar-right, .topbar-left {
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+            }
+            
+            /* إظهار زرار القائمة للموبايل وإخفاء بتاع اللاب توب */
+            .menu-toggle { display: block !important; font-size: 24px !important; }
+            .desktop-toggle { display: none !important; }
+
+            /* 🔴 5. إصلاح الصفحات الداخلية (المحتوى والكروت) 🔴 */
+            .page-header, .stats-container, .table-container, .kpi-grid, .page-title {
+                width: calc(100% - 30px) !important; /* مساحة تنفس 15 بيكسل من كل جنب */
+                margin-left: 15px !important;
+                margin-right: 15px !important;
+            }
+
             .kpi-grid, .stats-container {
                 display: flex !important;
                 flex-direction: column !important;
                 gap: 15px !important;
             }
+
+            .stat-card, .kpi-card {
+                width: 100% !important;
+                margin: 0 !important;
+            }
+
+            .table-container {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
             
+            table { min-width: 650px !important; } /* الجدول يسكرول بدل ما يعصر الشاشة */
+            
+            /* تظبيط زراير الـ Header */
             .header-actions {
                 display: flex !important;
                 flex-direction: column !important;
                 width: 100% !important;
                 gap: 10px !important;
-                margin-top: 10px !important;
+                margin-top: 15px !important;
             }
-            
             .header-actions input, .header-actions button {
                 width: 100% !important;
-                margin: 0 !important;
-            }
-
-            /* شاشة الدخول (تسجيل الدخول والتفعيل) */
-            .split-layout { flex-direction: column-reverse !important; }
-            .form-side, .brand-side { 
-                width: 100% !important; 
-                min-height: auto !important; 
-                padding: 30px 20px !important; 
-            }
-            
-            /* إصلاح النوافذ المزدوجة (زي خانات السعر والباقة جنب بعض) */
-            div[style*="display: grid"] { 
-                grid-template-columns: 1fr !important; 
-                gap: 15px !important;
             }
         }
     `;
