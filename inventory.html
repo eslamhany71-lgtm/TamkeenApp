@@ -14,10 +14,16 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
     <style>
-        /* ستايل زرار الباركود */
         .btn-barcode { background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
         .btn-barcode:hover { background: #e2e8f0; border-color: #94a3b8; }
+        
+        /* 🔴 ستايلات مودال الكاميرا 🔴 */
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 15px; border: 2px solid #e2e8f0; }
+        #reader video { border-radius: 12px; object-fit: cover; }
     </style>
 </head>
 <body>
@@ -29,7 +35,7 @@
         </div>
         <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <input type="text" id="searchInput" class="search-box" oninput="searchInventory()" placeholder="بحث باسم الخامة أو القسم..." style="min-width: 250px;">
-            <button class="btn-barcode" onclick="manualBarcodeScan()" title="مسح باركود" id="btn-manual-barcode">📱 مسح بالباركود</button>
+            <button class="btn-barcode" onclick="openCameraScanner()" title="مسح باركود بالكاميرا" id="btn-manual-barcode">📷 مسح بالكاميرا (سكان)</button>
             <button class="btn-primary" onclick="openItemModal()" id="btn-add-item">➕ إضافة صنف للمخزن</button>
         </div>
     </div>
@@ -174,6 +180,18 @@
                 <button class="btn-primary" style="flex: 1; background: #10b981; border-color: #059669; justify-content: center; padding: 12px;" onclick="executeStockAction('add')" id="btn-stock-add">📥 إضافة (توريد)</button>
                 <button class="btn-primary" style="flex: 1; background: #f59e0b; border-color: #d97706; justify-content: center; padding: 12px;" onclick="executeStockAction('consume')" id="btn-stock-consume">📤 سحب (استهلاك)</button>
             </div>
+        </div>
+    </div>
+
+    <div id="cameraScannerModal" class="modal">
+        <div class="modal-content" style="max-width: 450px; text-align: center;">
+            <span class="close-modal" onclick="closeCameraScanner()">&times;</span>
+            <h2 id="cam-modal-title" style="margin-top: 0; color: #0f172a; margin-bottom: 5px;">📷 ماسح الباركود</h2>
+            <p id="cam-modal-sub" style="color: #64748b; font-size: 14px; margin-bottom: 20px;">قم بتوجيه الكاميرا نحو باركود المنتج (Barcode أو QR Code)</p>
+            
+            <div id="reader"></div>
+            
+            <p style="margin-top: 15px; font-size: 13px; color: #94a3b8;">سيتم التقاط الكود تلقائياً بمجرد توضيحه أمام العدسة.</p>
         </div>
     </div>
 
