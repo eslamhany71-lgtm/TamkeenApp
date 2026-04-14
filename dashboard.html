@@ -2,13 +2,18 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    <link rel="stylesheet" href="css/dashboard.css">
+    
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/dashboard.css?v=' + currentHour + '">');
+    </script>
+    
     <style>
         .finance-box-modal { display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
         .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
@@ -16,7 +21,6 @@
         .finance-box-modal input[readonly] { background: #e2e8f0; color: #ef4444; }
         .finance-box-modal input:focus, .finance-box-modal select:focus { border-color: #0284c7; }
         
-        /* ستايل المربعات الطبية والبحث الذكي */
         .med-history-cb { width: 18px; height: 18px; cursor: pointer; accent-color: #d97706;}
         .smart-search-box { position: relative; margin-bottom: 15px; }
         .patient-results-dropdown { position: absolute; width: 100%; background: white; border: 1px solid #cbd5e1; border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); display: none; top: 100%; }
@@ -55,7 +59,7 @@
         <div class="main-grid">
             <div class="panel">
                 <h3 class="panel-title" id="lbl-chart">حالات المواعيد والجلسات</h3>
-                <canvas id="dashboardChart" style="max-height: 300px;"></canvas>
+                <canvas id="dashboardChart" style="max-height: 300px; width: 100%;"></canvas>
             </div>
             <div class="panel">
                 <h3 class="panel-title" id="lbl-actions">إجراءات سريعة</h3>
