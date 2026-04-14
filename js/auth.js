@@ -477,6 +477,7 @@ async function activateAccount() {
 // ... (باقي أكواد auth.js كما هي في الأعلى الخاصة بالـ Login والـ Trial) ...
 
 function updatePageContent(lang) {
+    const currentYear = new Date().getFullYear(); // بيجيب السنة أوتوماتيك
     const translations = {
         ar: {
             title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
@@ -488,7 +489,22 @@ function updatePageContent(lang) {
             actPageTitle: "تفعيل الحساب - NivaDent", actWelcome: "تفعيل حساب العيادة", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
             actCode: "كود الدخول", actPhone: "رقم الموبايل", actPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن",
             backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في NivaDent",
-            brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة"
+            brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة",
+            
+            // 🔴 التحديثات الجديدة (التجربة وحقوق الملكية) 🔴
+            staffInvite: "🔑 لدي كود دعوة (تفعيل حساب موظف)",
+            btnTrialTxt: "ابدأ فترة تجريبية مجانية (3 أيام)",
+            copyright: `© ${currentYear} Al Dokan ERP. جميع الحقوق محفوظة.`,
+            privacy: "سياسة الخصوصية والتأمين (Privacy Policy)",
+            poweredBy: "Powered by",
+            mTrialTitle: "🚀 إنشاء حساب تجريبي",
+            mTrialSub: "جرب النظام بكامل مميزاته مجاناً لمدة 3 أيام",
+            lTClinic: "اسم العيادة", pTClinic: "مثال: عيادة النور لطب الأسنان",
+            lTAdmin: "اسم الطبيب / المدير", pTAdmin: "الاسم بالكامل",
+            lTPhone: "رقم الموبايل للتواصل", pTPhone: "01xxxxxxxxx",
+            lTEmail: "البريد الإلكتروني (للدخول)", pTEmail: "clinic@example.com",
+            lTPass: "كلمة المرور (6 أحرف أو أكثر)", pTPass: "********",
+            btnSubmitTrial: "إنشاء الحساب وبدء التجربة"
         },
         en: {
             title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
@@ -500,12 +516,28 @@ function updatePageContent(lang) {
             actPageTitle: "Activate Account - NivaDent", actWelcome: "Activate Clinic Account", actSub: "Please enter the data registered with the system administration",
             actCode: "Access Code", actPhone: "Mobile Number", actPass: "Choose a new password", btnAct: "Activate Account Now",
             backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to NivaDent",
-            brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address"
+            brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address",
+            
+            // 🔴 New Updates (Trial & Copyright) 🔴
+            staffInvite: "🔑 I have an invite code (Staff)",
+            btnTrialTxt: "Start Free Trial (3 Days)",
+            copyright: `© ${currentYear} Al Dokan ERP. All rights reserved.`,
+            privacy: "Privacy Policy & Security",
+            poweredBy: "Powered by",
+            mTrialTitle: "🚀 Create Trial Account",
+            mTrialSub: "Try full features free for 3 days",
+            lTClinic: "Clinic Name", pTClinic: "e.g., Al-Nour Dental Clinic",
+            lTAdmin: "Doctor / Admin Name", pTAdmin: "Full Name",
+            lTPhone: "Contact Phone", pTPhone: "01xxxxxxxxx",
+            lTEmail: "Email (For Login)", pTEmail: "clinic@example.com",
+            lTPass: "Password (Min 6 chars)", pTPass: "********",
+            btnSubmitTrial: "Create Account & Start Trial"
         }
     };
     const t = translations[lang] || translations['ar'];
     document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
     const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+    const safeSetPlaceholder = (id, text) => { const el = document.getElementById(id); if (el) el.placeholder = text; };
 
     if (document.title.includes('دخول') || document.title.includes('Login')) document.title = t.title;
     safeSetText('txt-welcome', t.welcome); safeSetText('sub-login', t.subLogin); safeSetText('lbl-code', t.code);
@@ -513,14 +545,29 @@ function updatePageContent(lang) {
     safeSetText('link-activate', t.actLink); safeSetText('txt-brand', t.brandTitle); safeSetText('brand-desc', t.brandDesc);
     safeSetText('feat-1', t.feat1); safeSetText('feat-2', t.feat2); safeSetText('feat-3', t.feat3);
     safeSetText('link-forgot', t.forgotPass); safeSetText('txt-reset-title', t.resetTitle); safeSetText('txt-reset-sub', t.resetSub);
-    safeSetText('btn-send-reset', t.btnReset); const resetInput = document.getElementById('resetEmailInput'); if(resetInput) resetInput.placeholder = t.emailPlaceholder;
+    safeSetText('btn-send-reset', t.btnReset); safeSetPlaceholder('resetEmailInput', t.emailPlaceholder);
     if (document.title.includes('تفعيل') || document.title.includes('Activate')) document.title = t.actPageTitle;
     safeSetText('txt-act-welcome', t.actWelcome); safeSetText('txt-act-sub', t.actSub); safeSetText('lbl-act-code', t.actCode);
     safeSetText('lbl-act-phone', t.actPhone); safeSetText('lbl-act-pass', t.actPass); safeSetText('btn-activate', t.btnAct);
     safeSetText('txt-back-str', t.backLoginStr); safeSetText('link-back-login', t.backLoginLink); safeSetText('brand-act-title', t.brandActTitle);
     safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
+    
+    // تطبيق ترجمات الجزء الجديد
+    safeSetText('txt-staff-invite', t.staffInvite);
+    safeSetText('btn-trial-txt', t.btnTrialTxt);
+    safeSetText('txt-copyright', t.copyright);
+    safeSetText('link-privacy', t.privacy);
+    safeSetText('txt-powered', t.poweredBy);
+    
+    safeSetText('mod-trial-title', t.mTrialTitle);
+    safeSetText('mod-trial-sub', t.mTrialSub);
+    safeSetText('lbl-t-clinic', t.lTClinic); safeSetPlaceholder('trial_clinic_name', t.pTClinic);
+    safeSetText('lbl-t-admin', t.lTAdmin); safeSetPlaceholder('trial_admin_name', t.pTAdmin);
+    safeSetText('lbl-t-phone', t.lTPhone); safeSetPlaceholder('trial_phone', t.pTPhone);
+    safeSetText('lbl-t-email', t.lTEmail); safeSetPlaceholder('trial_email', t.pTEmail);
+    safeSetText('lbl-t-pass', t.lTPass); safeSetPlaceholder('trial_password', t.pTPass);
+    safeSetText('btn-submit-trial', t.btnSubmitTrial);
 }
-
 // ... (باقي الدوال كما هي) ...
 
 function togglePasswordVisibility() {
