@@ -18,7 +18,8 @@ function updatePageContent(lang) {
             optM: "ذكر", optF: "أنثى", lHistory: "التاريخ الطبي والأمراض المزمنة (إن وجد)", 
             lNotes: "ملاحظات إضافية", btnSave: "حفظ البيانات", btnView: "فتح الملف",
             selCount: "تم تحديد", patWord: "مريض", bulkDel: "🗑️ حذف المحدد", confDel: "هل أنت متأكد من حذف المريض؟ لا يمكن التراجع عن هذا الإجراء.", confBulkDel: "هل أنت متأكد من حذف جميع المرضى المحددين؟",
-            loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد مرضى آخرين", empty: "لا يوجد مرضى مسجلين"
+            loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد مرضى آخرين", empty: "لا يوجد مرضى مسجلين",
+            btnSearch: "🔍 بحث دقيق", btnBarcode: "📷 مسح بالكاميرا (سكان)", btnExcel: "📥 استيراد إكسيل",
         },
         en: {
             title: "Patients Management", sub: "List of registered clinic patients and medical history",
@@ -28,7 +29,8 @@ function updatePageContent(lang) {
             optM: "Male", optF: "Female", lHistory: "Medical History & Chronic Diseases", 
             lNotes: "Additional Notes", btnSave: "Save Data", btnView: "Open File",
             selCount: "Selected", patWord: "Patient(s)", bulkDel: "🗑️ Delete Selected", confDel: "Are you sure you want to delete this patient?", confBulkDel: "Are you sure you want to delete all selected patients?",
-            loadMore: "⬇️ Load More...", noMore: "No more patients", empty: "No registered patients"
+            loadMore: "⬇️ Load More...", noMore: "No more patients", empty: "No registered patients",
+            btnSearch: "🔍 Deep Search", btnBarcode: "📷 Scan Barcode", btnExcel: "📥 Import Excel"
         }
     };
     const c = t[lang] || t.ar;
@@ -44,6 +46,11 @@ function updatePageContent(lang) {
     setTxt('opt-male', c.optM); setTxt('opt-female', c.optF); setTxt('lbl-p-history', c.lHistory);
     setTxt('lbl-p-notes', c.lNotes); 
     setTxt('btn-bulk-delete', c.bulkDel);
+    setTxt('btn-do-search', c.btnSearch);
+setTxt('btn-manual-barcode', c.btnBarcode);
+// لزرار الإكسيل عشان جواه عنصرين span هنمسك الـ span التاني ونغيره
+const excelSpan = document.querySelector('.btn-excel span:last-child');
+if(excelSpan) excelSpan.innerText = c.btnExcel;
     
     window.langVars = c; 
     updateBulkActionBar(); 
