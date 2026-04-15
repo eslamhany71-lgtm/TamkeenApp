@@ -138,63 +138,52 @@ html[dir="ltr"] .support-close { right: 25px; left: auto; }
 .btn-whatsapp { background: #25d366; color: white; transition: 0.3s; }
 .btn-whatsapp:hover { background: #1da851; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3); }
 
-/* ================= 🔴 سحر الـ Hover الأوتوماتيكي للكمبيوتر (بدون كليكات) 🔴 ================= */
+/* ================= 🔴 سحر الـ Hover والتثبيت (Pin) للكمبيوتر 🔴 ================= */
 @media (min-width: 993px) {
-    /* 1. الحالة الافتراضية (مقفولة - أيقونات ولوجو صغير فقط) */
-    .sidebar {
-        width: 80px !important;
-        overflow-x: hidden;
-        position: absolute !important; /* تطوف فوق المحتوى متزقوش */
-        height: 100vh;
-        z-index: 1000;
+    /* 1. الحالة الافتراضية (مقفولة - تطوف فوق المحتوى) */
+    .sidebar { width: 80px !important; overflow-x: hidden; position: absolute !important; height: 100vh; z-index: 1000; }
+    .main-content { margin-inline-start: 80px !important; width: calc(100% - 80px) !important; transition: margin 0.3s ease, width 0.3s ease; }
+    
+    .sidebar .sidebar-brand span, .sidebar .nav-links span:not(.icon), .sidebar #txt-clinic-name {
+        opacity: 0; visibility: hidden; transition: 0.2s; white-space: nowrap; display: none !important;
     }
-
-    .main-content {
-        margin-inline-start: 80px !important; /* تثبيت مساحة المحتوى */
-        width: calc(100% - 80px) !important;
-    }
-
-    /* إخفاء النصوص واللوجو الكبير */
-    .sidebar .sidebar-brand span, 
-    .sidebar .nav-links span:not(.icon),
-    .sidebar #txt-clinic-name {
-        opacity: 0;
-        visibility: hidden;
-        transition: 0.2s;
-        white-space: nowrap;
-        display: none !important; /* لضمان عدم أخذ مساحة */
-    }
-
-    /* تصغير اللوجو في الحالة المقفولة */
     .sidebar .sidebar-brand img { max-width: 40px; }
     .sidebar .sidebar-brand { padding: 15px 0; }
-
-    /* توسيط الأيقونات */
     .sidebar .nav-links a { justify-content: center; padding: 15px 0; }
     .sidebar .nav-links .icon { font-size: 24px; margin: 0; }
 
-    /* 2. حالة الـ Hover (مفتوحة - إظهار كل حاجة) */
-    .sidebar:hover {
-        width: 260px !important;
-        box-shadow: 10px 0 20px rgba(0,0,0,0.1);
-    }
-    
+    /* 2. حالة الـ Hover (مفتوحة تطوف فوق الشاشة) */
+    .sidebar:hover { width: 260px !important; box-shadow: 10px 0 20px rgba(0,0,0,0.1); }
     html[dir="ltr"] .sidebar:hover { box-shadow: -10px 0 20px rgba(0,0,0,0.1); }
-
     .sidebar:hover .sidebar-brand { padding: 20px 15px; }
     .sidebar:hover .sidebar-brand img { max-width: 45px; }
-
-    .sidebar:hover .sidebar-brand span, 
-    .sidebar:hover .nav-links span:not(.icon),
-    .sidebar:hover #txt-clinic-name {
-        opacity: 1;
-        visibility: visible;
-        display: block !important; /* إرجاعها للعرض */
-        transition: opacity 0.4s ease 0.1s;
+    .sidebar:hover .sidebar-brand span, .sidebar:hover .nav-links span:not(.icon), .sidebar:hover #txt-clinic-name {
+        opacity: 1; visibility: visible; display: block !important; transition: opacity 0.4s ease 0.1s;
     }
-
     .sidebar:hover .nav-links a { justify-content: flex-start; padding: 15px 20px; }
+
+    /* 3. 🔴 حالة التثبيت (Pinned) عند الضغط على الزرار 🔴 */
+    body.sidebar-pinned .sidebar { 
+        width: 260px !important; 
+        position: relative !important; /* ترجع تزق المحتوى بدل ما تطوف فوقه */
+        box-shadow: none; 
+    }
+    body.sidebar-pinned .main-content { 
+        margin-inline-start: 0 !important; /* نلغي المسافة عشان القائمة أخدت مساحتها */
+        width: 100% !important; 
+    }
+    body.sidebar-pinned .sidebar .sidebar-brand { padding: 20px 15px; }
+    body.sidebar-pinned .sidebar .sidebar-brand img { max-width: 45px; }
+    body.sidebar-pinned .sidebar .sidebar-brand span, 
+    body.sidebar-pinned .sidebar .nav-links span:not(.icon), 
+    body.sidebar-pinned .sidebar #txt-clinic-name {
+        opacity: 1; visibility: visible; display: block !important;
+    }
+    body.sidebar-pinned .sidebar .nav-links a { justify-content: flex-start; padding: 15px 20px; }
 }
+
+/* 🔴 تأكيد أبعاد الـ iframe للموبايل عشان البيانات تظهر دايماً 🔴 */
+#content-frame { width: 100%; height: 100%; border: none; background: transparent; display: block; }
 
 /* ================= 🔴 الوضع الليلي الجذري الشامل 🔴 ================= */
 [data-theme="dark"] body { background: #0f172a !important; color: #f8fafc !important; }
