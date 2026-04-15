@@ -30,6 +30,17 @@ function toggleTheme() {
 document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('niva_theme') || 'light';
     applyTheme(savedTheme);
+
+    // 🔴 تفعيل التثبيت المحفوظ للقائمة الجانبية 🔴
+    if (localStorage.getItem('sidebarPinned') === 'true' && window.innerWidth > 992) {
+        document.body.classList.add('sidebar-pinned');
+    }
+
+    let overlay = document.createElement('div');
+    overlay.id = 'mobile-overlay';
+    overlay.className = 'mobile-overlay';
+    overlay.onclick = toggleSidebar; 
+    document.body.appendChild(overlay);
 });
 
 function loadPage(pageUrl, clickedLi) {
@@ -323,8 +334,10 @@ function toggleSidebar() {
 }
 
 function toggleSidebarDesktop() {
-    document.getElementById('sidebar').classList.toggle('collapsed');
-    document.querySelector('.main-content').classList.toggle('expanded');
+    // التبديل بين وضع التثبيت والوضع الأوتوماتيكي
+    document.body.classList.toggle('sidebar-pinned');
+    const isPinned = document.body.classList.contains('sidebar-pinned');
+    localStorage.setItem('sidebarPinned', isPinned);
 }
 
 window.onload = () => {
