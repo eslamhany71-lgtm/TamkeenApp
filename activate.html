@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <title id="page-title">تفعيل الحساب - NivaDent</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
@@ -11,7 +11,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
-<body>
+<body style="touch-action: manipulation; overflow-x: hidden;">
     <div class="split-layout">
         <div class="form-side">
             <div class="form-container">
@@ -113,10 +113,10 @@
             
             if (passInput.type === 'password') {
                 passInput.type = 'text';
-                eyeIcon.textContent = '🙈'; // عين مقفولة
+                eyeIcon.textContent = '🙈';
             } else {
                 passInput.type = 'password';
-                eyeIcon.textContent = '👁️'; // عين مفتوحة
+                eyeIcon.textContent = '👁️';
             }
         }
     </script>
