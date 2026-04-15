@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -19,19 +19,55 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
-        .session-summary { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-right: 6px solid #0ea5e9; border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;}
+        /* 🔴 منع العصرة وتحسين التاتش 🔴 */
+        * { box-sizing: border-box; }
+        body { touch-action: manipulation; overflow-x: hidden; }
+
+        .session-summary { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-right: 6px solid #0ea5e9; border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; width: 100%;}
         html[dir="ltr"] .session-summary { border-right: 1px solid #e2e8f0; border-left: 6px solid #0ea5e9; }
-        .financial-box-top { display: flex; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; margin-top: 20px; align-items: center; flex-wrap: wrap; border: 1px solid #e2e8f0;}
+        
+        .financial-box-top { display: flex; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; margin-top: 20px; align-items: center; flex-wrap: wrap; border: 1px solid #e2e8f0; width: 100%;}
         .fin-item { flex: 1; min-width: 120px; }
         .fin-val { font-size: 22px; font-weight: 800; color: #0f172a;}
         
-        .smart-rx-container { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .smart-rx-container { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; width: 100%;}
         .search-results { max-height: 200px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 8px; position: absolute; width: 100%; z-index: 10; display: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); top: 50px;}
-        .search-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; transition: 0.2s;}
+        .search-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; transition: 0.2s; cursor: pointer;}
         .search-item:hover { background: #f0f9ff; }
         
         .drug-list-item { display: flex; gap: 10px; background: white; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s;}
         .drug-list-item:hover { border-color: #cbd5e1; }
+
+        /* 🔴 تظبيط الموبايل 🔴 */
+        @media (max-width: 768px) {
+            body { padding: 15px !important; }
+            .profile-container { width: 100% !important; max-width: 100% !important; }
+            
+            /* تظبيط عنوان واسم المريض */
+            .session-summary { padding: 15px; }
+            #header-patient-name { font-size: 18px !important; }
+            
+            /* فرد أزرار التعديل والحفظ لتناسب اللمس */
+            #btn-edit-sess { width: 100%; margin-top: 10px; justify-content: center; }
+            .financial-box-top { flex-direction: column; text-align: center; gap: 10px; padding: 15px; }
+            .fin-item { width: 100%; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+            .fin-item:last-child { border-bottom: none; padding-bottom: 0; }
+            
+            /* تظبيط خريطة الأسنان عشان تسكرول بالعرض لو كبيرة */
+            .dental-chart { width: 100%; overflow-x: auto; padding-bottom: 15px; -webkit-overflow-scrolling: touch; }
+            
+            /* فرد الروشتة والأشعة تحت بعض */
+            div[style*="display: flex; gap: 20px; flex-wrap: wrap;"] { flex-direction: column; gap: 15px !important; }
+            div[style*="min-width: 320px"] { min-width: 100% !important; padding: 15px !important; }
+            
+            /* تكبير الحقول والزراير في المودالات */
+            .modal-content { width: 95% !important; padding: 20px !important; margin: 10px auto !important; max-height: 90vh !important; overflow-y: auto !important; }
+            input, select, button, textarea { font-size: 16px !important; }
+            
+            /* تظبيط بحث الأدوية */
+            .smart-rx-container > .form-group > div { flex-direction: column; gap: 10px; }
+            .smart-rx-container button { width: 100%; }
+        }
 
         @media print {
             body { margin: 0; padding: 0; background: white; }
@@ -59,7 +95,7 @@
                 <span>🔙</span> <span id="txt-back-profile">العودة لملف المريض</span>
             </button>
 
-            <div style="background: #e0f2fe; border: 1px solid #bae6fd; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+            <div style="background: #e0f2fe; border: 1px solid #bae6fd; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
                 <span style="font-size: 30px;">👤</span>
                 <div>
                     <span id="txt-sess-header" style="color: #0284c7; font-weight: 700; font-size: 14px;">ملف جلسة المريض:</span><br>
@@ -76,8 +112,8 @@
                             <span style="background: #f1f5f9; color: #475569; border-color: #e2e8f0;">🦷 <strong id="sd-tooth" dir="ltr">---</strong></span>
                         </div>
                     </div>
-                    <div>
-                        <button class="btn-action" style="background: #fff7ed; color: #ea580c; border-color: #fed7aa; padding: 10px 20px; font-size: 15px;" onclick="openEditSessionModal()" id="btn-edit-sess">✏️ تعديل الجلسة</button>
+                    <div style="width: 100%; max-width: 200px;">
+                        <button class="btn-action" style="background: #fff7ed; color: #ea580c; border-color: #fed7aa; padding: 10px 20px; font-size: 15px; width: 100%; display: flex; justify-content: center;" onclick="openEditSessionModal()" id="btn-edit-sess">✏️ تعديل الجلسة</button>
                     </div>
                 </div>
 
@@ -109,9 +145,9 @@
 
             <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 320px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <h3 id="txt-rx-title" style="margin: 0; font-size: 20px; color: #0f172a;">💊 روشتة الجلسة</h3>
-                        <button class="btn-primary" onclick="openSmartRxModal()" id="btn-add-rx">➕ إصدار روشتة</button>
+                        <button class="btn-primary" onclick="openSmartRxModal()" id="btn-add-rx" style="flex-shrink: 0;">➕ إصدار روشتة</button>
                     </div>
                     <div id="session-rx-container">
                         <div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>
@@ -119,16 +155,16 @@
                     
                     <div id="uploaded-rx-container" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f1f5f9; text-align: center;">
                         <span style="color: #64748b; font-size: 14px; display: block; margin-bottom: 10px;">📎 نسخة خارجية (مرفوعة):</span>
-                        <a id="uploaded-rx-link" href="#" target="_blank"><img id="uploaded-rx-img" src="" style="max-height: 150px; border-radius: 8px; border: 1px solid #cbd5e1;"></a>
+                        <a id="uploaded-rx-link" href="#" target="_blank"><img id="uploaded-rx-img" src="" style="max-height: 150px; max-width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: contain;"></a>
                     </div>
                 </div>
 
                 <div style="flex: 1; min-width: 320px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                         <h3 id="txt-att-title" style="margin: 0; font-size: 20px; color: #0f172a;">📸 مرفقات وأشعة</h3>
-                        <button class="btn-primary" onclick="openModal('xrayModal')" id="btn-add-att">➕ رفع مرفق</button>
+                        <button class="btn-primary" onclick="openModal('xrayModal')" id="btn-add-att" style="flex-shrink: 0;">➕ رفع مرفق</button>
                     </div>
-                    <div class="xray-grid" id="session-xrays-list" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+                    <div class="xray-grid" id="session-xrays-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;">
                         <div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">لا توجد مرفقات.</div>
                     </div>
                 </div>
@@ -201,7 +237,7 @@
                     <select id="rx_template_select" class="search-box" style="flex: 1;" onchange="applyRxTemplate(this.value)">
                         <option value="">اختر قالب جاهز (مثال: روشتة خلع، عصب...)</option>
                     </select>
-                    <button type="button" class="btn-action" style="background: white; border: 1px solid #e879f9; color: #a21caf;" onclick="openTemplateManager()" title="إدارة القوالب الجاهزة">⚙️</button>
+                    <button type="button" class="btn-action" style="background: white; border: 1px solid #e879f9; color: #a21caf; padding: 10px;" onclick="openTemplateManager()" title="إدارة القوالب الجاهزة">⚙️</button>
                 </div>
             </div>
             <div class="smart-rx-container">
@@ -229,10 +265,10 @@
         <div class="modal-content" style="max-width: 450px;">
             <span class="close-modal" onclick="closeModal('addDrugModal')">&times;</span>
             <h2 id="modal-drug-title" style="margin-top: 0; font-size: 20px;">إضافة علاج جديد للعيادة</h2>
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; background: #eef2ff; padding: 10px; border-radius: 8px;">
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: #eef2ff; padding: 10px; border-radius: 8px;">
                 <input type="file" id="excel_drug_upload" accept=".xlsx, .xls" style="display: none;" onchange="importDrugsFromExcel(this)">
-                <button type="button" class="btn-action" style="flex: 1; background: white; color: #4338ca; border: 1px solid #a5b4fc; font-weight: bold;" onclick="document.getElementById('excel_drug_upload').click()">📥 استيراد من إكسيل</button>
-                <button type="button" class="btn-action" style="flex: 1; background: white; color: #0284c7; border: 1px solid #bae6fd; font-weight: bold;" onclick="downloadDrugsTemplate()">📄 تحميل قالب الإكسيل</button>
+                <button type="button" class="btn-action" style="flex: 1; background: white; color: #4338ca; border: 1px solid #a5b4fc; font-weight: bold; width: 100%; justify-content: center; padding: 10px;" onclick="document.getElementById('excel_drug_upload').click()">📥 استيراد من إكسيل</button>
+                <button type="button" class="btn-action" style="flex: 1; background: white; color: #0284c7; border: 1px solid #bae6fd; font-weight: bold; width: 100%; justify-content: center; padding: 10px;" onclick="downloadDrugsTemplate()">📄 تحميل قالب الإكسيل</button>
             </div>
             <div style="text-align: center; margin-bottom: 15px; color: #64748b; font-weight: bold;">-- أو إضافة يدوية --</div>
             <form onsubmit="saveNewDrugToPharmacy(event)">
@@ -261,7 +297,7 @@
                 <label>اسم الروشتة (مثال: روشتة ما بعد الخلع)</label>
                 <input type="text" id="tpl_name" class="search-box" placeholder="اكتب اسم القالب...">
             </div>
-            <button class="btn-primary" style="width: 100%; justify-content: center; margin-bottom: 20px;" onclick="saveCurrentRxAsTemplate()">حفظ الروشتة الحالية كقالب 💾</button>
+            <button class="btn-primary" style="width: 100%; justify-content: center; margin-bottom: 20px; padding: 12px;" onclick="saveCurrentRxAsTemplate()">حفظ الروشتة الحالية كقالب 💾</button>
             <h3 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">القوالب المحفوظة:</h3>
             <div id="templates-list-container">
                 <div class="empty-state">لا يوجد قوالب محفوظة.</div>
@@ -280,10 +316,10 @@
                 </div>
                 <div class="form-group">
                     <label>اختر الصورة</label>
-                    <input type="file" id="sx_file" class="search-box" accept="image/*" onchange="encodeSessionImage(this)" required style="padding: 8px;">
+                    <input type="file" id="sx_file" class="search-box" accept="image/*" onchange="encodeSessionImage(this)" required style="padding: 10px; cursor: pointer; background: #f8fafc;">
                     <input type="hidden" id="sx_base64">
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;" id="btn-save-sx">رفع المرفق</button>
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px;" id="btn-save-sx">رفع المرفق</button>
             </form>
         </div>
     </div>
