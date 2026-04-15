@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -40,7 +40,7 @@
         .form-group input:focus { border-color: #0ea5e9; box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15); }
     </style>
 </head>
-<body>
+<body style="touch-action: manipulation; overflow-x: hidden;">
 
     <div class="page-header">
         <div class="page-title">
@@ -75,12 +75,12 @@
                     <input type="text" id="clinic_name" placeholder="أدخل اسم العيادة الذي سيظهر في النظام والروشتات" required style="direction: rtl; text-align: right;">
                 </div>
 
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <div class="form-group" style="margin-top: 10px; flex: 1; min-width: 200px;">
+                <div class="grid-2col">
+                    <div class="form-group" style="margin-top: 10px; flex: 1;">
                         <label id="lbl-phone1">رقم الهاتف الأساسي للعيادة</label>
                         <input type="text" id="clinic_phone_1" placeholder="مثال: 01000000000" style="direction: ltr; text-align: left;">
                     </div>
-                    <div class="form-group" style="margin-top: 10px; flex: 1; min-width: 200px;">
+                    <div class="form-group" style="margin-top: 10px; flex: 1;">
                         <label id="lbl-phone2">رقم هاتف آخر (اختياري)</label>
                         <input type="text" id="clinic_phone_2" placeholder="مثال: 01100000000" style="direction: ltr; text-align: left;">
                     </div>
