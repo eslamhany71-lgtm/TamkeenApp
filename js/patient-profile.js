@@ -672,3 +672,52 @@ window.onload = () => {
         } 
     });
 };
+// ==========================================
+// 🔴 لوجيك صانع كارت المريض (QR Generator & Print) 🔴
+// ==========================================
+
+function openQRModal() {
+    const isAr = getLang();
+    
+    // كتابة بيانات المريض على الكارت
+    document.getElementById('qr_patient_name').innerText = currentPatientName;
+    // هنجيب رقم الموبايل من الشاشة أو من الداتا (أنا هجيبه من الشاشة عشان أسرع)
+    const phoneText = document.getElementById('prof-phone').innerText.replace('📞', '').trim();
+    document.getElementById('qr_patient_phone').innerText = phoneText;
+
+    // مسح أي QR قديم عشان ميتكررش
+    const qrContainer = document.getElementById('qrcode_container');
+    qrContainer.innerHTML = '';
+
+    // توليد الـ QR كود باستخدام مكتبة qrcode.js (هيحط الـ patientId جواه)
+    new QRCode(qrContainer, {
+        text: patientId, // 🔴 ده السحر، بنشفر الآي دي جوه الصورة
+        width: 150,
+        height: 150,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+
+    // فتح المودال عشان الممرضة تشوف الكارت قبل ما تطبع
+    openModal('qrPrintModal');
+}
+
+function printPatientCard() {
+    // 1. ناخد نسخة من الكارت الشيك اللي في المودال
+    const cardContent = document.getElementById('printArea').outerHTML;
+    
+    // 2. نحطه في المكان المخصص للطباعة
+    const printSection = document.getElementById('actualPrintSection');
+    printSection.innerHTML = cardContent;
+
+    // 3. نقفل المودال عشان ميظهرش شادو أسود في الطباعة
+    closeModal('qrPrintModal');
+
+    // 4. ندي المتصفح ثانية عشان يرسم الصور، وبعدين نفتح شاشة الطباعة
+    setTimeout(() => {
+        window.print();
+        // بعد الطباعة نمسح الكارت عشان الصفحة ترجع طبيعية
+        printSection.innerHTML = '';
+    }, 500);
+}
