@@ -1,8 +1,7 @@
-const CACHE_NAME = 'aldokan-erp-cache-v5'; // التحديث الأخير
+const CACHE_NAME = 'aldokan-erp-cache-v6'; // تحديث الإصدار لفرض مسح الكاش القديم المضروب
 
-// 🔴 خريطة ملفات السيستم (المحلية + الخارجية اللي السيستم بيعتمد عليها) 🔴
+// 🔴 الملفات المحلية فقط (أضمن وأسرع) 🔴
 const ASSETS_TO_CACHE = [
-    // الملفات المحلية
     '/',
     '/index.html',
     '/activate.html',
@@ -18,11 +17,8 @@ const ASSETS_TO_CACHE = [
     '/home.html',
     '/inventory.html',
     
-    
-    // الصور
     '/assets/logo.png',
     
-    // ملفات التصميم
     '/css/style.css',
     '/css/home.css',
     '/css/dashboard.css',
@@ -35,7 +31,6 @@ const ASSETS_TO_CACHE = [
     '/css/dental-chart.css',
     '/css/inventory.css',
     
-    // ملفات السكريبت المحلية
     '/js/firebase-config.js',
     '/js/auth.js',
     '/js/lang-manager.js',
@@ -48,31 +43,30 @@ const ASSETS_TO_CACHE = [
     '/js/calendar.js',
     '/js/settings.js',
     '/js/super-admin.js',
-    '/js/backup.js',
     '/js/dental-chart.js',
     '/js/inventory.js',
-    
-
-    // 🔴 المكتبات والروابط الخارجية الأساسية 🔴
-    'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap', // الخطوط
-    'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js', // مكتبة التقويم
-    'https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js', // مكتبة التصدير لإكسيل
-    'https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js',
-    'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js',
-    'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js',
-    'https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js' // مكتبة رفع الصور اللي كانت ناقصة
+    '/js/backup.js' // 🔴 رجع لمكانه الطبيعي عشان النسخ الاحتياطي 🔴
 ];
 
 self.addEventListener('install', (event) => {
+    self.skipWaiting(); 
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            console.log('✅ جاري تخزين جميع ملفات النظام الشاملة للعمل أوفلاين...');
-            return cache.addAll(ASSETS_TO_CACHE).catch(err => {
-                console.warn("⚠️ لم يتمكن من تحميل بعض الروابط الخارجية، سيستمر النظام بالعمل: ", err);
-            });
+        caches.open(CACHE_NAME).then(async (cache) => {
+            console.log('✅ جاري تخزين الملفات الأساسية للنظام...');
+            
+            // 🔴 التحميل المرن (Fault-Tolerant Caching) 🔴
+            // لو ملف واحد باظ، الباقي يكمل عادي
+            for (let asset of ASSETS_TO_CACHE) {
+                try {
+                    const req = new Request(asset, { cache: 'reload' });
+                    await cache.add(req);
+                } catch (err) {
+                    console.warn(`⚠️ لم يتم تخزين هذا الملف (قد يكون غير موجود): ${asset}`);
+                }
+            }
+            console.log('🚀 تم إنهاء عملية التخزين المبدئي بنجاح!');
         })
     );
-    self.skipWaiting(); 
 });
 
 self.addEventListener('activate', (event) => {
@@ -92,12 +86,14 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // تجاهل الروابط الغريبة أو طلبات الكروم الداخلية
     if (!event.request.url.startsWith('http')) return;
 
-    // تجاهل اتصالات الفايربيز الحية عشان الكونسول ميتزحمش
+    // 🔴 تجاهل الفايربيز نهائياً من الـ SW عشان ميعملش 503 🔴
     if (event.request.url.includes('firestore.googleapis.com') || 
         event.request.url.includes('firebasestorage.googleapis.com') ||
         event.request.url.includes('identitytoolkit.googleapis.com') ||
+        event.request.url.includes('google-analytics.com') ||
         event.request.url.includes('cleardot.gif')) {
         return;
     }
@@ -106,21 +102,26 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             fetch(event.request)
                 .then((networkResponse) => {
-                    // لو شغال، نحدث الكاش
-                    const responseToCache = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        const urlWithoutQuery = event.request.url.split('?')[0];
-                        cache.put(urlWithoutQuery, responseToCache);
-                    });
+                    // التخزين الديناميكي (Dynamic Caching) لأي حاجة جديدة أو الروابط الخارجية
+                    if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic' || networkResponse.type === 'cors') {
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            // تجاهل الـ Query Strings زي ?v=123 عشان الكاش ميتمليش نسخ مكررة
+                            const urlWithoutQuery = event.request.url.split('?')[0];
+                            cache.put(urlWithoutQuery, responseToCache);
+                        });
+                    }
                     return networkResponse;
                 })
                 .catch(() => {
-                    // 🔴 لو النت فاصل، جيب من الكاش بدون الـ (Version Tags) 🔴
+                    // 🔴 لو النت فاصل، نجيب من الكاش بس نتجاهل الـ ?v= تماماً 🔴
                     return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                         if (cachedResponse) {
                             return cachedResponse;
                         }
-                        return new Response("عفواً، أنت تعمل في وضع الأوفلاين وهذه الصفحة غير متاحة.", {
+                        
+                        // لو الملف مش موجود خالص في الكاش
+                        return new Response("عفواً، يبدو أنك تعمل أوفلاين ولم يسبق تحميل هذه الصفحة.", {
                             status: 503,
                             headers: new Headers({ 'Content-Type': 'text/html; charset=utf-8' })
                         });
