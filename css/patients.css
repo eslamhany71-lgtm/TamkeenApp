@@ -1,61 +1,50 @@
 /* css/patients.css */
 
-body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; }
+body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; touch-action: manipulation; overflow-x: hidden; }
 
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
 .page-title h1 { margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; }
 .page-title p { margin: 5px 0 0 0; color: #64748b; font-size: 15px; }
 
-/* 🔴 تعديلات شريط البحث والأزرار 🔴 */
 .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
 .header-actions > div { display: flex; gap: 5px; flex: 1; min-width: 250px; }
 
 .search-box { padding: 10px 15px; border: 1px solid #e2e8f0; border-radius: 8px; font-family: inherit; outline: none; transition: 0.3s; width: 100%; box-sizing: border-box; }
 .search-box:focus { border-color: #0284C7; box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2); }
 
-/* الأزرار العامة */
 .btn-add, .btn-primary, .btn-danger { color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; }
 .btn-add, .btn-primary { background: #0284C7; } 
 .btn-add:hover, .btn-primary:hover { background: #0369a1; }
 .btn-danger { background: #ef4444; } 
 .btn-danger:hover { background: #dc2626; }
 
-/* شريط التحديد الجماعي */
 .bulk-actions { background: #f8fafc; padding: 15px 20px; border-radius: 12px; border: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; animation: fadeIn 0.3s; }
 
-/* الجدول */
-.table-container { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; }
+.table-container { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; overflow-x: auto; width: 100%; }
+table { width: 100%; border-collapse: collapse; min-width: 900px; }
 th { background: #f8fafc; color: #475569; padding: 15px; text-align: start; font-weight: 700; border-bottom: 2px solid #e2e8f0; white-space: nowrap;}
 td { padding: 15px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: middle; text-align: start; }
 tr:hover td { background: #f8fafc; }
 
-/* Checkboxes */
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #0284C7; }
 
-/* التاجات */
 .tag { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-inline-start: 5px; display: inline-block; white-space: nowrap; margin-bottom: 4px;}
 .tag-danger { background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; }
 
-/* أزرار الإجراءات الفردية */
 .action-group { display: flex; gap: 8px; justify-content: center; align-items: center; }
 .btn-action { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; font-weight: 600; color: #0f172a; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
 .btn-action:hover { background: #e2e8f0; }
-.btn-open { background: #e0f2fe; color: #0284C7; border-color: #bae6fd; }
-.btn-open:hover { background: #bae6fd; }
 .btn-edit { background: #fff7ed; color: #d97706; border-color: #fed7aa; }
 .btn-edit:hover { background: #fed7aa; }
 .btn-delete { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
 .btn-delete:hover { background: #fca5a5; }
 
-/* زرار تحميل المزيد */
 #btn-load-more { box-shadow: 0 4px 6px -1px rgba(2, 132, 199, 0.2); transition: 0.3s; }
 #btn-load-more:hover { transform: translateY(-2px); box-shadow: 0 6px 8px -1px rgba(2, 132, 199, 0.3); }
 #btn-load-more:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 
-/* المودال */
 .modal { display: none; position: fixed; z-index: 1000; inset: 0; background-color: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-.modal-content { background: white; border-radius: 16px; width: 90%; max-width: 500px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; max-height: 90vh; overflow-y: auto; text-align: start;}
+.modal-content { background: white; border-radius: 16px; width: 90%; max-width: 500px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; max-height: 90vh; overflow-y: auto; text-align: start; overflow-x: hidden;}
 .close-modal { position: absolute; inset-inline-start: 20px; top: 20px; font-size: 24px; color: #64748b; cursor: pointer; transition: 0.2s;}
 .close-modal:hover { color: #ef4444; }
 
@@ -69,15 +58,38 @@ tr:hover td { background: #f8fafc; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* 🔴 تجاوب الموبايل (Mobile Responsive) 🔴 */
+/* ================= 🔴 سحر الموبايل (Mobile Responsive) 🔴 ================= */
 @media (max-width: 768px) {
     body { padding: 15px; }
-    .page-header { flex-direction: column; align-items: stretch; }
+    
+    .page-header { flex-direction: column; align-items: stretch; gap: 10px; }
     .header-actions { flex-direction: column; align-items: stretch; width: 100%; }
-    .header-actions > div { flex-direction: row; }
-    .btn-add { width: 100%; }
-    .table-container { padding: 10px; }
+    
+    /* 🔴 فرد الزراير ومربع البحث عشان يملوا الشاشة 🔴 */
+    .header-actions > div { flex-direction: column; width: 100%; }
+    .search-box { width: 100% !important; }
+    
+    .btn-add, .btn-qr, .btn-excel { width: 100%; justify-content: center; }
+    
+    /* 🔴 حماية الجدول والسماح بالسكرول العرضي الناعم 🔴 */
+    .table-container { 
+        padding: 10px; 
+        width: calc(100vw - 30px) !important; /* واخد الشاشة كلها إلا 15px من كل جنب */
+        overflow-x: auto !important; 
+        -webkit-overflow-scrolling: touch !important; 
+    }
+    
     td, th { padding: 10px; font-size: 14px; }
-    .action-group { flex-direction: column; gap: 5px; }
-    .btn-action { width: 100%; }
+    
+    .action-group { flex-direction: row; gap: 5px; }
+    
+    /* 🔴 تظبيط المودال (النافذة) عشان متكسرش بره الموبايل 🔴 */
+    .modal-content {
+        width: 95% !important;
+        margin: 10px auto !important;
+        padding: 15px !important;
+    }
+    
+    /* تكبير الزراير للتاتش المريح */
+    input, select, button { font-size: 16px !important; }
 }
