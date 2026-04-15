@@ -2,18 +2,25 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
-    <link rel="stylesheet" href="css/calendar.css">
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/calendar.css?v=' + currentHour + '">');
+    </script>
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <style>
+        /* 🔴 تأمين التاتش وعرض الموبايل 🔴 */
+        * { box-sizing: border-box; }
+        body { touch-action: manipulation; overflow-x: hidden; }
+
         /* ستايلات حقول الحسابات */
-        .finance-box-modal { display: flex; gap: 10px; background: #f0fdf4; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #bbf7d0; flex-wrap: wrap;}
+        .finance-box-modal { display: flex; gap: 10px; background: #f0fdf4; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #bbf7d0; flex-wrap: wrap; width: 100%;}
         .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
         .finance-box-modal input, .finance-box-modal select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold; outline: none;}
         .finance-box-modal input:focus, .finance-box-modal select:focus { border-color: #10b981; }
@@ -65,7 +72,7 @@
                         <input type="text" id="app_name" placeholder="الاسم ثلاثي" required>
                     </div>
                     
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="grid-2col">
                         <div class="form-group">
                             <label id="lbl-app-phone">رقم الموبايل</label>
                             <input type="tel" id="app_phone" placeholder="01xxxxxxxxx" required dir="ltr" style="text-align: left;">
@@ -76,7 +83,7 @@
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                    <div class="grid-2col" style="grid-template-columns: 1fr;">
                         <div class="form-group">
                             <label id="lbl-app-gender">النوع</label>
                             <select id="app_gender" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
@@ -99,7 +106,7 @@
                     </div>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="grid-2col">
                     <div class="form-group">
                         <label id="lbl-app-date">تاريخ الموعد</label>
                         <input type="date" id="app_date" required>
@@ -168,28 +175,30 @@
                 <p style="margin: 0; font-size: 16px;"><strong class="lbl-det-status">📌 الحالة:</strong> <span id="det_status" style="background: #fef08a; padding: 2px 8px; border-radius: 6px; color: #854d0e; font-size: 14px;"></span></p>
             </div>
 
-            <div id="whatsapp-action-box" style="margin-bottom: 10px;">
-                <button class="btn-success" id="btn-wa-reminder" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #25D366; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="sendWhatsAppReminder()">📱 إرسال تذكير بالموعد (واتساب)</button>
-            </div>
+            <div class="action-buttons-container">
+                <div id="whatsapp-action-box" style="margin-bottom: 10px;">
+                    <button class="btn-success" id="btn-wa-reminder" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #25D366; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="sendWhatsAppReminder()">📱 إرسال تذكير بالموعد (واتساب)</button>
+                </div>
 
-            <div id="complete-action-box" style="margin-bottom: 10px;">
-                <button class="btn-success" id="btn-complete-app" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)</button>
-            </div>
+                <div id="complete-action-box" style="margin-bottom: 10px;">
+                    <button class="btn-success" id="btn-complete-app" style="width: 100%; padding: 12px; font-size: 16px; justify-content: center; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;" onclick="markAppAsCompleted()">✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)</button>
+                </div>
 
-            <div id="edit-action-box" style="margin-bottom: 10px;">
-                <button class="btn-action-primary" id="btn-edit-app" onclick="openEditModal()" style="width: 100%; padding: 10px; background: #0284C7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✏️ تعديل الحجز</button>
-            </div>
+                <div id="edit-action-box" style="margin-bottom: 10px;">
+                    <button class="btn-action-primary" id="btn-edit-app" onclick="openEditModal()" style="width: 100%; padding: 10px; background: #0284C7; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">✏️ تعديل الحجز</button>
+                </div>
 
-            <div id="cancel-action-box" style="margin-bottom: 10px;">
-                <button class="btn-warning" id="btn-cancel-app" onclick="cancelAppointment()" style="width: 100%; padding: 10px; background: #f97316; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🚫 إلغاء الحجز (بدون مسح)</button>
-            </div>
+                <div id="cancel-action-box" style="margin-bottom: 10px;">
+                    <button class="btn-warning" id="btn-cancel-app" onclick="cancelAppointment()" style="width: 100%; padding: 10px; background: #f97316; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🚫 إلغاء الحجز (بدون مسح)</button>
+                </div>
 
-            <div id="restore-action-box" style="margin-bottom: 10px; display: none;">
-                <button class="btn-success" id="btn-restore-app" onclick="restoreAppointment()" style="width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🔄 إرجاع الحجز لقيد الانتظار</button>
-            </div>
+                <div id="restore-action-box" style="margin-bottom: 10px; display: none;">
+                    <button class="btn-success" id="btn-restore-app" onclick="restoreAppointment()" style="width: 100%; padding: 10px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🔄 إرجاع الحجز لقيد الانتظار</button>
+                </div>
 
-            <div id="delete-action-box">
-                <button class="btn-action-danger" id="btn-delete-app" onclick="deleteAppointment()" style="width: 100%; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ حذف الحجز نهائياً</button>
+                <div id="delete-action-box">
+                    <button class="btn-action-danger" id="btn-delete-app" onclick="deleteAppointment()" style="width: 100%; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s;">🗑️ حذف الحجز نهائياً</button>
+                </div>
             </div>
         </div>
     </div>
