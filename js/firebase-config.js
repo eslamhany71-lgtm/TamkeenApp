@@ -299,3 +299,34 @@ if (originalShowLoader) {
         }
     };
 }
+// === 🔴 إصلاح الوضع الليلي الشامل لكل الصفحات 🔴 ===
+function applyGlobalDarkMode() {
+    const theme = localStorage.getItem('niva_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    
+    if (theme === 'dark' && !document.getElementById('global-dark-css')) {
+        const style = document.createElement('style');
+        style.id = 'global-dark-css';
+        style.innerHTML = `
+            body[data-theme="dark"], body[data-theme="dark"] .main-content { background-color: #0f172a !important; color: #f8fafc !important; }
+            body[data-theme="dark"] .kpi-card, body[data-theme="dark"] .table-container, body[data-theme="dark"] .modal-content, body[data-theme="dark"] .settings-card, body[data-theme="dark"] .finance-box, body[data-theme="dark"] .session-summary, body[data-theme="dark"] .details-box { background-color: #1e293b !important; border-color: #334155 !important; box-shadow: 0 4px 6px rgba(0,0,0,0.5) !important; color: #f8fafc !important; }
+            body[data-theme="dark"] th { background-color: #0f172a !important; color: #94a3b8 !important; border-bottom: 1px solid #334155 !important; }
+            body[data-theme="dark"] td { border-bottom: 1px solid #334155 !important; color: #e2e8f0 !important; }
+            body[data-theme="dark"] tr:hover td { background-color: #1e293b !important; }
+            body[data-theme="dark"] input, body[data-theme="dark"] select, body[data-theme="dark"] textarea, body[data-theme="dark"] .search-box { background-color: #0f172a !important; color: #f8fafc !important; border-color: #475569 !important; }
+            body[data-theme="dark"] h1, body[data-theme="dark"] h2, body[data-theme="dark"] h3, body[data-theme="dark"] p, body[data-theme="dark"] label, body[data-theme="dark"] span { color: #e2e8f0 !important; }
+            body[data-theme="dark"] .fc-toolbar-title, body[data-theme="dark"] .fc-col-header-cell-cushion, body[data-theme="dark"] .fc-daygrid-day-number { color: #f8fafc !important; }
+        `;
+        document.head.appendChild(style);
+    } else if (theme === 'light') {
+        const darkStyle = document.getElementById('global-dark-css');
+        if (darkStyle) darkStyle.remove();
+    }
+}
+applyGlobalDarkMode(); // تطبيق الدارك مود فور تحميل أي صفحة
+window.addEventListener('message', function(event) {
+    if (event.data.type === 'THEME_CHANGE') {
+        localStorage.setItem('niva_theme', event.data.theme);
+        applyGlobalDarkMode();
+    }
+});
