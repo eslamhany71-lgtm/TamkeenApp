@@ -284,3 +284,11 @@ window.addEventListener('message', function(event) {
     }
     link.href = 'data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="20" fill="%23E0F2FE"/><path d="M30 40C30 28.9543 38.9543 20 50 20C61.0457 20 70 28.9543 70 40V60C70 65.5228 65.5228 70 60 70C54.4772 70 50 65.5228 50 60C50 65.5228 45.5228 70 40 70C34.4772 70 30 65.5228 30 60V40Z" fill="%230284C7"/><path d="M50 20C38.9543 20 30 28.9543 30 40V60C30 65.5228 34.4772 70 40 70C45.5228 70 50 65.5228 50 60V20Z" fill="%230EA5E9"/><circle cx="50" cy="50" r="8" fill="%23FFFFFF"/></svg>';
 })();
+// 🔴 قناص اللودر: إخفاء أي لودر في السيستم إجبارياً بعد 1.2 ثانية كحد أقصى 🔴
+const originalShowLoader = window.showLoader;
+if (originalShowLoader) {
+    window.showLoader = function(msg) {
+        originalShowLoader(msg);
+        setTimeout(() => { if (window.hideLoader) window.hideLoader(); }, 1200);
+    };
+}
