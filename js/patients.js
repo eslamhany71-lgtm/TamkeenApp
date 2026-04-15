@@ -19,7 +19,7 @@ function updatePageContent(lang) {
             lNotes: "ملاحظات إضافية", btnSave: "حفظ البيانات", btnView: "فتح الملف",
             selCount: "تم تحديد", patWord: "مريض", bulkDel: "🗑️ حذف المحدد", confDel: "هل أنت متأكد من حذف المريض؟ لا يمكن التراجع عن هذا الإجراء.", confBulkDel: "هل أنت متأكد من حذف جميع المرضى المحددين؟",
             loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد مرضى آخرين", empty: "لا يوجد مرضى مسجلين",
-            btnSearch: "🔍 بحث دقيق", btnBarcode: "📷 مسح بالكاميرا (سكان)", btnExcel: "📥 استيراد إكسيل",
+            btnSearch: "بحث دقيق", btnBarcode: "مسح بالكاميرا (سكان)", btnExcel: "استيراد إكسيل"
         },
         en: {
             title: "Patients Management", sub: "List of registered clinic patients and medical history",
@@ -30,7 +30,7 @@ function updatePageContent(lang) {
             lNotes: "Additional Notes", btnSave: "Save Data", btnView: "Open File",
             selCount: "Selected", patWord: "Patient(s)", bulkDel: "🗑️ Delete Selected", confDel: "Are you sure you want to delete this patient?", confBulkDel: "Are you sure you want to delete all selected patients?",
             loadMore: "⬇️ Load More...", noMore: "No more patients", empty: "No registered patients",
-            btnSearch: "🔍 Deep Search", btnBarcode: "📷 Scan Barcode", btnExcel: "📥 Import Excel"
+            btnSearch: "Deep Search", btnBarcode: "Scan Barcode", btnExcel: "Import Excel"
         }
     };
     const c = t[lang] || t.ar;
@@ -46,11 +46,16 @@ function updatePageContent(lang) {
     setTxt('opt-male', c.optM); setTxt('opt-female', c.optF); setTxt('lbl-p-history', c.lHistory);
     setTxt('lbl-p-notes', c.lNotes); 
     setTxt('btn-bulk-delete', c.bulkDel);
-    setTxt('btn-do-search', c.btnSearch);
-setTxt('btn-manual-barcode', c.btnBarcode);
-// لزرار الإكسيل عشان جواه عنصرين span هنمسك الـ span التاني ونغيره
-const excelSpan = document.querySelector('.btn-excel span:last-child');
-if(excelSpan) excelSpan.innerText = c.btnExcel;
+    
+    // 🔴 ترجمة أزرار المرضى مع الحفاظ على الأيقونات 🔴
+    const btnSearch = document.getElementById('btn-do-search');
+    if(btnSearch) btnSearch.innerHTML = `🔍 ${c.btnSearch}`;
+
+    const btnBarcode = document.getElementById('btn-manual-barcode');
+    if(btnBarcode) btnBarcode.innerHTML = `📷 ${c.btnBarcode}`;
+
+    const excelSpan = document.querySelector('.btn-excel span:last-child');
+    if(excelSpan) excelSpan.innerText = c.btnExcel;
     
     window.langVars = c; 
     updateBulkActionBar(); 
@@ -433,7 +438,7 @@ async function deleteSelectedPatients() {
 
 function openMedicalProfile(patientId) { window.location.href = `patient-profile.html?id=${patientId}`; }
 
-// 🔴 دالة سحب وإضافة المرضى من الإكسيل (اللوجيك المحدث لمقارنة الاسم والرقم معاً) 🔴
+// 🔴 دالة سحب وإضافة المرضى من الإكسيل
 function importPatientsFromExcel(input) {
     const file = input.files[0];
     if (!file) return;
@@ -454,7 +459,6 @@ function importPatientsFromExcel(input) {
             let skippedCount = 0;
             const batch = db.batch();
             
-            // 🔴 استخدام (الاسم + رقم الموبايل) كمفتاح لمنع التكرار للمريض نفسه
             const currentPatientsSet = new Set(patientsDataArray.map(p => String(p.phone).trim() + "_" + String(p.name).trim().toLowerCase()));
 
             excelRows.forEach(row => {
@@ -466,10 +470,9 @@ function importPatientsFromExcel(input) {
                     const nameStr = String(pName).trim().toLowerCase();
                     const uniqueKey = phoneStr + "_" + nameStr;
                     
-                    // 🔴 منع التكرار لو نفس الاسم ونفس الرقم متسجلين مع بعض
                     if (currentPatientsSet.has(uniqueKey)) {
                         skippedCount++;
-                        return; // تجاوز المريض ده لأنه متسجل قبل كده
+                        return;
                     }
 
                     const pAge = row['السن'] || row['العمر'] || row['age'] || "";
@@ -494,7 +497,7 @@ function importPatientsFromExcel(input) {
                         createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                     
-                    currentPatientsSet.add(uniqueKey); // 🔴 تحديث قائمة الأرقام والأسماء المحجوزة
+                    currentPatientsSet.add(uniqueKey); 
                     importedCount++;
                 }
             });
@@ -533,6 +536,7 @@ window.addEventListener('click', function(event) {
         event.target.style.display = 'none';
     }
 });
+
 // =========================================================
 // 🔴 لوجيك ماسح كارت المريض (QR Code Scanner) 🔴
 // =========================================================
@@ -561,7 +565,6 @@ window.openCameraScanner = function() {
                 html5QrcodeScanner.clear();
                 closeCameraScanner();
                 
-                // 🔴 بمجرد ما يلقط الكود، بيشغل دالة البحث وفتح الملف 🔴
                 handlePatientQRScan(decodedText.trim());
                 
             }).catch(err => console.error("Error stopping scanner", err));
@@ -591,15 +594,12 @@ window.closeCameraScanner = function() {
     }
 };
 
-// الدالة اللي بتاخد الـ QR (رقم الموبايل مثلاً أو كود المريض) وتفتح ملفه
 function handlePatientQRScan(scannedCode) {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     
-    // البحث عن المريض (بافتراض إن الـ QR جواه رقم التليفون أو الـ ID)
     const foundPatient = patientsDataArray.find(item => item.id === scannedCode || item.phone === scannedCode);
 
     if (foundPatient) {
-        // لو لاقاه، يفتح البروفايل بتاعه فوراً
         if (window.showLoader) window.showLoader(isAr ? "جاري فتح ملف المريض..." : "Opening patient profile...");
         setTimeout(() => {
             openMedicalProfile(foundPatient.id);
