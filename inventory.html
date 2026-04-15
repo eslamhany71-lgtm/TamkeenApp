@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -18,10 +18,14 @@
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
     <style>
-        .btn-barcode { background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        /* 🔴 منع عصرة الموبايل وتحسين اللمس 🔴 */
+        * { box-sizing: border-box; }
+        body { touch-action: manipulation; overflow-x: hidden; }
+
+        .btn-barcode { background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; font-family: inherit;}
         .btn-barcode:hover { background: #e2e8f0; border-color: #94a3b8; }
         
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 15px; border: 2px solid #e2e8f0; }
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 15px; border: 2px solid #e2e8f0; background: #0f172a;}
         #reader video { border-radius: 12px; object-fit: cover; }
     </style>
 </head>
@@ -33,9 +37,9 @@
             <p id="txt-subtitle">إدارة مستهلكات العيادة، الخامات، وتنبيهات النواقص</p>
         </div>
         <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <input type="text" id="searchInput" class="search-box" oninput="searchInventory()" placeholder="بحث باسم الخامة أو القسم..." style="min-width: 250px;">
+            <input type="text" id="searchInput" class="search-box" oninput="searchInventory()" placeholder="بحث باسم الخامة أو القسم..." style="flex: 1; min-width: 200px;">
             <button class="btn-barcode" onclick="openCameraScanner()" title="مسح باركود بالكاميرا" id="btn-manual-barcode">📷 مسح بالكاميرا (سكان)</button>
-            <button class="btn-primary" onclick="openItemModal()" id="btn-add-item">➕ إضافة صنف للمخزن</button>
+            <button class="btn-primary" onclick="openItemModal()" id="btn-add-item" style="justify-content: center;">➕ إضافة صنف للمخزن</button>
         </div>
     </div>
 
@@ -101,12 +105,12 @@
                     </select>
                 </div>
 
-                <div style="display: flex; gap: 15px;">
-                    <div class="form-group" style="flex: 1;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
                         <label id="lbl-item-qty">الكمية الافتتاحية</label>
                         <input type="number" id="item_qty" required min="0" value="1">
                     </div>
-                    <div class="form-group" style="flex: 1;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
                         <label id="lbl-item-unit">الوحدة</label>
                         <select id="item_unit">
                             <option value="علبة">علبة (Box)</option>
@@ -118,24 +122,24 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 15px;">
-                    <div class="form-group" style="flex: 1;">
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
                         <label id="lbl-item-alert" style="color: #d97706;">الحد الأدنى للتنبيه</label>
                         <input type="number" id="item_min_alert" required min="0" value="5" title="السيستم هينبهك لو الكمية وصلت للرقم ده">
                     </div>
-                    <div class="form-group" style="flex: 1;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
                         <label id="lbl-item-exp">تاريخ الصلاحية (اختياري)</label>
                         <input type="date" id="item_exp">
                     </div>
                 </div>
 
                 <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 15px;">
-                    <div style="display: flex; gap: 15px;">
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
                             <label style="color: #10b981; font-weight: bold; font-size: 13px;">تكلفة الشراء المبدئية (ج.م)</label>
                             <input type="number" id="item_initial_cost" class="search-box" min="0" value="0">
                         </div>
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
                             <label style="font-size: 13px; font-weight: bold;">طريقة الدفع</label>
                             <select id="item_initial_pay_method" class="search-box">
                                 <option value="cash">💵 نقدي (كاش)</option>
@@ -155,12 +159,12 @@
         <div class="modal-content" style="max-width: 400px; text-align: center;">
             <span class="close-modal" onclick="closeModal('stockActionModal')">&times;</span>
             <h2 id="stock-modal-title">تعديل الرصيد</h2>
-            <h3 id="stock-item-name" style="color: #0284c7; margin-top: 0;">...</h3>
-            <p id="stock-current-qty" style="color: #64748b; font-weight: bold; margin-bottom: 20px;">الرصيد الحالي: <span style="font-size: 20px; color: #0f172a;">--</span></p>
+            <h3 id="stock-item-name" style="color: #0284c7; margin-top: 0; font-size: 20px;">...</h3>
+            <p id="stock-current-qty" style="color: #64748b; font-weight: bold; margin-bottom: 20px;">الرصيد الحالي: <span style="font-size: 24px; color: #0f172a;">--</span></p>
 
             <div style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; text-align: right;">
                 <label id="lbl-stock-amount" style="display: block; margin-bottom: 10px; font-weight: bold;">أدخل الكمية:</label>
-                <input type="number" id="stock_amount" class="search-box" style="font-size: 20px; text-align: center; font-weight: bold; width: 100%;" min="1" value="1">
+                <input type="number" id="stock_amount" class="search-box" style="font-size: 24px; text-align: center; font-weight: bold; width: 100%;" min="1" value="1">
                 
                 <div id="stock-cost-container" style="display: none; margin-top: 15px;">
                     <label id="lbl-stock-cost" style="color: #10b981; font-weight: bold; font-size: 13px;">إجمالي التكلفة / سعر الشراء (ج.م):</label>
@@ -175,9 +179,9 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-primary" style="flex: 1; background: #10b981; border-color: #059669; justify-content: center; padding: 12px;" onclick="executeStockAction('add')" id="btn-stock-add">📥 إضافة (توريد)</button>
-                <button class="btn-primary" style="flex: 1; background: #f59e0b; border-color: #d97706; justify-content: center; padding: 12px;" onclick="executeStockAction('consume')" id="btn-stock-consume">📤 سحب (استهلاك)</button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn-primary" style="flex: 1; min-width: 120px; background: #10b981; border-color: #059669; justify-content: center; padding: 12px; font-size: 16px;" onclick="executeStockAction('add')" id="btn-stock-add">📥 إضافة (توريد)</button>
+                <button class="btn-primary" style="flex: 1; min-width: 120px; background: #f59e0b; border-color: #d97706; justify-content: center; padding: 12px; font-size: 16px;" onclick="executeStockAction('consume')" id="btn-stock-consume">📤 سحب (استهلاك)</button>
             </div>
         </div>
     </div>
