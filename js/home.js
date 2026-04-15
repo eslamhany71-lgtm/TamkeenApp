@@ -93,7 +93,7 @@ function updatePageContent(lang) {
             navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
             alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
-            navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال عبر واتساب",
+            navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال طلب الدعم",
             aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم؟"
         },
         en: {
@@ -104,7 +104,7 @@ function updatePageContent(lang) {
             navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
             alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension.",
-            navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send via WhatsApp",
+            navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send Support Ticket",
             aiTitle: "Niva Assistant", aiWelcome: "Hello Doctor! 👋 I'm Niva, your smart assistant. How can I help you today?"
         }
     };
@@ -334,7 +334,7 @@ window.onload = () => {
 };
 
 // =========================================================================
-// الدعم الفني
+// 🔴 الدعم الفني (نظام التذاكر المدمج) 🔴
 // =========================================================================
 function openSupportModal() {
     document.getElementById('support_message').value = '';
@@ -345,23 +345,47 @@ function closeSupportModal() {
     document.getElementById('supportModal').style.display = 'none';
 }
 
-function sendSupportWhatsApp() {
-    const msg = document.getElementById('support_message').value.trim();
+async function sendSupportWhatsApp() {
+    const msgInput = document.getElementById('support_message');
+    const msg = msgInput.value.trim();
+    const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
+    const userEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'غير معروف';
+    const clinicName = document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'غير معروف';
+
     if (!msg) {
         alert(document.body.dir === 'rtl' ? "برجاء كتابة الرسالة أولاً!" : "Please write a message first!");
         return;
     }
 
-    const myWhatsAppNumber = "0201149079451"; 
-    const clinicName = document.getElementById('txt-clinic-name').innerText;
-    const userEmail = document.getElementById('userEmail').innerText;
-    const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
+    const btn = document.querySelector('.support-modal-content button');
+    const originalText = btn ? btn.innerHTML : 'إرسال';
+    if(btn) {
+        btn.innerHTML = "⏳ جاري الإرسال...";
+        btn.disabled = true;
+    }
 
-    const fullMessage = `*طلب دعم فني من NivaDent*\n\nالعيادة: ${clinicName}\nالإيميل: ${userEmail}\nكود العيادة: ${clinicId}\n\n*الرسالة:*\n${msg}`;
-    
-    const whatsappUrl = `https://wa.me/${myWhatsAppNumber}?text=${encodeURIComponent(fullMessage)}`;
-    window.open(whatsappUrl, '_blank');
-    closeSupportModal();
+    try {
+        await db.collection("SupportTickets").add({
+            clinicId: clinicId,
+            clinicName: clinicName,
+            userEmail: userEmail,
+            message: msg,
+            status: "open",
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert(document.body.dir === 'rtl' ? "✅ تم إرسال رسالتك لفريق الدعم الفني بنجاح! سيتم التواصل معك قريباً." : "✅ Ticket sent successfully! We will contact you soon.");
+        msgInput.value = '';
+        closeSupportModal();
+    } catch (error) {
+        console.error("Error sending support ticket:", error);
+        alert(document.body.dir === 'rtl' ? "❌ حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقاً." : "❌ Error sending ticket, please try again.");
+    } finally {
+        if(btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
 }
 
 window.addEventListener('click', function(event) {
