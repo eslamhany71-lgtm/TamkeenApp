@@ -1,3 +1,4 @@
+// js/dashboard.js
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId'); 
 
@@ -119,27 +120,28 @@ function updateTotalRevenue() {
     if(elBank) elBank.innerText = bank;
 }
 
+// 🔴 دالة التحميل المؤمنة 🔴
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = getLocalTodayString(); 
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
 
-    let loadersFinished = 0;
-    const checkHideLoader = () => {
-        loadersFinished++;
-        if (loadersFinished >= 3 && window.hideLoader) window.hideLoader(); 
-    };
+    // إجبار اللودر يختفي بعد ثانية ونص بالظبط، مهما كانت حالة النت عشان الشاشة متقفلش
+    let loaderTimeout = setTimeout(() => {
+        if (window.hideLoader) window.hideLoader();
+    }, 1500);
 
+    // 1. استعلام المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             allPatientsData = [];
             snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
             document.getElementById('stat-patients').innerText = allPatientsData.length;
-        } catch(e) {}
-        checkHideLoader();
-    }, () => checkHideLoader());
+        } catch(e) { console.error("Patients Error:", e); }
+    }, (error) => console.error("Patients Snapshot Error:", error));
 
+    // 2. استعلام إيرادات اليوم
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
         try {
             todayRevenueData = []; 
@@ -148,10 +150,10 @@ function loadDashboardStats() {
                 if (data.date === todayStr && data.amount) todayRevenueData.push({ id: doc.id, ...data }); 
             });
             updateTotalRevenue();
-        } catch(e) {}
-        checkHideLoader();
-    }, () => checkHideLoader());
+        } catch(e) { console.error("Finances Error:", e); }
+    }, (error) => console.error("Finances Snapshot Error:", error));
 
+    // 3. استعلام المواعيد والجلسات
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             let pending = 0, completed = 0, cancelled = 0;
@@ -177,14 +179,13 @@ function loadDashboardStats() {
                 renderWaitList('todayWaitContainer', todayPendingApps);
                 renderWaitList('upcomingWaitContainer', upcomingPendingApps);
             }
-        } catch(e) {}
-        checkHideLoader();
-    }, () => checkHideLoader());
+        } catch(e) { console.error("Appointments Error:", e); }
+    }, (error) => console.error("Appointments Snapshot Error:", error));
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// 🔴 البحث الذكي في مودال الداشبورد 🔴
+// البحث الذكي في مودال الداشبورد
 function searchExistingPatientsDash() {
     const input = document.getElementById('search_patient_input').value.trim().toLowerCase();
     const resultsBox = document.getElementById('patient-search-results');
@@ -244,7 +245,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 🔴 فتح المودال الشامل 🔴
+// فتح المودال الشامل
 function openNewAppModal() {
     const today = getLocalTodayString(); 
     document.getElementById('search_patient_input').value = '';
@@ -276,7 +277,7 @@ function calcNewAppRemaining() {
     document.getElementById('app_remaining').value = Math.max(0, t - p);
 }
 
-// 🔴 حفظ الموعد بكل التفاصيل من الداشبورد 🔴
+// حفظ الموعد بكل التفاصيل من الداشبورد
 async function saveNewAppointment(e) {
     e.preventDefault();
     if(!clinicId) return;
