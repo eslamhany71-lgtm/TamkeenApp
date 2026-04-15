@@ -1,5 +1,7 @@
-/* style.css - Premium Split-Screen Login */
+/* style.css - Premium Split-Screen Login (Mobile Optimized) */
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+* { box-sizing: border-box; } /* 🔴 أهم سطر لمنع الكسر والعصرة 🔴 */
 
 :root {
     --primary: #1e3a8a; /* كحلي مؤسسي */
@@ -78,7 +80,6 @@ h3 { margin: 0; font-size: 28px; color: var(--text-dark); font-weight: 800; }
     font-size: 18px;
 }
 
-/* تنسيق زرار العين الجديد */
 .toggle-password {
     position: absolute;
     left: 15px;
@@ -92,7 +93,6 @@ h3 { margin: 0; font-size: 28px; color: var(--text-dark); font-weight: 800; }
     color: var(--primary);
 }
 
-/* تعديل البادينج عشان يستوعب الأيقونتين يمين وشمال */
 .input-wrapper input {
     width: 100%;
     padding: 14px 45px 14px 45px; 
@@ -174,7 +174,6 @@ html[dir="ltr"] .toggle-password { left: auto; right: 15px; }
     overflow: hidden;
 }
 
-/* إضافة أشكال هندسية جمالية في الخلفية */
 .brand-side::before {
     content: '';
     position: absolute;
@@ -219,8 +218,40 @@ html[dir="ltr"] .toggle-password { left: auto; right: 15px; }
     backdrop-filter: blur(5px);
 }
 
-/* الموبايل */
+/* ================= 🔴 سحر الموبايل النظيف 🔴 ================= */
 @media (max-width: 900px) {
-    .brand-side { display: none; } 
+    .brand-side { display: none !important; } 
     .mobile-brand-icon { display: block; }
+    
+    html, body { overflow-x: hidden; width: 100vw; height: auto; min-height: 100vh; }
+    
+    .split-layout { 
+        display: block; 
+        height: auto; 
+        min-height: 100vh; 
+    }
+    
+    /* 🔴 تفريغ مساحة للهوامش عشان متبقاش مخنوقة */
+    .form-side { 
+        padding: 20px; 
+        min-height: 100vh; 
+        display: flex; 
+        align-items: center; /* بيخلي الفورم متسنترة في النص */
+        justify-content: center; 
+        width: 100vw; 
+    }
+    
+    .form-container { width: 100%; max-width: 100%; }
+    
+    /* تكبير مقاسات الزراير والحقول لمنع زووم الآيفون */
+    input, select, button { font-size: 16px !important; } 
+    
+    /* 🔴 تظبيط المودالات على الموبايل عشان الشاشة متسحبش 🔴 */
+    .modal-content { 
+        width: 95% !important; 
+        padding: 20px !important; 
+        max-height: 90vh !important; 
+        overflow-y: auto !important; 
+        margin: 10px auto !important;
+    }
 }
