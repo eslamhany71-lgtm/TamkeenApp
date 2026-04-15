@@ -1,15 +1,21 @@
-body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; }
+/* css/calendar.css - 100% Mobile Optimized */
 
-.calendar-wrapper { max-width: 1200px; margin: 0 auto; }
+* { box-sizing: border-box; }
 
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; overflow-x: hidden; touch-action: manipulation; }
+
+.calendar-wrapper { max-width: 1200px; margin: 0 auto; width: 100%;}
+
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px;}
 .page-title h1 { margin: 0; font-size: 26px; color: #0f172a; font-weight: 800; }
 .page-title p { margin: 5px 0 0 0; color: #64748b; font-size: 15px; }
 
-.btn-add { background: #0284C7; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-family: inherit; }
+.btn-add { background: #0284C7; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-family: inherit; justify-content: center;}
 .btn-add:hover { background: #0369a1; }
 
-.calendar-container { background: #fff; border-radius: 16px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
+/* 🔴 حماية حاوية التقويم عشان متضربش في الموبايل 🔴 */
+.calendar-container { background: #fff; border-radius: 16px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;}
+#calendar { min-width: 600px; } /* حماية إضافية عشان الأيام متتلزقش في بعض */
 
 .fc { font-family: 'Tajawal', sans-serif !important; }
 .fc-toolbar-title { font-weight: 800 !important; color: #0f172a; }
@@ -19,34 +25,25 @@ body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Ta
 .fc-event-title { font-weight: bold; }
 
 .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-.modal-content { background: white; border-radius: 16px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; text-align: start; }
-.close-modal { position: absolute; inset-inline-start: 20px; top: 20px; font-size: 24px; color: #64748b; cursor: pointer; }
+.modal-content { background: white; border-radius: 16px; width: 90%; max-width: 450px; padding: 25px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); position: relative; text-align: start; max-height: 90vh; overflow-y: auto; overflow-x: hidden;}
+.close-modal { position: absolute; inset-inline-start: 20px; top: 20px; font-size: 24px; color: #64748b; cursor: pointer; transition: 0.2s;}
+.close-modal:hover { color: #ef4444; }
 
-.form-group { margin-bottom: 15px; }
+.form-group { margin-bottom: 15px; width: 100%;}
 .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #334155; font-size: 14px; }
 .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; box-sizing: border-box; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: #0284C7; }
+
+.grid-2col { display: flex; gap: 15px; flex-wrap: wrap; width: 100%;}
+.grid-2col > div { flex: 1; min-width: 150px; }
 
 /* أزرار التعديل والحذف */
-.btn-action-primary { background: #f8fafc; border: 1px solid #e2e8f0; color: #0f172a; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; }
+.btn-action-primary { background: #f8fafc; border: 1px solid #e2e8f0; color: #0f172a; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px;}
 .btn-action-primary:hover { background: #e2e8f0; }
-.btn-action-danger { background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; }
+.btn-action-danger { background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px;}
 .btn-action-danger:hover { background: #fca5a5; }
-
-/* أزرار التعديل والحذف في المودال */
-.btn-action-primary { background: #f8fafc; border: 1px solid #e2e8f0; color: #0f172a; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
-.btn-action-primary:hover { background: #e2e8f0; }
-.btn-action-danger { background: #fee2e2; border: 1px solid #fca5a5; color: #ef4444; padding: 10px; border-radius: 8px; font-weight: bold; font-family: inherit; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
-.btn-action-danger:hover { background: #fca5a5; }
-
-/* 🔴 تأثير زرار الواتساب 🔴 */
 .btn-success:hover { filter: brightness(0.9); }
 
-/* 🔴 تظبيط شكل التقويم على الموبايل */
-@media (max-width: 768px) {
-    .calendar-container { padding: 10px; }
-    .fc-toolbar { flex-direction: column; gap: 10px; }
-    .fc-toolbar-title { font-size: 1.2rem !important; }
-}
 /* ========================================================================= */
 /* 🔴 ستايلات البحث الذكي عن المريض (Smart Search) 🔴 */
 /* ========================================================================= */
@@ -58,91 +55,49 @@ body { background-color: transparent; padding: 30px; margin: 0; font-family: 'Ta
     padding: 15px;
     border-radius: 10px;
     border: 1px solid #cbd5e1;
+    width: 100%;
 }
 
 /* حقل البحث نفسه */
-#search_patient_input {
-    width: 100%;
-    padding: 12px 15px;
-    border: 2px solid #bae6fd;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 15px;
-    outline: none;
-    transition: all 0.3s ease;
-    background-color: #ffffff;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
-}
-
-#search_patient_input:focus {
-    border-color: #0284C7;
-    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
-}
+.search-box { width: 100%; padding: 12px 15px; border: 2px solid #bae6fd; border-radius: 8px; font-family: inherit; font-size: 15px; outline: none; transition: all 0.3s ease; background-color: #ffffff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); box-sizing: border-box;}
+.search-box:focus { border-color: #0284C7; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15); }
 
 /* القائمة المنسدلة للنتائج */
-.patient-results-dropdown {
-    position: absolute;
-    top: calc(100% - 10px);
-    left: 15px;
-    right: 15px;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 0 0 8px 8px;
-    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
-    z-index: 1005;
-    max-height: 220px;
-    overflow-y: auto;
-    display: none;
-}
+.patient-results-dropdown { position: absolute; top: calc(100% - 10px); left: 15px; right: 15px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index: 1005; max-height: 220px; overflow-y: auto; display: none; }
+.patient-results-dropdown::-webkit-scrollbar { width: 6px; }
+.patient-results-dropdown::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 0 0 8px 0; }
+.patient-results-dropdown::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.patient-results-dropdown::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* تجميل شريط التمرير (Scrollbar) للقائمة */
-.patient-results-dropdown::-webkit-scrollbar {
-    width: 6px;
-}
-.patient-results-dropdown::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 0 0 8px 0;
-}
-.patient-results-dropdown::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-}
-.patient-results-dropdown::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-}
+.patient-result-item { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: all 0.2s ease; display: flex; justify-content: space-between; align-items: center; }
+.patient-result-item:last-child { border-bottom: none; }
+.patient-result-item:hover { background: #e0f2fe; padding-inline-start: 20px; }
+.patient-result-name { font-weight: 800; color: #0f172a; font-size: 15px; }
+.patient-result-phone { font-size: 13px; color: #0284c7; font-weight: bold; background: #f0f9ff; padding: 4px 8px; border-radius: 6px; border: 1px solid #bae6fd; }
 
-/* عناصر نتيجة البحث */
-.patient-result-item {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f1f5f9;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.patient-result-item:last-child {
-    border-bottom: none;
-}
-
-.patient-result-item:hover {
-    background: #e0f2fe;
-    padding-inline-start: 20px; /* حركة خفيفة يمين عند الوقوف بالماوس */
-}
-
-.patient-result-name {
-    font-weight: 800;
-    color: #0f172a;
-    font-size: 15px;
-}
-
-.patient-result-phone {
-    font-size: 13px;
-    color: #0284c7;
-    font-weight: bold;
-    background: #f0f9ff;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid #bae6fd;
+/* 🔴 تظبيط شكل التقويم على الموبايل */
+@media (max-width: 768px) {
+    body { padding: 15px; }
+    
+    .page-header { flex-direction: column; align-items: stretch; gap: 15px; }
+    .header-actions { width: 100%; }
+    .btn-add { width: 100%; padding: 12px; font-size: 16px;}
+    
+    .calendar-container { padding: 10px; border-radius: 12px; }
+    
+    /* تظبيط زراير التقويم */
+    .fc-toolbar { flex-direction: column; gap: 10px; }
+    .fc-toolbar-title { font-size: 1.2rem !important; }
+    .fc-toolbar-chunk { display: flex; justify-content: center; flex-wrap: wrap; gap: 5px; width: 100%;}
+    
+    /* 🔴 حماية المودال وتكبير الحقول 🔴 */
+    .modal-content {
+        width: 95% !important;
+        margin: 10px auto !important;
+        padding: 20px !important;
+    }
+    
+    .grid-2col { flex-direction: column; gap: 0; }
+    
+    input, select, button { font-size: 16px !important; }
 }
