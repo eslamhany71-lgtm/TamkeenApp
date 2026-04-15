@@ -334,7 +334,7 @@ window.onload = () => {
 };
 
 // =========================================================================
-// 🔴 الدعم الفني (نظام التذاكر المدمج) 🔴
+// الدعم الفني
 // =========================================================================
 function openSupportModal() {
     document.getElementById('support_message').value = '';
@@ -345,24 +345,21 @@ function closeSupportModal() {
     document.getElementById('supportModal').style.display = 'none';
 }
 
+// 🔴 تعديل: تحويل الدعم الفني لنظام تذاكر داخلي 🔴
 async function sendSupportWhatsApp() {
-    const msgInput = document.getElementById('support_message');
-    const msg = msgInput.value.trim();
-    const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
-    const userEmail = firebase.auth().currentUser ? firebase.auth().currentUser.email : 'غير معروف';
-    const clinicName = document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'غير معروف';
-
+    const msg = document.getElementById('support_message').value.trim();
     if (!msg) {
         alert(document.body.dir === 'rtl' ? "برجاء كتابة الرسالة أولاً!" : "Please write a message first!");
         return;
     }
 
-    const btn = document.querySelector('.support-modal-content button');
-    const originalText = btn ? btn.innerHTML : 'إرسال';
-    if(btn) {
-        btn.innerHTML = "⏳ جاري الإرسال...";
-        btn.disabled = true;
-    }
+    const clinicName = document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'غير معروف';
+    const userEmail = document.getElementById('userEmail') ? document.getElementById('userEmail').innerText : 'غير معروف';
+    const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
+
+    const btn = document.getElementById('btn-support-send');
+    const originalText = btn ? btn.innerText : 'إرسال';
+    if(btn) btn.innerText = "⏳ جاري الإرسال...";
 
     try {
         await db.collection("SupportTickets").add({
@@ -375,16 +372,13 @@ async function sendSupportWhatsApp() {
         });
 
         alert(document.body.dir === 'rtl' ? "✅ تم إرسال رسالتك لفريق الدعم الفني بنجاح! سيتم التواصل معك قريباً." : "✅ Ticket sent successfully! We will contact you soon.");
-        msgInput.value = '';
+        document.getElementById('support_message').value = '';
         closeSupportModal();
     } catch (error) {
         console.error("Error sending support ticket:", error);
         alert(document.body.dir === 'rtl' ? "❌ حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقاً." : "❌ Error sending ticket, please try again.");
     } finally {
-        if(btn) {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
+        if(btn) btn.innerText = originalText;
     }
 }
 
