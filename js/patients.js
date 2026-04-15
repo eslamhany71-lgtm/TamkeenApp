@@ -526,3 +526,78 @@ window.addEventListener('click', function(event) {
         event.target.style.display = 'none';
     }
 });
+// =========================================================
+// 🔴 لوجيك ماسح كارت المريض (QR Code Scanner) 🔴
+// =========================================================
+
+let html5QrcodeScanner = null;
+let isCameraRunning = false; 
+
+window.openCameraScanner = function() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const modal = document.getElementById('cameraScannerModal');
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert(isAr ? "الكاميرا غير مدعومة في هذا المتصفح." : "Camera not supported in this browser.");
+        return;
+    }
+
+    modal.style.display = 'flex';
+
+    html5QrcodeScanner = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+    
+    const onScanSuccess = (decodedText, decodedResult) => {
+        if (isCameraRunning) {
+            html5QrcodeScanner.stop().then(() => {
+                isCameraRunning = false;
+                html5QrcodeScanner.clear();
+                closeCameraScanner();
+                
+                // 🔴 بمجرد ما يلقط الكود، بيشغل دالة البحث وفتح الملف 🔴
+                handlePatientQRScan(decodedText.trim());
+                
+            }).catch(err => console.error("Error stopping scanner", err));
+        }
+    };
+
+    html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
+    .then(() => {
+        isCameraRunning = true; 
+    })
+    .catch((err) => {
+        console.warn("Camera failed to start:", err);
+        closeCameraScanner();
+        alert(isAr ? "تعذر تشغيل الكاميرا. يرجى إعطاء الصلاحية." : "Could not start camera. Please grant permissions.");
+    });
+};
+
+window.closeCameraScanner = function() {
+    const modal = document.getElementById('cameraScannerModal');
+    modal.style.display = 'none';
+    
+    if (html5QrcodeScanner && isCameraRunning) {
+        html5QrcodeScanner.stop().then(() => {
+            isCameraRunning = false;
+            html5QrcodeScanner.clear();
+        }).catch(err => console.log(err));
+    }
+};
+
+// الدالة اللي بتاخد الـ QR (رقم الموبايل مثلاً أو كود المريض) وتفتح ملفه
+function handlePatientQRScan(scannedCode) {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    
+    // البحث عن المريض (بافتراض إن الـ QR جواه رقم التليفون أو الـ ID)
+    const foundPatient = patientsDataArray.find(item => item.id === scannedCode || item.phone === scannedCode);
+
+    if (foundPatient) {
+        // لو لاقاه، يفتح البروفايل بتاعه فوراً
+        if (window.showLoader) window.showLoader(isAr ? "جاري فتح ملف المريض..." : "Opening patient profile...");
+        setTimeout(() => {
+            openMedicalProfile(foundPatient.id);
+        }, 500);
+    } else {
+        alert(isAr ? `لم يتم العثور على مريض بهذا الكود: (${scannedCode})` : `No patient found with this code: (${scannedCode})`);
+    }
+}
