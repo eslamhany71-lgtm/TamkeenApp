@@ -15,7 +15,7 @@ if (!firebase.apps.length) {
 }
 
 // 🚀 فحص مسار الصفحة الحالية
-const currentPath = window.location.pathname;
+const currentPath = window.location.pathname.toLowerCase();
 const isLoginScreen = currentPath.endsWith("index.html") || currentPath === "/" || currentPath.endsWith("activate.html");
 
 // تفعيل الكاش (السرعة الصاروخية ووضع الأوفلاين) فقط داخل النظام
@@ -143,7 +143,7 @@ function createGlobalLoader() {
     `;
     targetDoc.body.appendChild(loaderDiv);
 
-    let failsafeTimer; // 🔴 العداد السحري
+    let failsafeTimer; 
 
     // دوال التشغيل مع الحماية
     targetWindow.executeShowLoader = function(msg = "جاري التحميل...") {
@@ -153,12 +153,14 @@ function createGlobalLoader() {
             if(m) m.innerText = msg; 
             l.classList.add('active'); 
             
-            // 🔴 التدمير الذاتي: لو اللودر كمل 10 ثواني، يفصل إجباري عشان الموبايل ميعلقش
+            // 🔴 التدمير الذاتي: لو إحنا مش في شاشة الدخول واللودر علق، يختفي إجباري بعد 1.2 ثانية
             clearTimeout(failsafeTimer);
-            failsafeTimer = setTimeout(() => {
-                l.classList.remove('active');
-                console.warn("تم إخفاء اللودر إجبارياً لحماية النظام من التعليق.");
-            }, 10000); 
+            if (!isLoginScreen) {
+                failsafeTimer = setTimeout(() => {
+                    l.classList.remove('active');
+                    console.warn("تم إخفاء اللودر إجبارياً لحماية النظام من التعليق.");
+                }, 1200); 
+            }
         }
     };
 
@@ -166,7 +168,7 @@ function createGlobalLoader() {
         const l = targetDoc.getElementById('global-erp-loader');
         if (l) {
             l.classList.remove('active');
-            clearTimeout(failsafeTimer); // نلغي التدمير الذاتي لو العملية خلصت بسرعة بسلام
+            clearTimeout(failsafeTimer);
         }
     };
 }
@@ -178,7 +180,7 @@ if (document.readyState === 'loading') {
     createGlobalLoader();
 }
 
-// 🔴 دوال الاستدعاء المباشرة 🔴
+// دوال الاستدعاء المباشرة
 window.showLoader = function(msg) {
     if (window.top && window.top.executeShowLoader) {
         window.top.executeShowLoader(msg);
@@ -191,87 +193,6 @@ window.hideLoader = function() {
     }
 };
 
-// =====================================================================
-// 🔴 سحر الوضع الليلي (Universal Dark Mode Injector) 🔴
-// =====================================================================
-
-// 1. حقن ستايل الوضع الليلي في رأس كل صفحة أوتوماتيكياً
-const darkModeStyles = `
-    [data-theme="dark"] body { background-color: #0f172a !important; color: #f8fafc !important; }
-    [data-theme="dark"] .page-header { background: transparent !important; }
-    [data-theme="dark"] #txt-title, [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3 { color: #f8fafc !important; }
-    [data-theme="dark"] #txt-subtitle, [data-theme="dark"] p { color: #94a3b8 !important; }
-
-    /* الجداول */
-    [data-theme="dark"] .table-container { background: #1e293b !important; border: 1px solid #334155 !important; box-shadow: none !important; }
-    [data-theme="dark"] table th { background: #0f172a !important; color: #cbd5e1 !important; border-bottom: 1px solid #334155 !important; }
-    [data-theme="dark"] table td { color: #f8fafc !important; border-bottom: 1px solid #334155 !important; }
-    [data-theme="dark"] table tr:hover td { background-color: #334155 !important; }
-    [data-theme="dark"] .clickable-row:hover td { background-color: #334155 !important; }
-
-    /* الموديل (النوافذ المنبثقة) */
-    [data-theme="dark"] .modal-content { background: #1e293b !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9) !important; }
-    [data-theme="dark"] .modal-content h2, [data-theme="dark"] .modal-content h3 { border-color: #334155 !important; }
-    [data-theme="dark"] .close-modal { color: #94a3b8 !important; }
-    [data-theme="dark"] .close-modal:hover { color: #ef4444 !important; }
-    [data-theme="dark"] .details-box, [data-theme="dark"] .finance-box-modal, [data-theme="dark"] .session-summary { background: #0f172a !important; border: 1px solid #334155 !important; }
-    [data-theme="dark"] .details-box p strong, [data-theme="dark"] .finance-box-modal label { color: #cbd5e1 !important; }
-    [data-theme="dark"] .details-box span { color: #f8fafc !important; }
-
-    /* الحقول (Inputs & Selects) */
-    [data-theme="dark"] input:not([type="checkbox"]), [data-theme="dark"] select, [data-theme="dark"] textarea, [data-theme="dark"] .search-box {
-        background-color: #0f172a !important; color: #f8fafc !important; border: 1px solid #475569 !important;
-    }
-    [data-theme="dark"] input[readonly] { background-color: #1e293b !important; color: #ef4444 !important; border-color: #334155 !important; }
-    [data-theme="dark"] input:focus, [data-theme="dark"] select:focus, [data-theme="dark"] textarea:focus {
-        border-color: #38bdf8 !important; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1) !important;
-    }
-    [data-theme="dark"] label { color: #cbd5e1 !important; }
-
-    /* الكروت (KPIs, Dashboard & Settings) */
-    [data-theme="dark"] .kpi-card, [data-theme="dark"] .settings-card { background: #1e293b !important; border-color: #334155 !important; box-shadow: none !important; }
-    [data-theme="dark"] .kpi-info h4 { color: #94a3b8 !important; }
-    [data-theme="dark"] .kpi-info h2 { color: #f8fafc !important; }
-    [data-theme="dark"] .chart-container { background: #1e293b !important; border-color: #334155 !important; box-shadow: none !important; }
-
-    /* التقويم (Calendar) */
-    [data-theme="dark"] .fc { color: #f8fafc !important; }
-    [data-theme="dark"] .fc-theme-standard td, [data-theme="dark"] .fc-theme-standard th { border-color: #334155 !important; }
-    [data-theme="dark"] .fc-theme-standard .fc-scrollgrid { border-color: #334155 !important; }
-    [data-theme="dark"] .fc-col-header-cell { background-color: #0f172a !important; }
-    [data-theme="dark"] .fc-daygrid-day { background-color: #1e293b !important; }
-    [data-theme="dark"] .fc-day-today { background-color: #334155 !important; }
-    [data-theme="dark"] .fc-list-day-cushion { background-color: #334155 !important; color: #f8fafc !important; }
-    [data-theme="dark"] .fc-list-event:hover td { background-color: #475569 !important; }
-    [data-theme="dark"] .fc-list-event-title { color: #f8fafc !important; }
-    [data-theme="dark"] .fc-timegrid-slot-label-cushion { color: #94a3b8 !important; }
-
-    /* حالات فارغة وعناصر إضافية */
-    [data-theme="dark"] .empty-state { background: #0f172a !important; border-color: #334155 !important; color: #94a3b8 !important; }
-    [data-theme="dark"] .drug-list-item { background: #0f172a !important; border-color: #334155 !important; }
-    [data-theme="dark"] .search-results { background: #1e293b !important; border-color: #334155 !important; }
-    [data-theme="dark"] .search-item { border-color: #334155 !important; }
-    [data-theme="dark"] .search-item:hover { background: #334155 !important; }
-    [data-theme="dark"] .search-item strong { color: #f8fafc !important; }
-`;
-
-document.addEventListener('DOMContentLoaded', () => {
-    // حقن الكود السحري
-    const styleSheet = document.createElement("style");
-    styleSheet.innerText = darkModeStyles;
-    document.head.appendChild(styleSheet);
-
-    // سحب الثيم المحفوظ وتطبيقه أول ما الصفحة تفتح
-    const savedTheme = localStorage.getItem('niva_theme') || 'light';
-    document.body.setAttribute('data-theme', savedTheme);
-});
-
-// 2. مستمع الإشارات من الواجهة الرئيسية (home.html)
-window.addEventListener('message', function(event) {
-    if (event.data && event.data.type === 'THEME_CHANGE') {
-        document.body.setAttribute('data-theme', event.data.theme);
-    }
-});
 // =======================================================
 // 🔴 كود أيقونة المتصفح (Global Favicon) 🔴
 // =======================================================
@@ -284,22 +205,11 @@ window.addEventListener('message', function(event) {
     }
     link.href = 'data:image/svg+xml;utf8,<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="20" fill="%23E0F2FE"/><path d="M30 40C30 28.9543 38.9543 20 50 20C61.0457 20 70 28.9543 70 40V60C70 65.5228 65.5228 70 60 70C54.4772 70 50 65.5228 50 60C50 65.5228 45.5228 70 40 70C34.4772 70 30 65.5228 30 60V40Z" fill="%230284C7"/><path d="M50 20C38.9543 20 30 28.9543 30 40V60C30 65.5228 34.4772 70 40 70C45.5228 70 50 65.5228 50 60V20Z" fill="%230EA5E9"/><circle cx="50" cy="50" r="8" fill="%23FFFFFF"/></svg>';
 })();
-// 🔴 قناص اللودر: إخفاء إجباري ما عدا في شاشات الدخول والتفعيل 🔴
-const originalShowLoader = window.showLoader;
-if (originalShowLoader) {
-    window.showLoader = function(msg) {
-        originalShowLoader(msg);
-        
-        // لو إحنا في صفحة الدخول أو التفعيل، متقتلش اللودر سيبه يكمل
-        const currentPath = window.location.pathname.toLowerCase();
-        if (!currentPath.includes('index.html') && !currentPath.includes('activate.html') && currentPath !== '/') {
-            setTimeout(() => { 
-                if (window.hideLoader) window.hideLoader(); 
-            }, 1200);
-        }
-    };
-}
-// === 🔴 إصلاح الوضع الليلي الشامل لكل الصفحات 🔴 ===
+
+// =====================================================================
+// 🔴 سحر الوضع الليلي (Universal Dark Mode Injector) 🔴
+// =====================================================================
+
 function applyGlobalDarkMode() {
     const theme = localStorage.getItem('niva_theme') || 'light';
     document.documentElement.setAttribute('data-theme', theme);
@@ -309,13 +219,61 @@ function applyGlobalDarkMode() {
         style.id = 'global-dark-css';
         style.innerHTML = `
             body[data-theme="dark"], body[data-theme="dark"] .main-content { background-color: #0f172a !important; color: #f8fafc !important; }
-            body[data-theme="dark"] .kpi-card, body[data-theme="dark"] .table-container, body[data-theme="dark"] .modal-content, body[data-theme="dark"] .settings-card, body[data-theme="dark"] .finance-box, body[data-theme="dark"] .session-summary, body[data-theme="dark"] .details-box { background-color: #1e293b !important; border-color: #334155 !important; box-shadow: 0 4px 6px rgba(0,0,0,0.5) !important; color: #f8fafc !important; }
-            body[data-theme="dark"] th { background-color: #0f172a !important; color: #94a3b8 !important; border-bottom: 1px solid #334155 !important; }
-            body[data-theme="dark"] td { border-bottom: 1px solid #334155 !important; color: #e2e8f0 !important; }
-            body[data-theme="dark"] tr:hover td { background-color: #1e293b !important; }
-            body[data-theme="dark"] input, body[data-theme="dark"] select, body[data-theme="dark"] textarea, body[data-theme="dark"] .search-box { background-color: #0f172a !important; color: #f8fafc !important; border-color: #475569 !important; }
-            body[data-theme="dark"] h1, body[data-theme="dark"] h2, body[data-theme="dark"] h3, body[data-theme="dark"] p, body[data-theme="dark"] label, body[data-theme="dark"] span { color: #e2e8f0 !important; }
-            body[data-theme="dark"] .fc-toolbar-title, body[data-theme="dark"] .fc-col-header-cell-cushion, body[data-theme="dark"] .fc-daygrid-day-number { color: #f8fafc !important; }
+            body[data-theme="dark"] .page-header { background: transparent !important; }
+            body[data-theme="dark"] #txt-title, body[data-theme="dark"] h1, body[data-theme="dark"] h2, body[data-theme="dark"] h3 { color: #f8fafc !important; }
+            body[data-theme="dark"] #txt-subtitle, body[data-theme="dark"] p { color: #94a3b8 !important; }
+
+            /* الجداول */
+            body[data-theme="dark"] .table-container { background: #1e293b !important; border: 1px solid #334155 !important; box-shadow: none !important; }
+            body[data-theme="dark"] table th { background: #0f172a !important; color: #cbd5e1 !important; border-bottom: 1px solid #334155 !important; }
+            body[data-theme="dark"] table td { color: #f8fafc !important; border-bottom: 1px solid #334155 !important; }
+            body[data-theme="dark"] table tr:hover td { background-color: #334155 !important; }
+            body[data-theme="dark"] .clickable-row:hover td { background-color: #334155 !important; }
+
+            /* الموديل (النوافذ المنبثقة) */
+            body[data-theme="dark"] .modal-content { background: #1e293b !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9) !important; }
+            body[data-theme="dark"] .modal-content h2, body[data-theme="dark"] .modal-content h3 { border-color: #334155 !important; }
+            body[data-theme="dark"] .close-modal { color: #94a3b8 !important; }
+            body[data-theme="dark"] .close-modal:hover { color: #ef4444 !important; }
+            body[data-theme="dark"] .details-box, body[data-theme="dark"] .finance-box-modal, body[data-theme="dark"] .session-summary { background: #0f172a !important; border: 1px solid #334155 !important; }
+            body[data-theme="dark"] .details-box p strong, body[data-theme="dark"] .finance-box-modal label { color: #cbd5e1 !important; }
+            body[data-theme="dark"] .details-box span { color: #f8fafc !important; }
+
+            /* الحقول (Inputs & Selects) */
+            body[data-theme="dark"] input:not([type="checkbox"]), body[data-theme="dark"] select, body[data-theme="dark"] textarea, body[data-theme="dark"] .search-box {
+                background-color: #0f172a !important; color: #f8fafc !important; border: 1px solid #475569 !important;
+            }
+            body[data-theme="dark"] input[readonly] { background-color: #1e293b !important; color: #ef4444 !important; border-color: #334155 !important; }
+            body[data-theme="dark"] input:focus, body[data-theme="dark"] select:focus, body[data-theme="dark"] textarea:focus {
+                border-color: #38bdf8 !important; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1) !important;
+            }
+            body[data-theme="dark"] label { color: #cbd5e1 !important; }
+
+            /* الكروت (KPIs, Dashboard & Settings) */
+            body[data-theme="dark"] .kpi-card, body[data-theme="dark"] .settings-card { background: #1e293b !important; border-color: #334155 !important; box-shadow: none !important; }
+            body[data-theme="dark"] .kpi-info h4 { color: #94a3b8 !important; }
+            body[data-theme="dark"] .kpi-info h2 { color: #f8fafc !important; }
+            body[data-theme="dark"] .chart-container { background: #1e293b !important; border-color: #334155 !important; box-shadow: none !important; }
+
+            /* التقويم (Calendar) */
+            body[data-theme="dark"] .fc { color: #f8fafc !important; }
+            body[data-theme="dark"] .fc-theme-standard td, body[data-theme="dark"] .fc-theme-standard th { border-color: #334155 !important; }
+            body[data-theme="dark"] .fc-theme-standard .fc-scrollgrid { border-color: #334155 !important; }
+            body[data-theme="dark"] .fc-col-header-cell { background-color: #0f172a !important; }
+            body[data-theme="dark"] .fc-daygrid-day { background-color: #1e293b !important; }
+            body[data-theme="dark"] .fc-day-today { background-color: #334155 !important; }
+            body[data-theme="dark"] .fc-list-day-cushion { background-color: #334155 !important; color: #f8fafc !important; }
+            body[data-theme="dark"] .fc-list-event:hover td { background-color: #475569 !important; }
+            body[data-theme="dark"] .fc-list-event-title { color: #f8fafc !important; }
+            body[data-theme="dark"] .fc-timegrid-slot-label-cushion { color: #94a3b8 !important; }
+
+            /* حالات فارغة وعناصر إضافية */
+            body[data-theme="dark"] .empty-state { background: #0f172a !important; border-color: #334155 !important; color: #94a3b8 !important; }
+            body[data-theme="dark"] .drug-list-item { background: #0f172a !important; border-color: #334155 !important; }
+            body[data-theme="dark"] .search-results { background: #1e293b !important; border-color: #334155 !important; }
+            body[data-theme="dark"] .search-item { border-color: #334155 !important; }
+            body[data-theme="dark"] .search-item:hover { background: #334155 !important; }
+            body[data-theme="dark"] .search-item strong { color: #f8fafc !important; }
         `;
         document.head.appendChild(style);
     } else if (theme === 'light') {
@@ -323,9 +281,10 @@ function applyGlobalDarkMode() {
         if (darkStyle) darkStyle.remove();
     }
 }
-applyGlobalDarkMode(); // تطبيق الدارك مود فور تحميل أي صفحة
+applyGlobalDarkMode(); 
+
 window.addEventListener('message', function(event) {
-    if (event.data.type === 'THEME_CHANGE') {
+    if (event.data && event.data.type === 'THEME_CHANGE') {
         localStorage.setItem('niva_theme', event.data.theme);
         applyGlobalDarkMode();
     }
