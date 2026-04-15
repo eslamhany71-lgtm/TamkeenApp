@@ -158,3 +158,42 @@ html[dir="ltr"][data-theme="dark"] .sidebar { border-left: none; border-right: 1
 [data-theme="dark"] #mod-support-desc { color: #94a3b8; }
 [data-theme="dark"] #support_message { background: #0f172a; color: #f8fafc; border-color: #475569; }
 [data-theme="dark"] #support_message:focus { border-color: #38bdf8; box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.1); }
+
+/* ================= 🔴 سحر الـ Hover للكمبيوتر واللاب توب 🔴 ================= */
+@media (min-width: 993px) {
+    .sidebar {
+        width: 80px; /* العرض المبدئي وهي مقفولة */
+        overflow-x: hidden;
+    }
+    
+    /* إخفاء النصوص واللوجو الكبير وهي مقفولة */
+    .sidebar .sidebar-brand span, 
+    .sidebar .nav-links span:not(.icon), 
+    .sidebar #txt-powered-sidebar {
+        opacity: 0;
+        visibility: hidden;
+        transition: 0.2s;
+        white-space: nowrap;
+    }
+
+    /* تكبير الأيقونات وتوسيطها وهي مقفولة */
+    .sidebar .nav-links a { justify-content: center; padding: 15px 0; }
+    .sidebar .nav-links .icon { font-size: 24px; margin: 0; }
+
+    /* 🔴 السحر: لما الماوس يلمسها تفتح 🔴 */
+    .sidebar:hover {
+        width: 260px;
+    }
+    
+    /* إظهار النصوص لما تفتح */
+    .sidebar:hover .sidebar-brand span, 
+    .sidebar:hover .nav-links span:not(.icon), 
+    .sidebar:hover #txt-powered-sidebar {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.4s ease 0.1s; /* تأخير بسيط عشان تظهر بنعومة */
+    }
+
+    /* ترجيع الأيقونات لمكانها */
+    .sidebar:hover .nav-links a { justify-content: flex-start; padding: 15px 20px; }
+}
