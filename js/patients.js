@@ -436,8 +436,16 @@ async function deleteSelectedPatients() {
     }
 }
 
-function openMedicalProfile(patientId) { window.location.href = `patient-profile.html?id=${patientId}`; }
-
+// 🔴 التوجيه الذكي: فتح ملف المريض عن طريق الداشبورد الأساسية لضمان سرعة جلب البيانات 🔴
+function openMedicalProfile(patientId) { 
+    if (window.top && typeof window.top.loadPage === 'function') {
+        // نبعت الأمر للأب (home.js) عشان يشغل اللودر ويمرر البيانات صح
+        window.top.loadPage(`patient-profile.html?id=${patientId}`);
+    } else {
+        // خطة بديلة لو الصفحة مفتوحة لوحدها
+        window.location.href = `patient-profile.html?id=${patientId}`; 
+    }
+}
 // 🔴 دالة سحب وإضافة المرضى من الإكسيل
 function importPatientsFromExcel(input) {
     const file = input.files[0];
