@@ -58,8 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function loadPatientData() {
     const isAr = getLang();
-    if (!patientId || !clinicId) {
-        document.getElementById('prof-name').innerText = isAr ? "خطأ: لم يتم العثور على المريض" : "Error: Patient not found";
+    
+    // 🔴 حماية وعرض الأخطاء على الشاشة مباشرة 🔴
+    if (!patientId) {
+        document.getElementById('prof-name').innerHTML = `<span style="color:#ef4444; font-size:16px;">⚠️ خطأ: كود المريض مفقود!</span>`;
+        return;
+    }
+    if (!clinicId) {
+        document.getElementById('prof-name').innerHTML = `<span style="color:#ef4444; font-size:16px;">⚠️ خطأ: كود العيادة مفقود!</span>`;
         return;
     }
 
@@ -77,8 +83,8 @@ function loadPatientData() {
             }
             
             document.getElementById('prof-name').innerHTML = `${p.name} ${debtHtml}`;
-            document.getElementById('prof-phone').innerText = `📞 ${p.phone}`;
-            document.getElementById('prof-age').innerText = `🎂 ${p.age} ${isAr ? 'سنة' : 'Y'}`;
+            document.getElementById('prof-phone').innerText = `📞 ${p.phone || '---'}`;
+            document.getElementById('prof-age').innerText = `🎂 ${p.age || '---'} ${isAr ? 'سنة' : 'Y'}`;
             document.getElementById('prof-gender').innerText = `🚻 ${p.gender || (isAr ? 'غير محدد' : 'Unknown')}`;
             
             const alerts = document.getElementById('prof-alerts');
@@ -89,6 +95,9 @@ function loadPatientData() {
                 const safeTxt = isAr ? '✅ سليم / لا يوجد أمراض مزمنة' : '✅ Healthy / No Chronic Diseases';
                 alerts.innerHTML = `<span style="color: #10b981; font-weight: bold;">${safeTxt}</span>`;
             }
+        } else {
+            // لو المريض اتمسح أو الكود غلط، تظهر رسالة واضحة
+            document.getElementById('prof-name').innerHTML = `<span style="color:#ef4444;">⚠️ لم يتم العثور على المريض في قاعدة البيانات!</span>`;
         }
         
         if (isInitialLoad) {
@@ -99,6 +108,8 @@ function loadPatientData() {
         }
     }, (error) => {
         console.error(error);
+        // 🔴 طباعة إيرور الفايربيز على الشاشة عشان لو فيه حظر أمني 🔴
+        document.getElementById('prof-name').innerHTML = `<span style="color:#ef4444; font-size:14px;">❌ خطأ اتصال: ${error.message}</span>`;
         if (isInitialLoad && window.hideLoader) window.hideLoader();
     });
 }
