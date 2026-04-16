@@ -436,13 +436,13 @@ async function deleteSelectedPatients() {
     }
 }
 
-// 🔴 التوجيه الداخلي مع كاسر الكاش الإجباري للموبايل 🔴
+// 🔴 التوجيه المحصن ضد حظر الآيفون (تمرير كود العيادة في الرابط) 🔴
 function openMedicalProfile(patientId) { 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     if (window.showLoader) window.showLoader(isAr ? "جاري تجهيز ملف المريض..." : "Opening profile...");
     
-    // إضافة Date.now() تجبر الموبايل إنه ميقرأش من الكاش القديم أبداً
-    window.location.href = `patient-profile.html?id=${patientId}&v=${Date.now()}`; 
+    // بعتنا clinicId مع الرابط عشان الآيفون ميعملش بلوك للذاكرة
+    window.location.href = `patient-profile.html?id=${patientId}&clinicId=${currentClinicId}&v=${Date.now()}`; 
 }
 
 // 🔴 دالة سحب وإضافة المرضى من الإكسيل
