@@ -436,15 +436,14 @@ async function deleteSelectedPatients() {
     }
 }
 
-// 🔴 التوجيه الذكي: فتح ملف المريض عن طريق الداشبورد الأساسية لضمان سرعة جلب البيانات 🔴
+// 🔴 التوجيه الداخلي الآمن 100% لفتح ملف المريض وتجنب حظر كروم 🔴
 function openMedicalProfile(patientId) { 
-    if (window.top && typeof window.top.loadPage === 'function') {
-        // نبعت الأمر للأب (home.js) عشان يشغل اللودر ويمرر البيانات صح
-        window.top.loadPage(`patient-profile.html?id=${patientId}`);
-    } else {
-        // خطة بديلة لو الصفحة مفتوحة لوحدها
-        window.location.href = `patient-profile.html?id=${patientId}`; 
-    }
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    if (window.showLoader) window.showLoader(isAr ? "جاري تجهيز ملف المريض..." : "Opening profile...");
+    
+    // الانتقال الذاتي داخل الإطار
+    window.location.href = `patient-profile.html?id=${patientId}`; 
+}
 }
 // 🔴 دالة سحب وإضافة المرضى من الإكسيل
 function importPatientsFromExcel(input) {
