@@ -212,13 +212,16 @@ window.hideLoader = function() {
 
 function applyGlobalDarkMode() {
     const theme = localStorage.getItem('niva_theme') || 'light';
+    
+    // 🔴 التعديل الجراحي: توحيد المنطق بتطبيق الثيم على الـ body والـ html معاً لقتل أي تعارض 🔴
+    document.body.setAttribute('data-theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
     
     if (theme === 'dark' && !document.getElementById('global-dark-css')) {
         const style = document.createElement('style');
         style.id = 'global-dark-css';
         style.innerHTML = `
-            body[data-theme="dark"], body[data-theme="dark"] .main-content { background-color: #0f172a !important; color: #f8fafc !important; }
+            [data-theme="dark"] body, body[data-theme="dark"], body[data-theme="dark"] .main-content { background-color: #0f172a !important; color: #f8fafc !important; }
             body[data-theme="dark"] .page-header { background: transparent !important; }
             body[data-theme="dark"] #txt-title, body[data-theme="dark"] h1, body[data-theme="dark"] h2, body[data-theme="dark"] h3 { color: #f8fafc !important; }
             body[data-theme="dark"] #txt-subtitle, body[data-theme="dark"] p { color: #94a3b8 !important; }
@@ -281,8 +284,11 @@ function applyGlobalDarkMode() {
         if (darkStyle) darkStyle.remove();
     }
 }
+
+// تشغيل الدالة فوراً
 applyGlobalDarkMode(); 
 
+// استقبال أمر التغيير من الواجهة الرئيسية
 window.addEventListener('message', function(event) {
     if (event.data && event.data.type === 'THEME_CHANGE') {
         localStorage.setItem('niva_theme', event.data.theme);
