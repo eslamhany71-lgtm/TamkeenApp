@@ -1,15 +1,14 @@
 const db = firebase.firestore();
 
-// 🔴 قراءة ذكية للـ ID وتجاهل كاسر الكاش 🔴
+// 🔴 قراءة ذكية للمتغيرات (كود المريض وكود العيادة) من الرابط مباشرة 🔴
 const urlParams = new URLSearchParams(window.location.search);
 let patientId = urlParams.get('id');
 
-// 🔴 تأمين كود العيادة: لو الموبايل قفل الـ sessionStorage، نقرأ من الـ localStorage 🔴
-let clinicId = sessionStorage.getItem('clinicId') || localStorage.getItem('clinicId');
+// قراءة كود العيادة من الرابط كأولوية أولى (عشان الآيفون)، ثم الذاكرة
+let clinicId = urlParams.get('clinicId') || sessionStorage.getItem('clinicId') || localStorage.getItem('clinicId');
 
-// لو لسه مفيش clinicId، نحاول نجيبه من الأب (الداشبورد)
 if (!clinicId && window.parent) {
-    clinicId = window.parent.sessionStorage.getItem('clinicId');
+    try { clinicId = window.parent.sessionStorage.getItem('clinicId'); } catch(e) {}
 }
 
 let currentPatientName = "مريض";
