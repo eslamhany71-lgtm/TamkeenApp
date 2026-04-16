@@ -644,8 +644,12 @@ function resetSessionSearch() {
     renderPatientSessionsTable();
 }
 
+// 🔴 التوجيه الداخلي الآمن لفتح تفاصيل الجلسة 🔴
 function viewSessionDetails(sessionId) {
-    window.parent.loadPage(`session-details.html?sessionId=${sessionId}&patientId=${patientId}`, window.parent.document.getElementById('nav-patients').parentElement);
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    if (window.showLoader) window.showLoader(isAr ? "جاري فتح تفاصيل الجلسة..." : "Loading session...");
+    
+    window.location.href = `session-details.html?sessionId=${sessionId}&patientId=${patientId}`;
 }
 
 async function deleteDoc(collectionName, docId) {
