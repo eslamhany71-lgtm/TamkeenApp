@@ -669,7 +669,16 @@ async function deleteDoc(collectionName, docId) {
     }
 }
 
+// ==========================================
+// 🔴 التشغيل الفوري والذكي للصفحة (قاهر تعليقة الموبايل) 🔴
+// ==========================================
 window.onload = () => {
+    // 1. تشغيل جلب البيانات فوراً بدون انتظار رد الـ Auth اللي بيعلق على الموبايل
+    setTimeout(() => {
+        loadPatientData(); 
+    }, 100);
+
+    // 2. جلب اسم المستخدم في الخلفية (لو اشتغل تمام، لو معلق مش هيوقف السيستم)
     firebase.auth().onAuthStateChanged(async (user) => { 
         if (user) { 
             try {
@@ -679,8 +688,6 @@ window.onload = () => {
                     currentUserDisplayName = userDoc.data().name || (isAr ? "مدير النظام" : "Admin");
                 }
             } catch(e) { console.error(e); }
-
-            loadPatientData(); 
         } 
     });
 };
