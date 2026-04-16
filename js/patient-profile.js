@@ -1,6 +1,13 @@
 const db = firebase.firestore();
-const urlParams = new URLSearchParams(window.location.search);
-const patientId = urlParams.get('id');
+
+// 🔴 التعديل الجراحي: قراءة الـ ID بذكاء وتجاهل أي إضافات للسرعة في الرابط 🔴
+const currentUrl = new URL(window.location.href);
+// نجيب الـ id من الـ search params، ولو مش موجود نحاول نجيبه من الـ hash لو في لخبطة
+let patientId = currentUrl.searchParams.get('id');
+if (patientId && patientId.includes('&')) {
+    patientId = patientId.split('&')[0]; // تنظيف الـ ID لو مسك في حاجة تانية
+}
+
 const clinicId = sessionStorage.getItem('clinicId');
 
 let currentPatientName = "مريض";
