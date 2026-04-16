@@ -444,7 +444,7 @@ function openMedicalProfile(patientId) {
     // الانتقال الذاتي داخل الإطار
     window.location.href = `patient-profile.html?id=${patientId}`; 
 }
-}
+
 // 🔴 دالة سحب وإضافة المرضى من الإكسيل
 function importPatientsFromExcel(input) {
     const file = input.files[0];
