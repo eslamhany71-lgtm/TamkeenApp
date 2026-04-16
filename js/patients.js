@@ -436,13 +436,13 @@ async function deleteSelectedPatients() {
     }
 }
 
-// 🔴 التوجيه الداخلي الآمن 100% لفتح ملف المريض وتجنب حظر كروم 🔴
+// 🔴 التوجيه الداخلي مع كاسر الكاش الإجباري للموبايل 🔴
 function openMedicalProfile(patientId) { 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     if (window.showLoader) window.showLoader(isAr ? "جاري تجهيز ملف المريض..." : "Opening profile...");
     
-    // الانتقال الذاتي داخل الإطار
-    window.location.href = `patient-profile.html?id=${patientId}`; 
+    // إضافة Date.now() تجبر الموبايل إنه ميقرأش من الكاش القديم أبداً
+    window.location.href = `patient-profile.html?id=${patientId}&v=${Date.now()}`; 
 }
 
 // 🔴 دالة سحب وإضافة المرضى من الإكسيل
