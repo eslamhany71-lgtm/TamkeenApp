@@ -1,14 +1,16 @@
 const db = firebase.firestore();
 
-// 🔴 التعديل الجراحي: قراءة الـ ID بذكاء وتجاهل أي إضافات للسرعة في الرابط 🔴
-const currentUrl = new URL(window.location.href);
-// نجيب الـ id من الـ search params، ولو مش موجود نحاول نجيبه من الـ hash لو في لخبطة
-let patientId = currentUrl.searchParams.get('id');
-if (patientId && patientId.includes('&')) {
-    patientId = patientId.split('&')[0]; // تنظيف الـ ID لو مسك في حاجة تانية
-}
+// 🔴 قراءة ذكية للـ ID وتجاهل كاسر الكاش 🔴
+const urlParams = new URLSearchParams(window.location.search);
+let patientId = urlParams.get('id');
 
-const clinicId = sessionStorage.getItem('clinicId');
+// 🔴 تأمين كود العيادة: لو الموبايل قفل الـ sessionStorage، نقرأ من الـ localStorage 🔴
+let clinicId = sessionStorage.getItem('clinicId') || localStorage.getItem('clinicId');
+
+// لو لسه مفيش clinicId، نحاول نجيبه من الأب (الداشبورد)
+if (!clinicId && window.parent) {
+    clinicId = window.parent.sessionStorage.getItem('clinicId');
+}
 
 let currentPatientName = "مريض";
 let loadedPatientSessions = []; 
