@@ -547,23 +547,35 @@ async function askAI(promptType) {
 }
 
 // =========================================================================
-// 🔴 رادار الحضور والأمان (Smart Presence & Sleep Mode) 🔴
+// 🔴 رادار الحضور والأمان (Smart Presence & Sleep Mode) - النسخة المحصنة 🔴
 // =========================================================================
 
 const IDLE_TIMEOUT_MINUTES = 30; // الطرد النهائي وتسجيل الخروج بعد 30 دقيقة
 const OFFLINE_MARK_MINUTES = 15; // اعتباره (غير متصل) بعد 15 دقيقة خمول
-let currentPresenceStatus = "online"; // حالة الدكتور الحالية على الشاشة
+let currentPresenceStatus = "online"; 
+
+// 🔴 دالة سحرية للتحديث (تدعم الحساب التجريبي والأساسي) 🔴
+function updateUserPresence(isOnlineStatus) {
+    const user = firebase.auth().currentUser;
+    if (user) {
+        // لو مفيش إيميل (زي الحساب التجريبي أحياناً)، هنستخدم الـ uid
+        const docId = user.email || user.uid; 
+        
+        // استخدام merge: true عشان لو الملف مش موجود يكريته من الصفر وميعلقش
+        db.collection("Users").doc(docId).set({
+            isOnline: isOnlineStatus,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch((e) => console.log("Presence Error:", e));
+    }
+}
 
 function updateLastActiveTime() {
     localStorage.setItem('lastActiveNiva', Date.now());
 
-    // 🔴 السحر هنا: لو كان أوفلاين (بسبب الخمول) ولمس الماوس، نرجعه أونلاين فوراً 🔴
+    // لو كان أوفلاين ولمس الماوس، نرجعه أونلاين فوراً
     if (currentPresenceStatus === "offline" && firebase.auth().currentUser) {
         currentPresenceStatus = "online";
-        db.collection("Users").doc(firebase.auth().currentUser.email).update({
-            isOnline: true,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(()=>{});
+        updateUserPresence(true);
     }
 }
 
@@ -572,34 +584,26 @@ document.onmousemove = updateLastActiveTime;
 document.onkeypress = updateLastActiveTime;
 document.ontouchstart = updateLastActiveTime;
 
-// العداد السحري (يشتغل كل دقيقة يراقب نشاط الدكتور)
+// العداد السحري
 setInterval(() => {
     const lastActive = localStorage.getItem('lastActiveNiva');
     if (lastActive && firebase.auth().currentUser) {
         const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
 
-        // 1. لو عدى 30 دقيقة خمول -> طرد نهائي للأمان (تسجيل خروج)
         if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
             forceSecurityLogout("تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
         } 
-        // 2. لو عدى 15 دقيقة (ولسه مطردش) وكان أونلاين -> نقلبه أوفلاين عند الإدارة
         else if (diffMinutes >= OFFLINE_MARK_MINUTES && currentPresenceStatus === "online") {
             currentPresenceStatus = "offline";
-            db.collection("Users").doc(firebase.auth().currentUser.email).update({
-                isOnline: false,
-                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-            }).catch(()=>{});
+            updateUserPresence(false); // خليه أوفلاين
         }
     }
 }, 60000);
 
-// 3. 🔴 قناص إغلاق المتصفح: لو قفل اللاب توب أو التاب من الـ (X) فجأة 🔴
+// قناص إغلاق المتصفح من الـ X
 window.addEventListener('beforeunload', () => {
-    if(firebase.auth().currentUser && currentPresenceStatus === "online") {
-        db.collection("Users").doc(firebase.auth().currentUser.email).update({
-            isOnline: false,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(()=>{});
+    if(currentPresenceStatus === "online") {
+        updateUserPresence(false);
     }
 });
 
@@ -615,12 +619,8 @@ function checkHistoryRestore() {
 
 function forceSecurityLogout(msg) {
     if(firebase.auth().currentUser) {
-        // تأكيد تسجيله أوفلاين قبل الطرد
-        db.collection("Users").doc(firebase.auth().currentUser.email).update({
-            isOnline: false,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(()=>{});
-
+        updateUserPresence(false); // أوفلاين قبل الطرد
+        
         firebase.auth().signOut().then(() => {
             sessionStorage.clear();
             localStorage.removeItem('lastActiveNiva');
@@ -630,14 +630,11 @@ function forceSecurityLogout(msg) {
     }
 }
 
-// تأكيد حالة الأونلاين أول ما يفتح الداشبورد بنجاح
+// تأكيد حالة الأونلاين أول ما يفتح الداشبورد
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
         currentPresenceStatus = "online";
-        db.collection("Users").doc(user.email).update({
-            isOnline: true,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(()=>{});
+        updateUserPresence(true);
     }
 });
 
