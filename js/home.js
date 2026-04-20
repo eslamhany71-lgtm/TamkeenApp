@@ -547,13 +547,24 @@ async function askAI(promptType) {
 }
 
 // =========================================================================
-// 🔴 الأمان: إغلاق الجلسة في حالة الخمول أو إغلاق المتصفح (تحديث الـ Sleep Mode) 🔴
+// 🔴 رادار الحضور والأمان (Smart Presence & Sleep Mode) 🔴
 // =========================================================================
 
-const IDLE_TIMEOUT_MINUTES = 30; 
+const IDLE_TIMEOUT_MINUTES = 30; // الطرد النهائي وتسجيل الخروج بعد 30 دقيقة
+const OFFLINE_MARK_MINUTES = 15; // اعتباره (غير متصل) بعد 15 دقيقة خمول
+let currentPresenceStatus = "online"; // حالة الدكتور الحالية على الشاشة
 
 function updateLastActiveTime() {
     localStorage.setItem('lastActiveNiva', Date.now());
+
+    // 🔴 السحر هنا: لو كان أوفلاين (بسبب الخمول) ولمس الماوس، نرجعه أونلاين فوراً 🔴
+    if (currentPresenceStatus === "offline" && firebase.auth().currentUser) {
+        currentPresenceStatus = "online";
+        db.collection("Users").doc(firebase.auth().currentUser.email).update({
+            isOnline: true,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(()=>{});
+    }
 }
 
 window.onload = updateLastActiveTime;
@@ -561,16 +572,36 @@ document.onmousemove = updateLastActiveTime;
 document.onkeypress = updateLastActiveTime;
 document.ontouchstart = updateLastActiveTime;
 
-// العداد الجديد اللي بيطرح الوقت (عشان يتجنب فخ وضع السكون)
+// العداد السحري (يشتغل كل دقيقة يراقب نشاط الدكتور)
 setInterval(() => {
     const lastActive = localStorage.getItem('lastActiveNiva');
-    if (lastActive) {
+    if (lastActive && firebase.auth().currentUser) {
         const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
+
+        // 1. لو عدى 30 دقيقة خمول -> طرد نهائي للأمان (تسجيل خروج)
         if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
             forceSecurityLogout("تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
+        } 
+        // 2. لو عدى 15 دقيقة (ولسه مطردش) وكان أونلاين -> نقلبه أوفلاين عند الإدارة
+        else if (diffMinutes >= OFFLINE_MARK_MINUTES && currentPresenceStatus === "online") {
+            currentPresenceStatus = "offline";
+            db.collection("Users").doc(firebase.auth().currentUser.email).update({
+                isOnline: false,
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+            }).catch(()=>{});
         }
     }
-}, 60000); 
+}, 60000);
+
+// 3. 🔴 قناص إغلاق المتصفح: لو قفل اللاب توب أو التاب من الـ (X) فجأة 🔴
+window.addEventListener('beforeunload', () => {
+    if(firebase.auth().currentUser && currentPresenceStatus === "online") {
+        db.collection("Users").doc(firebase.auth().currentUser.email).update({
+            isOnline: false,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(()=>{});
+    }
+});
 
 function checkHistoryRestore() {
     const lastActive = localStorage.getItem('lastActiveNiva');
@@ -584,9 +615,10 @@ function checkHistoryRestore() {
 
 function forceSecurityLogout(msg) {
     if(firebase.auth().currentUser) {
-        // تحديث الأونلاين قبل الطرد
+        // تأكيد تسجيله أوفلاين قبل الطرد
         db.collection("Users").doc(firebase.auth().currentUser.email).update({
-            isOnline: false
+            isOnline: false,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(()=>{});
 
         firebase.auth().signOut().then(() => {
@@ -597,4 +629,16 @@ function forceSecurityLogout(msg) {
         });
     }
 }
+
+// تأكيد حالة الأونلاين أول ما يفتح الداشبورد بنجاح
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        currentPresenceStatus = "online";
+        db.collection("Users").doc(user.email).update({
+            isOnline: true,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(()=>{});
+    }
+});
+
 checkHistoryRestore();
