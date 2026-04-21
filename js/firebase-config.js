@@ -215,3 +215,40 @@ window.addEventListener('message', function(event) {
         applyGlobalDarkMode();
     }
 });
+// =====================================================================
+// 🔴 رادار حالة الإنترنت (تنبيه انقطاع وعودة الشبكة) 🔴
+// =====================================================================
+function setupNetworkMonitor() {
+    // إنشاء شريط التنبيه وإضافته للشاشة
+    const banner = document.createElement('div');
+    banner.id = 'network-status-banner';
+    banner.style.cssText = "position: fixed; bottom: -80px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 50px; color: white; font-weight: bold; font-family: 'Tajawal', sans-serif; z-index: 9999999; transition: bottom 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); text-align: center; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); font-size: 14px; white-space: nowrap;";
+    document.body.appendChild(banner);
+
+    // حدث انقطاع النت
+    window.addEventListener('offline', () => {
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+        banner.style.backgroundColor = '#ef4444'; // لون أحمر
+        banner.innerHTML = isAr ? '⚠️ انقطع الاتصال بالإنترنت. السيستم يعمل الآن في وضع الأوفلاين (سيتم مزامنة البيانات لاحقاً).' : '⚠️ No internet connection. System is running in offline mode.';
+        banner.style.bottom = '20px'; // إظهار الشريط
+    });
+
+    // حدث عودة النت
+    window.addEventListener('online', () => {
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+        banner.style.backgroundColor = '#10b981'; // لون أخضر
+        banner.innerHTML = isAr ? '✅ عاد الاتصال بالإنترنت بنجاح!' : '✅ Internet connection restored!';
+        
+        // إخفاء الشريط بعد 3 ثواني
+        setTimeout(() => {
+            banner.style.bottom = '-80px';
+        }, 3000);
+    });
+}
+
+// تشغيل الرادار أول ما الصفحة تحمل
+if (document.readyState === 'loading') { 
+    document.addEventListener('DOMContentLoaded', setupNetworkMonitor); 
+} else { 
+    setupNetworkMonitor(); 
+}
