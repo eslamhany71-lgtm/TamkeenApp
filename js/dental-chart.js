@@ -210,10 +210,10 @@ function updateSingleToothVisual(toothNum, part, status) {
         extractMark.setAttribute('display', 'none');
         implantMark.setAttribute('display', 'none');
 
-        // تنظيف ألوان الأسطح لو هيعمل طربوش مثلاً
+        // 🔴 التعديل الجراحي: استخدام setAttribute للمسح عشان يشتغل مع الـ SVG
         ['root', 'top', 'bottom', 'left', 'right', 'center'].forEach(p => {
             const el = document.getElementById(`t${toothNum}-${p}`);
-            if(el) el.className = 'tooth-part'; // يرجع سليم
+            if(el) el.setAttribute('class', 'tooth-part'); // يرجع سليم 100%
         });
 
         if (status === 'extracted') {
@@ -233,7 +233,9 @@ function updateSingleToothVisual(toothNum, part, status) {
 
     // لو الشغل على سطح معين (Center, Top, Root...)
     if (partEl) {
-        partEl.className = 'tooth-part'; // مسح القديم
+        // 🔴 التعديل الجراحي: استخدام setAttribute للمسح عشان يشتغل مع الـ SVG
+        partEl.setAttribute('class', 'tooth-part'); // مسح القديم بقوة
+        
         if (status !== 'normal') {
             partEl.classList.add(`status-${status}`);
         }
@@ -244,8 +246,8 @@ function updateSingleToothVisual(toothNum, part, status) {
 function updateChartWithData(chartDataObj) {
     if (!chartDataObj) return;
     
-    // تصفير الخريطة بالكامل أولاً
-    document.querySelectorAll('.tooth-part').forEach(el => el.className = 'tooth-part');
+    // 🔴 التعديل الجراحي: تصفير الخريطة بالكامل باستخدام setAttribute للـ SVG
+    document.querySelectorAll('.tooth-part').forEach(el => el.setAttribute('class', 'tooth-part'));
     document.querySelectorAll('.tooth-wrapper').forEach(el => el.classList.remove('tooth-extracted', 'tooth-implant'));
     document.querySelectorAll('[id$="-extract-mark"]').forEach(el => el.setAttribute('display', 'none'));
     document.querySelectorAll('[id$="-implant-mark"]').forEach(el => el.setAttribute('display', 'none'));
