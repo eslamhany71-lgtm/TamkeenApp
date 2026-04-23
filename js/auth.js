@@ -107,30 +107,18 @@ async function loginById() {
         const finalRole = userData.role;
         if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
 
+        // 🔴 تم تنظيف لوجيك فحص الانتهاء من هنا عشان home.js هو اللي يتعامل معاه 🔴
         if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
                 const clinicStatus = clinicDoc.data().status;
-                const nextPaymentDate = clinicDoc.data().nextPaymentDate ? clinicDoc.data().nextPaymentDate.toDate() : null;
-                const now = new Date();
 
-                let isSuspended = false;
-                let suspendReason = '';
-
+                // هنمنع الدخول من هنا "فقط" لو الحساب موقوف إدارياً (suspended)
                 if (clinicStatus === 'suspended') {
-                    isSuspended = true;
-                    suspendReason = 'suspended-clinic';
-                } 
-                else if (nextPaymentDate && now > nextPaymentDate) {
-                    isSuspended = true;
-                    suspendReason = 'subscription-expired';
-                    db.collection("Clinics").doc(targetClinicId).update({ status: 'suspended' }).catch(console.error);
-                }
-
-                if (isSuspended) {
                     await auth.signOut();
-                    throw { code: 'custom/' + suspendReason };
+                    throw { code: 'custom/suspended-clinic' };
                 }
+                // لو الحساب expired أو لسه هيـ expire، هنسيبه يدخل و home.js هتطلعلة شاشة الدفع
             }
         }
 
@@ -160,8 +148,6 @@ async function loginById() {
             
             if (error.code === 'custom/suspended-clinic') {
                 errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً." : "Account suspended.";
-            } else if (error.code === 'custom/subscription-expired') {
-                errorDiv.innerText = isRtl ? "عفواً، انتهت فترة الاشتراك." : "Subscription expired.";
             } else if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
                 errorDiv.innerText = isRtl ? "خطأ في البريد/الكود أو كلمة المرور" : "Error in Email/Code or Password";
             } else {
