@@ -15,14 +15,14 @@ function updatePageContent(lang) {
             lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.",
             lPkg: "باقة الاشتراك", optPkgT7: "تجريبي (7 أيام)", optPkgT14: "تجريبي (14 يوم)", optPkgMonth: "شهري (Monthly)", optPkgYear: "سنوي (Yearly)",
             lPlan: "حالة الحساب", optAct: "نشط (Active)", optSusp: "موقوف (Suspended)", btnSave: "إنشاء العيادة وتوليد المعرف",
-            sAct: "نشط", sSusp: "موقوف", 
+            sAct: "نشط", sSusp: "موقوف", sExpired: "منتهي (خلص وقته)", // 🔴 ترجمة الحالة الجديدة 🔴
             btnPaid: "تم الدفع", btnCancelSub: "إيقاف الحساب", btnRenew: "تفعيل الحساب", btnDelete: "حذف العيادة",
             msgSuccess: "تم إنشاء العيادة بنجاح!\n\nكود الدخول: {id}\nإيميل الأدمن: {email}\n\nيرجى إرسال الكود للدكتور لتفعيل الحساب.",
             msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل متأكد من تغيير حالة العيادة؟",
             msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر؟",
             msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً ولن يمكن استرجاعها! اكتب '1234' للتأكيد:", msgDelSuccess: "تم حذف العيادة بنجاح.", btnSaving: "جاري الإنشاء...",
             
-            // 🔴 ترجمات مودال الترقية الجديد 🔴
+            // ترجمات مودال الترقية الجديد
             mUpgTitle: "🚀 ترقية العيادة التجريبية", mUpgSub: "حدد الباقة وقيمة الاشتراك لتوليد كود الدخول الجديد للعيادة.",
             lUpgPkg: "باقة الاشتراك", optUpgMonth: "شهري (Monthly)", optUpgYear: "سنوي (Yearly)",
             lUpgPrice: "قيمة الاشتراك (ج.م)", btnConfirmUpg: "تأكيد الترقية وتوليد الكود"
@@ -36,7 +36,7 @@ function updatePageContent(lang) {
             lHint: "* This account must be created later from the login screen.", 
             lPkg: "Subscription Package", optPkgT7: "Trial (7 Days)", optPkgT14: "Trial (14 Days)", optPkgMonth: "Monthly", optPkgYear: "Yearly",
             lPlan: "Account Status", optAct: "Active", optSusp: "Suspended", btnSave: "Create Clinic & Generate ID",
-            sAct: "Active", sSusp: "Suspended", 
+            sAct: "Active", sSusp: "Suspended", sExpired: "Expired", // 🔴 ترجمة الحالة الجديدة 🔴
             btnPaid: "Paid", btnCancelSub: "Suspend Acc", btnRenew: "Activate Acc", btnDelete: "Delete Clinic",
             msgSuccess: "Clinic created successfully!\n\nAccess Code: {id}\nAdmin Email: {email}\n\nPlease send this code to the doctor to activate the account.",
             msgError: "Error creating clinic!", msgConfirmToggle: "Are you sure you want to change the status?",
@@ -446,6 +446,7 @@ async function saveNewClinic(e) {
     }
 }
 
+// 🔴 تم تحديث هذه الدالة لتعمل كرادار ذكي يغير الحالة لـ expired أوتوماتيكياً 🔴
 function loadClinics() {
     if (window.showLoader && allClinicsList.length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة بيانات النظام..." : "Syncing SaaS data...");
 
@@ -453,10 +454,26 @@ function loadClinics() {
         allClinicsList = []; 
         let activeCount = 0;
         let suspendedCount = 0;
+        const now = new Date();
 
         for (const doc of snap.docs) {
             const c = doc.data();
             c.id = doc.id;
+
+            // الفحص الذكي لتاريخ الانتهاء
+            if (c.nextPaymentDate) {
+                const npDate = typeof c.nextPaymentDate.toDate === 'function' ? c.nextPaymentDate.toDate() : new Date(c.nextPaymentDate);
+                // لو الوقت عدى والحالة لسه نشطة.. اقلبها "منتهي" في الداتا بيز في صمت
+                if (now > npDate && c.status !== 'expired' && c.status !== 'suspended') {
+                    db.collection("Clinics").doc(c.id).update({
+                        status: 'expired',
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(e => console.error("Auto-expire error:", e));
+                    
+                    c.status = 'expired'; // تحديث لحظي للواجهة عشان ما ترمش
+                }
+            }
+
             allClinicsList.push(c); 
             if (c.status === 'active') activeCount++;
             else if (c.status === 'suspended') suspendedCount++;
@@ -496,7 +513,7 @@ function renderClinicsTable() {
         let alertBadge = "";
 
         if (c.nextPaymentDate) {
-            const npDate = c.nextPaymentDate.toDate();
+            const npDate = typeof c.nextPaymentDate.toDate === 'function' ? c.nextPaymentDate.toDate() : new Date(c.nextPaymentDate);
             nextPayStr = npDate.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
             
             const diffTime = npDate - now;
@@ -523,12 +540,15 @@ function renderClinicsTable() {
         else if(c.package === 'yearly') pkgLabel = 'اشتراك سنوي';
         else pkgLabel = 'اشتراك شهري';
 
+        // 🔴 تم تحديث بادج الحالة عشان يعرض "منتهي" باللون الأحمر 🔴
         let statusHtml = '';
         if(c.status === 'active') statusHtml = `<span class="status-badge status-active">${window.superLang.sAct}</span>`;
+        else if(c.status === 'expired') statusHtml = `<span class="status-badge" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;">${window.superLang.sExpired}</span>`;
         else statusHtml = `<span class="status-badge status-suspended">${window.superLang.sSusp}</span>`;
 
         let toggleBtnHtml = '';
-        if (c.status === 'suspended') {
+        // 🔴 لو منتهي أو موقوف هيظهرله زرار التفعيل ▶️ 🔴
+        if (c.status === 'suspended' || c.status === 'expired') {
             toggleBtnHtml = `<button class="btn-primary" onclick="toggleSubscription('${c.id}', 'active')" style="background:#3b82f6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">▶️ ${window.superLang.btnRenew}</button>`;
         } else {
             toggleBtnHtml = `<button class="btn-warning" onclick="toggleSubscription('${c.id}', 'suspended')" style="background:#f59e0b; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">⏸️ ${window.superLang.btnCancelSub}</button>`;
