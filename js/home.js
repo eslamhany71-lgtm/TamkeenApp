@@ -181,28 +181,45 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
+// =========================================================================
+// 🔴 حارس الاشتراكات والفترة التجريبية (Subscription Validator) 🔴
+// =========================================================================
 async function checkSubscriptionAlert(clinicId) {
     try {
-        db.collection("Clinics").doc(clinicId).onSnapshot((clinicDoc) => {
+        db.collection("Clinics").doc(clinicId).onSnapshot(async (clinicDoc) => {
             if (clinicDoc.exists) {
                 const cData = clinicDoc.data();
                 const now = new Date();
                 
+                // 1. لو الحساب موقوف إدارياً من قبلك (Super Admin)
                 if (cData.status === 'suspended') {
-                    showPaywallBlocker();
+                    showPaywallBlocker("تم إيقاف الحساب", "عفواً، تم إيقاف حساب عيادتك إدارياً. يرجى التواصل مع الدعم الفني للاستفسار.");
                     return;
                 }
 
+                // 2. فحص تاريخ الانتهاء (سواء فترة تجريبية أو اشتراك)
+                let expireDate = null;
                 if (cData.nextPaymentDate) {
-                    const nextPayDate = cData.nextPaymentDate.toDate();
-                    
-                    if (now > nextPayDate) {
-                        showPaywallBlocker();
+                    expireDate = typeof cData.nextPaymentDate.toDate === 'function' ? cData.nextPaymentDate.toDate() : new Date(cData.nextPaymentDate);
+                } else if (cData.trialEndDate) {
+                    expireDate = typeof cData.trialEndDate.toDate === 'function' ? cData.trialEndDate.toDate() : new Date(cData.trialEndDate);
+                }
+
+                if (expireDate) {
+                    if (now > expireDate) {
+                        // 🔴 لو الوقت خلص والحالة مش "منتهي"، بنحدث الداتا بيز 🔴
+                        if (cData.status !== 'expired') {
+                            await db.collection("Clinics").doc(clinicId).update({
+                                status: 'expired',
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                        }
+                        showPaywallBlocker("انتهى الاشتراك", "عفواً، لقد انتهت فترة تجربتك المجانية أو اشتراكك. برجاء التواصل مع الدعم لتجديد الباقة.");
                     } 
                     else {
                         hidePaywallBlocker();
-
-                        const diffTime = nextPayDate - now;
+                        // حساب الأيام المتبقية للتنبيه
+                        const diffTime = expireDate - now;
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
                         if (diffDays >= 0 && diffDays <= 3) {
@@ -219,27 +236,25 @@ async function checkSubscriptionAlert(clinicId) {
     }
 }
 
-function showPaywallBlocker() {
+function showPaywallBlocker(title, message) {
     let blocker = document.getElementById('paywall-blocker');
     if (!blocker) {
         blocker = document.createElement('div');
         blocker.id = 'paywall-blocker';
         blocker.style.cssText = "position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); color: white; text-align: center; direction: rtl; padding: 20px;";
-        
-        blocker.innerHTML = `
-            <div style="background: white; color: #0f172a; padding: 40px; border-radius: 20px; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
-                <div style="font-size: 50px; margin-bottom: 15px;">⚠️</div>
-                <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #dc2626; font-weight: 900;">تم إيقاف النظام</h2>
-                <p style="margin: 0 0 25px 0; color: #475569; line-height: 1.6; font-size: 16px;">
-                    عفواً، لقد انتهت فترة اشتراك عيادتك في نظام NivaDent أو تم إيقاف الحساب. برجاء التواصل مع الدعم الفني لتجديد الباقة لاستعادة الوصول لبيانات العيادة.
-                </p>
-                <button onclick="firebase.auth().signOut().then(() => { sessionStorage.clear(); window.location.href = 'index.html'; })" style="background: #dc2626; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">
-                    تسجيل الخروج
-                </button>
-            </div>
-        `;
         document.body.appendChild(blocker);
     }
+    
+    blocker.innerHTML = `
+        <div style="background: white; color: #0f172a; padding: 40px; border-radius: 20px; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="font-size: 50px; margin-bottom: 15px;">⚠️</div>
+            <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #dc2626; font-weight: 900;">${title}</h2>
+            <p style="margin: 0 0 25px 0; color: #475569; line-height: 1.6; font-size: 16px;">${message}</p>
+            <button onclick="firebase.auth().signOut().then(() => { sessionStorage.clear(); window.location.href = 'index.html'; })" style="background: #dc2626; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                تسجيل الخروج
+            </button>
+        </div>
+    `;
 }
 
 function hidePaywallBlocker() {
@@ -249,17 +264,14 @@ function hidePaywallBlocker() {
 
 function showBillingAlert(daysLeft) {
     if(document.getElementById('billing-alert-banner')) return;
-
     const lang = localStorage.getItem('preferredLang') || 'ar';
-    const t = window.homeLang || updatePageContent(lang); 
-    
-    let alertMsg = daysLeft === 0 ? window.homeLang.alertToday : window.homeLang.alertText.replace('{days}', daysLeft);
+    const t = window.homeLang || { alertToday: "⚠️ اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.", alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد." };
+    let alertMsg = daysLeft === 0 ? t.alertToday : t.alertText.replace('{days}', daysLeft);
 
     const alertDiv = document.createElement('div');
     alertDiv.id = "billing-alert-banner";
     alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: slideDown 0.3s ease-out;";
     alertDiv.innerHTML = `<span>${alertMsg}</span>`;
-
     document.body.insertBefore(alertDiv, document.body.firstChild);
 }
 
@@ -320,31 +332,16 @@ function applyRoles(role) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    let overlay = document.createElement('div');
-    overlay.id = 'mobile-overlay';
-    overlay.className = 'mobile-overlay';
-    overlay.onclick = toggleSidebar; 
-    document.body.appendChild(overlay);
-});
-
 function toggleSidebar() { 
     document.getElementById('sidebar').classList.toggle('active'); 
     document.getElementById('mobile-overlay').classList.toggle('active');
 }
 
 function toggleSidebarDesktop() {
-    // التبديل بين وضع التثبيت والوضع الأوتوماتيكي
     document.body.classList.toggle('sidebar-pinned');
     const isPinned = document.body.classList.contains('sidebar-pinned');
     localStorage.setItem('sidebarPinned', isPinned);
 }
-
-window.onload = () => {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
-    updatePageContent(lang);
-};
 
 // =========================================================================
 // الدعم الفني
@@ -358,7 +355,6 @@ function closeSupportModal() {
     document.getElementById('supportModal').style.display = 'none';
 }
 
-// 🔴 تعديل: تحويل الدعم الفني لنظام تذاكر داخلي 🔴
 async function sendSupportWhatsApp() {
     const msg = document.getElementById('support_message').value.trim();
     if (!msg) {
@@ -579,7 +575,14 @@ function updateLastActiveTime() {
     }
 }
 
-window.onload = updateLastActiveTime;
+// دمج دوال التشغيل (اللغة وتنشيط الحركة)
+window.onload = () => {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    updatePageContent(lang);
+    updateLastActiveTime();
+};
+
 document.onmousemove = updateLastActiveTime;
 document.onkeypress = updateLastActiveTime;
 document.ontouchstart = updateLastActiveTime;
