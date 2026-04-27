@@ -642,3 +642,90 @@ firebase.auth().onAuthStateChanged((user) => {
 });
 
 checkHistoryRestore();
+
+// =========================================================================
+// 🟢 الإضافة الجديدة: دوال بوابة العيادة (Portal Manager) 🟢
+// =========================================================================
+
+function openPortalSettings() {
+    const currentClinicId = sessionStorage.getItem('clinicId');
+    if (!currentClinicId || currentClinicId === 'default') {
+        alert("لا يمكن إنشاء رابط لعيادة افتراضية. يرجى تسجيل الدخول بحساب عيادة.");
+        return;
+    }
+
+    const portalUrl = `https://nivadent.web.app/portal.html?clinicId=${currentClinicId}`;
+    
+    document.getElementById('clinic_portal_link').value = portalUrl;
+    
+    const qrContainer = document.getElementById('clinic_qr_container');
+    qrContainer.innerHTML = ''; // تفريغ الـ QR القديم
+    
+    // إنشاء QR جديد
+    new QRCode(qrContainer, {
+        text: portalUrl,
+        width: 180,
+        height: 180,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+    
+    document.getElementById('clinicPortalModal').style.display = 'flex';
+}
+
+function copyPortalLink() {
+    const linkInput = document.getElementById('clinic_portal_link');
+    linkInput.select();
+    document.execCommand("copy");
+    alert("✅ تم نسخ الرابط بنجاح!");
+}
+
+function printClinicQR() {
+    const qrCanvas = document.querySelector('#clinic_qr_container canvas');
+    if (!qrCanvas) return;
+    
+    const imgData = qrCanvas.toDataURL("image/png");
+    const clinicName = document.getElementById('txt-clinic-name').innerText;
+    
+    const printArea = document.getElementById('portalPrintArea');
+    printArea.innerHTML = `
+        <div style="text-align: center; font-family: 'Tajawal', sans-serif; padding: 40px; border: 4px solid #0284c7; border-radius: 20px; max-width: 500px; margin: 0 auto; background: white;">
+            <h1 style="color: #0284c7; font-size: 36px; margin-bottom: 10px;">${clinicName}</h1>
+            <h2 style="color: #0f172a; margin-top: 0;">بوابة المريض الذكية</h2>
+            <img src="${imgData}" style="width: 250px; height: 250px; margin: 20px 0;">
+            <p style="font-size: 20px; font-weight: bold; color: #d97706;">قم بمسح الكود بكاميرا هاتفك</p>
+            <ul style="text-align: right; font-size: 18px; color: #475569; display: inline-block; padding-right: 20px;">
+                <li style="margin-bottom: 10px;">✅ تابع دورك في الانتظار</li>
+                <li style="margin-bottom: 10px;">✅ احجز موعد جديد بسهولة</li>
+                <li style="margin-bottom: 10px;">✅ راجع حساباتك الطبية</li>
+            </ul>
+        </div>
+    `;
+    
+    document.getElementById('clinicPortalModal').style.display = 'none';
+    printArea.style.display = 'block'; // إظهار مساحة الطباعة
+    
+    // إخفاء كل محتوى الصفحة عدا مساحة الطباعة باستخدام CSS مؤقت
+    const style = document.createElement('style');
+    style.id = 'temp-print-style';
+    style.innerHTML = `
+        @media print {
+            body * { visibility: hidden; }
+            #portalPrintArea, #portalPrintArea * { visibility: visible; }
+            #portalPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    setTimeout(() => {
+        window.print();
+        printArea.innerHTML = '';
+        printArea.style.display = 'none';
+        document.head.removeChild(style); // تنظيف الستايل المؤقت
+    }, 500);
+}
+
+window.openPortalSettings = openPortalSettings;
+window.copyPortalLink = copyPortalLink;
+window.printClinicQR = printClinicQR;
