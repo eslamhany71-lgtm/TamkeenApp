@@ -33,6 +33,45 @@
             <button type="submit" class="btn-primary" id="btn-login">تسجيل الدخول</button>
         </form>
         <div id="login-error" class="error-msg" style="display: none;"></div>
+        
+        <div style="text-align: center; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+            <p style="margin: 0 0 10px 0; color: #64748b; font-size: 14px;">أو لست مريضاً حالياً؟</p>
+            <button type="button" class="btn-secondary" onclick="showBookingScreen()">📅 حجز موعد جديد</button>
+        </div>
+    </div>
+
+    <div id="booking-screen" class="portal-container" style="display: none;">
+        <div class="brand-header">
+            <h2>📅 حجز موعد جديد</h2>
+            <p>اختر اليوم والوقت المناسب لك</p>
+        </div>
+
+        <div class="form-group">
+            <label>اختر تاريخ الحجز:</label>
+            <input type="date" id="book_date" onchange="loadAvailableSlots()" required>
+        </div>
+
+        <div id="slots-container" style="display: none;">
+            <label style="font-weight: bold; margin-bottom: 10px; display: block;">المواعيد المتاحة:</label>
+            <div id="time-slots" class="slots-grid">
+                </div>
+        </div>
+
+        <form id="confirmBookingForm" onsubmit="submitBooking(event)" style="display: none; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
+            <p style="color: var(--primary); font-weight: bold;">الموعد المحدد: <span id="selected-time-display">--:--</span></p>
+            <input type="hidden" id="selected_time">
+            
+            <div class="form-group">
+                <label>الاسم بالكامل:</label>
+                <input type="text" id="book_name" required>
+            </div>
+            <div class="form-group">
+                <label>رقم الموبايل للتواصل:</label>
+                <input type="tel" id="book_phone" dir="ltr" required>
+            </div>
+            <button type="submit" class="btn-primary" id="btn-confirm-booking">تأكيد الحجز</button>
+            <button type="button" class="btn-secondary" onclick="cancelBooking()" style="margin-top: 10px;">إلغاء والعودة</button>
+        </form>
     </div>
 
     <div id="dashboard-screen" class="portal-container" style="display: none;">
