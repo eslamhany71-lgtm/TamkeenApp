@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>بوابة المريض - NivaDent</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/portal.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <div id="loader" class="loader-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loader-text">جاري التحميل...</p>
+    </div>
+
+    <div id="login-screen" class="portal-container">
+        <div class="brand-header">
+            <span style="font-size: 40px;">🦷</span>
+            <h1>NivaDent Portal</h1>
+            <p>أهلاً بك في العيادة، يرجى تسجيل الدخول لمتابعة ملفك</p>
+        </div>
+
+        <form id="loginForm" onsubmit="patientLogin(event)">
+            <div class="form-group">
+                <label>رقم الموبايل المسجل بالعيادة</label>
+                <input type="tel" id="patient_phone" placeholder="أدخل رقم الموبايل..." dir="ltr" required>
+            </div>
+            <button type="submit" class="btn-primary" id="btn-login">تسجيل الدخول</button>
+        </form>
+        <div id="login-error" class="error-msg" style="display: none;"></div>
+    </div>
+
+    <div id="dashboard-screen" class="portal-container" style="display: none;">
+        <div class="patient-header">
+            <div class="avatar">👤</div>
+            <div>
+                <h2 id="disp_name">...</h2>
+                <p id="disp_phone" dir="ltr">...</p>
+            </div>
+            <button class="btn-logout" onclick="patientLogout()">خروج</button>
+        </div>
+
+        <div class="info-card highlight-card">
+            <h3>📊 حالة الدور اليوم</h3>
+            <p id="queue_status" style="font-size: 18px; font-weight: bold; color: #d97706;">جاري التحقق من العيادة...</p>
+            <small>هذه الميزة تعمل عندما تكون متواجداً بالعيادة</small>
+        </div>
+
+        <div class="info-card">
+            <h3>💰 الحساب المالي</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span>المديونية الحالية:</span>
+                <span id="disp_debt" class="debt-badge">0 ج.م</span>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <h3>📅 الموعد القادم</h3>
+            <p id="disp_next_app" style="font-weight: bold; color: #0284c7;">لا يوجد موعد مسجل</p>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/portal.js"></script>
+</body>
+</html>
