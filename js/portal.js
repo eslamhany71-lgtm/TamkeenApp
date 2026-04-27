@@ -1,4 +1,5 @@
-// تهيئة المتغيرات
+// js/portal.js - النسخة الذكية جداً (Live Time & Patient Matching)
+
 const db = firebase.firestore();
 const urlParams = new URLSearchParams(window.location.search);
 const clinicId = urlParams.get('clinicId'); 
@@ -25,7 +26,7 @@ window.onload = () => {
 };
 
 // ==========================================
-// اللوجيك الخاص بتسجيل الدخول
+// اللوجيك الخاص بتسجيل الدخول للمرضى المسجلين
 // ==========================================
 async function patientLogin(e) {
     e.preventDefault();
@@ -132,13 +133,13 @@ function patientLogout() {
 }
 
 // ==========================================
-// 🟢 اللوجيك الذكي لحجز المواعيد الجديدة 🟢
+// 🟢 اللوجيك الذكي لحجز المواعيد الجديدة (تحديث عالمي) 🟢
 // ==========================================
 function showBookingScreen() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('booking-screen').style.display = 'block';
     
-    // ضبط تاريخ اليوم كأقل تاريخ مسموح
+    // ضبط تاريخ اليوم كأقل تاريخ مسموح (الماضي مرفوض)
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('book_date').min = today;
 }
@@ -163,7 +164,7 @@ async function loadAvailableSlots() {
     document.getElementById('confirmBookingForm').style.display = 'none';
 
     try {
-        // قراءة المواعيد المحجوزة
+        // قراءة المواعيد المحجوزة مسبقاً
         const snap = await db.collection("Appointments")
             .where("clinicId", "==", clinicId)
             .where("date", "==", selectedDate)
@@ -171,6 +172,12 @@ async function loadAvailableSlots() {
 
         const bookedTimes = [];
         snap.forEach(doc => bookedTimes.push(doc.data().time));
+
+        // 🔴 استخراج الوقت الحالي للمقارنة الحيّة 🔴
+        const now = new Date();
+        const isToday = selectedDate === now.toISOString().split('T')[0];
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
 
         // توليد المواعيد (من 10 صباحاً لـ 10 مساءً)
         const startHour = 10; 
@@ -184,16 +191,24 @@ async function loadAvailableSlots() {
                 const displayH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
                 const displayTime = `${displayH}:${min} ${ampm}`;
 
+                // 🔴 التحقق: هل الوقت ده فات؟ 🔴
+                let isPastTime = false;
+                if (isToday) {
+                    if (h < currentHour || (h === currentHour && parseInt(min) <= currentMinute)) {
+                        isPastTime = true;
+                    }
+                }
+
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'time-slot';
                 btn.innerText = displayTime;
 
-                // 🔴 قفل الميعاد لو محجوز 🔴
-                if (bookedTimes.includes(timeStr)) {
+                // 🔴 قفل الميعاد لو محجوز أو وقته فات 🔴
+                if (bookedTimes.includes(timeStr) || isPastTime) {
                     btn.classList.add('booked');
                     btn.disabled = true;
-                    btn.title = "هذا الموعد محجوز مسبقاً";
+                    btn.title = isPastTime ? "عفواً، هذا الوقت قد انقضى" : "هذا الموعد محجوز مسبقاً";
                 } else {
                     btn.onclick = () => selectSlot(btn, timeStr, displayTime);
                 }
@@ -226,13 +241,13 @@ async function submitBooking(e) {
     
     const date = document.getElementById('book_date').value;
     const time = document.getElementById('selected_time').value;
-    const name = document.getElementById('book_name').value.trim();
-    const phone = document.getElementById('book_phone').value.trim();
+    const inputName = document.getElementById('book_name').value.trim();
+    const inputPhone = document.getElementById('book_phone').value.trim();
 
     showLoader("جاري تأكيد حجزك...");
 
     try {
-        // 🔴 دبل تشيك أخير قبل الحفظ لمنع التعارض (Double-booking protection) 🔴
+        // 1. الدبل تشيك الأخير لمنع التعارض في نفس اللحظة
         const checkSnap = await db.collection("Appointments")
             .where("clinicId", "==", clinicId)
             .where("date", "==", date)
@@ -245,11 +260,29 @@ async function submitBooking(e) {
             return;
         }
 
-        // الحجز متاح، احفظه
+        // 🔴 2. فحص المريض في قاعدة بيانات السيستم (Smart Matching) 🔴
+        let finalPatientId = null;
+        let finalPatientName = inputName;
+        
+        const patientSnap = await db.collection("Patients")
+            .where("clinicId", "==", clinicId)
+            .where("phone", "==", inputPhone)
+            .get();
+
+        if (!patientSnap.empty) {
+            // المريض ده موجود عندنا في السيستم!
+            finalPatientId = patientSnap.docs[0].id;
+            // عشان نحافظ على الداتا نظيفة، هناخد اسمه اللي متسجل عندنا في السيستم
+            finalPatientName = patientSnap.docs[0].data().name; 
+        }
+
+        // 3. الحجز متاح والمريض اتفحص، احفظ بقى في الداتا بيز
         await db.collection("Appointments").add({
             clinicId: clinicId,
-            patientName: name,
-            patientPhone: phone,
+            patientId: finalPatientId, // لو جديد هيفضل null، لو موجود هيتحط الـ ID بتاعه
+            patientName: finalPatientName,
+            patientPhone: inputPhone,
+            phone: inputPhone, // ضفت الحقل ده كاحتياطي لحد ما أشوف كود الـ calendar بتاعك بيقرأ إيه
             date: date,
             time: time,
             status: "pending", 
