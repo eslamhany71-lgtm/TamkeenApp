@@ -153,7 +153,12 @@
                 <li id="nav-finances-li" onclick="loadPage('finances.html', this)">
                     <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والمصروفات</span></a>
                 </li>
-                <li id="nav-settings-li" onclick="loadPage('settings.html', this)" style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                
+                <li id="nav-portal-li" onclick="openPortalSettings()" style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 15px;">
+                    <a href="javascript:void(0)" style="color: #6ee7b7;"><span class="icon">🌐</span> <span id="nav-portal">بوابة العيادة (للمرضى)</span></a>
+                </li>
+                
+                <li id="nav-settings-li" onclick="loadPage('settings.html', this)" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
                     <a href="javascript:void(0)"><span class="icon">⚙️</span> <span id="nav-settings">إعدادات العيادة</span></a>
                 </li>
                 <li id="nav-super-admin" style="display: none;" onclick="loadPage('super-admin.html', this)">
@@ -229,6 +234,29 @@
         </div>
     </div>
 
+    <div id="clinicPortalModal" class="modal no-print" style="display:none; position:fixed; z-index:10000; inset:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+        <div class="modal-content" style="background:white; padding:25px; border-radius:12px; width:90%; max-width:400px; text-align:center; position:relative;">
+            <span class="close-modal" onclick="document.getElementById('clinicPortalModal').style.display='none'" style="position:absolute; top:15px; left:15px; cursor:pointer; font-size:24px;">&times;</span>
+            <h2 style="margin-top: 0; color: #0284c7;">📱 بوابة العيادة الذكية</h2>
+            <p style="color: #64748b; font-size: 14px;">اطبع هذا الـ QR أو انسخ الرابط لمشاركته مع المرضى</p>
+            
+            <div id="clinic_qr_container" style="margin: 20px auto; background: #f8fafc; padding: 20px; border-radius: 12px; display: inline-block; border: 2px solid #e2e8f0;"></div>
+            
+            <div class="form-group" style="text-align: right; margin-bottom: 15px;">
+                <label style="display:block; margin-bottom: 5px; color: #0f172a; font-weight:bold;">رابط العيادة المباشر:</label>
+                <div style="display: flex; gap: 5px;">
+                    <input type="text" id="clinic_portal_link" class="search-box" readonly style="direction: ltr; text-align: left; background: #f1f5f9; flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                    <button onclick="copyPortalLink()" class="btn-action" style="background: #10b981; color: white; padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">📋 نسخ</button>
+                </div>
+            </div>
+            
+            <button onclick="printClinicQR()" style="width: 100%; padding: 12px; background: #0f172a; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer;">🖨️ طباعة لوحة الـ QR للاستقبال</button>
+        </div>
+    </div>
+    
+    <div class="print-only" id="portalPrintArea" style="display: none;"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         var h = Math.floor(Date.now() / 3600000); 
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
