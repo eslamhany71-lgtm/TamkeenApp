@@ -316,13 +316,19 @@ function generateQRCodeForPrint(textData) {
     const qrContainer = document.getElementById('print-qr-container');
     qrContainer.innerHTML = ''; // تفريغ الـ QR القديم
     
+    // 🔴 تشفير الحروف العربية بأمان لمنع إيرور (code length overflow) 🔴
+    let safeText = textData;
+    try {
+        safeText = unescape(encodeURIComponent(textData));
+    } catch(e) {}
+    
     new QRCode(qrContainer, {
-        text: textData,
+        text: safeText,
         width: 120,
         height: 120,
         colorDark : "#0f172a",
         colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
+        correctLevel : QRCode.CorrectLevel.L // 🔴 تقليل مستوى تصحيح الخطأ لزيادة الاستيعاب
     });
 }
 
@@ -357,7 +363,7 @@ async function printSessionRx(docId) {
             await preparePrintHeader();
 
             const bodyContent = document.getElementById('print-dynamic-body');
-            bodyContent.className = 'print-rx-body watermark-rx'; // تشغيل العلامة المائية للروشتة
+            bodyContent.className = 'print-rx-body watermark-rx'; 
             bodyContent.innerHTML = `
                 <div style="white-space: pre-wrap; font-size: 20px; line-height: 2.2; direction: ltr; text-align: left; padding-left: 30px; font-weight: bold; color: #1e293b;">${p.medications}</div>
                 <div style="margin-top: 40px;">
@@ -366,8 +372,8 @@ async function printSessionRx(docId) {
                 </div>
             `;
 
-            // توليد بيانات الـ QR Code للروشتة
-            const qrData = `Clinic: ${document.getElementById('print-clinic-name').innerText}\nPatient: ${patientName}\nDate: ${p.date}\nRx Verified ✅`;
+            // 🔴 إزالة الإيموجي لتفادي تعارض مكتبة QR 🔴
+            const qrData = `Clinic: ${document.getElementById('print-clinic-name').innerText}\nPatient: ${patientName}\nDate: ${p.date}\nRx Verified`;
             generateQRCodeForPrint(qrData);
 
             if (window.hideLoader) window.hideLoader();
@@ -391,7 +397,7 @@ async function printSessionInvoice() {
         await preparePrintHeader();
 
         const bodyContent = document.getElementById('print-dynamic-body');
-        bodyContent.className = 'print-rx-body watermark-invoice'; // تشغيل العلامة المائية للفاتورة
+        bodyContent.className = 'print-rx-body watermark-invoice'; 
         
         const currency = getLang() ? 'ج.م' : 'EGP';
         const invTitle = dict[currentLang].invTitle;
@@ -419,6 +425,18 @@ async function printSessionInvoice() {
                 <p style="font-size: 16px; color: #475569;"><strong>${dict[currentLang].docNotes}</strong> ${sessionData.notes || '---'}</p>
             </div>
         `;
+
+        // 🔴 إزالة الإيموجي لتفادي تعارض مكتبة QR 🔴
+        const qrData = `Invoice\nPatient: ${patientName}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nRemaining: ${sessionData.remaining}\nVerified`;
+        generateQRCodeForPrint(qrData);
+
+        if (window.hideLoader) window.hideLoader();
+        setTimeout(() => window.print(), 500); 
+    } catch(e) {
+        if (window.hideLoader) window.hideLoader();
+        console.error(e);
+    }
+}
 
         // توليد بيانات الـ QR Code للفاتورة
         const qrData = `Invoice\nPatient: ${patientName}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nRemaining: ${sessionData.remaining}\nVerified ✅`;
