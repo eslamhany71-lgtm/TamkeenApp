@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title id="page_title">تفاصيل الجلسة | Session Details</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -17,20 +18,21 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script> 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         /* 🔴 منع العصرة وتحسين التاتش 🔴 */
         * { box-sizing: border-box; }
         body { touch-action: manipulation; overflow-x: hidden; }
 
-        .session-summary { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-right: 6px solid #0ea5e9; border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; width: 100%;}
+        .session-summary { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 25px; border-right: 6px solid #0ea5e9; border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; width: 100%; transition: 0.3s;}
         html[dir="ltr"] .session-summary { border-right: 1px solid #e2e8f0; border-left: 6px solid #0ea5e9; }
         
-        .financial-box-top { display: flex; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; margin-top: 20px; align-items: center; flex-wrap: wrap; border: 1px solid #e2e8f0; width: 100%;}
+        .financial-box-top { display: flex; gap: 15px; background: #f8fafc; padding: 20px; border-radius: 12px; margin-top: 20px; align-items: center; flex-wrap: wrap; border: 1px solid #e2e8f0; width: 100%; transition: 0.3s;}
         .fin-item { flex: 1; min-width: 120px; }
         .fin-val { font-size: 22px; font-weight: 800; color: #0f172a;}
         
-        .smart-rx-container { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; width: 100%;}
+        .smart-rx-container { background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0; width: 100%; transition: 0.3s;}
         .search-results { max-height: 200px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 8px; position: absolute; width: 100%; z-index: 10; display: none; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); top: 50px;}
         .search-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; transition: 0.2s; cursor: pointer;}
         .search-item:hover { background: #f0f9ff; }
@@ -38,49 +40,61 @@
         .drug-list-item { display: flex; gap: 10px; background: white; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; align-items: center; border: 1px solid #e2e8f0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: 0.2s;}
         .drug-list-item:hover { border-color: #cbd5e1; }
 
+        /* 🔴 تظبيط الدارك مود (Dark Mode Fixes) 🔴 */
+        [data-theme="dark"] .session-summary, [data-theme="dark"] .financial-box-top, [data-theme="dark"] .smart-rx-container,
+        [data-theme="dark"] div[style*="background: white; padding: 25px;"] {
+            background-color: #1e293b !important; border-color: #334155 !important;
+        }
+        [data-theme="dark"] .fin-val, [data-theme="dark"] #sd-procedure, [data-theme="dark"] #header-patient-name,
+        [data-theme="dark"] #txt-rx-title, [data-theme="dark"] #txt-att-title, [data-theme="dark"] #txt-chart-title { color: #f8fafc !important; }
+        [data-theme="dark"] .patient-meta span { background: #334155 !important; color: #cbd5e1 !important; border-color: #475569 !important; }
+        [data-theme="dark"] .btn-action { background: #334155 !important; color: #f8fafc !important; border-color: #475569 !important; }
+        [data-theme="dark"] .btn-action:hover { background: #475569 !important; }
+        [data-theme="dark"] div[style*="background: #f8fafc; padding: 15px;"] { background: #0f172a !important; border-color: #334155 !important; }
+        [data-theme="dark"] #sd-notes { color: #cbd5e1 !important; }
+
         /* 🔴 تظبيط الموبايل 🔴 */
         @media (max-width: 768px) {
             body { padding: 15px !important; }
             .profile-container { width: 100% !important; max-width: 100% !important; }
-            
-            /* تظبيط عنوان واسم المريض */
             .session-summary { padding: 15px; }
             #header-patient-name { font-size: 18px !important; }
-            
-            /* فرد أزرار التعديل والحفظ لتناسب اللمس */
-            #btn-edit-sess { width: 100%; margin-top: 10px; justify-content: center; }
+            #btn-edit-sess, #btn-print-invoice { width: 100%; margin-top: 10px; justify-content: center; }
             .financial-box-top { flex-direction: column; text-align: center; gap: 10px; padding: 15px; }
             .fin-item { width: 100%; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
             .fin-item:last-child { border-bottom: none; padding-bottom: 0; }
-            
-            /* تظبيط خريطة الأسنان عشان تسكرول بالعرض لو كبيرة */
             .dental-chart { width: 100%; overflow-x: auto; padding-bottom: 15px; -webkit-overflow-scrolling: touch; }
-            
-            /* فرد الروشتة والأشعة تحت بعض */
             div[style*="display: flex; gap: 20px; flex-wrap: wrap;"] { flex-direction: column; gap: 15px !important; }
             div[style*="min-width: 320px"] { min-width: 100% !important; padding: 15px !important; }
-            
-            /* تكبير الحقول والزراير في المودالات */
             .modal-content { width: 95% !important; padding: 20px !important; margin: 10px auto !important; max-height: 90vh !important; overflow-y: auto !important; }
             input, select, button, textarea { font-size: 16px !important; }
-            
-            /* تظبيط بحث الأدوية */
             .smart-rx-container > .form-group > div { flex-direction: column; gap: 10px; }
             .smart-rx-container button { width: 100%; }
         }
 
+        /* 🔴 الطباعة العالمية (PDF & QR) 🔴 */
         @media print {
-            body { margin: 0; padding: 0; background: white; }
+            body { margin: 0; padding: 0; background: white !important; }
+            body, .print-only * { color: #000 !important; } 
             .no-print { display: none !important; }
             .print-only { display: block !important; padding: 20px; font-family: 'Tajawal', sans-serif;}
             #print-area { width: 100%; max-width: 800px; margin: 0 auto; }
             .print-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px; }
             .print-header-content { text-align: center; flex: 1; }
-            .print-logo { width: 80px; height: 80px; object-fit: contain; }
+            .print-logo { width: 100px; height: 100px; object-fit: contain; }
             .print-info-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 5px; }
-            .print-rx-body { min-height: 500px; padding: 20px; position: relative; }
-            .print-rx-body::before { content: "Rx"; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; color: rgba(2, 132, 199, 0.04); font-weight: 900; z-index: -1; }
-            .print-footer { text-align: center; border-top: 2px solid #0284c7; padding-top: 15px; font-size: 14px; color: #475569; position: fixed; bottom: 0; width: 100%; background: white;}
+            .print-rx-body { min-height: 400px; padding: 20px; position: relative; }
+            .watermark-rx::before { content: "Rx"; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 250px; color: rgba(2, 132, 199, 0.05); font-weight: 900; z-index: -1; }
+            .watermark-invoice::before { content: "$"; position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font-size: 250px; color: rgba(16, 185, 129, 0.05); font-weight: 900; z-index: -1; }
+            
+            .print-footer { text-align: center; border-top: 2px solid #0284c7; padding-top: 15px; font-size: 14px; color: #475569; margin-top: 30px;}
+            
+            #print-qr-container { display: flex; justify-content: center; margin-top: 30px; }
+            #print-qr-container img { width: 100px; height: 100px; border: 2px solid #e2e8f0; padding: 5px; border-radius: 8px; }
+            
+            .invoice-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            .invoice-table th, .invoice-table td { border: 1px solid #cbd5e1; padding: 12px; text-align: center; font-size: 18px; }
+            .invoice-table th { background-color: #f1f5f9 !important; color: #0f172a !important; -webkit-print-color-adjust: exact; }
         }
         @media screen {
             .print-only { display: none; }
@@ -112,23 +126,24 @@
                             <span style="background: #f1f5f9; color: #475569; border-color: #e2e8f0;">🦷 <strong id="sd-tooth" dir="ltr">---</strong></span>
                         </div>
                     </div>
-                    <div style="width: 100%; max-width: 200px;">
+                    <div style="width: 100%; max-width: 220px; display: flex; flex-direction: column; gap: 10px;">
                         <button class="btn-action" style="background: #fff7ed; color: #ea580c; border-color: #fed7aa; padding: 10px 20px; font-size: 15px; width: 100%; display: flex; justify-content: center;" onclick="openEditSessionModal()" id="btn-edit-sess">✏️ تعديل الجلسة</button>
+                        <button class="btn-action" style="background: #ecfdf5; color: #10b981; border-color: #a7f3d0; padding: 10px 20px; font-size: 15px; width: 100%; display: flex; justify-content: center;" onclick="printSessionInvoice()" id="btn-print-invoice">🖨️ طباعة فاتورة</button>
                     </div>
                 </div>
 
                 <div class="financial-box-top">
                     <div class="fin-item">
                         <span id="txt-total-calc" style="color: #64748b; font-size: 14px; font-weight: 700;">الإجمالي</span><br>
-                        <span class="fin-val" id="sd-total">0</span> <small style="color: #94a3b8; font-weight: bold;">ج.م</small>
+                        <span class="fin-val" id="sd-total">0</span> <small style="color: #94a3b8; font-weight: bold;" class="currency-txt">ج.م</small>
                     </div>
                     <div class="fin-item">
                         <span id="txt-paid-calc" style="color: #64748b; font-size: 14px; font-weight: 700;">المدفوع</span><br>
-                        <span class="fin-val" style="color: #10b981;" id="sd-paid">0</span> <small style="color: #94a3b8; font-weight: bold;">ج.م</small>
+                        <span class="fin-val" style="color: #10b981;" id="sd-paid">0</span> <small style="color: #94a3b8; font-weight: bold;" class="currency-txt">ج.م</small>
                     </div>
                     <div class="fin-item">
                         <span id="txt-rem-calc" style="color: #64748b; font-size: 14px; font-weight: 700;">المتبقي</span><br>
-                        <span class="fin-val" style="color: #ef4444;" id="sd-remaining">0</span> <small style="color: #94a3b8; font-weight: bold;">ج.م</small>
+                        <span class="fin-val" style="color: #ef4444;" id="sd-remaining">0</span> <small style="color: #94a3b8; font-weight: bold;" class="currency-txt">ج.م</small>
                     </div>
                 </div>
                 
@@ -150,11 +165,11 @@
                         <button class="btn-primary" onclick="openSmartRxModal()" id="btn-add-rx" style="flex-shrink: 0;">➕ إصدار روشتة</button>
                     </div>
                     <div id="session-rx-container">
-                        <div class="empty-state">لا توجد روشتة مسجلة لهذه الجلسة.</div>
+                        <div class="empty-state" id="txt-no-rx">لا توجد روشتة مسجلة لهذه الجلسة.</div>
                     </div>
                     
                     <div id="uploaded-rx-container" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid #f1f5f9; text-align: center;">
-                        <span style="color: #64748b; font-size: 14px; display: block; margin-bottom: 10px;">📎 نسخة خارجية (مرفوعة):</span>
+                        <span style="color: #64748b; font-size: 14px; display: block; margin-bottom: 10px;" id="txt-ext-rx">📎 نسخة خارجية (مرفوعة):</span>
                         <a id="uploaded-rx-link" href="#" target="_blank"><img id="uploaded-rx-img" src="" style="max-height: 150px; max-width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: contain;"></a>
                     </div>
                 </div>
@@ -165,7 +180,7 @@
                         <button class="btn-primary" onclick="openModal('xrayModal')" id="btn-add-att" style="flex-shrink: 0;">➕ رفع مرفق</button>
                     </div>
                     <div class="xray-grid" id="session-xrays-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;">
-                        <div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;">لا توجد مرفقات.</div>
+                        <div class="empty-state" style="grid-column: 1 / -1; padding: 30px 20px;" id="txt-no-att">لا توجد مرفقات.</div>
                     </div>
                 </div>
             </div>
@@ -214,7 +229,7 @@
                         <input type="number" id="es_remaining" class="search-box" readonly style="background: #e2e8f0; font-weight: bold; color: #ef4444;">
                     </div>
                     <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
-                        <label>طريقة الدفع (لأي فرق)</label>
+                        <label id="lbl-sess-pay-method">طريقة الدفع (لأي فرق)</label>
                         <select id="es_pay_method" class="search-box" required>
                             <option value="cash">💵 كاش</option>
                             <option value="wallet">📱 محفظة</option>
@@ -230,34 +245,34 @@
     <div id="smartRxModal" class="modal no-print">
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeModal('smartRxModal')">&times;</span>
-            <h2>إصدار / تعديل الروشتة</h2>
+            <h2 id="modal-rx-title">إصدار / تعديل الروشتة</h2>
             <div class="form-group" style="background: #fdf4ff; padding: 10px; border-radius: 8px; border: 1px solid #f5d0fe;">
-                <label style="color: #a21caf;">📑 استيراد من روشتة جاهزة (اختياري):</label>
+                <label style="color: #a21caf;" id="lbl-rx-import">📑 استيراد من روشتة جاهزة (اختياري):</label>
                 <div style="display: flex; gap: 10px;">
                     <select id="rx_template_select" class="search-box" style="flex: 1;" onchange="applyRxTemplate(this.value)">
-                        <option value="">اختر قالب جاهز (مثال: روشتة خلع، عصب...)</option>
+                        <option value="" id="opt-choose-tpl">اختر قالب جاهز (مثال: روشتة خلع، عصب...)</option>
                     </select>
                     <button type="button" class="btn-action" style="background: white; border: 1px solid #e879f9; color: #a21caf; padding: 10px;" onclick="openTemplateManager()" title="إدارة القوالب الجاهزة">⚙️</button>
                 </div>
             </div>
             <div class="smart-rx-container">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>بحث عن دواء (الاسم أو القسم)</label>
+                    <label id="lbl-rx-search">بحث عن دواء (الاسم أو القسم)</label>
                     <div style="display: flex; gap: 10px; position: relative;">
                         <input type="text" id="drug-search" class="search-box" placeholder="ابحث عن العلاج..." onkeyup="searchDrugs()" style="flex: 1;">
-                        <button class="btn-primary" type="button" onclick="openAddDrugModal()" title="إضافة دواء لقاعدة البيانات" style="white-space: nowrap;">➕ جديد</button>
+                        <button class="btn-primary" type="button" onclick="openAddDrugModal()" id="btn-add-new-drug" style="white-space: nowrap;">➕ جديد</button>
                         <div id="search-results-box" class="search-results"></div>
                     </div>
                 </div>
             </div>
             <div id="selected-drugs-list" style="min-height: 120px; margin-bottom: 20px; max-height: 250px; overflow-y: auto; padding-right: 5px;">
-                <div class="empty-state" style="padding: 30px;">لم يتم اختيار أدوية بعد. ابحث في الأعلى واختر العلاج.</div>
+                <div class="empty-state" style="padding: 30px;" id="txt-no-drugs-sel">لم يتم اختيار أدوية بعد. ابحث في الأعلى واختر العلاج.</div>
             </div>
             <div class="form-group">
-                <label>تعليمات عامة للمريض (اختياري)</label>
+                <label id="lbl-rx-gen-notes">تعليمات عامة للمريض (اختياري)</label>
                 <input type="text" id="rx_general_notes" class="search-box" placeholder="مثال: مضمضة دافئة بماء وملح">
             </div>
-            <button type="button" class="btn-primary" style="width: 100%; background: #10b981; justify-content: center; font-size: 16px; padding: 12px;" onclick="saveSmartPrescription()">حفظ وإصدار الروشتة</button>
+            <button type="button" class="btn-primary" style="width: 100%; background: #10b981; justify-content: center; font-size: 16px; padding: 12px;" onclick="saveSmartPrescription()" id="btn-save-rx">حفظ وإصدار الروشتة</button>
         </div>
     </div>
 
@@ -267,22 +282,22 @@
             <h2 id="modal-drug-title" style="margin-top: 0; font-size: 20px;">إضافة علاج جديد للعيادة</h2>
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: #eef2ff; padding: 10px; border-radius: 8px;">
                 <input type="file" id="excel_drug_upload" accept=".xlsx, .xls" style="display: none;" onchange="importDrugsFromExcel(this)">
-                <button type="button" class="btn-action" style="flex: 1; background: white; color: #4338ca; border: 1px solid #a5b4fc; font-weight: bold; width: 100%; justify-content: center; padding: 10px;" onclick="document.getElementById('excel_drug_upload').click()">📥 استيراد من إكسيل</button>
-                <button type="button" class="btn-action" style="flex: 1; background: white; color: #0284c7; border: 1px solid #bae6fd; font-weight: bold; width: 100%; justify-content: center; padding: 10px;" onclick="downloadDrugsTemplate()">📄 تحميل قالب الإكسيل</button>
+                <button type="button" class="btn-action" style="flex: 1; background: white; color: #4338ca; border: 1px solid #a5b4fc; font-weight: bold; width: 100%; justify-content: center; padding: 10px;" onclick="document.getElementById('excel_drug_upload').click()" id="btn-import-excel">📥 استيراد من إكسيل</button>
+                <button type="button" class="btn-action" style="flex: 1; background: white; color: #0284c7; border: 1px solid #bae6fd; font-weight: bold; width: 100%; justify-content: center; padding: 10px;" onclick="downloadDrugsTemplate()" id="btn-download-excel">📄 تحميل قالب الإكسيل</button>
             </div>
-            <div style="text-align: center; margin-bottom: 15px; color: #64748b; font-weight: bold;">-- أو إضافة يدوية --</div>
+            <div style="text-align: center; margin-bottom: 15px; color: #64748b; font-weight: bold;" id="txt-or-manual">-- أو إضافة يدوية --</div>
             <form onsubmit="saveNewDrugToPharmacy(event)">
                 <div class="form-group">
-                    <label>القسم (مثال: مضاد حيوي، مسكن)</label>
+                    <label id="lbl-drug-cat">القسم (مثال: مضاد حيوي، مسكن)</label>
                     <input type="text" id="new_drug_category" class="search-box" required>
                 </div>
                 <div class="form-group">
-                    <label>اسم العلاج والتركيز</label>
+                    <label id="lbl-drug-name">اسم العلاج والتركيز</label>
                     <input type="text" id="new_drug_name" class="search-box" placeholder="مثال: Augmentin 1gm" required dir="ltr">
                 </div>
                 <div class="form-group">
-                    <label>الجرعة الافتراضية</label>
-                    <input type="text" id="new_drug_dose" class="search-box" placeholder="مثال: قرص كل 12 ساعة بعد الأكل" required>
+                    <label id="lbl-drug-dose">الجرعة الافتراضية</label>
+                    <input type="text" id="new_drug_dose" class="search-box" required>
                 </div>
                 <button type="submit" id="btn-save-drug" class="btn-primary" style="width: 100%; justify-content: center;">حفظ في قاعدة الأدوية</button>
             </form>
@@ -292,13 +307,13 @@
     <div id="templatesModal" class="modal no-print" style="z-index: 1010;">
         <div class="modal-content" style="max-width: 500px;">
             <span class="close-modal" onclick="closeModal('templatesModal')">&times;</span>
-            <h2 style="margin-top: 0;">إدارة الروشتات الجاهزة (الأسكيما)</h2>
+            <h2 style="margin-top: 0;" id="modal-tpl-title">إدارة الروشتات الجاهزة</h2>
             <div class="form-group">
-                <label>اسم الروشتة (مثال: روشتة ما بعد الخلع)</label>
-                <input type="text" id="tpl_name" class="search-box" placeholder="اكتب اسم القالب...">
+                <label id="lbl-tpl-name">اسم الروشتة (مثال: روشتة خلع)</label>
+                <input type="text" id="tpl_name" class="search-box">
             </div>
-            <button class="btn-primary" style="width: 100%; justify-content: center; margin-bottom: 20px; padding: 12px;" onclick="saveCurrentRxAsTemplate()">حفظ الروشتة الحالية كقالب 💾</button>
-            <h3 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">القوالب المحفوظة:</h3>
+            <button class="btn-primary" style="width: 100%; justify-content: center; margin-bottom: 20px; padding: 12px;" onclick="saveCurrentRxAsTemplate()" id="btn-save-tpl">حفظ الروشتة الحالية كقالب 💾</button>
+            <h3 style="border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;" id="txt-saved-tpls">القوالب المحفوظة:</h3>
             <div id="templates-list-container">
                 <div class="empty-state">لا يوجد قوالب محفوظة.</div>
             </div>
@@ -308,14 +323,14 @@
     <div id="xrayModal" class="modal no-print">
         <div class="modal-content" style="max-width: 450px;">
             <span class="close-modal" onclick="closeModal('xrayModal')">&times;</span>
-            <h2>رفع مرفق للجلسة</h2>
+            <h2 id="modal-att-title">رفع مرفق للجلسة</h2>
             <form onsubmit="saveSessionXRay(event)">
                 <div class="form-group">
-                    <label>النوع</label>
-                    <input type="text" id="sx_type" class="search-box" placeholder="مثال: أشعة بانوراما، صورة قبل وبعد..." required>
+                    <label id="lbl-att-type">النوع</label>
+                    <input type="text" id="sx_type" class="search-box" required>
                 </div>
                 <div class="form-group">
-                    <label>اختر الصورة</label>
+                    <label id="lbl-att-file">اختر الصورة</label>
                     <input type="file" id="sx_file" class="search-box" accept="image/*" onchange="encodeSessionImage(this)" required style="padding: 10px; cursor: pointer; background: #f8fafc;">
                     <input type="hidden" id="sx_base64">
                 </div>
@@ -329,31 +344,31 @@
     <div class="print-only" id="print-area">
         <div class="print-header">
             <div class="print-header-content" style="text-align: right;">
-                <h1 id="print-clinic-name" style="margin: 0; font-size: 26px; color: #0284c7;">NivaDent Clinic</h1>
+                <h1 id="print-clinic-name" style="margin: 0; font-size: 28px; color: #0284c7; font-weight: 900;">NivaDent Clinic</h1>
                 <p id="print-doctor-name" style="margin: 5px 0 0 0; font-size: 16px; color: #475569; font-weight: bold;">Dr. Name</p>
             </div>
             <div style="text-align: left;">
                 <img id="print-clinic-logo" src="" class="print-logo" style="display: none;">
             </div>
         </div>
-        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+
+        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
             <div class="print-info-row">
-                <div style="flex: 2;"><strong>الاسم (Name):</strong> <span id="print-patient-name" style="font-weight: bold; font-size: 18px;">---</span></div>
-                <div style="flex: 1; text-align: left;"><strong>التاريخ (Date):</strong> <span id="print-date">---</span></div>
+                <div style="flex: 2;"><strong id="lbl-pr-name">الاسم (Name):</strong> <span id="print-patient-name" style="font-weight: bold; font-size: 18px; color:#0f172a;">---</span></div>
+                <div style="flex: 1; text-align: left;"><strong id="lbl-pr-date">التاريخ (Date):</strong> <span id="print-date">---</span></div>
             </div>
             <div class="print-info-row" style="border: none; margin: 0; padding: 0;">
-                <div style="flex: 1;"><strong>السن (Age):</strong> <span id="print-patient-age">---</span></div>
-                <div style="flex: 1; text-align: left;"><strong>التشخيص (Diag):</strong> <span id="print-patient-diag">---</span></div>
+                <div style="flex: 1;"><strong id="lbl-pr-age">السن (Age):</strong> <span id="print-patient-age">---</span></div>
+                <div style="flex: 1; text-align: left;"><strong id="lbl-pr-diag">الإجراء (Proc):</strong> <span id="print-patient-diag">---</span></div>
             </div>
         </div>
-        <div class="print-rx-body">
-            <h2 style="font-size: 35px; color: #0f172a; margin: 0 0 20px 0; border-bottom: 2px solid #0284c7; display: inline-block; padding-bottom: 5px; padding-right: 20px;">Rx</h2>
-            <div id="print-meds" style="white-space: pre-wrap; font-size: 20px; line-height: 2.2; direction: ltr; text-align: left; padding-left: 30px; font-weight: bold; color: #1e293b;"></div>
-            <div style="margin-top: 40px;">
-                <strong style="color: #ef4444; font-size: 18px;">التعليمات (Notes):</strong> 
-                <p id="print-notes" style="margin-top: 10px; font-size: 16px; line-height: 1.8;"></p>
+
+        <div class="print-rx-body watermark-rx" id="print-dynamic-body">
             </div>
-        </div>
+
+        <div id="print-qr-container"></div>
+        <p style="text-align:center; font-size:12px; color:#94a3b8; margin-top:5px;" id="lbl-qr-verify">قم بمسح الكود للتحقق (Scan to verify)</p>
+
         <div class="print-footer">
             <span id="print-clinic-address">---</span> | 📞 <span id="print-clinic-phone" dir="ltr">---</span>
         </div>
@@ -362,7 +377,6 @@
     <script>
         var h = Math.floor(Date.now() / 3600000); 
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
-        document.write('<script src="js/lang-manager.js?v=' + h + '"><\/script>');
         document.write('<script src="js/session-details.js?v=' + h + '"><\/script>');
         document.write('<script src="js/dental-chart.js?v=' + h + '"><\/script>');
     </script>
