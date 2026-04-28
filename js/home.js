@@ -546,7 +546,7 @@ async function askAI(promptType) {
 // 🔴 رادار الحضور والأمان (Smart Presence & Sleep Mode) - النسخة المحصنة 🔴
 // =========================================================================
 
-const IDLE_TIMEOUT_MINUTES = 1; // الطرد النهائي وتسجيل الخروج بعد 30 دقيقة
+const IDLE_TIMEOUT_MINUTES = 30; // الطرد النهائي وتسجيل الخروج بعد 30 دقيقة
 const OFFLINE_MARK_MINUTES = 15; // اعتباره (غير متصل) بعد 15 دقيقة خمول
 let currentPresenceStatus = "online"; 
 
