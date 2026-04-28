@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>بوابة المريض - NivaDent</title>
+    <title id="page_title">بوابة المريض | Patient Portal</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/portal.css">
@@ -11,98 +11,126 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 </head>
-<body>
+<body data-theme="light">
 
     <div id="loader" class="loader-overlay" style="display: none;">
         <div class="spinner"></div>
         <p id="loader-text">جاري التحميل...</p>
     </div>
 
-    <div id="login-screen" class="portal-container">
+    <div class="top-controls">
+        <button class="icon-btn" onclick="togglePortalTheme()" id="btn_theme">🌙</button>
+        <div class="lang-switch">
+            <span onclick="switchPortalLang('ar')" id="btn_ar" class="active">عربي</span>
+            <span onclick="switchPortalLang('en')" id="btn_en">EN</span>
+        </div>
+    </div>
+
+    <div id="login-screen" class="portal-container" style="animation: popUp 0.5s ease-out;">
         <div class="brand-header">
-            <span style="font-size: 40px;">🦷</span>
-            <h1>NivaDent Portal</h1>
-            <p>أهلاً بك في العيادة، يرجى تسجيل الدخول لمتابعة ملفك</p>
+            <div class="clinic-logo-placeholder">🦷</div>
+            <h1 id="txt_clinic_name_login">العيادة الذكية</h1>
+            <p id="txt_login_sub">يرجى تسجيل الدخول لمتابعة ملفك الطبي</p>
         </div>
 
         <form id="loginForm" onsubmit="patientLogin(event)">
             <div class="form-group">
-                <label>رقم الموبايل المسجل بالعيادة</label>
-                <input type="tel" id="patient_phone" placeholder="أدخل رقم الموبايل..." dir="ltr" required>
+                <label id="lbl_phone_login">رقم الموبايل المسجل بالعيادة</label>
+                <input type="tel" id="patient_phone" placeholder="01xxxxxxxxx" dir="ltr" required>
             </div>
-            <button type="submit" class="btn-primary" id="btn-login">تسجيل الدخول</button>
+            <button type="submit" class="btn-primary" id="btn_login_submit">تسجيل الدخول</button>
         </form>
         <div id="login-error" class="error-msg" style="display: none;"></div>
         
-        <div style="text-align: center; margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
-            <p style="margin: 0 0 10px 0; color: #64748b; font-size: 14px;">أو لست مريضاً حالياً؟</p>
-            <button type="button" class="btn-secondary" onclick="showBookingScreen()">📅 حجز موعد جديد</button>
+        <div class="divider">
+            <span id="txt_or_new">أو لست مريضاً حالياً؟</span>
         </div>
+        <button type="button" class="btn-secondary" onclick="showBookingScreen()" id="btn_book_new">📅 حجز موعد جديد</button>
     </div>
 
-    <div id="booking-screen" class="portal-container" style="display: none;">
+    <div id="booking-screen" class="portal-container" style="display: none; animation: slideIn 0.4s ease-out;">
         <div class="brand-header">
-            <h2>📅 حجز موعد جديد</h2>
-            <p>اختر اليوم والوقت المناسب لك</p>
+            <h2 id="txt_book_title">📅 حجز موعد جديد</h2>
+            <p id="txt_book_sub">اختر اليوم والوقت المناسب لك</p>
         </div>
 
         <div class="form-group">
-            <label>اختر تاريخ الحجز:</label>
+            <label id="lbl_book_date">اختر تاريخ الحجز:</label>
             <input type="date" id="book_date" onchange="loadAvailableSlots()" required>
         </div>
 
         <div id="slots-container" style="display: none;">
-            <label style="font-weight: bold; margin-bottom: 10px; display: block;">المواعيد المتاحة:</label>
-            <div id="time-slots" class="slots-grid">
-                </div>
+            <label style="font-weight: bold; margin-bottom: 10px; display: block;" id="lbl_slots">المواعيد المتاحة:</label>
+            <div id="time-slots" class="slots-grid"></div>
         </div>
 
         <form id="confirmBookingForm" onsubmit="submitBooking(event)" style="display: none; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
-            <p style="color: var(--primary); font-weight: bold;">الموعد المحدد: <span id="selected-time-display">--:--</span></p>
+            <p style="color: var(--primary); font-weight: bold;"><span id="txt_selected_time">الموعد المحدد:</span> <span id="selected-time-display" dir="ltr" style="background:#e0f2fe; padding:4px 8px; border-radius:6px;">--:--</span></p>
             <input type="hidden" id="selected_time">
             
             <div class="form-group">
-                <label>الاسم بالكامل:</label>
+                <label id="lbl_book_name">الاسم بالكامل:</label>
                 <input type="text" id="book_name" required>
             </div>
             <div class="form-group">
-                <label>رقم الموبايل للتواصل:</label>
+                <label id="lbl_book_phone">رقم الموبايل للتواصل:</label>
                 <input type="tel" id="book_phone" dir="ltr" required>
             </div>
-            <button type="submit" class="btn-primary" id="btn-confirm-booking">تأكيد الحجز</button>
-            <button type="button" class="btn-secondary" onclick="cancelBooking()" style="margin-top: 10px;">إلغاء والعودة</button>
+            <button type="submit" class="btn-primary" id="btn_confirm_booking">تأكيد الحجز</button>
+            <button type="button" class="btn-cancel" onclick="cancelBooking()" id="btn_cancel_booking">إلغاء والعودة</button>
         </form>
     </div>
 
-    <div id="dashboard-screen" class="portal-container" style="display: none;">
-        <div class="patient-header">
-            <div class="avatar">👤</div>
-            <div>
-                <h2 id="disp_name">...</h2>
-                <p id="disp_phone" dir="ltr">...</p>
+    <div id="dashboard-screen" class="portal-container" style="display: none; max-width: 600px; padding: 20px; animation: slideIn 0.4s ease-out;">
+        
+        <div class="patient-profile-header">
+            <div class="profile-info">
+                <div class="avatar">👤</div>
+                <div>
+                    <h2 id="disp_name">...</h2>
+                    <p id="disp_phone" dir="ltr">...</p>
+                </div>
             </div>
-            <button class="btn-logout" onclick="patientLogout()">خروج</button>
+            <button class="icon-btn logout" onclick="patientLogout()" title="تسجيل خروج">🚪</button>
         </div>
 
-        <div class="info-card highlight-card">
-            <h3>📊 حالة الدور اليوم</h3>
-            <p id="queue_status" style="font-size: 18px; font-weight: bold; color: #d97706;">جاري التحقق من العيادة...</p>
-            <small>هذه الميزة تعمل عندما تكون متواجداً بالعيادة</small>
-        </div>
+        <h3 class="section-title" id="txt_clinic_name_dash" style="text-align: center; color: var(--primary); margin-bottom: 20px;">عيادة ...</h3>
 
-        <div class="info-card">
-            <h3>💰 الحساب المالي</h3>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span>المديونية الحالية:</span>
-                <span id="disp_debt" class="debt-badge">0 ج.م</span>
+        <div class="grid-cards">
+            <div class="modern-card primary-card">
+                <div class="card-icon">📅</div>
+                <h3 id="lbl_next_app">الموعد القادم</h3>
+                <p id="disp_next_app" class="card-value">لا يوجد موعد</p>
+            </div>
+
+            <div class="modern-card warning-card">
+                <div class="card-icon">📊</div>
+                <h3 id="lbl_queue">حالة الدور اليوم</h3>
+                <p id="queue_status" class="card-value" style="font-size: 16px;">غير متواجد بالعيادة</p>
+            </div>
+
+            <div class="modern-card danger-card">
+                <div class="card-icon">💰</div>
+                <h3 id="lbl_debt">الحساب المالي</h3>
+                <p id="disp_debt" class="card-value" dir="ltr">0 EGP</p>
             </div>
         </div>
 
-        <div class="info-card">
-            <h3>📅 الموعد القادم</h3>
-            <p id="disp_next_app" style="font-weight: bold; color: #0284c7;">لا يوجد موعد مسجل</p>
+        <div id="lab-section" class="modern-card" style="display: none; margin-top: 15px; border-right: 4px solid #8b5cf6;">
+            <h3 id="lbl_lab_status" style="margin: 0 0 10px 0; color: #8b5cf6; display: flex; align-items: center; gap: 8px;">🔬 حالة التركيبات/المعمل</h3>
+            <div id="lab_orders_list"></div>
         </div>
+
+        <div id="history-section" class="modern-card" style="margin-top: 15px; display: none;">
+            <h3 id="lbl_history" style="margin: 0 0 15px 0; border-bottom: 1px solid var(--border); padding-bottom: 10px;">📋 السجل الطبي والجلسات</h3>
+            <div id="history_list" class="history-list"></div>
+        </div>
+
     </div>
+
+    <a href="#" id="wa-float-btn" class="wa-float" target="_blank" style="display: none;" title="تواصل مع العيادة">
+        💬
+    </a>
 
     <script src="js/firebase-config.js"></script>
     <script src="js/portal.js"></script>
