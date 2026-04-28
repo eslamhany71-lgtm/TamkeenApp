@@ -1,4 +1,4 @@
-// 🔴 ملف patient-profile.js - النسخة المُحصنة بنظام الإنذار 🔴
+// 🔴 ملف patient-profile.js - النسخة المُحصنة 🔴
 
 try {
     const db = firebase.firestore();
@@ -7,7 +7,6 @@ try {
     const urlParams = new URLSearchParams(window.location.search);
     let patientId = urlParams.get('id');
     
-    // تنظيف كود المريض لو الرابط فيه لغبطة
     if (patientId && patientId.includes('&')) {
         patientId = patientId.split('&')[0];
     }
@@ -18,6 +17,7 @@ try {
     }
 
     let currentPatientName = "مريض";
+    let currentPatientPhone = ""; // 🟢 متغير جديد لحفظ رقم الهاتف للواتساب 🟢
     let loadedPatientSessions = []; 
     let currentUserDisplayName = "مستخدم غير معروف";
 
@@ -71,7 +71,7 @@ try {
             const isAr = getLang();
             
             const nameEl = document.getElementById('prof-name');
-            if (!nameEl) return; // حماية لو الـ HTML لسه محملش
+            if (!nameEl) return; 
 
             if (!patientId) {
                 nameEl.innerHTML = `<span style="color:#ef4444; font-size:16px;">⚠️ خطأ: كود المريض مفقود!</span>`;
@@ -88,6 +88,7 @@ try {
                 if (doc.exists) {
                     const p = doc.data();
                     currentPatientName = p.name;
+                    currentPatientPhone = p.phone || ""; // 🟢 استخراج الهاتف 🟢
                     
                     let debtHtml = '';
                     if (p.totalDebt && p.totalDebt > 0) {
@@ -135,7 +136,41 @@ try {
     }
 
     // ==========================================
-    // أكواد التقسيط، المعمل، الجلسات (بدون تعديل)
+    // 🟢 الإضافة القاتلة: إرسال الرابط للواتساب 🟢
+    // ==========================================
+    function sendPortalLinkWhatsApp() {
+        const isAr = getLang();
+        if (!currentPatientPhone || currentPatientPhone.trim() === '') {
+            alert(isAr ? "عفواً، لا يوجد رقم موبايل مسجل لهذا المريض." : "No phone number registered for this patient.");
+            return;
+        }
+
+        let phone = currentPatientPhone.replace(/\D/g, '');
+        if (phone.startsWith('0')) {
+            phone = '2' + phone;
+        } else if (!phone.startsWith('20') && phone.length >= 10) {
+            phone = '20' + phone;
+        }
+
+        const portalUrl = `https://nivadent.web.app/portal.html?clinicId=${clinicId}`;
+        let message = "";
+
+        if (isAr) {
+            message = `مرحباً أستاذ/ة *${currentPatientName}* 👋\n\nنود إعلامكم أنه يمكنكم الآن متابعة ملفكم الطبي، حساباتكم، وحجز مواعيدكم القادمة بكل سهولة عبر بوابتنا الذكية.\n\n🔗 *رابط الدخول للبوابة:*\n${portalUrl}\n\nنتمنى لكم دوام الصحة والعافية! 🦷✨`;
+        } else {
+            message = `Hello *${currentPatientName}* 👋\n\nYou can now view your medical profile, finances, and book new appointments easily through our smart portal.\n\n🔗 *Portal Link:*\n${portalUrl}\n\nWishing you a healthy smile! 🦷✨`;
+        }
+
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const whatsappUrl = isMobile
+            ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`
+            : `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(message)}`;
+
+        window.open(whatsappUrl, '_blank');
+    }
+
+    // ==========================================
+    // أكواد التقسيط، المعمل، الجلسات
     // ==========================================
     function calcInstallments() {
         const total = Number(document.getElementById('inst_total').value) || 0;
@@ -621,7 +656,6 @@ try {
         renderPatientSessionsTable();
     }
 
-    // 🔴 التوجيه الداخلي الآمن لفتح تفاصيل الجلسة 🔴
     function viewSessionDetails(sessionId) {
         const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
         if (window.showLoader) window.showLoader(isAr ? "جاري فتح تفاصيل الجلسة..." : "Loading session...");
@@ -658,7 +692,6 @@ try {
         initProfile();
     }
 
-    // جلب بيانات الحساب في الخلفية بدون ما نوقف الصفحة
     firebase.auth().onAuthStateChanged(async (user) => { 
         if (user) { 
             try {
@@ -678,19 +711,16 @@ try {
     function openQRModal() {
         const isAr = getLang();
         
-        // كتابة بيانات المريض على الكارت
         document.getElementById('qr_patient_name').innerText = currentPatientName;
         const phoneNode = document.getElementById('prof-phone');
         const phoneText = phoneNode ? phoneNode.innerText.replace('📞', '').trim() : '';
         document.getElementById('qr_patient_phone').innerText = phoneText;
 
-        // مسح أي QR قديم عشان ميتكررش
         const qrContainer = document.getElementById('qrcode_container');
         qrContainer.innerHTML = '';
 
-        // توليد الـ QR كود باستخدام مكتبة qrcode.js (هيحط الـ patientId جواه)
         new QRCode(qrContainer, {
-            text: patientId, // 🔴 ده السحر، بنشفر الآي دي جوه الصورة
+            text: patientId, 
             width: 150,
             height: 150,
             colorDark : "#0f172a",
@@ -698,30 +728,25 @@ try {
             correctLevel : QRCode.CorrectLevel.H
         });
 
-        // فتح المودال عشان الممرضة تشوف الكارت قبل ما تطبع
         openModal('qrPrintModal');
     }
 
     function printPatientCard() {
-        // 1. ناخد نسخة من الكارت الشيك اللي في المودال
         const cardContent = document.getElementById('printArea').outerHTML;
         
-        // 2. نحطه في المكان المخصص للطباعة
         const printSection = document.getElementById('actualPrintSection');
         printSection.innerHTML = cardContent;
 
-        // 3. نقفل المودال عشان ميظهرش شادو أسود في الطباعة
         closeModal('qrPrintModal');
 
-        // 4. ندي المتصفح ثانية عشان يرسم الصور، وبعدين نفتح شاشة الطباعة
         setTimeout(() => {
             window.print();
-            // بعد الطباعة نمسح الكارت عشان الصفحة ترجع طبيعية
             printSection.innerHTML = '';
         }, 500);
     }
 
-    // Attach to window to make them globally accessible (since they are inside a try block)
+    // Attach to window
+    window.sendPortalLinkWhatsApp = sendPortalLinkWhatsApp; // 🟢 تصدير الدالة 🟢
     window.openQRModal = openQRModal;
     window.printPatientCard = printPatientCard;
     window.openModal = openModal;
@@ -740,6 +765,5 @@ try {
     window.markLabOrderDelivered = markLabOrderDelivered;
 
 } catch (globalError) {
-    // 🔴 لو الكود ضرب، الموبايل هيطلعلك رسالة عشان تقولي إيه المكتوب فيها 🔴
     alert("حدث خطأ تقني يمنع تحميل الصفحة: " + globalError.message);
 }
