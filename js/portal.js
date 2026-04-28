@@ -1,4 +1,4 @@
-// js/portal.js - V3.1 (Smart SaaS Portal & Auto Clinic Branding)
+// js/portal.js - V3.2 (Smart SaaS Portal & Auto Clinic Branding - WhatsApp Fix)
 
 const db = firebase.firestore();
 const urlParams = new URLSearchParams(window.location.search);
@@ -164,8 +164,8 @@ window.onload = async () => {
             if(loginNameEl) loginNameEl.innerText = cName;
             if(dashNameEl) dashNameEl.innerText = cName;
             
-            // سحب الرقم بأي اسم محتمل إنت مسجله بيه في الداتا بيز
-            const rawPhone = cData.phone || cData.clinicPhone || cData.whatsapp || cData.contactNumber || "";
+            // 🔴 التعديل هنا: قراءة phone1 كأولوية 🔴
+            const rawPhone = cData.phone1 || cData.phone || cData.whatsapp || "";
             
             if(rawPhone) {
                 clinicWhatsApp = rawPhone.replace(/\D/g, ''); // تنظيف الرقم
