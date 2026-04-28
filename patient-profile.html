@@ -56,6 +56,28 @@
         .patient-card-print p { color: #64748b; margin: 0 0 15px 0; font-size: 14px; }
         .qr-wrapper { background: #f8fafc; padding: 15px; border-radius: 12px; display: inline-block; margin-bottom: 15px; border: 1px solid #e2e8f0; }
         .card-footer { font-size: 12px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 10px; }
+
+        /* 🔴 التوافق المخصص للدارك مود (إصلاح التضارب) 🔴 */
+        [data-theme="dark"] .patient-header-card,
+        [data-theme="dark"] .lab-card,
+        [data-theme="dark"] .lab-container,
+        [data-theme="dark"] .qr-wrapper {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+        [data-theme="dark"] #prof-name,
+        [data-theme="dark"] #txt-sess-title,
+        [data-theme="dark"] #txt-lab-title,
+        [data-theme="dark"] .patient-meta span {
+            color: #f8fafc !important;
+        }
+        [data-theme="dark"] .btn-action {
+            background-color: #334155 !important;
+            color: #f8fafc !important;
+            border-color: #475569 !important;
+        }
+        [data-theme="dark"] .lab-card h4 { color: #f8fafc !important; }
+        [data-theme="dark"] .lab-container { border-color: #475569 !important; }
     </style>
 </head>
 <body>
@@ -81,7 +103,12 @@
                 
                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
                     <div class="patient-alerts" id="prof-alerts"></div>
-                    <button class="btn-primary" onclick="openQRModal()" style="background: #0284c7; box-shadow: 0 4px 6px rgba(2, 132, 199, 0.2); font-size: 14px; padding: 8px 15px;">🖨️ طباعة كارت المريض (QR)</button>
+                    
+                    <button class="btn-success" onclick="sendPortalLinkWhatsApp()" style="background: #25D366; box-shadow: 0 4px 6px rgba(37, 211, 102, 0.2); font-size: 14px; padding: 8px 15px; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; display: flex; justify-content: center; align-items: center; gap: 5px;">
+                        <span>📱</span> إرسال رابط البوابة للمريض
+                    </button>
+                    
+                    <button class="btn-primary" onclick="openQRModal()" style="background: #0284c7; box-shadow: 0 4px 6px rgba(2, 132, 199, 0.2); font-size: 14px; padding: 8px 15px; width: 100%;">🖨️ طباعة كارت المريض (QR)</button>
                 </div>
             </div>
 
