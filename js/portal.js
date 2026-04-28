@@ -1,4 +1,4 @@
-// js/portal.js - V3.0 (Smart SaaS Portal)
+// js/portal.js - V3.1 (Smart SaaS Portal & Auto Clinic Branding)
 
 const db = firebase.firestore();
 const urlParams = new URLSearchParams(window.location.search);
@@ -114,7 +114,7 @@ function switchPortalLang(lang) {
     updatePortalContent(lang);
     if(document.getElementById('dashboard-screen').style.display === 'block') {
         const sd = sessionStorage.getItem(`patient_${clinicId}`);
-        if(sd) checkQueueStatus(); // تحديث رسالة الدور
+        if(sd) checkQueueStatus(); 
     }
 }
 
@@ -152,20 +152,23 @@ window.onload = async () => {
         return;
     }
 
-// 🔴 جلب اسم العيادة ورقم الواتساب من "إعدادات العيادة" أوتوماتيكياً 🔴
+    // 🔴 جلب بيانات العيادة (الاسم ورقم الواتساب) من جدول Clinics 🔴
     try {
         const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
         if(clinicDoc.exists) {
             const cData = clinicDoc.data();
-            const cName = cData.clinicName || "العيادة الذكية";
-            document.getElementById('txt_clinic_name_login').innerText = cName;
-            document.getElementById('txt_clinic_name_dash').innerText = cName;
+            const cName = cData.clinicName || (currentLang === 'ar' ? "العيادة الذكية" : "Smart Clinic");
             
-            // 🔴 سحب رقم العيادة بأكثر من اسم محتمل (حسب المكتوب عندك في الإعدادات) 🔴
+            const loginNameEl = document.getElementById('txt_clinic_name_login');
+            const dashNameEl = document.getElementById('txt_clinic_name_dash');
+            if(loginNameEl) loginNameEl.innerText = cName;
+            if(dashNameEl) dashNameEl.innerText = cName;
+            
+            // سحب الرقم بأي اسم محتمل إنت مسجله بيه في الداتا بيز
             const rawPhone = cData.phone || cData.clinicPhone || cData.whatsapp || cData.contactNumber || "";
             
             if(rawPhone) {
-                clinicWhatsApp = rawPhone.replace(/\D/g, ''); // تنظيف الرقم من أي مسافات
+                clinicWhatsApp = rawPhone.replace(/\D/g, ''); // تنظيف الرقم
                 
                 // تظبيط مفتاح الدولة (مصر) أوتوماتيك للواتساب
                 if (clinicWhatsApp.startsWith('0')) {
@@ -175,11 +178,14 @@ window.onload = async () => {
                 }
                 
                 const waBtn = document.getElementById('wa-float-btn');
-                waBtn.href = `https://wa.me/${clinicWhatsApp}`;
-                waBtn.style.display = 'flex'; // إظهار الزرار العائم للواتساب
+                if(waBtn) {
+                    waBtn.href = `https://wa.me/${clinicWhatsApp}`;
+                    waBtn.style.display = 'flex'; // إظهار زرار الواتساب العائم
+                }
             }
         }
     } catch(e) { console.error("Branding Error", e); }
+
     const savedPatient = sessionStorage.getItem(`patient_${clinicId}`);
     if (savedPatient) {
         const patientData = JSON.parse(savedPatient);
@@ -250,7 +256,6 @@ async function loadDashboard(patientData) {
     await fetchNextAppointment(patientData.phone);
     checkQueueStatus();
 
-    // جلب البيانات الإضافية للمرضى الرسميين
     if(patientData.isOfficial) {
         fetchPatientHistory(patientData.id);
         fetchLabOrders(patientData.id);
