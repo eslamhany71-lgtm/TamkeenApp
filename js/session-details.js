@@ -438,20 +438,8 @@ async function printSessionInvoice() {
     }
 }
 
-        // توليد بيانات الـ QR Code للفاتورة
-        const qrData = `Invoice\nPatient: ${patientName}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nRemaining: ${sessionData.remaining}\nVerified ✅`;
-        generateQRCodeForPrint(qrData);
-
-        if (window.hideLoader) window.hideLoader();
-        setTimeout(() => window.print(), 500); 
-    } catch(e) {
-        if (window.hideLoader) window.hideLoader();
-        console.error(e);
-    }
-}
-
 // ==========================================
-// إدارة الأدوية والروشتات (بدون أي مساس باللوجيك)
+// إدارة الأدوية والروشتات
 // ==========================================
 
 function loadClinicPharmacy() {
@@ -1027,7 +1015,6 @@ window.onload = () => {
     currentLang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
     
-    // 🔴 تشغيل الترجمة الكاملة 🔴
     updatePageContent(currentLang);
     
     firebase.auth().onAuthStateChanged((user) => { if (user) loadSessionDetails(); });
