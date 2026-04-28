@@ -708,29 +708,32 @@ try {
     // 🔴 لوجيك صانع كارت المريض (QR Generator & Print) 🔴
     // ==========================================
 
-    function openQRModal() {
-        const isAr = getLang();
-        
-        document.getElementById('qr_patient_name').innerText = currentPatientName;
-        const phoneNode = document.getElementById('prof-phone');
-        const phoneText = phoneNode ? phoneNode.innerText.replace('📞', '').trim() : '';
-        document.getElementById('qr_patient_phone').innerText = phoneText;
+// 🔴 تحديث كارت المريض ليكون رابط ذكي يفتح البروفايل مباشرة (Scenario 3) 🔴
+function openQRModal() {
+    const isAr = getLang();
+    
+    document.getElementById('qr_patient_name').innerText = currentPatientName;
+    const phoneNode = document.getElementById('prof-phone');
+    const phoneText = phoneNode ? phoneNode.innerText.replace('📞', '').trim() : '';
+    document.getElementById('qr_patient_phone').innerText = phoneText;
 
-        const qrContainer = document.getElementById('qrcode_container');
-        qrContainer.innerHTML = '';
+    const qrContainer = document.getElementById('qrcode_container');
+    qrContainer.innerHTML = '';
 
-        new QRCode(qrContainer, {
-            text: patientId, 
-            width: 150,
-            height: 150,
-            colorDark : "#0f172a",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
-        });
+    // 🔴 السحر هنا: بناء رابط كامل يفتح صفحة البروفايل مباشرة 🔴
+    const profileUrl = window.location.origin + "/patient-profile.html?id=" + patientId + "&clinicId=" + clinicId;
 
-        openModal('qrPrintModal');
-    }
+    new QRCode(qrContainer, {
+        text: profileUrl, // حطينا الرابط بدل الـ ID
+        width: 150,
+        height: 150,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.L // L عشان الرابط طويل ويقرأ بسرعة من الكاميرا
+    });
 
+    openModal('qrPrintModal');
+}
     function printPatientCard() {
         const cardContent = document.getElementById('printArea').outerHTML;
         
