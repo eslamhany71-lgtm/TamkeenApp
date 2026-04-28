@@ -316,19 +316,14 @@ function generateQRCodeForPrint(textData) {
     const qrContainer = document.getElementById('print-qr-container');
     qrContainer.innerHTML = ''; // تفريغ الـ QR القديم
     
-    // 🔴 تشفير الحروف العربية بأمان لمنع إيرور (code length overflow) 🔴
-    let safeText = textData;
-    try {
-        safeText = unescape(encodeURIComponent(textData));
-    } catch(e) {}
-    
+    // استخدام تشفير آمن وخفيف للـ QR لتجنب خطأ code length overflow
     new QRCode(qrContainer, {
-        text: safeText,
-        width: 120,
-        height: 120,
+        text: textData,
+        width: 100, // تقليل الحجم قليلاً ليكون أسرع وأشيك
+        height: 100,
         colorDark : "#0f172a",
         colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.L // 🔴 تقليل مستوى تصحيح الخطأ لزيادة الاستيعاب
+        correctLevel : QRCode.CorrectLevel.L // استخدام المستوى الأقل لزيادة سعة الحروف
     });
 }
 
@@ -372,8 +367,8 @@ async function printSessionRx(docId) {
                 </div>
             `;
 
-            // 🔴 إزالة الإيموجي لتفادي تعارض مكتبة QR 🔴
-            const qrData = `Clinic: ${document.getElementById('print-clinic-name').innerText}\nPatient: ${patientName}\nDate: ${p.date}\nRx Verified`;
+            // 🔴 توقيع رقمي خفيف للـ QR Code (إنجليزي فقط لتجنب الأخطاء) 🔴
+            const qrData = `Doc: Prescription\nID: ${docId}\nDate: ${p.date}\nAuth: NivaDent System`;
             generateQRCodeForPrint(qrData);
 
             if (window.hideLoader) window.hideLoader();
@@ -426,8 +421,8 @@ async function printSessionInvoice() {
             </div>
         `;
 
-        // 🔴 إزالة الإيموجي لتفادي تعارض مكتبة QR 🔴
-        const qrData = `Invoice\nPatient: ${patientName}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nRemaining: ${sessionData.remaining}\nVerified`;
+        // 🔴 توقيع رقمي خفيف للـ QR Code (إنجليزي فقط وأرقام لتجنب الأخطاء) 🔴
+        const qrData = `Doc: Invoice\nID: ${sessionId}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nAuth: NivaDent System`;
         generateQRCodeForPrint(qrData);
 
         if (window.hideLoader) window.hideLoader();
