@@ -15,8 +15,158 @@ let currentPrescriptionDrugs = [];
 let activePrescriptionDocId = null; 
 let editDrugId = null; 
 
-function getLang() {
-    return (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+let currentLang = localStorage.getItem('preferredLang') || 'ar';
+
+// ==========================================
+// 🔴 الترجمة الكاملة (Localization) 🔴
+// ==========================================
+const dict = {
+    ar: {
+        pageTitle: "تفاصيل الجلسة",
+        backProf: "العودة لملف المريض",
+        sessHeader: "ملف جلسة المريض:",
+        btnEdit: "✏️ تعديل الجلسة",
+        btnPrintInv: "🖨️ طباعة الفاتورة",
+        totalCalc: "الإجمالي",
+        paidCalc: "المدفوع",
+        remCalc: "المتبقي",
+        docNotes: "ملاحظات الطبيب:",
+        chartTitle: "🦷 مخطط الأسنان الطبي (Interactive Chart)",
+        rxTitle: "💊 روشتة الجلسة",
+        btnAddRx: "➕ إصدار روشتة",
+        noRx: "لا توجد روشتة مسجلة لهذه الجلسة.",
+        extRx: "📎 نسخة خارجية (مرفوعة):",
+        attTitle: "📸 مرفقات وأشعة",
+        btnAddAtt: "➕ رفع مرفق",
+        noAtt: "لا توجد مرفقات.",
+        // Modals
+        mEditTitle: "تعديل بيانات الجلسة والمحاسبة",
+        lblDate: "تاريخ الجلسة",
+        lblNext: "الموعد القادم",
+        lblProc: "الإجراء الطبي",
+        lblTotal: "الإجمالي",
+        lblPaid: "المدفوع الكلي",
+        lblRem: "المتبقي",
+        lblPayMethod: "طريقة الدفع (لأي فرق)",
+        btnUpdate: "حفظ التعديلات والتسويات",
+        // Smart Rx Modal
+        mRxTitle: "إصدار / تعديل الروشتة",
+        lblRxImport: "📑 استيراد من روشتة جاهزة (اختياري):",
+        optChooseTpl: "اختر قالب جاهز...",
+        lblRxSearch: "بحث عن دواء (الاسم أو القسم)",
+        btnAddNewDrug: "➕ جديد",
+        txtNoDrugsSel: "لم يتم اختيار أدوية بعد. ابحث في الأعلى واختر العلاج.",
+        lblRxGenNotes: "تعليمات عامة للمريض (اختياري)",
+        btnSaveRx: "حفظ وإصدار الروشتة",
+        // Print Labels
+        prName: "الاسم (Name):",
+        prDate: "التاريخ (Date):",
+        prAge: "السن (Age):",
+        prDiag: "الإجراء (Proc):",
+        qrVerify: "قم بمسح الكود للتحقق (Scan to verify)",
+        // JS Messages
+        msgLoading: "جاري التحميل...",
+        msgUpdating: "جاري التحديث وتسوية الحسابات...",
+        msgSaved: "تم الحفظ بنجاح!",
+        msgError: "حدث خطأ!",
+        invTitle: "فاتورة / سند استلام",
+        invTotal: "إجمالي الحساب",
+        invPaid: "المدفوع",
+        invRem: "المتبقي",
+        rxInstructions: "التعليمات (Notes):"
+    },
+    en: {
+        pageTitle: "Session Details",
+        backProf: "Back to Profile",
+        sessHeader: "Patient Session:",
+        btnEdit: "✏️ Edit Session",
+        btnPrintInv: "🖨️ Print Invoice",
+        totalCalc: "Total",
+        paidCalc: "Paid",
+        remCalc: "Remaining",
+        docNotes: "Doctor Notes:",
+        chartTitle: "🦷 Dental Chart (Interactive)",
+        rxTitle: "💊 Prescription",
+        btnAddRx: "➕ Issue Rx",
+        noRx: "No prescription recorded for this session.",
+        extRx: "📎 External Copy (Uploaded):",
+        attTitle: "📸 Attachments & X-Rays",
+        btnAddAtt: "➕ Add Attachment",
+        noAtt: "No attachments found.",
+        // Modals
+        mEditTitle: "Edit Session & Finances",
+        lblDate: "Session Date",
+        lblNext: "Next Appointment",
+        lblProc: "Procedure",
+        lblTotal: "Total",
+        lblPaid: "Total Paid",
+        lblRem: "Remaining",
+        lblPayMethod: "Payment Method (For diff)",
+        btnUpdate: "Save Changes",
+        // Smart Rx Modal
+        mRxTitle: "Issue / Edit Rx",
+        lblRxImport: "📑 Import from template (Optional):",
+        optChooseTpl: "Choose template...",
+        lblRxSearch: "Search drug (Name or Category)",
+        btnAddNewDrug: "➕ New",
+        txtNoDrugsSel: "No drugs selected yet. Search and select above.",
+        lblRxGenNotes: "General instructions (Optional)",
+        btnSaveRx: "Save and Issue Rx",
+        // Print Labels
+        prName: "Patient Name:",
+        prDate: "Date:",
+        prAge: "Age:",
+        prDiag: "Procedure:",
+        qrVerify: "Scan to verify",
+        // JS Messages
+        msgLoading: "Loading...",
+        msgUpdating: "Updating finances...",
+        msgSaved: "Saved successfully!",
+        msgError: "Error occurred!",
+        invTitle: "Invoice / Receipt",
+        invTotal: "Total Amount",
+        invPaid: "Amount Paid",
+        invRem: "Remaining Balance",
+        rxInstructions: "Instructions:"
+    }
+};
+
+function getLang() { return currentLang === 'ar'; }
+
+function updatePageContent(lang) {
+    const c = dict[lang];
+    if(!c) return;
+
+    document.getElementById('page_title').innerText = c.pageTitle;
+    const txtBack = document.getElementById('txt-back-profile'); if(txtBack) txtBack.innerText = c.backProf;
+    const txtHeader = document.getElementById('txt-sess-header'); if(txtHeader) txtHeader.innerText = c.sessHeader;
+    const btnEdit = document.getElementById('btn-edit-sess'); if(btnEdit) btnEdit.innerText = c.btnEdit;
+    const btnPrintInv = document.getElementById('btn-print-invoice'); if(btnPrintInv) btnPrintInv.innerText = c.btnPrintInv;
+    
+    const txtTotal = document.getElementById('txt-total-calc'); if(txtTotal) txtTotal.innerText = c.totalCalc;
+    const txtPaid = document.getElementById('txt-paid-calc'); if(txtPaid) txtPaid.innerText = c.paidCalc;
+    const txtRem = document.getElementById('txt-rem-calc'); if(txtRem) txtRem.innerText = c.remCalc;
+    const txtNotes = document.getElementById('txt-doc-notes'); if(txtNotes) txtNotes.innerText = c.docNotes;
+    
+    const chartTitle = document.getElementById('txt-chart-title'); if(chartTitle) chartTitle.innerText = c.chartTitle;
+    const rxTitle = document.getElementById('txt-rx-title'); if(rxTitle) rxTitle.innerText = c.rxTitle;
+    const btnAddRx = document.getElementById('btn-add-rx'); if(btnAddRx) btnAddRx.innerText = c.btnAddRx;
+    const txtNoRx = document.getElementById('txt-no-rx'); if(txtNoRx) txtNoRx.innerText = c.noRx;
+    const txtExtRx = document.getElementById('txt-ext-rx'); if(txtExtRx) txtExtRx.innerText = c.extRx;
+    
+    const attTitle = document.getElementById('txt-att-title'); if(attTitle) attTitle.innerText = c.attTitle;
+    const btnAddAtt = document.getElementById('btn-add-att'); if(btnAddAtt) btnAddAtt.innerText = c.btnAddAtt;
+    const txtNoAtt = document.getElementById('txt-no-att'); if(txtNoAtt) txtNoAtt.innerText = c.noAtt;
+
+    // Print Labels
+    const prName = document.getElementById('lbl-pr-name'); if(prName) prName.innerText = c.prName;
+    const prDate = document.getElementById('lbl-pr-date'); if(prDate) prDate.innerText = c.prDate;
+    const prAge = document.getElementById('lbl-pr-age'); if(prAge) prAge.innerText = c.prAge;
+    const prDiag = document.getElementById('lbl-pr-diag'); if(prDiag) prDiag.innerText = c.prDiag;
+    const qrVer = document.getElementById('lbl-qr-verify'); if(qrVer) qrVer.innerText = c.qrVerify;
+
+    // Update currency texts based on lang
+    document.querySelectorAll('.currency-txt').forEach(el => el.innerText = lang === 'ar' ? 'ج.م' : 'EGP');
 }
 
 function goBackToPatient() {
@@ -34,7 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadSessionDetails() {
     if(!sessionId || !clinicId) return;
-    const isAr = getLang();
 
     db.collection("Patients").doc(patientId).get().then(doc => {
         if(doc.exists) {
@@ -56,7 +205,7 @@ async function loadSessionDetails() {
             document.getElementById('sd-total').innerText = sessionData.total || 0;
             document.getElementById('sd-paid').innerText = sessionData.paid || 0;
             document.getElementById('sd-remaining').innerText = sessionData.remaining || 0;
-            document.getElementById('sd-notes').innerText = sessionData.notes || (isAr ? 'لا يوجد' : 'None');
+            document.getElementById('sd-notes').innerText = sessionData.notes || (getLang() ? 'لا يوجد' : 'None');
 
             if (typeof updateChartWithData === "function") {
                 updateChartWithData(sessionData.dentalChart || {});
@@ -82,7 +231,7 @@ function openEditSessionModal() {
     document.getElementById('es_total').value = sessionData.total || 0;
     document.getElementById('es_paid').value = sessionData.paid || 0;
     document.getElementById('es_remaining').value = sessionData.remaining || 0;
-    document.getElementById('es_pay_method').value = 'cash'; // Default
+    document.getElementById('es_pay_method').value = 'cash'; 
     openModal('editSessionModal');
 }
 
@@ -92,11 +241,10 @@ function calcEditRemaining() {
     document.getElementById('es_remaining').value = Math.max(0, t - p);
 }
 
-// 🔴 تحديث دالة التعديل عشان تسجل الفروقات المالية بطريقة الدفع 🔴
 async function updateSession(e) {
     e.preventDefault();
     const isAr = getLang();
-    if (window.showLoader) window.showLoader(isAr ? "جاري التحديث وتسوية الحسابات..." : "Updating finances...");
+    if (window.showLoader) window.showLoader(dict[currentLang].msgUpdating);
 
     const newTotal = Number(document.getElementById('es_total').value);
     const newPaid = Number(document.getElementById('es_paid').value);
@@ -123,22 +271,20 @@ async function updateSession(e) {
 
         await db.collection("Sessions").doc(sessionId).update(data);
 
-        // 1. لو الدكتور أو السكرتير زود الفلوس المدفوعة أثناء التعديل
         if (paidDiff !== 0) {
             await db.collection("Finances").add({
                 clinicId: clinicId, patientId: patientId, 
-                type: paidDiff > 0 ? 'income' : 'expense', // لو الفلوس زادت يبقى income، لو نقصت تبقى مرتجعات (expense)
+                type: paidDiff > 0 ? 'income' : 'expense', 
                 category: isAr ? 'تعديل دفعة جلسة' : 'Session Payment Adjustment',
                 amount: Math.abs(paidDiff), 
                 date: newDate, 
-                paymentMethod: payMethod, // 🔴 الخزنة هتسمع طريقة الدفع هنا
+                paymentMethod: payMethod,
                 notes: isAr ? `تسوية حساب جلسة: ${newProcedure}` : `Payment Adjust: ${newProcedure}`,
-                createdBy: currentUserDisplayName || "Admin", 
+                createdBy: "Admin", 
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
 
-        // 2. لو إجمالي الجلسة اتغير فبقى فيه فرق في المديونية للمريض
         if (debtDiff !== 0) {
             await db.collection("Patients").doc(patientId).update({ 
                 totalDebt: firebase.firestore.FieldValue.increment(debtDiff) 
@@ -148,7 +294,7 @@ async function updateSession(e) {
                 category: isAr ? 'تعديل مديونية جلسة' : 'Session Debt Adjustment',
                 amount: debtDiff, date: newDate, 
                 notes: isAr ? `تسوية ديون: ${newProcedure}` : `Debt Adjust: ${newProcedure}`,
-                createdBy: currentUserDisplayName || "Admin", 
+                createdBy: "Admin", 
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
@@ -156,14 +302,138 @@ async function updateSession(e) {
         closeModal('editSessionModal');
     } catch(e) { 
         console.error(e); 
-        alert(isAr ? "❌ حدث خطأ" : "❌ Error");
+        alert(dict[currentLang].msgError);
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
 }
 
 // ==========================================
-// إدارة الأدوية والروشتات
+// 🔴 دوال الطباعة الذكية (الروشتة + الفاتورة + QR Code) 🔴
+// ==========================================
+
+function generateQRCodeForPrint(textData) {
+    const qrContainer = document.getElementById('print-qr-container');
+    qrContainer.innerHTML = ''; // تفريغ الـ QR القديم
+    
+    new QRCode(qrContainer, {
+        text: textData,
+        width: 120,
+        height: 120,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+}
+
+async function preparePrintHeader() {
+    const cDoc = await db.collection("Clinics").doc(clinicId).get();
+    if(cDoc.exists) {
+        const cInfo = cDoc.data();
+        document.getElementById('print-clinic-name').innerText = cInfo.clinicName || 'Smart Clinic';
+        document.getElementById('print-doctor-name').innerText = cInfo.adminEmail ? `Dr. Account: ${cInfo.adminEmail}` : '';
+        
+        if(cInfo.logoUrl) {
+            const printLogo = document.getElementById('print-clinic-logo');
+            printLogo.src = cInfo.logoUrl;
+            printLogo.style.display = 'block';
+        }
+
+        document.getElementById('print-clinic-address').innerText = cInfo.address1 || "---";
+        document.getElementById('print-clinic-phone').innerText = cInfo.phone1 || "---";
+    }
+}
+
+// 1. طباعة الروشتة (Rx)
+async function printSessionRx(docId) {
+    if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
+
+    try {
+        const doc = await db.collection("Prescriptions").doc(docId).get();
+        if(doc.exists) {
+            const p = doc.data();
+            document.getElementById('print-date').innerText = p.date;
+            
+            await preparePrintHeader();
+
+            const bodyContent = document.getElementById('print-dynamic-body');
+            bodyContent.className = 'print-rx-body watermark-rx'; // تشغيل العلامة المائية للروشتة
+            bodyContent.innerHTML = `
+                <div style="white-space: pre-wrap; font-size: 20px; line-height: 2.2; direction: ltr; text-align: left; padding-left: 30px; font-weight: bold; color: #1e293b;">${p.medications}</div>
+                <div style="margin-top: 40px;">
+                    <strong style="color: #ef4444; font-size: 18px;">${dict[currentLang].rxInstructions}</strong> 
+                    <p style="margin-top: 10px; font-size: 16px; line-height: 1.8;">${p.notes || (getLang() ? 'لا يوجد' : 'None')}</p>
+                </div>
+            `;
+
+            // توليد بيانات الـ QR Code للروشتة
+            const qrData = `Clinic: ${document.getElementById('print-clinic-name').innerText}\nPatient: ${patientName}\nDate: ${p.date}\nRx Verified ✅`;
+            generateQRCodeForPrint(qrData);
+
+            if (window.hideLoader) window.hideLoader();
+            setTimeout(() => window.print(), 500); 
+        } else {
+            if (window.hideLoader) window.hideLoader();
+        }
+    } catch(e) {
+        if (window.hideLoader) window.hideLoader();
+        console.error(e);
+    }
+}
+
+// 2. طباعة الفاتورة (Invoice)
+async function printSessionInvoice() {
+    if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
+
+    try {
+        document.getElementById('print-date').innerText = sessionData.date;
+        
+        await preparePrintHeader();
+
+        const bodyContent = document.getElementById('print-dynamic-body');
+        bodyContent.className = 'print-rx-body watermark-invoice'; // تشغيل العلامة المائية للفاتورة
+        
+        const currency = getLang() ? 'ج.م' : 'EGP';
+        const invTitle = dict[currentLang].invTitle;
+        const totalTxt = dict[currentLang].invTotal;
+        const paidTxt = dict[currentLang].invPaid;
+        const remTxt = dict[currentLang].invRem;
+
+        bodyContent.innerHTML = `
+            <h2 style="text-align: center; color: #0f172a; margin-bottom: 30px; font-size: 24px; border-bottom: 2px dashed #cbd5e1; padding-bottom: 10px;">🧾 ${invTitle}</h2>
+            
+            <table class="invoice-table">
+                <tr>
+                    <th>${totalTxt}</th>
+                    <th>${paidTxt}</th>
+                    <th>${remTxt}</th>
+                </tr>
+                <tr>
+                    <td style="font-weight: bold;">${sessionData.total || 0} ${currency}</td>
+                    <td style="color: #10b981; font-weight: bold;">${sessionData.paid || 0} ${currency}</td>
+                    <td style="color: #ef4444; font-weight: bold;">${sessionData.remaining || 0} ${currency}</td>
+                </tr>
+            </table>
+            
+            <div style="margin-top: 40px;">
+                <p style="font-size: 16px; color: #475569;"><strong>${dict[currentLang].docNotes}</strong> ${sessionData.notes || '---'}</p>
+            </div>
+        `;
+
+        // توليد بيانات الـ QR Code للفاتورة
+        const qrData = `Invoice\nPatient: ${patientName}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nRemaining: ${sessionData.remaining}\nVerified ✅`;
+        generateQRCodeForPrint(qrData);
+
+        if (window.hideLoader) window.hideLoader();
+        setTimeout(() => window.print(), 500); 
+    } catch(e) {
+        if (window.hideLoader) window.hideLoader();
+        console.error(e);
+    }
+}
+
+// ==========================================
+// إدارة الأدوية والروشتات (بدون أي مساس باللوجيك)
 // ==========================================
 
 function loadClinicPharmacy() {
@@ -377,7 +647,7 @@ function renderSelectedDrugs() {
     const isAr = getLang();
 
     if(currentPrescriptionDrugs.length === 0) {
-        const txt = isAr ? 'لم يتم اختيار أدوية بعد. ابحث واختر العلاج.' : 'No drugs selected. Search and add drugs.';
+        const txt = dict[currentLang].txtNoDrugsSel;
         list.innerHTML = `<div class="empty-state" style="padding: 30px;">${txt}</div>`;
         return;
     }
@@ -426,7 +696,7 @@ function loadRxTemplates() {
     db.collection("RxTemplates").where("clinicId", "==", clinicId).onSnapshot(snap => {
         const isAr = getLang();
         const select = document.getElementById('rx_template_select');
-        select.innerHTML = `<option value="">${isAr ? 'اختر قالب جاهز...' : 'Choose template...'}</option>`;
+        select.innerHTML = `<option value="">${dict[currentLang].optChooseTpl}</option>`;
         
         const listContainer = document.getElementById('templates-list-container');
         listContainer.innerHTML = '';
@@ -473,7 +743,7 @@ async function saveCurrentRxAsTemplate() {
     if (!tplName) { alert(isAr ? "برجاء كتابة اسم القالب أولاً!" : "Please write a template name!"); return; }
     if (currentPrescriptionDrugs.length === 0) { alert(isAr ? "الروشتة الحالية فارغة!" : "Current prescription is empty!"); return; }
 
-    if (window.showLoader) window.showLoader(isAr ? "جاري الحفظ..." : "Saving...");
+    if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
     try {
         const updatedDrugs = currentPrescriptionDrugs.map((d, i) => {
             const doseEl = document.getElementById(`dose_${i}`);
@@ -496,7 +766,7 @@ async function saveSmartPrescription() {
     const isAr = getLang();
     if(currentPrescriptionDrugs.length === 0) { alert(isAr ? "برجاء اختيار دواء واحد على الأقل." : "Please select at least one drug."); return; }
     
-    if (window.showLoader) window.showLoader(isAr ? "جاري إصدار الروشتة..." : "Creating prescription...");
+    if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
 
     let medsText = "";
     currentPrescriptionDrugs.forEach((d, i) => {
@@ -541,8 +811,8 @@ function loadSessionPrescription() {
         sessionPrescriptions = {}; 
 
         if(snap.empty) {
-            const txt = isAr ? 'لا توجد روشتات مسجلة لهذه الجلسة.' : 'No prescriptions recorded for this session.';
-            const btnTxt = isAr ? '📎 إرفاق روشتة خارجية (صورة)' : '📎 Attach External Rx (Image)';
+            const txt = dict[currentLang].noRx;
+            const btnTxt = dict[currentLang].extRx;
             container.innerHTML = `
                 <div class="empty-state">${txt}</div>
                 <div style="text-align: center; margin-top: 15px;">
@@ -669,44 +939,6 @@ async function deleteSpecificRxImage(docId, imageUrl) {
     }
 }
 
-function printSessionRx(docId) {
-    const isAr = getLang();
-    if (window.showLoader) window.showLoader(isAr ? "تجهيز للطباعة..." : "Preparing print...");
-
-    db.collection("Prescriptions").doc(docId).get().then(doc => {
-        if(doc.exists) {
-            const p = doc.data();
-            document.getElementById('print-date').innerText = p.date;
-            document.getElementById('print-meds').innerText = p.medications;
-            document.getElementById('print-notes').innerText = p.notes || (isAr ? 'لا يوجد' : 'None');
-            
-            db.collection("Clinics").doc(clinicId).get().then(cDoc => {
-                if(cDoc.exists) {
-                    const cInfo = cDoc.data();
-                    document.getElementById('print-clinic-name').innerText = cInfo.clinicName || 'Clinic Name';
-                    document.getElementById('print-doctor-name').innerText = cInfo.adminEmail ? `Dr. Account: ${cInfo.adminEmail}` : '';
-                    
-                    if(cInfo.logoUrl) {
-                        const printLogo = document.getElementById('print-clinic-logo');
-                        printLogo.src = cInfo.logoUrl;
-                        printLogo.style.display = 'block';
-                    }
-
-                    document.getElementById('print-clinic-address').innerText = cInfo.address1 || "---";
-                    document.getElementById('print-clinic-phone').innerText = cInfo.phone1 || "---";
-                }
-                
-                if (window.hideLoader) window.hideLoader();
-                setTimeout(() => window.print(), 500); 
-            }).catch(() => { if (window.hideLoader) window.hideLoader(); });
-        } else {
-            if (window.hideLoader) window.hideLoader();
-        }
-    }).catch(() => {
-        if (window.hideLoader) window.hideLoader();
-    });
-}
-
 function encodeSessionImage(element) {
     const file = element.files[0];
     const reader = new FileReader();
@@ -774,7 +1006,11 @@ async function deleteDoc(collectionName, docId) {
 }
 
 window.onload = () => {
-    const isAr = getLang();
-    document.body.dir = isAr ? 'rtl' : 'ltr';
+    currentLang = localStorage.getItem('preferredLang') || 'ar';
+    document.body.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+    
+    // 🔴 تشغيل الترجمة الكاملة 🔴
+    updatePageContent(currentLang);
+    
     firebase.auth().onAuthStateChanged((user) => { if (user) loadSessionDetails(); });
 };
