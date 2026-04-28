@@ -75,7 +75,8 @@
                     <div class="grid-2col">
                         <div class="form-group">
                             <label id="lbl-app-phone">رقم الموبايل</label>
-                            <input type="tel" id="app_phone" placeholder="01xxxxxxxxx" required dir="ltr" style="text-align: left;">
+                            <input type="tel" id="app_phone" placeholder="01xxxxxxxxx" required dir="ltr" style="text-align: left;" oninput="checkPhoneInSystem()">
+                            <span id="phone-check-msg" style="font-size: 12px; font-weight: bold; margin-top: 5px; display: none;"></span>
                         </div>
                         <div class="form-group">
                             <label id="lbl-app-age">العمر (سنوات)</label>
@@ -168,6 +169,9 @@
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-date">📅 التاريخ:</strong> <span id="det_date"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-time">⏰ الساعة:</strong> <span id="det_time"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-type">🩺 نوع الكشف:</strong> <span id="det_type"></span></p>
+                
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🌐 مصدر الحجز:</strong> <span id="det_source" style="color: #8b5cf6; font-weight: bold;"></span></p>
+                
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-history">📋 التاريخ الطبي:</strong> <span id="det_history" style="color: #d97706; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-finance">💰 الحساب (مدفوع / إجمالي):</strong> <span id="det_finance" style="color: #10b981; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>💳 طريقة الدفع:</strong> <span id="det_pay_method" style="color: #475569; font-weight: bold;"></span></p>
