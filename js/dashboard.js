@@ -11,6 +11,10 @@ let todayRevenueData = [];
 let currentSelectedPatientId = null; 
 let currentSelectedApp = null; 
 
+// 🔴 متغيرات الـ ERP لربط الخدمات والتعاقدات
+let erpServices = [];
+let erpContracts = [];
+
 function getLocalTodayString() {
     const d = new Date();
     const yyyy = d.getFullYear();
@@ -178,6 +182,34 @@ function loadDashboardStats() {
         if (window.hideLoader) window.hideLoader();
     }, 1500);
 
+    // 🔴 جلب الخدمات للـ ERP
+    db.collection("Services").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        erpServices = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const selectType = document.getElementById('app_type');
+        if (selectType && selectType.tagName === 'SELECT') {
+            const currentVal = selectType.value;
+            selectType.innerHTML = `<option value="">اختر الخدمة...</option>`;
+            erpServices.forEach(s => {
+                selectType.innerHTML += `<option value="${s.id}">${s.name} (${s.price} ج.م)</option>`;
+            });
+            selectType.value = currentVal;
+        }
+    });
+
+    // 🔴 جلب التعاقدات للـ ERP
+    db.collection("Contracts").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const contEl = document.getElementById('app_contract');
+        if (contEl) {
+            const currentVal = contEl.value;
+            contEl.innerHTML = `<option value="">بدون تعاقد (خصم 0%)</option>`;
+            erpContracts.forEach(c => {
+                contEl.innerHTML += `<option value="${c.id}">${c.name} (خصم ${c.discountPercentage}%)</option>`;
+            });
+            contEl.value = currentVal;
+        }
+    });
+
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             allPatientsData = [];
@@ -304,6 +336,7 @@ function openNewAppModal() {
     document.getElementById('app_date').value = today;
     document.getElementById('app_time').value = '18:00';
     document.getElementById('app_type').value = '';
+    if(document.getElementById('app_contract')) document.getElementById('app_contract').value = '';
     
     document.getElementById('app_total').value = '0';
     document.getElementById('app_paid').value = '0';
@@ -312,6 +345,25 @@ function openNewAppModal() {
     document.getElementById('app_notes').value = '';
     
     document.getElementById('newAppModal').style.display = 'flex';
+}
+
+// 🔴 دالة السحر: حساب السعر أوتوماتيك بناءً على الخدمة والتعاقد
+function calculateNewAppERP() {
+    const srvId = document.getElementById('app_type').value;
+    const contEl = document.getElementById('app_contract');
+    const contId = contEl ? contEl.value : '';
+    
+    let basePrice = 0;
+    const srv = erpServices.find(s => s.id === srvId);
+    if (srv) basePrice = Number(srv.price) || 0;
+
+    let discount = 0;
+    const cont = erpContracts.find(c => c.id === contId);
+    if (cont) discount = Number(cont.discountPercentage) || 0;
+
+    const total = basePrice - (basePrice * (discount / 100));
+    document.getElementById('app_total').value = Math.round(total);
+    calcNewAppRemaining();
 }
 
 function calcNewAppRemaining() {
@@ -332,7 +384,15 @@ async function saveNewAppointment(e) {
     if(otherHistory) historyArr.push(otherHistory);
     const finalHistory = historyArr.join(' ، ');
 
-    const typeVal = document.getElementById('app_type').value.trim();
+    // 🔴 استخراج اسم الخدمة والتعاقد لحفظهم كـ (نص) في الفايربيز
+    const srvSelect = document.getElementById('app_type');
+    const srv = erpServices.find(s => s.id === srvSelect.value);
+    const typeVal = srv ? srv.name : (srvSelect.options ? srvSelect.options[srvSelect.selectedIndex]?.text : srvSelect.value);
+
+    const contSelect = document.getElementById('app_contract');
+    const cont = contSelect ? erpContracts.find(c => c.id === contSelect.value) : null;
+    const contractVal = cont ? cont.name : 'بدون تعاقد';
+
     let eventColor = '#0284C7'; 
     if (typeVal.includes('استشارة') || typeVal.toLowerCase().includes('follow')) eventColor = '#f59e0b'; 
     if (typeVal.includes('جلسة') || typeVal.toLowerCase().includes('session')) eventColor = '#10b981';
@@ -347,6 +407,7 @@ async function saveNewAppointment(e) {
         date: document.getElementById('app_date').value,
         time: document.getElementById('app_time').value || '12:00',
         type: typeVal,
+        contract: contractVal, // تم إضافة جهة التعاقد للداتا بيز
         total: Number(document.getElementById('app_total').value) || 0,
         paid: Number(document.getElementById('app_paid').value) || 0,
         remaining: Number(document.getElementById('app_remaining').value) || 0,
@@ -414,7 +475,11 @@ function openAppDetails(app) {
     document.getElementById('det_phone').innerText = app.phone || '---';
     document.getElementById('det_date').innerText = app.date;
     document.getElementById('det_time').innerText = app.time;
-    document.getElementById('det_type').innerText = app.type;
+    
+    // إظهار التعاقد إن وجد جنب نوع الكشف
+    let typeText = app.type;
+    if(app.contract && app.contract !== 'بدون تعاقد') typeText += ` <span style="font-size:12px;color:#10b981;">(مُغطى: ${app.contract})</span>`;
+    document.getElementById('det_type').innerHTML = typeText;
     
     const paid = app.paid || 0;
     const total = app.total || 0;
@@ -552,11 +617,37 @@ function openRevDetails(rev) {
     document.getElementById('revDetailsModal').style.display = 'flex';
 }
 
+// 🔴 دالة حقن عناصر الـ ERP أوتوماتيكياً في الـ HTML بدون تدخل منك
+function setupERPInputs() {
+    const typeInput = document.getElementById('app_type');
+    if (typeInput && typeInput.tagName === 'INPUT') {
+        // تحويل خانة الإجراء لقائمة منسدلة
+        const selectType = document.createElement('select');
+        selectType.id = 'app_type';
+        selectType.required = true;
+        selectType.style.cssText = typeInput.style.cssText;
+        selectType.onchange = calculateNewAppERP;
+        typeInput.parentNode.replaceChild(selectType, typeInput);
+
+        // حقن خانة التعاقدات الجديدة
+        const contractDiv = document.createElement('div');
+        contractDiv.className = 'form-group';
+        contractDiv.style.marginBottom = '15px';
+        contractDiv.innerHTML = `<label style="display: block; margin-bottom: 8px; font-weight: bold; color: #334155; font-size: 14px;">جهة التعاقد (الخصم)</label>
+            <select id="app_contract" style="${selectType.style.cssText}" onchange="calculateNewAppERP()">
+                <option value="">بدون تعاقد (0%)</option>
+            </select>`;
+        selectType.parentNode.parentNode.insertBefore(contractDiv, selectType.parentNode.nextSibling);
+    }
+}
+
 window.onload = () => { 
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
+    
     updatePageContent(lang); 
+    setupERPInputs(); // تفعيل سحر الـ ERP
     updateChart(0, 0, 0);
 
     firebase.auth().onAuthStateChanged((user) => {
