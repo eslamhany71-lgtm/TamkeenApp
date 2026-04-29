@@ -26,6 +26,11 @@ function updatePageContent(lang) {
             pat: "إجمالي المرضى", wait: "في الانتظار (اليوم)", rev: "إيرادات اليوم", sess: "حجوزات مكتملة",
             chart: "حالات المواعيد والجلسات", actions: "إجراءات سريعة",
             btnWait: "عرض قائمة الانتظار", btnPat: "إضافة مريض جديد", btnApp: "حجز موعد جديد",
+            invAlerts: "🔔 تنبيهات المخزون الذكية", sysMods: "🚀 أقسام النظام المركزية (ERP)",
+            loadingInv: "جاري فحص المخازن...", emptyInv: "✅ المخزون سليم حالياً.",
+            modRep: "التقارير", modInv: "الفواتير", modHr: "الموظفين", modBran: "الفروع", 
+            modStock: "جرد المخزون", modNotif: "الإشعارات", modServ: "الخدمات", modCont: "التعاقدات",
+            current: "الحالي:", minQty: "الحد الأدنى:",
             mWaitTitle: "⏳ قائمة الانتظار", tToday: "مواعيد اليوم", tUpc: "الأيام القادمة",
             mAppDetTitle: "تفاصيل الحجز", lName: "اسم المريض:", lPhone: "الموبايل:", lDate: "التاريخ:", lTime: "الساعة:", lType: "نوع الكشف:", lNotes: "ملاحظات:",
             mPatTitle: "🦷 جميع المرضى", mPatDetTitle: "تفاصيل المريض", lpPhone: "الموبايل:", lpAge: "السن:", lpHist: "أمراض مزمنة:", btnProf: "فتح الملف الطبي الكامل",
@@ -38,6 +43,11 @@ function updatePageContent(lang) {
             pat: "Total Patients", wait: "Pending (Today)", rev: "Today's Revenue", sess: "Completed Sessions",
             chart: "Appointments & Sessions Status", actions: "Quick Actions",
             btnWait: "Show Waiting List", btnPat: "Add New Patient", btnApp: "Book Appointment",
+            invAlerts: "🔔 Smart Inventory Alerts", sysMods: "🚀 ERP System Modules",
+            loadingInv: "Checking stock...", emptyInv: "✅ Inventory is safe.",
+            modRep: "Reports", modInv: "Invoices", modHr: "HR", modBran: "Branches", 
+            modStock: "Stocktaking", modNotif: "Notifications", modServ: "Services", modCont: "Contracts",
+            current: "Now:", minQty: "Min:",
             mWaitTitle: "⏳ Waiting List", tToday: "Today's Apps", tUpc: "Upcoming",
             mAppDetTitle: "Booking Details", lName: "Patient Name:", lPhone: "Phone:", lDate: "Date:", lTime: "Time:", lType: "Type:", lNotes: "Notes:",
             mPatTitle: "🦷 All Patients", mPatDetTitle: "Patient Details", lpPhone: "Phone:", lpAge: "Age:", lpHist: "Medical History:", btnProf: "Open Full Profile",
@@ -54,6 +64,12 @@ function updatePageContent(lang) {
     setTxt('lbl-patients', c.pat); setTxt('lbl-appointments', c.wait); setTxt('lbl-revenue', c.rev); setTxt('lbl-sessions', c.sess);
     setTxt('lbl-chart', c.chart); setTxt('lbl-actions', c.actions);
     setTxt('btn-wait-list', c.btnWait); setTxt('btn-add-patient', c.btnPat); setTxt('btn-book-app', c.btnApp);
+    setTxt('lbl-inventory-alerts', c.invAlerts); setTxt('lbl-system-modules', c.sysMods);
+    setTxt('txt-loading-inv', c.loadingInv);
+    
+    setTxt('mod-reports', c.modRep); setTxt('mod-invoices', c.modInv); setTxt('mod-hr', c.modHr);
+    setTxt('mod-branches', c.modBran); setTxt('mod-stock', c.modStock); setTxt('mod-notif', c.modNotif);
+    setTxt('mod-services', c.modServ); setTxt('mod-contracts', c.modCont);
     
     setTxt('mod-wait-title', c.mWaitTitle); setTxt('tab-today-wait', c.tToday); setTxt('tab-upcoming-wait', c.tUpc);
     setTxt('mod-app-det-title', c.mAppDetTitle); setClassTxt('lbl-det-name', c.lName); setClassTxt('lbl-det-phone', c.lPhone); setClassTxt('lbl-det-date', c.lDate); setClassTxt('lbl-det-time', c.lTime); setClassTxt('lbl-det-type', c.lType); setClassTxt('lbl-det-notes', c.lNotes);
@@ -71,6 +87,9 @@ function updatePageContent(lang) {
     
     window.emptyTxt = c.empty; 
     window.confDelTxt = c.confDel;
+    window.invCurrentTxt = c.current;
+    window.invMinTxt = c.minQty;
+    window.invEmptyTxt = c.emptyInv;
 }
 
 let dashChart = null;
@@ -89,9 +108,7 @@ function updateChart(pending, completed, cancelled) {
             data: { labels: labels, datasets: [{ label: lang==='ar'?'العدد':'Count', data: [pending, completed, cancelled], backgroundColor: ['#f59e0b', '#10b981', '#ef4444'], borderRadius: 6 }] },
             options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
         });
-    } catch (err) {
-        console.warn("Chart loading skipped"); 
-    }
+    } catch (err) { console.warn("Chart loading skipped"); }
 }
 
 function updateTotalRevenue() {
@@ -120,28 +137,55 @@ function updateTotalRevenue() {
     if(elBank) elBank.innerText = bank;
 }
 
-// 🔴 دالة التحميل المؤمنة 🔴
+function loadInventoryAlerts() {
+    if(!clinicId) return;
+    const container = document.getElementById('inventory-alerts-container');
+    
+    db.collection("Inventory").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        container.innerHTML = '';
+        let alertsCount = 0;
+
+        snap.forEach(doc => {
+            const item = doc.data();
+            const qty = Number(item.quantity) || 0;
+            const min = Number(item.minQuantity) || 0;
+
+            if (qty <= min) {
+                alertsCount++;
+                const statusClass = qty === 0 ? 'danger' : 'warning';
+                container.innerHTML += `
+                    <div class="inventory-alert ${statusClass}">
+                        <span>⚠️ ${item.itemName} (${item.category || ''})</span>
+                        <span>${window.invCurrentTxt} ${qty} | ${window.invMinTxt} ${min}</span>
+                    </div>
+                `;
+            }
+        });
+
+        if (alertsCount === 0) {
+            container.innerHTML = `<div class="empty-state">${window.invEmptyTxt}</div>`;
+        }
+    });
+}
+
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = getLocalTodayString(); 
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
 
-    // إجبار اللودر يختفي بعد ثانية ونص بالظبط، مهما كانت حالة النت عشان الشاشة متقفلش
     let loaderTimeout = setTimeout(() => {
         if (window.hideLoader) window.hideLoader();
     }, 1500);
 
-    // 1. استعلام المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             allPatientsData = [];
             snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
             document.getElementById('stat-patients').innerText = allPatientsData.length;
         } catch(e) { console.error("Patients Error:", e); }
-    }, (error) => console.error("Patients Snapshot Error:", error));
+    });
 
-    // 2. استعلام إيرادات اليوم
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
         try {
             todayRevenueData = []; 
@@ -151,9 +195,8 @@ function loadDashboardStats() {
             });
             updateTotalRevenue();
         } catch(e) { console.error("Finances Error:", e); }
-    }, (error) => console.error("Finances Snapshot Error:", error));
+    });
 
-    // 3. استعلام المواعيد والجلسات
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             let pending = 0, completed = 0, cancelled = 0;
@@ -180,12 +223,13 @@ function loadDashboardStats() {
                 renderWaitList('upcomingWaitContainer', upcomingPendingApps);
             }
         } catch(e) { console.error("Appointments Error:", e); }
-    }, (error) => console.error("Appointments Snapshot Error:", error));
+    });
+
+    loadInventoryAlerts();
 }
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// البحث الذكي في مودال الداشبورد
 function searchExistingPatientsDash() {
     const input = document.getElementById('search_patient_input').value.trim().toLowerCase();
     const resultsBox = document.getElementById('patient-search-results');
@@ -245,7 +289,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// فتح المودال الشامل
 function openNewAppModal() {
     const today = getLocalTodayString(); 
     document.getElementById('search_patient_input').value = '';
@@ -277,7 +320,6 @@ function calcNewAppRemaining() {
     document.getElementById('app_remaining').value = Math.max(0, t - p);
 }
 
-// حفظ الموعد بكل التفاصيل من الداشبورد
 async function saveNewAppointment(e) {
     e.preventDefault();
     if(!clinicId) return;
@@ -513,6 +555,7 @@ function openRevDetails(rev) {
 window.onload = () => { 
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     updatePageContent(lang); 
     updateChart(0, 0, 0);
 
