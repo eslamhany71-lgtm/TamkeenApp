@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title id="page_title">إدارة الخدمات | Services</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/services.css?v=' + currentHour + '">');
+    </script>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="header-section">
+            <h1 id="txt-page-header">إدارة الخدمات الطبية</h1>
+            <p id="txt-page-sub">إضافة وتعديل أسعار الكشوفات والجلسات بالعيادة</p>
+        </div>
+
+        <div class="controls-bar">
+            <div class="search-box-container">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search_service" placeholder="ابحث عن خدمة (مثال: حشو عصب)..." oninput="searchServices()">
+            </div>
+            <button class="btn-primary btn-add" onclick="openAddServiceModal()">
+                <span>➕</span> <span id="btn-add-txt">إضافة خدمة جديدة</span>
+            </button>
+        </div>
+
+        <div class="services-grid" id="servicesContainer">
+            <div class="empty-state" id="txt-loading">جاري تحميل الخدمات...</div>
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Service -->
+    <div id="serviceModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('serviceModal')">&times;</span>
+            <h2 id="mod-service-title" class="modal-title">إضافة خدمة جديدة</h2>
+            
+            <form onsubmit="saveService(event)">
+                <div class="form-group">
+                    <label id="lbl-srv-name">اسم الخدمة</label>
+                    <input type="text" id="srv_name" placeholder="مثال: حشو عصب أمامي" required>
+                </div>
+                
+                <div class="form-group">
+                    <label id="lbl-srv-cat">تصنيف الخدمة</label>
+                    <select id="srv_category" required>
+                        <option value="كشف واستشارة" id="opt-consult">كشف واستشارة</option>
+                        <option value="علاجي" id="opt-treat">علاجي (حشو، علاج عصب...)</option>
+                        <option value="جراحي" id="opt-surg">جراحي (خلع، زراعة...)</option>
+                        <option value="تجميلي" id="opt-cosm">تجميلي (تبييض، فينير...)</option>
+                        <option value="أخرى" id="opt-other">أخرى</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label id="lbl-srv-price">السعر الافتراضي (يمكن تغييره لاحقاً وقت الجلسة)</label>
+                    <input type="number" id="srv_price" placeholder="0" required min="0">
+                </div>
+
+                <button type="submit" id="btn-save-srv" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 10px; font-size: 16px;">حفظ الخدمة</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        var h = Math.floor(Date.now() / 3600000); 
+        document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/services.js?v=' + h + '"><\/script>');
+    </script>
+</body>
+</html>
