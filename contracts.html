@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title id="page_title">إدارة التعاقدات | Contracts</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/contracts.css?v=' + currentHour + '">');
+    </script>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="header-section">
+            <h1 id="txt-page-header">إدارة التعاقدات والتأمين</h1>
+            <p id="txt-page-sub">إضافة النقابات والشركات المتعاقدة ونسب الخصم الخاصة بها</p>
+        </div>
+
+        <div class="controls-bar">
+            <div class="search-box-container">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search_contract" placeholder="ابحث عن جهة التعاقد (مثال: نقابة المهندسين)..." oninput="searchContracts()">
+            </div>
+            <button class="btn-primary btn-add" onclick="openAddContractModal()">
+                <span>➕</span> <span id="btn-add-txt">إضافة تعاقد جديد</span>
+            </button>
+        </div>
+
+        <div class="contracts-grid" id="contractsContainer">
+            <div class="empty-state" id="txt-loading">جاري تحميل التعاقدات...</div>
+        </div>
+    </div>
+
+    <!-- Modal: Add / Edit Contract -->
+    <div id="contractModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal('contractModal')">&times;</span>
+            <h2 id="mod-contract-title" class="modal-title">إضافة تعاقد جديد</h2>
+            
+            <form onsubmit="saveContract(event)">
+                <div class="form-group">
+                    <label id="lbl-cont-name">اسم الجهة / النقابة</label>
+                    <input type="text" id="cont_name" placeholder="مثال: نقابة المهندسين" required>
+                </div>
+                
+                <div class="form-group">
+                    <label id="lbl-cont-discount">نسبة الخصم (%)</label>
+                    <input type="number" id="cont_discount" placeholder="مثال: 20" required min="0" max="100">
+                </div>
+                
+                <div class="form-group">
+                    <label id="lbl-cont-notes">ملاحظات وشروط التعاقد (اختياري)</label>
+                    <input type="text" id="cont_notes" placeholder="مثال: يشمل الكشف والخلع فقط">
+                </div>
+
+                <button type="submit" id="btn-save-cont" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 10px; font-size: 16px;">حفظ التعاقد</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        var h = Math.floor(Date.now() / 3600000); 
+        document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
+        document.write('<script src="js/contracts.js?v=' + h + '"><\/script>');
+    </script>
+</body>
+</html>
