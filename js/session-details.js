@@ -940,11 +940,51 @@ async function deleteSpecificRxImage(docId, imageUrl) {
     }
 }
 
+// 🔴 دالة ضغط الصور الصاروخية (Image Compression) لتوفير السعة وتسريع النظام 🔴
 function encodeSessionImage(element) {
     const file = element.files[0];
+    if (!file) return;
+
+    const isAr = getLang();
+    const btn = document.getElementById('btn-save-sx');
+    const originalText = btn.innerText;
+    btn.disabled = true; 
+    btn.innerText = isAr ? "جاري ضغط الصورة..." : "Compressing...";
+
     const reader = new FileReader();
-    reader.onloadend = function() { document.getElementById('sx_base64').value = reader.result; }
-    if (file) reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+    reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            
+            // تحديد أقصى عرض للصورة (مثلاً 1200 بيكسل كافية جداً للأشعة والروشتات)
+            const MAX_WIDTH = 1200;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_WIDTH) {
+                height = Math.round((height * MAX_WIDTH) / width);
+                width = MAX_WIDTH;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            // رسم الصورة بالأبعاد الجديدة
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // ضغط الصورة بصيغة JPEG بجودة 70% (تقليل الحجم بنسبة تصل لـ 90% بدون فقدان ملامح)
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            
+            document.getElementById('sx_base64').value = compressedBase64;
+            
+            btn.disabled = false; 
+            btn.innerText = originalText;
+        }
+    };
 }
 
 async function saveSessionXRay(e) {
