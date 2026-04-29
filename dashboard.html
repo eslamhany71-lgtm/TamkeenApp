@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
@@ -30,9 +29,13 @@
         .patient-result-name { font-weight: bold; color: #0f172a; }
         .patient-result-phone { color: #64748b; font-size: 13px; }
 
-        /* تظبيط الدارك مود للإضافات الداخلية */
+        /* تظبيط الدارك مود للإضافات */
         [data-theme="dark"] .finance-box-modal { background: #0f172a !important; border-color: #334155 !important; }
         [data-theme="dark"] .finance-box-modal input[readonly] { background: #1e293b !important; border-color: #334155 !important; }
+        [data-theme="dark"] .patient-results-dropdown { background: #1e293b !important; border-color: #334155 !important; }
+        [data-theme="dark"] .patient-result-item { border-color: #334155 !important; }
+        [data-theme="dark"] .patient-result-item:hover { background: #334155 !important; }
+        [data-theme="dark"] .patient-result-name { color: #f8fafc !important; }
     </style>
 </head>
 <body>
@@ -42,7 +45,6 @@
             <p id="txt-subtitle">ملخص الأداء اليومي وإحصائيات المرضى اللحظية</p>
         </div>
 
-        <!-- الطبقة الأولى: الأرقام الحيوية -->
         <div class="kpi-grid">
             <div class="kpi-card blue clickable" onclick="openPatientsModal()" title="اضغط لعرض قائمة المرضى">
                 <div class="kpi-info"><h4 id="lbl-patients">إجمالي المرضى</h4><h2 id="stat-patients">0</h2></div>
@@ -62,7 +64,6 @@
             </div>
         </div>
 
-        <!-- الطبقة الثانية: المواعيد والإجراءات -->
         <div class="main-grid">
             <div class="panel">
                 <h3 class="panel-title" id="lbl-chart">حالات المواعيد والجلسات</h3>
@@ -84,7 +85,6 @@
             </div>
         </div>
 
-        <!-- الطبقة الثالثة: نظام الـ ERP (المخازن والأقسام المركزية) -->
         <div class="main-grid" style="margin-top: 20px;">
             <div class="panel">
                 <h3 class="panel-title" id="lbl-inventory-alerts" style="color: #ef4444;">🔔 تنبيهات المخزون الذكية</h3>
@@ -96,60 +96,52 @@
             <div class="panel">
                 <h3 class="panel-title" id="lbl-system-modules" style="color: #0284c7;">🚀 أقسام النظام المركزية (ERP)</h3>
                 <div class="erp-modules-grid">
-                    <div class="erp-module" onclick="window.parent.loadPage('reports.html', this)">📊 <span class="mod-txt">التقارير</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('invoices.html', this)">🧾 <span class="mod-txt">الفواتير</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('hr.html', this)">👥 <span class="mod-txt">الموظفين</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('branches.html', this)">🏢 <span class="mod-txt">الفروع</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('services.html', this)">⚕️ <span class="mod-txt">الخدمات</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('contracts.html', this)">🤝 <span class="mod-txt">التعاقدات</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('reports.html', this)">📊 <span class="mod-txt" id="mod-reports">التقارير</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('invoices.html', this)">🧾 <span class="mod-txt" id="mod-invoices">الفواتير</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('hr.html', this)">👥 <span class="mod-txt" id="mod-hr">الموظفين</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('branches.html', this)">🏢 <span class="mod-txt" id="mod-branches">الفروع</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('inventory.html', this)">📦 <span class="mod-txt" id="mod-stock">جرد المخزون</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('notifications.html', this)">🔔 <span class="mod-txt" id="mod-notif">الإشعارات</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('services.html', this)">⚕️ <span class="mod-txt" id="mod-services">الخدمات</span></div>
+                    <div class="erp-module" onclick="window.parent.loadPage('contracts.html', this)">🤝 <span class="mod-txt" id="mod-contracts">التعاقدات</span></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- بقية المودالز الحالية كما هي (لم يتم حذف أي شيء) -->
-    <!-- Modal: New Appointment -->
     <div id="newAppModal" class="modal">
         <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto; overflow-x: hidden;">
             <span class="close-modal" onclick="closeModal('newAppModal')">&times;</span>
             <h2 id="mod-new-app-title" class="modal-title" style="margin-top: 0; margin-bottom: 20px;">حجز موعد جديد</h2>
-            
             <form onsubmit="saveNewAppointment(event)">
                 <div class="smart-search-box" id="smart-search-container">
                     <label id="lbl-search-pat" style="font-weight: bold; color: #0284c7; display: block; margin-bottom: 5px;">🔍 بحث عن مريض مسجل (اختياري)</label>
                     <input type="text" id="search_patient_input" class="search-box" placeholder="اكتب الاسم أو رقم الموبايل للبحث..." oninput="searchExistingPatientsDash()" autocomplete="off" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
                     <div id="patient-search-results" class="patient-results-dropdown"></div>
                 </div>
-
                 <div class="details-box" style="margin-bottom: 15px;">
                     <h3 style="margin-top: 0; font-size: 16px;" id="txt-pat-data-hdr">بيانات المريض</h3>
-                    
                     <div class="form-group" style="margin-bottom: 10px;">
                         <label id="lbl-pat-name">اسم المريض</label>
-                        <input type="text" id="app_name" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+                        <input type="text" id="app_name" placeholder="الاسم ثلاثي" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
                     </div>
-                    
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                         <div class="form-group">
                             <label id="lbl-pat-phone">رقم الموبايل</label>
-                            <input type="tel" id="app_phone" required dir="ltr" style="text-align: left; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+                            <input type="tel" id="app_phone" placeholder="01xxxxxxxxx" required dir="ltr" style="text-align: left; width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
                         </div>
                         <div class="form-group">
                             <label id="lbl-pat-age">العمر (سنوات)</label>
-                            <input type="number" id="app_age" required min="1" max="120" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+                            <input type="number" id="app_age" placeholder="مثال: 35" required min="1" max="120" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
                         </div>
                     </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-                        <div class="form-group">
-                            <label id="lbl-pat-gender">النوع</label>
-                            <select id="app_gender" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
-                                <option value="ذكر" id="opt-m">ذكر</option>
-                                <option value="أنثى" id="opt-f">أنثى</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label id="lbl-pat-gender">النوع</label>
+                        <select id="app_gender" required style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
+                            <option value="ذكر" id="opt-m">ذكر</option>
+                            <option value="أنثى" id="opt-f">أنثى</option>
+                        </select>
                     </div>
-
                     <div style="grid-column: 1 / -1; background: rgba(245, 158, 11, 0.1); padding: 15px; border-radius: 8px; border: 1px dashed #fcd34d; margin-top: 10px;">
                         <label id="lbl-pat-hist" style="font-weight: bold; color: #d97706; margin-bottom: 10px; display: block;">التاريخ الطبي وأمراض مزمنة (اختياري)</label>
                         <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 10px; font-weight: 500;">
@@ -159,10 +151,9 @@
                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; flex-direction: row-reverse;"><input type="checkbox" class="med-history-cb" value="ضغط"> <span class="chk-lbl">ضغط</span></label>
                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; flex-direction: row-reverse;"><input type="checkbox" class="med-history-cb" value="حمل"> <span class="chk-lbl">حمل</span></label>
                         </div>
-                        <input type="text" id="app_history" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;">
+                        <input type="text" id="app_history" placeholder="ملاحظات طبية أخرى..." style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit;">
                     </div>
                 </div>
-                
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                     <div class="form-group">
                         <label id="lbl-app-date">تاريخ الموعد</label>
@@ -173,12 +164,10 @@
                         <input type="time" id="app_time" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
                     </div>
                 </div>
-
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label id="lbl-app-type">نوع الكشف / الجلسة</label>
-                    <input type="text" id="app_type" required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
+                    <input type="text" id="app_type" placeholder="مثال: كشف جديد، حشو عصب..." required style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
                 </div>
-
                 <div class="finance-box-modal">
                     <div class="form-group" style="flex: 1; min-width: 80px;">
                         <label id="lbl-app-total" style="font-size: 13px;">الإجمالي</label>
@@ -201,18 +190,15 @@
                         </select>
                     </div>
                 </div>
-
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label id="lbl-app-notes">ملاحظات الحجز (اختياري)</label>
                     <input type="text" id="app_notes" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box;">
                 </div>
-
                 <button type="submit" id="btn-conf-book" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 16px;">تأكيد الحجز</button>
             </form>
         </div>
     </div>
 
-    <!-- Modal: Waiting List -->
     <div id="waitingListModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('waitingListModal')">&times;</span>
@@ -226,7 +212,6 @@
         </div>
     </div>
 
-    <!-- Modal: App Details -->
     <div id="appDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('appDetailsModal')">&times;</span>
@@ -247,7 +232,6 @@
         </div>
     </div>
 
-    <!-- Modal: All Patients -->
     <div id="patientsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('patientsModal')">&times;</span>
@@ -256,7 +240,6 @@
         </div>
     </div>
 
-    <!-- Modal: Patient Details -->
     <div id="patientDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('patientDetailsModal')">&times;</span>
@@ -267,18 +250,16 @@
                 <p><strong>🎂 <span class="lbl-p-age">السن:</span></strong> <span id="pdet_age"></span></p>
                 <p><strong>⚠️ <span class="lbl-p-history">أمراض مزمنة:</span></strong> <span id="pdet_history" style="font-weight:bold;"></span></p>
                 <div style="margin-top: 15px; text-align: center;">
-                    <button class="btn-primary" onclick="goToPatientProfile()" id="btn-go-profile">فتح الملف الطبي الكامل</button>
+                    <button class="btn-primary" onclick="goToPatientProfile()" id="btn-go-profile" style="width: 100%;">فتح الملف الطبي الكامل</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Revenue -->
     <div id="revenueModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeModal('revenueModal')">&times;</span>
             <h2 id="mod-rev-title" class="modal-title">💵 إيرادات اليوم تفصيلياً</h2>
-            
             <div class="finance-box-modal" style="border: none; background: transparent; padding: 0; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px;">
                 <div style="flex: 1; background: #ecfdf5; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #a7f3d0;">
                     <span id="lbl-rev-cash" style="font-size: 12px; color: #047857; font-weight: bold;">كاش</span><br>
@@ -293,12 +274,10 @@
                     <span id="rev-total-bank" style="font-size: 18px; color: #075985; font-weight: bold;">0</span>
                 </div>
             </div>
-
             <ul class="data-list-ul" id="revenueContainer"></ul>
         </div>
     </div>
 
-    <!-- Modal: Completed Sessions -->
     <div id="sessionsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('sessionsModal')">&times;</span>
@@ -306,8 +285,7 @@
             <ul class="data-list-ul" id="sessionsContainer"></ul>
         </div>
     </div>
-    
-    <!-- Modal: Revenue Details -->
+
     <div id="revDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('revDetailsModal')">&times;</span>
@@ -322,7 +300,6 @@
         </div>
     </div>
 
-    <!-- سكريبتات تحميل النظام الأساسية -->
     <script>
         var h = Math.floor(Date.now() / 3600000); 
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
