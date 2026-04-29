@@ -1,0 +1,79 @@
+/* css/contracts.css - ERP Optimized */
+* { box-sizing: border-box; transition: background 0.3s, color 0.3s, border-color 0.3s; }
+body { background-color: transparent; padding: 0; margin: 0; font-family: 'Tajawal', sans-serif; color: #1e293b; touch-action: manipulation; overflow-x: hidden;}
+
+.page-wrapper { padding: 30px; width: 100%; max-width: 1000px; margin: 0 auto; }
+
+.header-section { margin-bottom: 30px; text-align: start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px;}
+.header-section h1 { margin: 0; font-size: 28px; color: #0f172a; font-weight: 800; }
+.header-section p { margin: 5px 0 0 0; color: #64748b; font-size: 16px; }
+
+.controls-bar { display: flex; gap: 15px; margin-bottom: 30px; align-items: center; flex-wrap: wrap; }
+.search-box-container { flex: 1; position: relative; min-width: 250px; }
+.search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #94a3b8; }
+html[dir="ltr"] .search-icon { right: auto; left: 15px; }
+#search_contract { width: 100%; padding: 12px 45px; border: 2px solid #cbd5e1; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: bold; color: #0f172a; outline: none; }
+#search_contract:focus { border-color: #0284c7; }
+
+.btn-primary { background: #0284c7; color: #fff; border: none; padding: 12px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; font-family: inherit; font-size: 15px;}
+.btn-primary:hover { background: #0369a1; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(2, 132, 199, 0.2); }
+.btn-add { white-space: nowrap; flex-shrink: 0; }
+
+.contracts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+.contract-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;}
+.contract-card:hover { border-color: #bae6fd; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transform: translateY(-3px); }
+.contract-card::before { content: ''; position: absolute; top: 0; right: 0; width: 6px; height: 100%; background: #10b981; }
+html[dir="ltr"] .contract-card::before { right: auto; left: 0; }
+
+.cont-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+.cont-name { margin: 0; font-size: 18px; color: #0f172a; font-weight: 800; flex: 1;}
+.cont-badge { background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; padding: 5px 12px; border-radius: 8px; font-size: 16px; font-weight: 900; white-space: nowrap; margin-right: 10px;}
+html[dir="ltr"] .cont-badge { margin-right: 0; margin-left: 10px; }
+
+.cont-notes { font-size: 14px; color: #64748b; margin: 0 0 20px 0; line-height: 1.5; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;}
+
+.card-actions { display: flex; gap: 10px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
+.btn-action { flex: 1; padding: 8px; border: none; border-radius: 8px; font-family: inherit; font-weight: bold; cursor: pointer; }
+.btn-edit { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+.btn-edit:hover { background: #ffedd5; }
+.btn-delete { background: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; }
+.btn-delete:hover { background: #fee2e2; }
+
+.empty-state { grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: #64748b; font-weight: bold; background: #f8fafc; border-radius: 12px; border: 2px dashed #cbd5e1; font-size: 16px;}
+
+/* Modal Styles */
+.modal { display: none; position: fixed; z-index: 1000; inset: 0; background-color: rgba(15, 23, 42, 0.7); align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.modal-content { background: white; border-radius: 16px; width: 90%; max-width: 450px; padding: 25px; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+.modal-title { margin-top: 0; margin-bottom: 20px; color: #0f172a; font-size: 22px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+.close-modal { position: absolute; right: 20px; top: 20px; font-size: 26px; color: #94a3b8; cursor: pointer; line-height: 1;}
+html[dir="ltr"] .close-modal { right: auto; left: 20px; }
+
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #334155; font-size: 14px;}
+.form-group input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 15px; outline: none; background: #f8fafc; font-weight: bold; color: #0f172a;}
+.form-group input:focus { border-color: #0284c7; background: #fff; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-wrapper { padding: 15px; }
+    .header-section h1 { font-size: 24px; }
+    .controls-bar { flex-direction: column; align-items: stretch; }
+    .contracts-grid { grid-template-columns: 1fr; }
+}
+
+/* Dark Mode Overrides */
+[data-theme="dark"] body { color: #f8fafc; }
+[data-theme="dark"] .header-section { border-color: #334155; }
+[data-theme="dark"] .header-section h1, [data-theme="dark"] .modal-title, [data-theme="dark"] .cont-name { color: #f8fafc; }
+[data-theme="dark"] .header-section p, [data-theme="dark"] .form-group label { color: #cbd5e1; }
+[data-theme="dark"] #search_contract { background: #0f172a; border-color: #334155; color: #f8fafc; }
+[data-theme="dark"] #search_contract:focus { border-color: #38bdf8; }
+[data-theme="dark"] .contract-card, [data-theme="dark"] .modal-content { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .cont-notes { background: #0f172a; border-color: #334155; color: #94a3b8; }
+[data-theme="dark"] .cont-badge { background: rgba(16, 185, 129, 0.1); border-color: #059669; }
+[data-theme="dark"] .card-actions { border-color: #334155; }
+[data-theme="dark"] .btn-edit { background: rgba(234, 88, 12, 0.1); border-color: #ea580c; }
+[data-theme="dark"] .btn-delete { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; }
+[data-theme="dark"] .empty-state { background: #0f172a; border-color: #334155; }
+[data-theme="dark"] .form-group input { background: #0f172a; border-color: #334155; color: #f8fafc; }
+[data-theme="dark"] .form-group input:focus { border-color: #38bdf8; }
