@@ -27,6 +27,7 @@ const dict = {
         sessHeader: "ملف جلسة المريض:",
         btnEdit: "✏️ تعديل الجلسة",
         btnPrintInv: "🖨️ طباعة الفاتورة",
+        btnCard: "🖨️ طباعة كارت المريض",
         totalCalc: "الإجمالي",
         paidCalc: "المدفوع",
         remCalc: "المتبقي",
@@ -81,6 +82,7 @@ const dict = {
         sessHeader: "Patient Session:",
         btnEdit: "✏️ Edit Session",
         btnPrintInv: "🖨️ Print Invoice",
+        btnCard: "🖨️ Print Patient Card",
         totalCalc: "Total",
         paidCalc: "Paid",
         remCalc: "Remaining",
@@ -142,6 +144,8 @@ function updatePageContent(lang) {
     const txtHeader = document.getElementById('txt-sess-header'); if(txtHeader) txtHeader.innerText = c.sessHeader;
     const btnEdit = document.getElementById('btn-edit-sess'); if(btnEdit) btnEdit.innerText = c.btnEdit;
     const btnPrintInv = document.getElementById('btn-print-invoice'); if(btnPrintInv) btnPrintInv.innerText = c.btnPrintInv;
+    const btnCard = document.getElementById('btn-print-card'); if(btnCard) btnCard.innerText = c.btnCard;
+    const btnCardModal = document.getElementById('btn-print-card-modal'); if(btnCardModal) btnCardModal.innerText = c.btnCard;
     
     const txtTotal = document.getElementById('txt-total-calc'); if(txtTotal) txtTotal.innerText = c.totalCalc;
     const txtPaid = document.getElementById('txt-paid-calc'); if(txtPaid) txtPaid.innerText = c.paidCalc;
@@ -165,7 +169,6 @@ function updatePageContent(lang) {
     const prDiag = document.getElementById('lbl-pr-diag'); if(prDiag) prDiag.innerText = c.prDiag;
     const qrVer = document.getElementById('lbl-qr-verify'); if(qrVer) qrVer.innerText = c.qrVerify;
 
-    // Update currency texts based on lang
     document.querySelectorAll('.currency-txt').forEach(el => el.innerText = lang === 'ar' ? 'ج.م' : 'EGP');
 }
 
@@ -314,16 +317,18 @@ async function updateSession(e) {
 
 function generateQRCodeForPrint(textData) {
     const qrContainer = document.getElementById('print-qr-container');
-    qrContainer.innerHTML = ''; // تفريغ الـ QR القديم
+    qrContainer.innerHTML = ''; 
     
-    // استخدام تشفير آمن وخفيف للـ QR لتجنب خطأ code length overflow
+    let safeText = textData;
+    try { safeText = unescape(encodeURIComponent(textData)); } catch(e) {}
+    
     new QRCode(qrContainer, {
-        text: textData,
-        width: 100, // تقليل الحجم قليلاً ليكون أسرع وأشيك
+        text: safeText,
+        width: 100,
         height: 100,
         colorDark : "#0f172a",
         colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.L // استخدام المستوى الأقل لزيادة سعة الحروف
+        correctLevel : QRCode.CorrectLevel.L
     });
 }
 
@@ -367,7 +372,6 @@ async function printSessionRx(docId) {
                 </div>
             `;
 
-            // 🔴 توقيع رقمي خفيف للـ QR Code (إنجليزي فقط لتجنب الأخطاء) 🔴
             const qrData = `Doc: Prescription\nID: ${docId}\nDate: ${p.date}\nAuth: NivaDent System`;
             generateQRCodeForPrint(qrData);
 
@@ -421,7 +425,6 @@ async function printSessionInvoice() {
             </div>
         `;
 
-        // 🔴 توقيع رقمي خفيف للـ QR Code (إنجليزي فقط وأرقام لتجنب الأخطاء) 🔴
         const qrData = `Doc: Invoice\nID: ${sessionId}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nAuth: NivaDent System`;
         generateQRCodeForPrint(qrData);
 
@@ -433,17 +436,116 @@ async function printSessionInvoice() {
     }
 }
 
+// 🔴 3. طباعة كارت المريض (رابط ذكي للكاميرا) 🔴
+function openQRModal() {
+    document.getElementById('qr_patient_name').innerText = patientName;
+    
+    db.collection("Patients").doc(patientId).get().then(doc => {
+        if(doc.exists) {
+            document.getElementById('qr_patient_phone').innerText = doc.data().phone || '';
+        }
+    });
+
+    const qrContainer = document.getElementById('qrcode_container_card');
+    qrContainer.innerHTML = '';
+
+    const profileUrl = window.location.origin + "/patient-profile.html?id=" + patientId + "&clinicId=" + clinicId;
+
+    new QRCode(qrContainer, {
+        text: profileUrl, 
+        width: 150,
+        height: 150,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.L
+    });
+
+    openModal('qrPrintModal');
+}
+
+function printPatientCard() {
+    const cardContent = document.getElementById('printCardArea').outerHTML;
+    const printSection = document.getElementById('actualPrintSection');
+    const mainPrintArea = document.getElementById('print-area');
+    
+    if(mainPrintArea) mainPrintArea.style.display = 'none'; 
+    
+    printSection.innerHTML = cardContent;
+    closeModal('qrPrintModal');
+
+    setTimeout(() => {
+        window.print();
+        printSection.innerHTML = '';
+        if(mainPrintArea) mainPrintArea.style.display = 'block'; 
+    }, 500);
+}
+
 // ==========================================
-// إدارة الأدوية والروشتات
+// 🚀 نظام التكييش الذكي (Smart Caching - SWR) للمكتبة والقوالب 🚀
 // ==========================================
 
 function loadClinicPharmacy() {
+    const isAr = getLang();
+    const cacheKey = `pharmacy_${clinicId}`;
+
+    const cachedDrugs = localStorage.getItem(cacheKey);
+    if (cachedDrugs) {
+        clinicPharmacy = JSON.parse(cachedDrugs);
+    }
+
     db.collection("Pharmacy").where("clinicId", "==", clinicId).onSnapshot(snap => {
         clinicPharmacy = [];
         snap.forEach(doc => clinicPharmacy.push({ id: doc.id, ...doc.data() }));
-        if(document.getElementById('drug-search').value.length > 0) searchDrugs();
+        
+        localStorage.setItem(cacheKey, JSON.stringify(clinicPharmacy));
+        
+        if(document.getElementById('drug-search') && document.getElementById('drug-search').value.length > 0) searchDrugs();
     });
 }
+
+function loadRxTemplates() {
+    const isAr = getLang();
+    const select = document.getElementById('rx_template_select');
+    const listContainer = document.getElementById('templates-list-container');
+    const cacheKey = `rx_templates_${clinicId}`;
+
+    const renderTemplates = (templatesArray) => {
+        if (!select || !listContainer) return;
+        select.innerHTML = `<option value="">${dict[currentLang].optChooseTpl}</option>`;
+        listContainer.innerHTML = '';
+        
+        if (templatesArray.length === 0) {
+            listContainer.innerHTML = `<div class="empty-state">${isAr ? 'لا يوجد قوالب محفوظة.' : 'No saved templates.'}</div>`;
+            return;
+        }
+
+        templatesArray.forEach(t => {
+            select.innerHTML += `<option value="${t.id}">${t.templateName}</option>`;
+            listContainer.innerHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f1f5f9;">
+                    <strong>${t.templateName}</strong>
+                    <button class="btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteDoc('RxTemplates', '${t.id}')">${isAr ? 'حذف' : 'Delete'}</button>
+                </div>
+            `;
+        });
+        window.rxTemplatesData = templatesArray;
+    };
+
+    const cachedTemplates = localStorage.getItem(cacheKey);
+    if (cachedTemplates) {
+        renderTemplates(JSON.parse(cachedTemplates));
+    }
+
+    db.collection("RxTemplates").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        const freshTemplates = snap.docs.map(d => ({id: d.id, ...d.data()}));
+        localStorage.setItem(cacheKey, JSON.stringify(freshTemplates));
+        renderTemplates(freshTemplates);
+    });
+}
+
+// ==========================================
+// إدارة الأدوية والروشتات
+// ==========================================
 
 function openAddDrugModal() {
     const isAr = getLang();
@@ -691,36 +793,6 @@ function editPrescription(docId) {
     document.getElementById('rx_template_select').value = '';
     renderSelectedDrugs();
     openModal('smartRxModal');
-}
-
-function loadRxTemplates() {
-    db.collection("RxTemplates").where("clinicId", "==", clinicId).onSnapshot(snap => {
-        const isAr = getLang();
-        const select = document.getElementById('rx_template_select');
-        select.innerHTML = `<option value="">${dict[currentLang].optChooseTpl}</option>`;
-        
-        const listContainer = document.getElementById('templates-list-container');
-        listContainer.innerHTML = '';
-        
-        if (snap.empty) {
-            listContainer.innerHTML = `<div class="empty-state">${isAr ? 'لا يوجد قوالب محفوظة.' : 'No saved templates.'}</div>`;
-            return;
-        }
-
-        snap.forEach(doc => {
-            const t = doc.data();
-            select.innerHTML += `<option value="${doc.id}">${t.templateName}</option>`;
-            
-            listContainer.innerHTML += `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f1f5f9;">
-                    <strong>${t.templateName}</strong>
-                    <button class="btn-danger" style="padding: 5px 10px; font-size: 12px;" onclick="deleteDoc('RxTemplates', '${doc.id}')">${isAr ? 'حذف' : 'Delete'}</button>
-                </div>
-            `;
-        });
-        
-        window.rxTemplatesData = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    });
 }
 
 function openTemplateManager() { openModal('templatesModal'); }
@@ -973,10 +1045,9 @@ function encodeSessionImage(element) {
             canvas.height = height;
 
             const ctx = canvas.getContext('2d');
-            // رسم الصورة بالأبعاد الجديدة
             ctx.drawImage(img, 0, 0, width, height);
 
-            // ضغط الصورة بصيغة JPEG بجودة 70% (تقليل الحجم بنسبة تصل لـ 90% بدون فقدان ملامح)
+            // ضغط الصورة بصيغة JPEG بجودة 70%
             const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
             
             document.getElementById('sx_base64').value = compressedBase64;
