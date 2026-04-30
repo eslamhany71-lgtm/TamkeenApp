@@ -1,14 +1,20 @@
+// js/calendar.js
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
 let calendar; 
 let currentEditAppId = null; 
 
 let allClinicPatients = [];
+let allAppointmentsData = []; // 🔴 قائمة لتخزين جميع الحجوزات للسجل
+
+let erpServices = [];
+let erpContracts = [];
 
 function updatePageContent(lang) {
     const t = {
         ar: {
             title: "أجندة المواعيد", sub: "إدارة حجوزات العيادة وتنظيم وقت الطبيب", btnAdd: "حجز موعد جديد",
+            btnAllApps: "سجل الحجوزات", modAllAppsTitle: "📋 سجل جميع الحجوزات", searchAllAppsPlh: "بحث بالاسم أو الموبايل...",
             mTitle: "حجز موعد جديد", mTitleEdit: "تعديل موعد", lName: "اسم المريض", lDate: "تاريخ الموعد", lTime: "الساعة", lType: "نوع الكشف / الجلسة",
             optNew: "كشف جديد", optFollow: "استشارة / متابعة", optSess: "جلسة علاجية", lNotes: "ملاحظات الحجز (اختياري)", btnSave: "تأكيد الحجز", btnUpdate: "تحديث الموعد",
             detTitle: "تفاصيل الحجز", lblDetName: "اسم المريض:", lblDetDate: "التاريخ:", lblDetTime: "الساعة:", lblDetType: "نوع الكشف:", lblDetNotes: "ملاحظات:", lblDetStatus: "الحالة:",
@@ -19,6 +25,7 @@ function updatePageContent(lang) {
         },
         en: {
             title: "Appointments Calendar", sub: "Manage clinic bookings and organize doctor's time", btnAdd: "Book Appointment",
+            btnAllApps: "Appointments Log", modAllAppsTitle: "📋 All Appointments Log", searchAllAppsPlh: "Search by name or phone...",
             mTitle: "Book New Appointment", mTitleEdit: "Edit Appointment", lName: "Patient Name", lDate: "Date", lTime: "Time", lType: "Session Type",
             optNew: "New Checkup", optFollow: "Follow-up", optSess: "Treatment Session", lNotes: "Notes (Optional)", btnSave: "Confirm Booking", btnUpdate: "Update Booking",
             detTitle: "Booking Details", lblDetName: "Patient:", lblDetDate: "Date:", lblDetTime: "Time:", lblDetType: "Type:", lblDetNotes: "Notes:", lblDetStatus: "Status:",
@@ -34,9 +41,10 @@ function updatePageContent(lang) {
     const setPlh = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).placeholder = txt; };
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('btn-add-txt', c.btnAdd);
+    setTxt('btn-all-apps-txt', c.btnAllApps); setTxt('mod-all-apps-title', c.modAllAppsTitle); setPlh('search_all_apps', c.searchAllAppsPlh);
     if(document.getElementById('modal-title')) setTxt('modal-title', c.mTitle);
     setTxt('lbl-app-name', c.lName); setTxt('lbl-app-date', c.lDate);
-    setTxt('lbl-app-time', c.lTime); setTxt('lbl-app-type', c.lType); setTxt('lbl-app-notes', c.lNotes);
+    setTxt('lbl-app-time', c.lTime); setTxt('lbl-app-notes', c.lNotes);
     setTxt('btn-save', c.btnSave);
     
     setTxt('lbl-search-patient', c.lblSearch); setPlh('search_patient_input', c.searchPlh);
@@ -55,10 +63,165 @@ function updatePageContent(lang) {
     window.calendarLang = c;
 }
 
+// 🔴 دوال السجل الكامل للحجوزات (Activity Log) 🔴
+function openAllAppointmentsModal() {
+    document.getElementById('search_all_apps').value = '';
+    renderAllAppointmentsList();
+    document.getElementById('allAppointmentsModal').style.display = 'flex';
+}
+
+function closeAllAppointmentsModal() {
+    document.getElementById('allAppointmentsModal').style.display = 'none';
+}
+
+function renderAllAppointmentsList() {
+    const container = document.getElementById('all-apps-list-container');
+    const searchQ = document.getElementById('search_all_apps').value.trim().toLowerCase();
+    container.innerHTML = '';
+    
+    const filtered = allAppointmentsData.filter(app => 
+        (app.patientName && app.patientName.toLowerCase().includes(searchQ)) ||
+        (app.phone && app.phone.includes(searchQ)) ||
+        (app.patientPhone && app.patientPhone.includes(searchQ))
+    );
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:30px; color:#64748b; background:#f8fafc; border-radius:8px; border:2px dashed #cbd5e1;">لا توجد حجوزات تطابق بحثك.</div>`;
+        return;
+    }
+
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    
+    filtered.forEach(app => {
+        let statusColor = '#f59e0b'; 
+        let statusTxt = lang === 'ar' ? 'انتظار' : 'Pending';
+        if(app.status === 'completed') { statusColor = '#10b981'; statusTxt = lang === 'ar' ? 'مكتمل' : 'Completed'; }
+        if(app.status === 'cancelled') { statusColor = '#ef4444'; statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled'; }
+
+        const div = document.createElement('div');
+        div.style.cssText = "background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.02);";
+        div.onmouseover = () => div.style.borderColor = "#bae6fd";
+        div.onmouseout = () => div.style.borderColor = "#e2e8f0";
+        
+        div.onclick = () => {
+            closeAllAppointmentsModal();
+            const props = {
+                patientId: app.patientId || null, patientName: app.patientName, 
+                phone: app.patientPhone || app.phone, age: app.age, gender: app.gender, history: app.history,
+                type: app.type || 'كشف', contract: app.contract || 'بدون تعاقد', notes: app.notes, status: app.status,
+                date: app.date, time: app.safeTime, total: app.total, paid: app.paid, remaining: app.remaining,
+                payMethod: app.payMethod || 'cash', source: app.source || 'clinic'
+            };
+            showAppDetailsModal(app.id, props);
+        };
+
+        div.innerHTML = `
+            <div>
+                <h4 style="margin: 0 0 5px 0; color: #0f172a; font-size: 16px;">👤 ${app.patientName}</h4>
+                <p style="margin: 0; font-size: 13px; color: #64748b; font-weight: bold;">📅 ${app.date} | ⏰ ${app.safeTime} | 🩺 ${app.type}</p>
+            </div>
+            <div>
+                <span style="background: ${statusColor}; color: white; padding: 5px 10px; border-radius: 8px; font-size: 12px; font-weight: bold;">${statusTxt}</span>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function showAppDetailsModal(appId, props) {
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    document.getElementById('appDetailsModal').setAttribute('data-current-id', appId);
+    document.getElementById('appDetailsModal').setAttribute('data-full-info', JSON.stringify(props));
+
+    document.getElementById('det_name').innerText = props.patientName;
+    document.getElementById('det_phone').innerText = props.phone || '---';
+    document.getElementById('det_date').innerText = props.date;
+    document.getElementById('det_time').innerText = props.time;
+    
+    let typeText = props.type;
+    if(props.contract && props.contract !== 'بدون تعاقد') typeText += ` <span style="font-size:12px;color:#10b981;">(تأمين: ${props.contract})</span>`;
+    document.getElementById('det_type').innerHTML = typeText;
+    
+    const sourceTxt = props.source === 'portal' ? (lang === 'ar' ? 'بوابة المرضى (أونلاين)' : 'Patient Portal (Online)') : (lang === 'ar' ? 'من داخل العيادة' : 'From Clinic');
+    if(document.getElementById('det_source')) document.getElementById('det_source').innerText = sourceTxt;
+    
+    document.getElementById('det_history').innerText = props.history && props.history !== "" ? props.history : (lang === 'ar' ? "سليم (لا يوجد)" : "Healthy (None)");
+    
+    const paid = props.paid || 0; const total = props.total || 0;
+    document.getElementById('det_finance').innerText = `${paid} / ${total}`;
+
+    let methodStr = lang === 'ar' ? "نقدي" : "Cash";
+    if(props.payMethod === 'wallet') methodStr = lang === 'ar' ? "محفظة" : "Wallet";
+    if(props.payMethod === 'instapay') methodStr = lang === 'ar' ? "إنستاباي / بنكي" : "InstaPay / Bank";
+    document.getElementById('det_pay_method').innerText = methodStr;
+
+    document.getElementById('det_notes').innerText = props.notes || (lang === 'ar' ? 'لا يوجد ملاحظات' : 'No notes');
+    
+    let statusTxt = lang === 'ar' ? 'في الانتظار' : 'Pending';
+    if(props.status === 'completed') statusTxt = lang === 'ar' ? 'مكتمل' : 'Completed';
+    if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
+    document.getElementById('det_status').innerText = statusTxt;
+
+    if(props.status === 'completed' || props.status === 'cancelled') {
+        document.getElementById('whatsapp-action-box').style.display = 'none';
+        document.getElementById('complete-action-box').style.display = 'none';
+        document.getElementById('edit-action-box').style.display = 'none';
+        document.getElementById('cancel-action-box').style.display = 'none';
+        document.getElementById('restore-action-box').style.display = props.status === 'cancelled' ? 'block' : 'none';
+    } else {
+        document.getElementById('whatsapp-action-box').style.display = 'block';
+        document.getElementById('complete-action-box').style.display = 'block';
+        document.getElementById('edit-action-box').style.display = 'block';
+        document.getElementById('cancel-action-box').style.display = 'block';
+        document.getElementById('restore-action-box').style.display = 'none';
+    }
+    document.getElementById('appDetailsModal').style.display = 'flex';
+}
+
+// دوال الـ ERP
+function calculateCalERP() {
+    const srvId = document.getElementById('app_type').value;
+    const contId = document.getElementById('app_contract').value;
+    
+    let basePrice = 0;
+    const srv = erpServices.find(s => s.id === srvId);
+    if (srv) basePrice = Number(srv.price) || 0;
+
+    let discount = 0;
+    const cont = erpContracts.find(c => c.id === contId);
+    if (cont) discount = Number(cont.discountPercentage) || 0;
+
+    const total = basePrice - (basePrice * (discount / 100));
+    document.getElementById('app_total').value = Math.round(total);
+    calcCalRemaining();
+}
+
 function calcCalRemaining() {
     const t = Number(document.getElementById('app_total').value) || 0;
     const p = Number(document.getElementById('app_paid').value) || 0;
     document.getElementById('app_remaining').value = Math.max(0, t - p);
+}
+
+function loadERPData() {
+    if (!currentClinicId) return;
+
+    db.collection("Services").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        erpServices = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const selectType = document.getElementById('app_type');
+        if (selectType) {
+            selectType.innerHTML = `<option value="">اختر الخدمة...</option>`;
+            erpServices.forEach(s => { selectType.innerHTML += `<option value="${s.id}">${s.name} (${s.price} ج.م)</option>`; });
+        }
+    });
+
+    db.collection("Contracts").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const contEl = document.getElementById('app_contract');
+        if (contEl) {
+            contEl.innerHTML = `<option value="">بدون تعاقد (خصم 0%)</option>`;
+            erpContracts.forEach(c => { contEl.innerHTML += `<option value="${c.id}">${c.name} (خصم ${c.discountPercentage}%)</option>`; });
+        }
+    });
 }
 
 function openAppointmentModal() {
@@ -71,6 +234,8 @@ function openAppointmentModal() {
 
     document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
     
+    document.getElementById('app_type').value = '';
+    document.getElementById('app_contract').value = '';
     document.getElementById('app_total').value = '0';
     document.getElementById('app_paid').value = '0';
     document.getElementById('app_remaining').value = '0';
@@ -83,25 +248,18 @@ function openAppointmentModal() {
     document.getElementById('btn-save').innerText = window.calendarLang.btnSave;
     document.getElementById('appointmentModal').style.display = 'flex';
     
-    if (allClinicPatients.length === 0) {
-        loadAllPatientsForSearch();
-    }
+    if (allClinicPatients.length === 0) loadAllPatientsForSearch();
 }
 
 function closeAppointmentModal() { document.getElementById('appointmentModal').style.display = 'none'; }
 function closeAppDetailsModal() { document.getElementById('appDetailsModal').style.display = 'none'; }
 
-// =========================================================================
-// 🔴 البحث الذكي عن المريض والتحقق اللحظي من رقم الموبايل 🔴
-// =========================================================================
 function loadAllPatientsForSearch() {
     if (!currentClinicId) return;
     db.collection("Patients").where("clinicId", "==", currentClinicId).get().then(snap => {
         allClinicPatients = [];
-        snap.forEach(doc => {
-            allClinicPatients.push({ id: doc.id, ...doc.data() });
-        });
-    }).catch(err => console.error("Error loading patients for search:", err));
+        snap.forEach(doc => { allClinicPatients.push({ id: doc.id, ...doc.data() }); });
+    }).catch(err => console.error(err));
 }
 
 function searchExistingPatients() {
@@ -109,10 +267,7 @@ function searchExistingPatients() {
     const resultsBox = document.getElementById('patient-search-results');
     resultsBox.innerHTML = '';
 
-    if (input.length === 0) {
-        resultsBox.style.display = 'none';
-        return;
-    }
+    if (input.length === 0) { resultsBox.style.display = 'none'; return; }
 
     const filtered = allClinicPatients.filter(p => 
         (p.name && p.name.toLowerCase().includes(input)) || 
@@ -123,17 +278,12 @@ function searchExistingPatients() {
         filtered.forEach(p => {
             const div = document.createElement('div');
             div.className = 'patient-result-item';
-            div.innerHTML = `
-                <span class="patient-result-name">${p.name}</span>
-                <span class="patient-result-phone" dir="ltr">${p.phone || ''}</span>
-            `;
+            div.innerHTML = `<span class="patient-result-name">${p.name}</span><span class="patient-result-phone" dir="ltr">${p.phone || ''}</span>`;
             div.onclick = () => fillPatientData(p);
             resultsBox.appendChild(div);
         });
         resultsBox.style.display = 'block';
-    } else {
-        resultsBox.style.display = 'none';
-    }
+    } else { resultsBox.style.display = 'none'; }
 }
 
 function fillPatientData(patientData) {
@@ -144,31 +294,20 @@ function fillPatientData(patientData) {
     document.getElementById('app_phone').value = patientData.phone || '';
     document.getElementById('app_age').value = patientData.age || '';
     
-    if(patientData.gender) {
-        const genderSelect = document.getElementById('app_gender');
-        for (let i = 0; i < genderSelect.options.length; i++) {
-            if (genderSelect.options[i].value === patientData.gender) {
-                genderSelect.selectedIndex = i;
-                break;
-            }
-        }
-    }
+    if(patientData.gender) document.getElementById('app_gender').value = patientData.gender;
 
     document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
     let remainingNotes = [];
     if(patientData.medicalHistory && Array.isArray(patientData.medicalHistory)) {
         patientData.medicalHistory.forEach(part => {
             const cb = document.querySelector(`.med-history-cb[value="${part}"]`);
-            if(cb) cb.checked = true;
-            else remainingNotes.push(part);
+            if(cb) cb.checked = true; else remainingNotes.push(part);
         });
     }
     document.getElementById('app_history').value = remainingNotes.join(' ، ');
-    
-    checkPhoneInSystem(); // تفعيل رسالة التحقق
+    checkPhoneInSystem(); 
 }
 
-// 🔴 الدالة الجديدة للتحقق اللحظي من رقم الموبايل داخل الحجز 🔴
 function checkPhoneInSystem() {
     const phone = document.getElementById('app_phone').value.trim();
     const msg = document.getElementById('phone-check-msg');
@@ -181,11 +320,7 @@ function checkPhoneInSystem() {
         msg.style.display = 'block'; 
         msg.innerText = '✅ مريض مسجل بالسيستم'; 
         msg.style.color = '#10b981';
-        
-        // الملء التلقائي لو السكرتيرة مكتبتش الاسم لسه
-        if(document.getElementById('app_name').value.trim() === '') {
-            fillPatientData(found);
-        }
+        if(document.getElementById('app_name').value.trim() === '') fillPatientData(found);
     } else {
         msg.style.display = 'block'; 
         msg.innerText = '✨ مريض جديد محتمل'; 
@@ -201,8 +336,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// =========================================================================
-
 function initCalendar() {
     const calendarEl = document.getElementById('calendar');
     const lang = localStorage.getItem('preferredLang') || 'ar';
@@ -213,88 +346,24 @@ function initCalendar() {
         locale: lang === 'ar' ? 'ar' : 'en',
         direction: lang === 'ar' ? 'rtl' : 'ltr',
         editable: true, 
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: isMobile ? 'timeGridDay,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay'
-        },
-        slotMinTime: '00:00:00', 
-        slotMaxTime: '24:00:00',
-        allDaySlot: false,
-        events: [],
+        headerToolbar: { left: 'prev,next today', center: 'title', right: isMobile ? 'timeGridDay,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay' },
+        slotMinTime: '00:00:00', slotMaxTime: '24:00:00', allDaySlot: false, events: [],
         
         eventClick: function(info) {
             const props = info.event.extendedProps;
             const appId = info.event.id;
-            
-            document.getElementById('appDetailsModal').setAttribute('data-current-id', appId);
-            document.getElementById('appDetailsModal').setAttribute('data-full-info', JSON.stringify(props));
-
-            document.getElementById('det_name').innerText = props.patientName;
-            document.getElementById('det_phone').innerText = props.phone || '---';
-            const dateObj = new Date(info.event.start);
-            document.getElementById('det_date').innerText = dateObj.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US');
-            document.getElementById('det_time').innerText = dateObj.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour: '2-digit', minute:'2-digit'});
-            document.getElementById('det_type').innerText = props.type;
-            
-            // 🔴 عرض مصدر الحجز (بوابة أم عيادة) 🔴
-            const sourceTxt = props.source === 'portal' ? 'بوابة المرضى (أونلاين)' : 'من داخل العيادة';
-            if(document.getElementById('det_source')) document.getElementById('det_source').innerText = sourceTxt;
-            
-            document.getElementById('det_history').innerText = props.history && props.history !== "" ? props.history : (lang === 'ar' ? "سليم (لا يوجد)" : "Healthy (None)");
-            
-            const paid = props.paid || 0;
-            const total = props.total || 0;
-            document.getElementById('det_finance').innerText = `${paid} / ${total}`;
-
-            let methodStr = "نقدي";
-            if(props.payMethod === 'wallet') methodStr = "محفظة";
-            if(props.payMethod === 'instapay') methodStr = "إنستاباي / بنكي";
-            document.getElementById('det_pay_method').innerText = methodStr;
-
-            document.getElementById('det_notes').innerText = props.notes || (lang === 'ar' ? 'لا يوجد ملاحظات' : 'No notes');
-            
-            let statusTxt = lang === 'ar' ? 'في الانتظار' : 'Pending';
-            if(props.status === 'completed') statusTxt = lang === 'ar' ? 'مكتمل' : 'Completed';
-            if(props.status === 'cancelled') statusTxt = lang === 'ar' ? 'ملغي' : 'Cancelled';
-            document.getElementById('det_status').innerText = statusTxt;
-
-            if(props.status === 'completed' || props.status === 'cancelled') {
-                document.getElementById('whatsapp-action-box').style.display = 'none';
-                document.getElementById('complete-action-box').style.display = 'none';
-                document.getElementById('edit-action-box').style.display = 'none';
-                document.getElementById('cancel-action-box').style.display = 'none';
-                document.getElementById('restore-action-box').style.display = props.status === 'cancelled' ? 'block' : 'none';
-            } else {
-                document.getElementById('whatsapp-action-box').style.display = 'block';
-                document.getElementById('complete-action-box').style.display = 'block';
-                document.getElementById('edit-action-box').style.display = 'block';
-                document.getElementById('cancel-action-box').style.display = 'block';
-                document.getElementById('restore-action-box').style.display = 'none';
-            }
-
-            document.getElementById('appDetailsModal').style.display = 'flex';
+            showAppDetailsModal(appId, props);
         },
-
         eventDrop: async function(info) {
             const newDate = info.event.startStr.split('T')[0];
             const newTime = info.event.startStr.split('T')[1].substring(0, 5);
             if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الموعد..." : "Updating...");
-            try {
-                await db.collection("Appointments").doc(info.event.id).update({
-                    date: newDate,
-                    time: newTime
-                });
-            } catch (error) {
-                console.error("Error moving event:", error);
-                info.revert(); 
-            } finally {
-                if (window.hideLoader) window.hideLoader();
-            }
+            try { await db.collection("Appointments").doc(info.event.id).update({ date: newDate, time: newTime }); } 
+            catch (error) { console.error("Error moving event:", error); info.revert(); } 
+            finally { if (window.hideLoader) window.hideLoader(); }
         },
         windowResize: function(arg) {
-            if (window.innerWidth < 768) { calendar.changeView('timeGridDay'); } 
-            else { calendar.changeView('timeGridWeek'); }
+            if (window.innerWidth < 768) { calendar.changeView('timeGridDay'); } else { calendar.changeView('timeGridWeek'); }
         }
     });
     calendar.render();
@@ -304,35 +373,20 @@ function initCalendar() {
 function sendWhatsAppReminder() {
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
     if (!rawData) return;
-    
     const props = JSON.parse(rawData);
     let phone = props.phone;
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     
-    if (!phone || phone.length < 9) {
-        alert(isAr ? "عفواً، لا يوجد رقم موبايل صالح مسجل لهذا المريض." : "Sorry, no valid phone number recorded for this patient.");
-        return;
-    }
+    if (!phone || phone.length < 9) { alert(isAr ? "عفواً، لا يوجد رقم موبايل صالح." : "Sorry, no valid phone."); return; }
 
     phone = phone.replace(/\D/g, '');
-    if (phone.startsWith('0')) {
-        phone = '2' + phone; 
-    } else if (!phone.startsWith('20')) {
-        phone = '20' + phone; 
-    }
+    if (phone.startsWith('0')) { phone = '2' + phone; } else if (!phone.startsWith('20')) { phone = '20' + phone; }
 
-    let message = "";
-    if (isAr) {
-        message = `مرحباً أستاذ/ة *${props.patientName}* 👋\n\nنذكركم بموعدكم القادم في عيادتنا يوم *${props.date}* الساعة *${props.time}*.\n\nيرجى تأكيد الحضور أو إبلاغنا في حالة الاعتذار. نتمنى لكم دوام الصحة والعافية! 🦷✨`;
-    } else {
-        message = `Hello *${props.patientName}* 👋\n\nThis is a friendly reminder for your upcoming appointment at our clinic on *${props.date}* at *${props.time}*.\n\nPlease confirm your attendance. Wishing you a healthy smile! 🦷✨`;
-    }
+    let message = isAr ? `مرحباً أستاذ/ة *${props.patientName}* 👋\n\nنذكركم بموعدكم القادم في عيادتنا يوم *${props.date}* الساعة *${props.time}*.\n\nيرجى تأكيد الحضور. نتمنى لكم دوام الصحة! 🦷✨`
+                       : `Hello *${props.patientName}* 👋\n\nThis is a friendly reminder for your appointment on *${props.date}* at *${props.time}*.\n\nPlease confirm attendance! 🦷✨`;
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const whatsappUrl = isMobile 
-        ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`
-        : `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(message)}`;
-
+    const whatsappUrl = isMobile ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}` : `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, 'NivaWhatsAppTab');
     closeAppDetailsModal();
 }
@@ -343,72 +397,56 @@ async function saveAppointment(e) {
     btn.disabled = true; btn.innerText = "...";
 
     if (!currentClinicId) { alert("حدث خطأ!"); return; }
-
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحفظ..." : "Saving...");
 
     const dateVal = document.getElementById('app_date').value;
     const timeVal = document.getElementById('app_time').value || '12:00'; 
-    const typeVal = document.getElementById('app_type').value;
     const phoneInput = document.getElementById('app_phone').value.trim();
 
     let historyArr = [];
-    document.querySelectorAll('.med-history-cb:checked').forEach(cb => {
-        historyArr.push(cb.value);
-    });
+    document.querySelectorAll('.med-history-cb:checked').forEach(cb => { historyArr.push(cb.value); });
     const otherHistory = document.getElementById('app_history').value.trim();
-    if(otherHistory) {
-        historyArr.push(otherHistory);
-    }
+    if(otherHistory) historyArr.push(otherHistory);
     const finalHistory = historyArr.join(' ، ');
+
+    const srvSelect = document.getElementById('app_type');
+    const srv = erpServices.find(s => s.id === srvSelect.value);
+    const typeVal = srv ? srv.name : srvSelect.value;
+
+    const contSelect = document.getElementById('app_contract');
+    const cont = erpContracts.find(c => c.id === contSelect.value);
+    const contractVal = cont ? cont.name : 'بدون تعاقد';
 
     let eventColor = '#0284C7'; 
     if (typeVal.includes('استشارة') || typeVal.toLowerCase().includes('follow')) eventColor = '#f59e0b'; 
     if (typeVal.includes('جلسة') || typeVal.toLowerCase().includes('session')) eventColor = '#10b981'; 
 
-    // 🔴 ربط المريض تلقائياً لو الموبايل موجود في السيستم 🔴
     const foundPatient = allClinicPatients.find(p => p.phone === phoneInput);
     const linkedPatientId = foundPatient ? foundPatient.id : null;
 
     const appData = {
-        clinicId: currentClinicId,
-        patientId: linkedPatientId, // الربط الذكي
+        clinicId: currentClinicId, patientId: linkedPatientId,
         patientName: document.getElementById('app_name').value.trim(),
-        phone: phoneInput,
-        patientPhone: phoneInput, // للتوافق مع البوابة
-        age: document.getElementById('app_age').value,
-        gender: document.getElementById('app_gender').value,
-        history: finalHistory, 
-        date: dateVal,
-        time: timeVal,
-        type: typeVal,
+        phone: phoneInput, patientPhone: phoneInput,
+        age: document.getElementById('app_age').value, gender: document.getElementById('app_gender').value,
+        history: finalHistory, date: dateVal, time: timeVal,
+        type: typeVal, contract: contractVal,
         total: Number(document.getElementById('app_total').value) || 0,
         paid: Number(document.getElementById('app_paid').value) || 0,
         remaining: Number(document.getElementById('app_remaining').value) || 0,
         payMethod: document.getElementById('app_pay_method').value, 
         notes: document.getElementById('app_notes').value.trim(),
-        color: eventColor,
-        status: 'pending',
-        source: 'clinic' // تمييز المصدر
+        color: eventColor, status: 'pending', source: 'clinic'
     };
 
     try {
-        if (currentEditAppId) {
-            await db.collection("Appointments").doc(currentEditAppId).update(appData);
-        } else {
-            appData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection("Appointments").add(appData);
-        }
+        if (currentEditAppId) { await db.collection("Appointments").doc(currentEditAppId).update(appData); } 
+        else { appData.createdAt = firebase.firestore.FieldValue.serverTimestamp(); await db.collection("Appointments").add(appData); }
         closeAppointmentModal();
-    } catch (error) {
-        console.error("Error saving appointment: ", error);
-        alert(window.calendarLang.errSave);
-    } finally {
-        btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave;
-        if (window.hideLoader) window.hideLoader();
-    }
+    } catch (error) { console.error("Error saving:", error); alert(window.calendarLang.errSave); } 
+    finally { btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave; if (window.hideLoader) window.hideLoader(); }
 }
 
-// 🔴 تحديث دالة إتمام الموعد (مربوطة بالتحديث الجديد) 🔴
 async function markAppAsCompleted() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     const rawData = document.getElementById('appDetailsModal').getAttribute('data-full-info');
@@ -416,8 +454,7 @@ async function markAppAsCompleted() {
 
     const props = JSON.parse(rawData);
     const btn = document.querySelector('#complete-action-box button');
-    btn.innerText = "جاري الحفظ والإنشاء...";
-    btn.disabled = true;
+    btn.innerText = "جاري الحفظ والإنشاء..."; btn.disabled = true;
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إتمام الحجز..." : "Completing...");
 
@@ -429,111 +466,60 @@ async function markAppAsCompleted() {
         const remainingAmount = Number(props.remaining) || 0;
         const paymentMethod = props.payMethod || 'cash'; 
 
-        // لو الموعد ليه patientId هنستخدمه مباشر، ولو ملقتوش هنبحث بالرقم
         let patientId = props.patientId;
-        
         if (!patientId) {
-            const existingPatientQuery = await db.collection("Patients")
-                .where("clinicId", "==", currentClinicId)
-                .where("phone", "==", patientPhone)
-                .get();
-
+            const existingPatientQuery = await db.collection("Patients").where("clinicId", "==", currentClinicId).where("phone", "==", patientPhone).get();
             let matchedPatientDoc = null;
             if (!existingPatientQuery.empty) {
-                existingPatientQuery.forEach(doc => {
-                    if (doc.data().name.trim() === props.patientName.trim()) {
-                        matchedPatientDoc = doc;
-                    }
-                });
+                existingPatientQuery.forEach(doc => { if (doc.data().name.trim() === props.patientName.trim()) { matchedPatientDoc = doc; } });
             }
 
             if (!matchedPatientDoc) {
                 let historyArray = [];
-                if(props.history && props.history.length > 0 && props.history !== "سليم (لا يوجد)") {
-                    historyArray = props.history.split(' ، ').map(item => item.trim()).filter(i => i);
-                }
+                if(props.history && props.history.length > 0 && props.history !== "سليم (لا يوجد)") { historyArray = props.history.split(' ، ').map(item => item.trim()).filter(i => i); }
 
                 const newPat = await db.collection("Patients").add({
-                    clinicId: currentClinicId,
-                    name: props.patientName,
-                    phone: patientPhone,
-                    age: props.age || '',
-                    gender: props.gender || '',
-                    medicalHistory: historyArray,
-                    notes: props.notes || '', 
-                    totalDebt: remainingAmount,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    clinicId: currentClinicId, name: props.patientName, phone: patientPhone, age: props.age || '', gender: props.gender || '',
+                    medicalHistory: historyArray, notes: props.notes || '', totalDebt: remainingAmount, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 patientId = newPat.id;
             } else {
                 patientId = matchedPatientDoc.id;
-                if (remainingAmount > 0) {
-                    await db.collection("Patients").doc(patientId).update({
-                        totalDebt: firebase.firestore.FieldValue.increment(remainingAmount)
-                    });
-                }
+                if (remainingAmount > 0) { await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(remainingAmount) }); }
             }
         } else {
-            // المريض معروف ومتربط جاهز، هنزود المديونية بس
-            if (remainingAmount > 0) {
-                await db.collection("Patients").doc(patientId).update({
-                    totalDebt: firebase.firestore.FieldValue.increment(remainingAmount)
-                });
-            }
+            if (remainingAmount > 0) { await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(remainingAmount) }); }
         }
 
         const d = new Date();
         const currentPayDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
         await db.collection("Sessions").add({
-            clinicId: currentClinicId,
-            patientId: patientId,
-            date: currentPayDate,
-            procedure: props.type || "كشف / إجراء",
-            total: props.total || 0,
-            paid: paidAmount,
-            remaining: remainingAmount,
-            notes: props.notes || "",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            clinicId: currentClinicId, patientId: patientId, date: currentPayDate,
+            procedure: props.type || "كشف / إجراء", contract: props.contract || 'بدون تعاقد',
+            total: props.total || 0, paid: paidAmount, remaining: remainingAmount,
+            notes: props.notes || "", createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         
         if (paidAmount > 0) {
             await db.collection("Finances").add({
-                clinicId: currentClinicId,
-                patientId: patientId,
-                type: 'income',
-                category: 'كشف / جلسة',
-                amount: paidAmount,
-                date: currentPayDate,
-                paymentMethod: paymentMethod, 
-                notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                clinicId: currentClinicId, patientId: patientId, type: 'income', category: 'كشف / جلسة',
+                amount: paidAmount, date: currentPayDate, paymentMethod: paymentMethod, 
+                notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
 
         if (remainingAmount > 0) {
             await db.collection("Finances").add({
-                clinicId: currentClinicId,
-                patientId: patientId,
-                type: 'debt', 
-                category: 'متبقي كشف / جلسة',
-                amount: remainingAmount,
-                date: currentPayDate,
-                notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                clinicId: currentClinicId, patientId: patientId, type: 'debt', category: 'متبقي كشف / جلسة',
+                amount: remainingAmount, date: currentPayDate, notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
 
-        alert(document.body.dir === 'rtl' ? "✅ تم إتمام الحجز، وتسجيل الإيراد والمديونية بنجاح!" : "✅ Appointment completed successfully!");
+        alert(document.body.dir === 'rtl' ? "✅ تم إتمام الحجز بنجاح!" : "✅ Appointment completed successfully!");
         closeAppDetailsModal();
-    } catch (error) {
-        console.error("Error completing app:", error);
-        alert(document.body.dir === 'rtl' ? "حدث خطأ أثناء إتمام العملية." : "Error completing appointment.");
-    } finally {
-        btn.innerText = window.calendarLang.btnCompleteApp;
-        btn.disabled = false;
-        if (window.hideLoader) window.hideLoader();
-    }
+    } catch (error) { console.error(error); alert(document.body.dir === 'rtl' ? "حدث خطأ." : "Error."); } 
+    finally { btn.innerText = window.calendarLang.btnCompleteApp; btn.disabled = false; if (window.hideLoader) window.hideLoader(); }
 }
 
 async function openEditModal() {
@@ -546,7 +532,6 @@ async function openEditModal() {
     
     try {
         document.getElementById('smart-search-container').style.display = 'none';
-
         document.getElementById('app_name').value = props.patientName;
         document.getElementById('app_phone').value = props.phone || '';
         document.getElementById('app_age').value = props.age || '';
@@ -558,17 +543,23 @@ async function openEditModal() {
             const parts = props.history.split(' ، ');
             parts.forEach(part => {
                 const cb = document.querySelector(`.med-history-cb[value="${part}"]`);
-                if(cb) cb.checked = true;
-                else remainingNotes.push(part);
+                if(cb) cb.checked = true; else remainingNotes.push(part);
             });
         }
         document.getElementById('app_history').value = remainingNotes.join(' ، ');
 
         document.getElementById('app_date').value = props.date;
         document.getElementById('app_time').value = props.time;
-        document.getElementById('app_type').value = props.type || 'كشف جديد';
-        document.getElementById('app_notes').value = props.notes || '';
         
+        const typeEl = document.getElementById('app_type');
+        const srv = erpServices.find(s => s.name === props.type);
+        if(srv) typeEl.value = srv.id;
+
+        const contEl = document.getElementById('app_contract');
+        const cont = erpContracts.find(c => c.name === props.contract);
+        if(cont) contEl.value = cont.id;
+
+        document.getElementById('app_notes').value = props.notes || '';
         document.getElementById('app_total').value = props.total || '0';
         document.getElementById('app_paid').value = props.paid || '0';
         document.getElementById('app_remaining').value = props.remaining || '0';
@@ -578,7 +569,7 @@ async function openEditModal() {
         document.getElementById('btn-save').innerText = window.calendarLang.btnUpdate;
         
         const msg = document.getElementById('phone-check-msg');
-        if(msg) msg.style.display = 'none'; // نخفيها في التعديل
+        if(msg) msg.style.display = 'none';
 
         closeAppDetailsModal(); 
         document.getElementById('appointmentModal').style.display = 'flex';
@@ -588,61 +579,39 @@ async function openEditModal() {
 async function cancelAppointment() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     if (!appId) return;
-
     if (confirm(window.calendarLang.confDel)) { 
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الإلغاء..." : "Cancelling...");
-        try {
-            await db.collection("Appointments").doc(appId).update({ status: 'cancelled' });
-            closeAppDetailsModal();
-        } catch (error) { 
-            console.error("Error cancelling:", error); 
-        } finally {
-            if (window.hideLoader) window.hideLoader();
-        }
+        try { await db.collection("Appointments").doc(appId).update({ status: 'cancelled' }); closeAppDetailsModal(); } 
+        catch (error) { console.error(error); } finally { if (window.hideLoader) window.hideLoader(); }
     }
 }
 
 async function restoreAppointment() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     if (!appId) return;
-
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الإرجاع..." : "Restoring...");
-    try {
-        await db.collection("Appointments").doc(appId).update({ status: 'pending' });
-        closeAppDetailsModal();
-    } catch (error) { 
-        console.error("Error restoring:", error); 
-    } finally {
-        if (window.hideLoader) window.hideLoader();
-    }
+    try { await db.collection("Appointments").doc(appId).update({ status: 'pending' }); closeAppDetailsModal(); } 
+    catch (error) { console.error(error); } finally { if (window.hideLoader) window.hideLoader(); }
 }
 
 async function deleteAppointment() {
     const appId = document.getElementById('appDetailsModal').getAttribute('data-current-id');
     if (!appId) return;
-
     if (confirm(window.calendarLang.confDel)) {
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري الحذف..." : "Deleting...");
-        try {
-            await db.collection("Appointments").doc(appId).delete();
-            closeAppDetailsModal();
-        } catch (error) { 
-            console.error("Error deleting:", error); 
-        } finally {
-            if (window.hideLoader) window.hideLoader();
-        }
+        try { await db.collection("Appointments").doc(appId).delete(); closeAppDetailsModal(); } 
+        catch (error) { console.error(error); } finally { if (window.hideLoader) window.hideLoader(); }
     }
 }
 
 function loadAppointments() {
     if (!currentClinicId || !calendar) return;
+    if (window.showLoader && calendar.getEvents().length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة المواعيد..." : "Syncing...");
 
-    if (window.showLoader && calendar.getEvents().length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة المواعيد..." : "Syncing appointments...");
-
-    db.collection("Appointments")
-      .where("clinicId", "==", currentClinicId)
-      .onSnapshot(snap => {
+    db.collection("Appointments").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
         calendar.removeAllEvents();
+        allAppointmentsData = []; 
+
         snap.forEach(doc => {
             const data = doc.data();
             const safeTime = data.time || "12:00"; 
@@ -652,49 +621,43 @@ function loadAppointments() {
             if(data.status === 'completed') finalColor = '#94a3b8';
             if(data.status === 'cancelled') finalColor = '#ef4444'; 
 
+            const appObj = {
+                id: doc.id, patientId: data.patientId || null, patientName: data.patientName, 
+                phone: data.patientPhone || data.phone, patientPhone: data.patientPhone || data.phone, age: data.age, gender: data.gender, history: data.history,
+                type: data.type || 'كشف', contract: data.contract || 'بدون تعاقد', notes: data.notes, status: data.status,
+                date: data.date, time: safeTime, safeTime: safeTime, total: data.total, paid: data.paid, remaining: data.remaining,
+                payMethod: data.payMethod || 'cash', source: data.source || 'clinic'
+            };
+
+            allAppointmentsData.push(appObj);
+
             calendar.addEvent({
-                id: doc.id,
-                title: `${data.patientName}`,
-                start: startDateTime,
-                backgroundColor: finalColor,
-                borderColor: finalColor,
-                extendedProps: {
-                    patientId: data.patientId || null,
-                    patientName: data.patientName, 
-                    // 🔴 سحب الموبايل سواء من التطبيق أو البوابة 🔴
-                    phone: data.patientPhone || data.phone, 
-                    age: data.age, gender: data.gender, history: data.history,
-                    type: data.type || 'كشف', notes: data.notes, status: data.status,
-                    date: data.date, time: safeTime, total: data.total,
-                    paid: data.paid, remaining: data.remaining,
-                    payMethod: data.payMethod || 'cash',
-                    source: data.source || 'clinic' // 🔴 تمرير المصدر للوحة التفاصيل
-                }
+                id: doc.id, title: `${data.patientName}`, start: startDateTime, backgroundColor: finalColor, borderColor: finalColor,
+                extendedProps: appObj
             });
         });
+        
+        allAppointmentsData.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+
         if (window.hideLoader) window.hideLoader();
-    }, error => {
-        if (window.hideLoader) window.hideLoader();
-    });
+    }, error => { if (window.hideLoader) window.hideLoader(); });
 }
 
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
-    if(window.translations) {
-        updatePageContent(lang);
-    } else {
-        setTimeout(() => updatePageContent(lang), 500);
-    }
+    if(window.translations) { updatePageContent(lang); } else { setTimeout(() => updatePageContent(lang), 500); }
     
     firebase.auth().onAuthStateChanged((user) => {
-        if (user) { initCalendar(); }
+        if (user) { 
+            loadERPData(); 
+            initCalendar(); 
+        }
     });
 };
 
 window.addEventListener('click', function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
+    if (event.target.classList.contains('modal')) { event.target.style.display = 'none'; }
 });
