@@ -3,7 +3,6 @@
 try {
     const db = firebase.firestore();
 
-    // 1. استخراج المتغيرات بذكاء وأمان
     const urlParams = new URLSearchParams(window.location.search);
     let patientId = urlParams.get('id');
     
@@ -17,9 +16,13 @@ try {
     }
 
     let currentPatientName = "مريض";
-    let currentPatientPhone = ""; // 🟢 متغير جديد لحفظ رقم الهاتف للواتساب 🟢
+    let currentPatientPhone = ""; 
     let loadedPatientSessions = []; 
     let currentUserDisplayName = "مستخدم غير معروف";
+
+    // 🔴 متغيرات الـ ERP 🔴
+    let erpServices = [];
+    let erpContracts = [];
 
     const SESSIONS_PER_PAGE = 50;
     let lastVisibleProfileSession = null;
@@ -41,6 +44,7 @@ try {
         document.getElementById(id).style.display = 'flex'; 
         if(id === 'sessionModal') {
             document.getElementById('sess_date').value = new Date().toISOString().split('T')[0];
+            if(document.getElementById('sess_contract')) document.getElementById('sess_contract').value = '';
         }
         if(id === 'labOrderModal') {
             document.getElementById('lab_date').value = new Date().toISOString().split('T')[0];
@@ -63,13 +67,63 @@ try {
         });
     });
 
-    // ==========================================
-    // 🔴 دالة السحب الأساسية المُحصنة 🔴
-    // ==========================================
+    // 🔴 جلب داتا الـ ERP للمودالز 🔴
+    function loadERPData() {
+        if (!clinicId) return;
+
+        db.collection("Services").where("clinicId", "==", clinicId).onSnapshot(snap => {
+            erpServices = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            ['sess_procedure', 'edit_sess_procedure'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const currentVal = el.value;
+                    el.innerHTML = `<option value="">اختر الخدمة...</option>`;
+                    erpServices.forEach(s => {
+                        el.innerHTML += `<option value="${s.id}">${s.name} (${s.price} ج.م)</option>`;
+                    });
+                    el.value = currentVal;
+                }
+            });
+        });
+
+        db.collection("Contracts").where("clinicId", "==", clinicId).onSnapshot(snap => {
+            erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            ['sess_contract', 'edit_sess_contract'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const currentVal = el.value;
+                    el.innerHTML = `<option value="">بدون تعاقد (خصم 0%)</option>`;
+                    erpContracts.forEach(c => {
+                        el.innerHTML += `<option value="${c.id}">${c.name} (خصم ${c.discountPercentage}%)</option>`;
+                    });
+                    el.value = currentVal;
+                }
+            });
+        });
+    }
+
+    // 🔴 دالة السحر: حساب السعر أوتوماتيك 🔴
+    function calculateProfileERP(mode) {
+        const prefix = mode === 'add' ? 'sess_' : 'edit_sess_';
+        const srvId = document.getElementById(`${prefix}procedure`).value;
+        const contId = document.getElementById(`${prefix}contract`).value;
+        
+        let basePrice = 0;
+        const srv = erpServices.find(s => s.id === srvId);
+        if (srv) basePrice = Number(srv.price) || 0;
+
+        let discount = 0;
+        const cont = erpContracts.find(c => c.id === contId);
+        if (cont) discount = Number(cont.discountPercentage) || 0;
+
+        const total = basePrice - (basePrice * (discount / 100));
+        document.getElementById(`${prefix}total`).value = Math.round(total);
+        calculateRemaining(mode);
+    }
+
     function loadPatientData() {
         try {
             const isAr = getLang();
-            
             const nameEl = document.getElementById('prof-name');
             if (!nameEl) return; 
 
@@ -88,7 +142,7 @@ try {
                 if (doc.exists) {
                     const p = doc.data();
                     currentPatientName = p.name;
-                    currentPatientPhone = p.phone || ""; // 🟢 استخراج الهاتف 🟢
+                    currentPatientPhone = p.phone || ""; 
                     
                     let debtHtml = '';
                     if (p.totalDebt && p.totalDebt > 0) {
@@ -135,9 +189,6 @@ try {
         }
     }
 
-    // ==========================================
-    // 🟢 الإضافة القاتلة: إرسال الرابط للواتساب 🟢
-    // ==========================================
     function sendPortalLinkWhatsApp() {
         const isAr = getLang();
         if (!currentPatientPhone || currentPatientPhone.trim() === '') {
@@ -146,32 +197,19 @@ try {
         }
 
         let phone = currentPatientPhone.replace(/\D/g, '');
-        if (phone.startsWith('0')) {
-            phone = '2' + phone;
-        } else if (!phone.startsWith('20') && phone.length >= 10) {
-            phone = '20' + phone;
-        }
+        if (phone.startsWith('0')) { phone = '2' + phone; } 
+        else if (!phone.startsWith('20') && phone.length >= 10) { phone = '20' + phone; }
 
         const portalUrl = `https://nivadent.web.app/portal.html?clinicId=${clinicId}`;
-        let message = "";
-
-        if (isAr) {
-            message = `مرحباً أستاذ/ة *${currentPatientName}* 👋\n\nنود إعلامكم أنه يمكنكم الآن متابعة ملفكم الطبي، حساباتكم، وحجز مواعيدكم القادمة بكل سهولة عبر بوابتنا الذكية.\n\n🔗 *رابط الدخول للبوابة:*\n${portalUrl}\n\nنتمنى لكم دوام الصحة والعافية! 🦷✨`;
-        } else {
-            message = `Hello *${currentPatientName}* 👋\n\nYou can now view your medical profile, finances, and book new appointments easily through our smart portal.\n\n🔗 *Portal Link:*\n${portalUrl}\n\nWishing you a healthy smile! 🦷✨`;
-        }
+        let message = isAr 
+            ? `مرحباً أستاذ/ة *${currentPatientName}* 👋\n\nنود إعلامكم أنه يمكنكم الآن متابعة ملفكم الطبي، حساباتكم، وحجز مواعيدكم القادمة بكل سهولة عبر بوابتنا الذكية.\n\n🔗 *رابط الدخول للبوابة:*\n${portalUrl}\n\nنتمنى لكم دوام الصحة والعافية! 🦷✨`
+            : `Hello *${currentPatientName}* 👋\n\nYou can now view your medical profile, finances, and book new appointments easily through our smart portal.\n\n🔗 *Portal Link:*\n${portalUrl}\n\nWishing you a healthy smile! 🦷✨`;
 
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        const whatsappUrl = isMobile
-            ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`
-            : `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(message)}`;
-
+        const whatsappUrl = isMobile ? `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}` : `https://api.whatsapp.com/send/?phone=${phone}&text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     }
 
-    // ==========================================
-    // أكواد التقسيط، المعمل، الجلسات
-    // ==========================================
     function calcInstallments() {
         const total = Number(document.getElementById('inst_total').value) || 0;
         const downPayment = Number(document.getElementById('inst_down_payment').value) || 0;
@@ -210,7 +248,7 @@ try {
                 const downSessRef = sessionsRef.doc();
                 batch.set(downSessRef, {
                     clinicId: clinicId, patientId: patientId, date: startDateStr,
-                    procedure: `مقدم خطة: ${planName}`, tooth: "", notes: "دفعة مقدمة لخطة علاج",
+                    procedure: `مقدم خطة: ${planName}`, contract: 'بدون تعاقد', tooth: "", notes: "دفعة مقدمة لخطة علاج",
                     total: downPayment, paid: downPayment, remaining: 0,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -235,7 +273,7 @@ try {
                     const instSessRef = sessionsRef.doc();
                     batch.set(instSessRef, {
                         clinicId: clinicId, patientId: patientId, date: instDateStr,
-                        procedure: `قسط رقم (${i}) - ${planName}`, tooth: "", notes: "قسط مجدول أوتوماتيكياً",
+                        procedure: `قسط رقم (${i}) - ${planName}`, contract: 'بدون تعاقد', tooth: "", notes: "قسط مجدول أوتوماتيكياً",
                         total: valPerSession, paid: 0, remaining: valPerSession,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp() 
                     });
@@ -380,13 +418,22 @@ try {
         const paidAmount = Number(document.getElementById(`${prefix}paid`).value) || 0;
         const remainingAmount = Number(document.getElementById(`${prefix}remaining`).value) || 0;
         const sessionDate = document.getElementById(`${prefix}date`).value;
-        const procedureName = document.getElementById(`${prefix}procedure`).value;
         const paymentMethod = document.getElementById(`${prefix}pay_method`).value;
+
+        // 🔴 استخراج اسم الخدمة والتعاقد 🔴
+        const procSelect = document.getElementById(`${prefix}procedure`);
+        const srv = erpServices.find(s => s.id === procSelect.value);
+        const procedureName = srv ? srv.name : (procSelect.options ? procSelect.options[procSelect.selectedIndex]?.text : procSelect.value);
+
+        const contSelect = document.getElementById(`${prefix}contract`);
+        const cont = contSelect ? erpContracts.find(c => c.id === contSelect.value) : null;
+        const contractName = cont ? cont.name : 'بدون تعاقد';
 
         const data = {
             clinicId: clinicId, patientId: patientId, date: sessionDate,
             nextAppointment: document.getElementById(`${prefix}next_date`).value || null,
-            procedure: procedureName, tooth: document.getElementById(`${prefix}tooth`).value,
+            procedure: procedureName, contract: contractName, 
+            tooth: document.getElementById(`${prefix}tooth`).value,
             notes: document.getElementById(`${prefix}notes`).value,
             total: totalAmount, paid: paidAmount, remaining: remainingAmount
         };
@@ -598,6 +645,12 @@ try {
             const toothLabel = isAr ? 'السن:' : 'Tooth:';
             const viewBtn = isAr ? '👁️ التفاصيل' : '👁️ View';
 
+            // 🔴 عرض التعاقد تحت الإجراء الطبي لو موجود
+            let procDisplay = `${s.procedure}`;
+            if(s.contract && s.contract !== 'بدون تعاقد') {
+                procDisplay += `<br><small style="color:#10b981; font-weight:bold;">تأمين: ${s.contract}</small>`;
+            }
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>
@@ -606,7 +659,7 @@ try {
                         <span style="font-size: 13px; color: #64748b; margin-top: 4px; font-weight: bold;">${timeStr}</span>
                     </div>
                 </td>
-                <td style="font-weight:bold; color:#0f172a;">${s.procedure} <br> <small style="color:gray;">${toothLabel} ${s.tooth || '---'}</small></td>
+                <td style="font-weight:bold; color:#0f172a;">${procDisplay} <br> <small style="color:gray;">${toothLabel} ${s.tooth || '---'}</small></td>
                 <td style="font-weight:bold;">${total}</td>
                 <td style="color: #10b981; font-weight: bold;">${paid}</td>
                 <td style="color: ${remaining > 0 ? '#ef4444' : '#64748b'}; font-weight: bold;">${remaining}</td>
@@ -630,7 +683,19 @@ try {
         document.getElementById('edit_sess_id').value = session.id;
         document.getElementById('edit_sess_date').value = session.date;
         document.getElementById('edit_sess_next_date').value = session.nextAppointment || '';
-        document.getElementById('edit_sess_procedure').value = session.procedure;
+        
+        // 🔴 استرجاع الخدمة والتعاقد في القوائم المنسدلة
+        const procEl = document.getElementById('edit_sess_procedure');
+        if(procEl) {
+            const srv = erpServices.find(s => s.name === session.procedure);
+            if(srv) procEl.value = srv.id;
+        }
+        const contEl = document.getElementById('edit_sess_contract');
+        if(contEl) {
+            const cont = erpContracts.find(c => c.name === session.contract);
+            if(cont) contEl.value = cont.id; else contEl.value = "";
+        }
+
         document.getElementById('edit_sess_tooth').value = session.tooth || '';
         document.getElementById('edit_sess_notes').value = session.notes || '';
         document.getElementById('edit_sess_total').value = session.total || 0;
@@ -659,7 +724,6 @@ try {
     function viewSessionDetails(sessionId) {
         const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
         if (window.showLoader) window.showLoader(isAr ? "جاري فتح تفاصيل الجلسة..." : "Loading session...");
-        
         window.location.href = `session-details.html?sessionId=${sessionId}&patientId=${patientId}`;
     }
 
@@ -679,9 +743,6 @@ try {
         }
     }
 
-    // ==========================================
-    // 🔴 التشغيل الفوري والآمن (بدون انتظار) 🔴
-    // ==========================================
     function initProfile() {
         setTimeout(() => { loadPatientData(); }, 100);
     }
@@ -694,6 +755,7 @@ try {
 
     firebase.auth().onAuthStateChanged(async (user) => { 
         if (user) { 
+            loadERPData(); // 🔴 تشغيل جلب داتا الـ ERP
             try {
                 const userDoc = await db.collection("Users").doc(user.email).get();
                 if (userDoc.exists) {
@@ -704,42 +766,35 @@ try {
         } 
     });
 
-    // ==========================================
-    // 🔴 لوجيك صانع كارت المريض (QR Generator & Print) 🔴
-    // ==========================================
+    function openQRModal() {
+        const isAr = getLang();
+        
+        document.getElementById('qr_patient_name').innerText = currentPatientName;
+        const phoneNode = document.getElementById('prof-phone');
+        const phoneText = phoneNode ? phoneNode.innerText.replace('📞', '').trim() : '';
+        document.getElementById('qr_patient_phone').innerText = phoneText;
 
-// 🔴 تحديث كارت المريض ليكون رابط ذكي يفتح البروفايل مباشرة (Scenario 3) 🔴
-function openQRModal() {
-    const isAr = getLang();
+        const qrContainer = document.getElementById('qrcode_container');
+        qrContainer.innerHTML = '';
+
+        const profileUrl = window.location.origin + "/patient-profile.html?id=" + patientId + "&clinicId=" + clinicId;
+
+        new QRCode(qrContainer, {
+            text: profileUrl, 
+            width: 150,
+            height: 150,
+            colorDark : "#0f172a",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.L 
+        });
+
+        openModal('qrPrintModal');
+    }
     
-    document.getElementById('qr_patient_name').innerText = currentPatientName;
-    const phoneNode = document.getElementById('prof-phone');
-    const phoneText = phoneNode ? phoneNode.innerText.replace('📞', '').trim() : '';
-    document.getElementById('qr_patient_phone').innerText = phoneText;
-
-    const qrContainer = document.getElementById('qrcode_container');
-    qrContainer.innerHTML = '';
-
-    // 🔴 السحر هنا: بناء رابط كامل يفتح صفحة البروفايل مباشرة 🔴
-    const profileUrl = window.location.origin + "/patient-profile.html?id=" + patientId + "&clinicId=" + clinicId;
-
-    new QRCode(qrContainer, {
-        text: profileUrl, // حطينا الرابط بدل الـ ID
-        width: 150,
-        height: 150,
-        colorDark : "#0f172a",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.L // L عشان الرابط طويل ويقرأ بسرعة من الكاميرا
-    });
-
-    openModal('qrPrintModal');
-}
     function printPatientCard() {
         const cardContent = document.getElementById('printArea').outerHTML;
-        
         const printSection = document.getElementById('actualPrintSection');
         printSection.innerHTML = cardContent;
-
         closeModal('qrPrintModal');
 
         setTimeout(() => {
@@ -748,8 +803,7 @@ function openQRModal() {
         }, 500);
     }
 
-    // Attach to window
-    window.sendPortalLinkWhatsApp = sendPortalLinkWhatsApp; // 🟢 تصدير الدالة 🟢
+    window.sendPortalLinkWhatsApp = sendPortalLinkWhatsApp; 
     window.openQRModal = openQRModal;
     window.printPatientCard = printPatientCard;
     window.openModal = openModal;
@@ -766,6 +820,7 @@ function openQRModal() {
     window.saveInstallmentPlan = saveInstallmentPlan;
     window.saveLabOrder = saveLabOrder;
     window.markLabOrderDelivered = markLabOrderDelivered;
+    window.calculateProfileERP = calculateProfileERP; // 🔴 تصدير الدالة
 
 } catch (globalError) {
     alert("حدث خطأ تقني يمنع تحميل الصفحة: " + globalError.message);
