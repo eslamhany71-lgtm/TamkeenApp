@@ -151,15 +151,16 @@ function loadInventoryAlerts() {
 
         snap.forEach(doc => {
             const item = doc.data();
-            const qty = Number(item.quantity) || 0;
-            const min = Number(item.minQuantity) || 0;
+            // 🔴 تم تصحيح المتغيرات لتقرأ من قاعدة بيانات المخزن الجديدة
+            const qty = Number(item.qty) || 0; 
+            const min = Number(item.minAlert) || 0; 
 
             if (qty <= min) {
                 alertsCount++;
                 const statusClass = qty === 0 ? 'danger' : 'warning';
                 container.innerHTML += `
                     <div class="inventory-alert ${statusClass}">
-                        <span>⚠️ ${item.itemName} (${item.category || ''})</span>
+                        <span>⚠️ ${item.name || 'صنف غير معروف'} (${item.category || ''})</span>
                         <span>${window.invCurrentTxt} ${qty} | ${window.invMinTxt} ${min}</span>
                     </div>
                 `;
@@ -171,7 +172,6 @@ function loadInventoryAlerts() {
         }
     });
 }
-
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = getLocalTodayString(); 
