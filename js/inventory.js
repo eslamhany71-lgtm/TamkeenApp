@@ -1,3 +1,4 @@
+// js/inventory.js
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
 let inventoryData = [];
@@ -18,7 +19,6 @@ let isCameraRunning = false;
 // 🔴 دوال الباركود (الكاميرا مع البديل اليدوي الآمن) 🔴
 // =========================================================
 
-// الدالة الأساسية اللي بتستقبل الكود
 function handleBarcodeScan(scannedCode) {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const foundItem = inventoryData.find(item => item.barcode === scannedCode);
@@ -33,7 +33,6 @@ function handleBarcodeScan(scannedCode) {
     }
 }
 
-// دالة البديل اليدوي
 window.fallbackToManualScan = function() {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const code = prompt(isAr ? "الكاميرا غير متاحة.\nأدخل رقم الباركود يدوياً أو استخدم مسدس الباركود (USB):" : "Camera unavailable.\nEnter barcode manually or use USB scanner:");
@@ -70,11 +69,9 @@ window.openCameraScanner = function() {
 
     html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, () => {})
     .then(() => {
-        // 🔴 الكاميرا اشتغلت فعلاً 🔴
         isCameraRunning = true; 
     })
     .catch((err) => {
-        // 🔴 الكاميرا رفضت، نقفل المودال بدون ما نضرب Error ونفتح اليدوي 🔴
         console.warn("Camera failed to start:", err);
         document.getElementById('cameraScannerModal').style.display = 'none';
         fallbackToManualScan();
@@ -85,7 +82,6 @@ window.closeCameraScanner = function() {
     const modal = document.getElementById('cameraScannerModal');
     modal.style.display = 'none';
     
-    // 🔴 نتأكد إن الكاميرا شغالة فعلاً قبل ما نطلب منها تقف 🔴
     if (html5QrcodeScanner && isCameraRunning) {
         html5QrcodeScanner.stop().then(() => {
             isCameraRunning = false;
@@ -94,7 +90,6 @@ window.closeCameraScanner = function() {
     }
 };
 
-// مراقب مسدس الباركود اللي شغال في الخلفية (USB Scanner)
 document.addEventListener('keydown', function(e) {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.key === 'Enter' && barcodeBuffer.length > 2) {
@@ -189,9 +184,11 @@ function openItemModal() {
     document.getElementById('item_qty').disabled = false; 
     document.getElementById('item_initial_cost').value = '0';
     document.getElementById('item_initial_pay_method').value = 'cash';
+    document.getElementById('item_initial_cost').parentElement.parentElement.style.display = 'flex'; // إظهار التكلفة
     openModal('itemModal');
 }
 
+// 🔴 دالة السحر: حفظ المشتريات وتسميعها في المصروفات 🔴
 async function saveItem(e) {
     e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -218,12 +215,13 @@ async function saveItem(e) {
 
     try {
         if (itemId) {
-            delete data.qty; 
+            delete data.qty; // منع تعديل الكمية من نافذة التعديل العامة (يتم من نافذة الجرد فقط)
             await db.collection("Inventory").doc(itemId).update(data);
         } else {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection("Inventory").add(data);
 
+            // السحر المالي: تسجيل التكلفة كمصروفات
             if (initialCost > 0) {
                 const today = new Date().toISOString().split('T')[0];
                 await db.collection("Finances").add({
@@ -268,7 +266,7 @@ function openStockActionModal(id, name, currentQty, actionType) {
     if (actionType === 'add') {
         btnAdd.style.display = 'flex';
         btnConsume.style.display = 'none';
-        costContainer.style.display = 'block'; 
+        costContainer.style.display = 'block'; // إظهار التكلفة وقت التوريد
     } else {
         btnAdd.style.display = 'none';
         btnConsume.style.display = 'flex';
@@ -278,6 +276,7 @@ function openStockActionModal(id, name, currentQty, actionType) {
     openModal('stockActionModal');
 }
 
+// 🔴 دالة السحر: تعديل الرصيد وتسميع المصروفات 🔴
 async function executeStockAction(type) {
     const amount = Number(document.getElementById('stock_amount').value);
     const cost = Number(document.getElementById('stock_cost').value) || 0;
@@ -299,6 +298,7 @@ async function executeStockAction(type) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // السحر المالي: تسجيل التكلفة كمصروفات عند توريد شحنة جديدة
         if (type === 'add' && cost > 0) {
             const today = new Date().toISOString().split('T')[0];
             await db.collection("Finances").add({
@@ -525,11 +525,11 @@ window.addEventListener('click', function(e) {
         }
     }
 });
+
 // =======================================================
 // 🔴 Global Mobile Fixes (Responsive & Anti-Lag) 🔴
 // =======================================================
 (function applyGlobalMobileFixes() {
-    // 1. منع الزووم التلقائي اللي بيعمل تعليق (Lag) على الموبايل
     let viewport = document.querySelector("meta[name=viewport]");
     if (!viewport) {
         viewport = document.createElement('meta');
@@ -538,24 +538,18 @@ window.addEventListener('click', function(e) {
     }
     viewport.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0";
 
-    // 2. زرع أوامر الـ CSS الإجبارية للموبايل في كل الصفحات
     const mobileStyles = `
         @media (max-width: 768px) {
-            /* 1. منع خروج أي عنصر بره الشاشة (لمنع الكسر) */
             html, body { overflow-x: hidden !important; width: 100%; }
-
-            /* 2. إصلاح الجداول (سحب يمين وشمال بسلاسة) */
             .table-container {
                 overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch; /* نعومة السحب في الآيفون */
+                -webkit-overflow-scrolling: touch; 
                 width: 100% !important;
                 border: 0 !important;
                 box-shadow: none !important;
                 margin-bottom: 20px;
             }
-            table { min-width: 700px !important; } /* إجبار الجدول يفضل مفرود ويسكرول */
-
-            /* 3. تظبيط المودالات (النوافذ المنبثقة عشان متخرجش بره الشاشة) */
+            table { min-width: 700px !important; } 
             .modal-content {
                 width: 95% !important;
                 margin: 10px auto !important;
@@ -563,8 +557,6 @@ window.addEventListener('click', function(e) {
                 max-height: 90vh !important;
                 overflow-y: auto !important;
             }
-
-            /* 4. رص الكروت والزراير تحت بعض (لشاشات الإحصائيات والأزرار العلوية) */
             .kpi-grid, .stats-container {
                 display: flex !important;
                 flex-direction: column !important;
@@ -581,14 +573,10 @@ window.addEventListener('click', function(e) {
                 width: 100% !important;
                 margin-bottom: 5px !important;
             }
-
-            /* 5. شاشة الدخول (تسجيل الدخول والتفعيل) */
             .split-layout { flex-direction: column-reverse !important; }
             .form-side, .brand-side { width: 100% !important; min-height: auto !important; padding: 20px !important; }
-            
-            /* 6. إصلاح النوافذ اللي بتستخدم Grid أو Flex بالعرض */
             div[style*="display: grid"] { 
-                grid-template-columns: 1fr !important; /* خلي كل العواميد عمود واحد */
+                grid-template-columns: 1fr !important; 
             }
         }
     `;
