@@ -102,3 +102,48 @@ body { background-color: transparent; padding: 0; margin: 0; font-family: 'Tajaw
 [data-theme="dark"] .data-list-li { border-color: #334155 !important; }
 [data-theme="dark"] .data-list-li:hover { background: #334155 !important; }
 [data-theme="dark"] input, [data-theme="dark"] select { background: #0f172a !important; color: #f8fafc !important; border-color: #475569 !important; }
+
+/* ==========================================
+   🚀 تظبيط شكل القوائم المنسدلة (الخدمات والتعاقدات)
+   ========================================== */
+select#app_type, select#app_contract, select#es_procedure, select#es_contract {
+    appearance: none; /* إخفاء السهم التقليدي للمتصفح */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 15px;
+    padding-left: 40px; /* مساحة للسهم الجديد على الشمال لأننا RTL */
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: bold;
+    color: #0f172a;
+    width: 100%;
+    outline: none;
+    cursor: pointer;
+    /* سهم شيك جداً بصيغة SVG */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: left 15px center; /* السهم على الشمال */
+    background-size: 16px;
+    transition: all 0.3s ease;
+}
+
+select#app_type:focus, select#app_contract:focus, select#es_procedure:focus, select#es_contract:focus {
+    border-color: #0284c7;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+}
+
+/* تظبيط الدارك مود للقوائم */
+[data-theme="dark"] select#app_type, 
+[data-theme="dark"] select#app_contract, 
+[data-theme="dark"] select#es_procedure, 
+[data-theme="dark"] select#es_contract {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+    /* سهم بلون فاتح للدارك مود */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+}
