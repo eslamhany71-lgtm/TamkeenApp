@@ -1,3 +1,4 @@
+// js/finances.js
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId'); 
 let allTransactionsForEdit = []; 
@@ -15,8 +16,8 @@ function updatePageContent(lang) {
             thDate: "التاريخ والوقت", thType: "النوع", thCat: "البند", thAmount: "المبلغ", thNotes: "البيان", thAct: "إجراءات",
             mInc: "تسجيل إيراد جديد", mExp: "تسجيل مصروف جديد",
             lAmt: "المبلغ", lDate: "التاريخ", lCat: "البند", lNotes: "البيان / تفاصيل", btnSave: "حفظ العملية في الدفتر",
-            catInc1: "كشف / جلسة مريض", catInc2: "دفعة مقدمة", catInc3: "إيرادات أخرى",
-            catExp1: "مستلزمات طبية", catExp2: "معمل أسنان", catExp3: "رواتب ومكافآت", catExp4: "فواتير (كهرباء/إيجار)", catExp5: "مصروفات أخرى",
+            catInc1: "كشف / جلسة مريض", catInc2: "سداد مديونية", catInc3: "إيرادات أخرى",
+            catExp1: "مشتريات خامات ومخزون", catExp2: "مصروفات معمل", catExp3: "رواتب ومكافآت", catExp4: "فواتير (كهرباء/إيجار)", catExp5: "مصروفات أخرى",
             bInc: "إيراد", bExp: "مصروف", bDebt: "مديونية", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مطابقة للبحث.",
             lSearch: "بحث بالبيان أو الملاحظات", lType: "النوع", lDateFrom: "من تاريخ", lDateTo: "إلى تاريخ",
             optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", optDebt: "مديونيات", btnSearch: "🔍 بحث"
@@ -29,8 +30,8 @@ function updatePageContent(lang) {
             thDate: "Date & Time", thType: "Type", thCat: "Category", thAmount: "Amount", thNotes: "Notes", thAct: "Actions",
             mInc: "Record New Income", mExp: "Record New Expense",
             lAmt: "Amount", lDate: "Date", lCat: "Category", lNotes: "Details", btnSave: "Save Transaction",
-            catInc1: "Patient Session", catInc2: "Advance Payment", catInc3: "Other Income",
-            catExp1: "Medical Supplies", catExp2: "Dental Lab", catExp3: "Salaries", catExp4: "Bills (Rent/Utility)", catExp5: "Other Expenses",
+            catInc1: "Patient Session", catInc2: "Debt Payment", catInc3: "Other Income",
+            catExp1: "Inventory Purchase", catExp2: "Lab Expense", catExp3: "Salaries", catExp4: "Bills (Rent/Utility)", catExp5: "Other Expenses",
             bInc: "Income", bExp: "Expense", bDebt: "Debt", confDel: "Are you sure you want to delete?", empty: "No financial transactions match your search.",
             lSearch: "Search by Details", lType: "Type", lDateFrom: "From Date", lDateTo: "To Date",
             optAllTypes: "All", optInc: "Income", optExp: "Expense", optDebt: "Debts", btnSearch: "🔍 Search"
@@ -71,14 +72,25 @@ function setDefaultDates() {
 
 function setQuickFilter(type) {
     document.getElementById('filter_type').value = type;
-    document.getElementById('filter_method').value = 'all'; // تصفير طريقة الدفع عند النقر السريع
+    document.getElementById('filter_method').value = 'all'; 
+    
+    document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
     loadFinances();
+}
+
+// 🔴 دالة الضغط على كروت طرق الدفع العلوية 🔴
+function filterByMethodCard(method, element) {
+    document.getElementById('filter_method').value = method;
+    document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
+    if(element) element.classList.add('active-filter');
+    filterTransactionsLocally();
 }
 
 function resetFilters() {
     document.getElementById('search_text').value = '';
     document.getElementById('filter_type').value = 'all';
     document.getElementById('filter_method').value = 'all';
+    document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
     setDefaultDates();
     loadFinances();
 }
@@ -87,11 +99,12 @@ function openTransactionModal(type) {
     document.getElementById('transactionForm').reset();
     document.getElementById('trans_date').value = new Date().toISOString().split('T')[0];
     document.getElementById('trans_type').value = type;
-    document.getElementById('trans_method').value = 'cash'; // افتراضي كاش
+    document.getElementById('trans_method').value = 'cash'; 
     
     const select = document.getElementById('trans_category');
     select.innerHTML = '';
     
+    // 🔴 توحيد المسميات المحاسبية لتطابق أرقام الـ ERP الأوتوماتيك 🔴
     if (type === 'income') {
         document.getElementById('modal-title').innerText = window.finLang.mInc;
         select.innerHTML = `
@@ -131,7 +144,7 @@ async function saveTransaction(e) {
         amount: Number(document.getElementById('trans_amount').value),
         date: document.getElementById('trans_date').value,
         category: document.getElementById('trans_category').value,
-        paymentMethod: document.getElementById('trans_method').value, // 🔴 حفظ طريقة الدفع 🔴
+        paymentMethod: document.getElementById('trans_method').value, 
         notes: document.getElementById('trans_notes').value.trim(),
         isManual: true, 
         createdBy: currentUserDisplayName,
@@ -201,8 +214,6 @@ async function loadFinances() {
         currentDisplayedData = combinedData;
         
         filterTransactionsLocally();
-
-        // 🔴 حساب الأرصدة التراكمية (لكل طرق الدفع بشكل عام مش بالفترة) 🔴
         calculateOverallBalances();
 
     } catch (error) {
@@ -213,7 +224,7 @@ async function loadFinances() {
     }
 }
 
-// 🔴 حساب الرصيد الصافي للدرج والبنوك 🔴
+// 🔴 حساب الرصيد الصافي (يتم استبعاد الديون لإنها ورق مش فلوس حقيقية في الدرج) 🔴
 async function calculateOverallBalances() {
     if (!clinicId) return;
     try {
@@ -222,9 +233,10 @@ async function calculateOverallBalances() {
 
         snap.forEach(doc => {
             const d = doc.data();
-            const method = d.paymentMethod || 'cash'; // القديم نعتبره كاش
+            const method = d.paymentMethod || 'cash';
             const amt = Number(d.amount) || 0;
 
+            // استبعاد تام للديون من حسبة الخزنة الفعلية
             if (d.type === 'income') {
                 if (method === 'cash') netCash += amt;
                 else if (method === 'wallet') netWallet += amt;
@@ -247,7 +259,7 @@ async function calculateOverallBalances() {
 
 function filterTransactionsLocally() {
     const searchText = document.getElementById('search_text').value.trim().toLowerCase();
-    const filterMethod = document.getElementById('filter_method').value; // فلتر طريقة الدفع
+    const filterMethod = document.getElementById('filter_method').value; 
     
     let dataToRender = allTransactionsForEdit;
     
@@ -261,7 +273,6 @@ function filterTransactionsLocally() {
 
     if (filterMethod !== 'all') {
         dataToRender = dataToRender.filter(item => {
-            // القديم يعتبر cash
             const method = item.paymentMethod || 'cash';
             return method === filterMethod;
         });
@@ -319,7 +330,6 @@ function renderFinancesTable(dataArray) {
             createdByHtml = `<div style="margin-top: 5px;"><span style="background: #f1f5f9; color: #64748b; font-size: 11px; padding: 2px 6px; border-radius: 4px; border: 1px solid #e2e8f0;">👤 ${isAr ? 'بواسطة:' : 'By:'} ${f.createdBy}</span></div>`;
         }
 
-        // 🔴 ترجمة وعرض طريقة الدفع 🔴
         let methodHtml = '';
         const methodVal = f.paymentMethod || 'cash';
         if (methodVal === 'cash') methodHtml = '💵 نقدي';
@@ -358,6 +368,50 @@ function renderFinancesTable(dataArray) {
     
     if(document.getElementById('stat-debt')) {
         document.getElementById('stat-debt').innerText = totalDebt.toLocaleString();
+    }
+}
+
+// 🔴 دالة تقفيل الشيفت (طباعة ريسيت يومية الكاشير) 🔴
+async function printShiftClosure() {
+    const today = new Date().toISOString().split('T')[0];
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    
+    if (window.showLoader) window.showLoader(isAr ? "جاري تجميع حركات الدرج..." : "Calculating shift...");
+
+    try {
+        const snap = await db.collection("Finances")
+            .where("clinicId", "==", clinicId)
+            .where("date", "==", today)
+            .get();
+
+        let shiftCashIn = 0;
+        let shiftCashOut = 0;
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            const method = d.paymentMethod || 'cash';
+            
+            // بنحسب الكاش الفعلي اللي دخل الدرج واللي طلع منه النهارده بس
+            if (method === 'cash') {
+                if (d.type === 'income') shiftCashIn += Number(d.amount);
+                else if (d.type === 'expense') shiftCashOut += Number(d.amount);
+            }
+        });
+
+        const shiftNet = shiftCashIn - shiftCashOut;
+
+        document.getElementById('sh-date').innerText = new Date().toLocaleString('ar-EG');
+        document.getElementById('sh-user').innerText = currentUserDisplayName;
+        document.getElementById('sh-income').innerText = shiftCashIn + (isAr ? ' ج.م' : ' EGP');
+        document.getElementById('sh-expense').innerText = shiftCashOut + (isAr ? ' ج.م' : ' EGP');
+        document.getElementById('sh-net').innerText = shiftNet + (isAr ? ' ج.م' : ' EGP');
+
+        window.print();
+    } catch (e) {
+        console.error(e);
+        alert(isAr ? "خطأ في حساب الشيفت" : "Error calculating shift");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
