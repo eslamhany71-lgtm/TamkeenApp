@@ -27,6 +27,13 @@
         .sa-tab { padding: 10px 20px; font-size: 16px; font-weight: bold; color: #64748b; cursor: pointer; border-radius: 8px; transition: 0.3s; background: transparent; border: none; font-family: inherit;}
         .sa-tab.active { background: #0284c7; color: white; box-shadow: 0 4px 6px rgba(2,132,199,0.2);}
         .sa-tab:hover:not(.active) { background: #f1f5f9; color: #0f172a;}
+        
+        /* دعم الدارك مود الصارم */
+        [data-theme="dark"] .sa-tab { color: #94a3b8; }
+        [data-theme="dark"] .sa-tab:hover:not(.active) { background: #334155; color: #f8fafc; }
+        [data-theme="dark"] .status-online { background: #064e3b; border-color: #047857; color: #34d399; }
+        [data-theme="dark"] .btn-edit-price { background: #334155; border-color: #475569; color: #cbd5e1; }
+        [data-theme="dark"] .btn-edit-price:hover { background: #475569; color: #38bdf8; }
     </style>
 </head>
 <body>
@@ -40,7 +47,7 @@
             <input type="text" id="searchInput" class="search-box" onkeyup="filterClinics()" placeholder="بحث باسم العيادة أو البريد...">
             
             <button class="btn-primary btn-nurse" onclick="openUserModal()">
-                <span>👩‍⚕️</span> <span id="btn-add-user">توليد كود دعوة لممرضة</span>
+                <span>👨‍⚕️</span> <span id="btn-add-user">توليد كود دعوة موظف</span>
             </button>
 
             <button class="btn-primary" onclick="openClinicModal()">
@@ -75,7 +82,7 @@
                 <tr>
                     <th id="th-date">تاريخ الاشتراك</th>
                     <th id="th-next-pay">ميعاد التجديد / الانتهاء</th>
-                    <th id="th-name">اسم العيادة</th>
+                    <th id="th-name">اسم العيادة / الباقة</th>
                     <th id="th-email">إيميل الأدمن (الدكتور)</th>
                     <th id="th-status">حالة الحساب</th>
                     <th id="th-action" style="text-align: center;">إجراءات</th>
@@ -87,48 +94,57 @@
         </table>
     </div>
 
+    <!-- مودال تفاصيل العيادة -->
     <div id="clinicDetailsModal" class="modal">
         <div class="modal-content" style="max-width: 900px;">
             <span class="close-modal" onclick="closeClinicDetailsModal()">&times;</span>
             <h2 id="mod-det-title" style="margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; color: #0f172a;">تفاصيل العيادة والمستخدمين</h2>
             
-            <div class="details-grid">
-                <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">اسم العيادة</strong> <span id="det-clinic-name" style="font-weight: bold; color: #0f172a; font-size: 16px;">---</span></div>
-                <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">كود العيادة الرئيسي</strong> <span id="det-clinic-code" style="color: #0284c7; font-weight: bold; background: #e0f2fe; padding: 2px 8px; border-radius: 6px;">---</span></div>
-                <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">إيميل الأدمن المسجل</strong> <span id="det-clinic-email" dir="ltr" style="color: #475569; font-weight: bold;">---</span></div>
-                <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">رقم الموبايل الأساسي</strong> <span id="det-clinic-phone" dir="ltr" style="color: #475569; font-weight: bold;">---</span></div>
-                <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">نوع الباقة</strong> <span id="det-clinic-pkg" style="color: #10b981; font-weight: bold;">---</span></div>
-                <div><strong style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">تاريخ الإنشاء</strong> <span id="det-clinic-created" style="color: #0f172a; font-weight: bold;" dir="ltr">---</span></div>
+            <div class="details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div><strong id="lbl-det-name" style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">اسم العيادة</strong> <span id="det-clinic-name" style="font-weight: bold; color: #0f172a; font-size: 16px;">---</span></div>
+                <div><strong id="lbl-det-code" style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">كود العيادة الرئيسي</strong> <span id="det-clinic-code" style="color: #0284c7; font-weight: bold; background: #e0f2fe; padding: 2px 8px; border-radius: 6px;">---</span></div>
+                <div><strong id="lbl-det-email" style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">إيميل الأدمن المسجل</strong> <span id="det-clinic-email" dir="ltr" style="color: #475569; font-weight: bold;">---</span></div>
+                <div><strong id="lbl-det-phone" style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">رقم الموبايل الأساسي</strong> <span id="det-clinic-phone" dir="ltr" style="color: #475569; font-weight: bold;">---</span></div>
+                <div><strong id="lbl-det-pkg" style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">نوع الباقة</strong> <span id="det-clinic-pkg" style="color: #10b981; font-weight: bold;">---</span></div>
+                <div><strong id="lbl-det-created" style="color: #64748b; font-size: 13px; display: block; margin-bottom: 4px;">تاريخ الإنشاء</strong> <span id="det-clinic-created" style="color: #0f172a; font-weight: bold;" dir="ltr">---</span></div>
                 
-                <div class="price-box">
-                    <strong style="color: #d97706; font-size: 13px; display: inline-block; margin-bottom: 4px;">قيمة الاشتراك المتفق عليها:</strong> 
+                <!-- 🔴 عرض الحد الأقصى للموظفين 🔴 -->
+                <div style="background: #fffbeb; padding: 10px; border-radius: 8px; border: 1px dashed #f59e0b;">
+                    <strong id="lbl-det-limit" style="color: #d97706; font-size: 13px; display: block; margin-bottom: 4px;">الحد الأقصى للمستخدمين:</strong> 
+                    <span id="det-clinic-limit" style="color: #b45309; font-weight: bold; font-size: 16px;">0</span>
+                    <button class="btn-edit-price" onclick="editClinicUsersLimit()" title="تعديل الحد الأقصى">✏️</button>
+                </div>
+
+                <div class="price-box" style="grid-column: 1 / -1;">
+                    <strong id="lbl-det-price" style="color: #d97706; font-size: 13px; display: inline-block; margin-bottom: 4px;">قيمة الاشتراك المتفق عليها:</strong> 
                     <span id="det-clinic-price" style="color: #0f172a; font-weight: bold; font-size: 16px; margin-inline-start: 5px;">0</span> <span style="font-size: 12px; color: #64748b;">ج.م</span>
                     <button class="btn-edit-price" id="btn-edit-clinic-price" onclick="editClinicPrice()" title="تعديل السعر">✏️ تعديل</button>
                     <input type="hidden" id="current-det-clinic-id">
                 </div>
             </div>
 
-            <h3 style="margin-top: 0; color: #0f172a; font-size: 18px; margin-bottom: 15px;">👥 فريق العمل والمستخدمين</h3>
+            <h3 id="txt-team-title" style="margin-top: 0; color: #0f172a; font-size: 18px; margin-bottom: 15px;">👥 فريق العمل والمستخدمين</h3>
             <div class="table-container" style="max-height: 350px; overflow-y: auto; margin-top: 0; box-shadow: none; border: 1px solid #e2e8f0; padding: 0;">
                 <table style="width: 100%; margin: 0; min-width: 600px;">
                     <thead style="position: sticky; top: 0; z-index: 1;">
                         <tr>
-                            <th style="background: #f1f5f9;">اسم المستخدم</th>
-                            <th style="background: #f1f5f9;">البريد / الكود</th>
-                            <th style="background: #f1f5f9;">الصلاحية</th>
-                            <th style="background: #f1f5f9; text-align: center;">تاريخ الانضمام</th>
-                            <th style="background: #f1f5f9; text-align: center;">متصل الآن؟</th>
-                            <th style="background: #f1f5f9;">آخر ظهور</th>
+                            <th id="th-u-name" style="background: #f1f5f9;">اسم المستخدم</th>
+                            <th id="th-u-email" style="background: #f1f5f9;">البريد / الكود</th>
+                            <th id="th-u-role" style="background: #f1f5f9;">الصلاحية</th>
+                            <th id="th-u-date" style="background: #f1f5f9; text-align: center;">تاريخ الانضمام</th>
+                            <th id="th-u-online" style="background: #f1f5f9; text-align: center;">متصل الآن؟</th>
+                            <th id="th-u-last" style="background: #f1f5f9;">آخر ظهور</th>
                         </tr>
                     </thead>
                     <tbody id="det-users-body">
-                        <tr><td colspan="6" style="text-align: center;">جاري تحميل المستخدمين...</td></tr>
+                        <tr><td colspan="6" style="text-align: center;" id="txt-u-load">جاري تحميل المستخدمين...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
+    <!-- مودال إضافة عيادة جديدة -->
     <div id="clinicModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeClinicModal()">&times;</span>
@@ -151,7 +167,7 @@
                     <input type="tel" id="clinic_phone" required dir="ltr" style="text-align: left;" placeholder="01xxxxxxxxx">
                 </div>
 
-                <div class="grid-2col">
+                <div class="grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="form-group">
                         <label id="lbl-c-pkg">باقة الاشتراك</label>
                         <select id="clinic_package">
@@ -168,12 +184,21 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label id="lbl-c-plan">حالة الحساب</label>
-                    <select id="clinic_plan">
-                        <option value="active" id="opt-active">نشط (Active)</option>
-                        <option value="suspended" id="opt-susp">موقوف (Suspended)</option>
-                    </select>
+                <div class="grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <!-- 🔴 إضافة حقل ليمت المستخدمين 🔴 -->
+                    <div class="form-group">
+                        <label id="lbl-c-limit">الحد الأقصى للمستخدمين (الموظفين)</label>
+                        <input type="number" id="clinic_max_users" value="3" min="1" required style="border: 2px solid #8b5cf6;">
+                        <small style="color: #64748b; font-size: 11px;" id="hint-c-limit">شاملاً حساب الدكتور المالك</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label id="lbl-c-plan">حالة الحساب</label>
+                        <select id="clinic_plan">
+                            <option value="active" id="opt-active">نشط (Active)</option>
+                            <option value="suspended" id="opt-susp">موقوف (Suspended)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button type="submit" id="btn-save" class="btn-primary" style="width: 100%; margin-top: 10px; justify-content: center;">إنشاء العيادة وتوليد المعرف</button>
@@ -181,37 +206,43 @@
         </div>
     </div>
 
+    <!-- مودال توليد كود دعوة عام -->
     <div id="userModal" class="modal">
         <div class="modal-content" style="max-width: 450px;">
             <span class="close-modal" onclick="closeUserModal()">&times;</span>
-            <h2 style="margin-top: 0; margin-bottom: 20px;">توليد كود دعوة (لممرضة)</h2>
-            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.5;">اختر العيادة واكتب اسم الموظف، وسيقوم النظام بتوليد كود يمكنه من خلاله تفعيل حسابه.</p>
+            <h2 id="mod-user-title" style="margin-top: 0; margin-bottom: 20px;">توليد كود دعوة مستخدم</h2>
+            <p id="mod-user-sub" style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.5;">اختر العيادة والوظيفة لتوليد كود (يعمل كـ Override في حالة الطوارئ).</p>
             
             <form id="userForm" onsubmit="saveNewUser(event)">
                 <div class="form-group">
-                    <label>العيادة التابعة لها</label>
+                    <label id="lbl-u-clinic">العيادة التابعة لها</label>
                     <select id="user_clinic" required>
                         <option value="">جاري تحميل العيادات...</option>
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label>اسم المستخدم / الممرضة</label>
+                    <label id="lbl-u-name">اسم المستخدم</label>
                     <input type="text" id="user_name" required placeholder="مثال: منى أحمد">
                 </div>
 
+                <!-- 🔴 توفير 4 رولز أساسية 🔴 -->
                 <div class="form-group">
-                    <label>الصلاحية الممنوحة</label>
-                    <select id="user_role" disabled>
-                        <option value="nurse" selected>ممرضة (Nurse) - صلاحيات محدودة</option>
+                    <label id="lbl-u-role">الصلاحية الممنوحة (Role)</label>
+                    <select id="user_role" required>
+                        <option value="admin" id="opt-u-admin">مدير نظام (Doctor/Admin)</option>
+                        <option value="doctor" id="opt-u-doc">طبيب (صلاحية محدودة)</option>
+                        <option value="receptionist" id="opt-u-rec">موظف استقبال</option>
+                        <option value="nurse" id="opt-u-nur" selected>مساعد / ممرضة</option>
                     </select>
                 </div>
 
-                <button type="submit" class="btn-primary btn-nurse" style="width: 100%; margin-top: 10px; justify-content: center; font-size: 16px;">توليد كود الدعوة</button>
+                <button type="submit" id="btn-submit-user" class="btn-primary btn-nurse" style="width: 100%; margin-top: 10px; justify-content: center; font-size: 16px;">توليد كود الدعوة</button>
             </form>
         </div>
     </div>
 
+    <!-- مودال الترقية -->
     <div id="upgradeTrialModal" class="modal">
         <div class="modal-content" style="max-width: 450px;">
             <span class="close-modal" onclick="closeUpgradeTrialModal()">&times;</span>
@@ -224,17 +255,25 @@
                 <input type="hidden" id="upg_admin_email">
                 <input type="hidden" id="upg_admin_phone">
 
-                <div class="form-group">
-                    <label id="lbl-upg-pkg">باقة الاشتراك</label>
-                    <select id="upg_package" required>
-                        <option value="monthly" id="opt-upg-month" selected>شهري (Monthly)</option>
-                        <option value="yearly" id="opt-upg-year">سنوي (Yearly)</option>
-                    </select>
+                <div class="grid-2col" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label id="lbl-upg-pkg">باقة الاشتراك</label>
+                        <select id="upg_package" required>
+                            <option value="monthly" id="opt-upg-month" selected>شهري (Monthly)</option>
+                            <option value="yearly" id="opt-upg-year">سنوي (Yearly)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label id="lbl-upg-price">الاشتراك (ج.م)</label>
+                        <input type="number" id="upg_price" required placeholder="مثال: 500" min="0">
+                    </div>
                 </div>
-                
+
+                <!-- 🔴 ليمت الترقية 🔴 -->
                 <div class="form-group">
-                    <label id="lbl-upg-price">قيمة الاشتراك (ج.م)</label>
-                    <input type="number" id="upg_price" required placeholder="مثال: 500" min="0">
+                    <label id="lbl-upg-limit">الحد الأقصى للمستخدمين بالباقة الجديدة</label>
+                    <input type="number" id="upg_max_users" required value="5" min="1" style="border: 2px solid #10b981;">
                 </div>
 
                 <button type="submit" id="btn-confirm-upgrade" class="btn-primary" style="width: 100%; margin-top: 10px; justify-content: center; background: #10b981; border: none; font-size: 16px;">تأكيد الترقية وتوليد الكود</button>
