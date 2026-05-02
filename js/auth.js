@@ -185,14 +185,15 @@ async function registerTrialAccount(e) {
         const actualEmail = userCredential.user.email;
 
         const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 3);
+        expirationDate.setDate(expirationDate.getDate() + 29); // 🔴 تم التعديل لـ 29 يوم 🔴
 
         const clinicRef = await db.collection("Clinics").add({
             clinicName: clinicName,
             adminEmail: actualEmail,
             phone1: phone,
             status: 'active',
-            planType: 'trial_3_days', 
+            planType: 'trial_29_days', // 🔴 تم التعديل 🔴
+            maxUsers: 2, 
             nextPaymentDate: firebase.firestore.Timestamp.fromDate(expirationDate),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -482,12 +483,12 @@ function updatePageContent(lang) {
             brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة",
             
             staffInvite: "🔑 لدي كود دعوة (تفعيل حساب موظف)",
-            btnTrialTxt: "ابدأ فترة تجريبية مجانية (3 أيام)",
+            btnTrialTxt: "ابدأ فترة تجريبية مجانية (29 أيام)",
             copyright: `© ${currentYear} Al Dokan ERP. جميع الحقوق محفوظة.`,
             privacy: "سياسة الخصوصية والتأمين (Privacy Policy)",
             poweredBy: "Powered by",
             mTrialTitle: "🚀 إنشاء حساب تجريبي",
-            mTrialSub: "جرب النظام بكامل مميزاته مجاناً لمدة 3 أيام",
+            mTrialSub: "جرب النظام بكامل مميزاته مجاناً لمدة 29 أيام",
             lTClinic: "اسم العيادة", pTClinic: "مثال: عيادة النور لطب الأسنان",
             lTAdmin: "اسم الطبيب / المدير", pTAdmin: "الاسم بالكامل",
             lTPhone: "رقم الموبايل للتواصل", pTPhone: "01xxxxxxxxx",
@@ -519,12 +520,12 @@ function updatePageContent(lang) {
             brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address",
             
             staffInvite: "🔑 I have an invite code (Staff)",
-            btnTrialTxt: "Start Free Trial (3 Days)",
+            btnTrialTxt: "Start Free Trial (29 Days)",
             copyright: `© ${currentYear} Al Dokan ERP. All rights reserved.`,
             privacy: "Privacy Policy & Security",
             poweredBy: "Powered by",
             mTrialTitle: "🚀 Create Trial Account",
-            mTrialSub: "Try full features free for 3 days",
+            mTrialSub: "Try full features free for 29 days",
             lTClinic: "Clinic Name", pTClinic: "e.g., Al-Nour Dental Clinic",
             lTAdmin: "Doctor / Admin Name", pTAdmin: "Full Name",
             lTPhone: "Contact Phone", pTPhone: "01xxxxxxxxx",
