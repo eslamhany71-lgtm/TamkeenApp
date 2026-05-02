@@ -6,7 +6,6 @@ let allPatients = [];
 let selectedPatient = null;
 let patientSessions = [];
 
-// 🔴 1. تحميل قائمة المرضى للبحث السريع 🔴
 async function loadPatients() {
     if (!clinicId) return;
     const snap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
@@ -42,7 +41,6 @@ function searchPatientsForInvoice() {
     });
 }
 
-// 🔴 2. اختيار مريض وجلب كشف حسابه 🔴
 async function selectPatientForInvoice(patient, element) {
     document.querySelectorAll('.patient-result-item').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
@@ -66,10 +64,10 @@ async function selectPatientForInvoice(patient, element) {
     }
 }
 
-// 🔴 3. رسم الفاتورة (كشف الحساب) 🔴
 function renderInvoice() {
     const placeholder = document.getElementById('invoicePlaceholder');
     const content = document.getElementById('invoiceContent');
+    const printArea = document.getElementById('actualPrintArea');
     
     placeholder.style.display = 'none';
     content.style.display = 'block';
@@ -105,17 +103,17 @@ function renderInvoice() {
             </div>
             <div style="text-align: left;">
                 <p style="margin:0;">التاريخ: <strong>${new Date().toLocaleDateString('ar-EG')}</strong></p>
-                <p style="margin:5px 0;">رقم الفاتورة: <strong>INV-${Math.floor(1000 + Math.random() * 9000)}</strong></p>
+                <p style="margin:5px 0;">رقم الفاتورة: <strong dir="ltr">INV-${Math.floor(1000 + Math.random() * 9000)}</strong></p>
             </div>
         </div>
 
-        <div style="margin-bottom: 30px; display: flex; justify-content: space-between; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+        <div class="patient-info-box" style="margin-bottom: 30px; display: flex; justify-content: space-between; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
             <div>
                 <span style="color: #64748b; font-size: 14px;">السيد المريض / Patient Name</span>
                 <h2 style="margin: 5px 0; color: #0f172a;">${selectedPatient.name}</h2>
                 <span dir="ltr">📞 ${selectedPatient.phone || '---'}</span>
             </div>
-            <div id="invoice-qr" style="background: white; padding: 5px; border-radius: 8px; border: 1px solid #cbd5e1;"></div>
+            <div class="invoice-qr" style="background: white; padding: 5px; border-radius: 8px; border: 1px solid #cbd5e1;"></div>
         </div>
 
         <table class="bill-table">
@@ -137,7 +135,7 @@ function renderInvoice() {
             <div class="total-box">
                 <div class="total-row"><span>إجمالي الخدمات:</span> <span>${totalBill} ج.م</span></div>
                 <div class="total-row"><span>إجمالي المدفوعات:</span> <span style="color:#10b981;">${totalPaid} ج.م</span></div>
-                <div class="total-row" style="border-top:1px dashed #94a3b8; padding-top:10px; margin-top:10px; font-size:20px; font-weight:900;">
+                <div class="total-row final-debt" style="border-top:1px dashed #ffffff55; padding-top:10px; margin-top:10px; font-size:20px; font-weight:900;">
                     <span>صافي المديونية:</span> <span>${totalDebt} ج.م</span>
                 </div>
             </div>
@@ -148,27 +146,26 @@ function renderInvoice() {
         </div>
     `;
 
+    // حقن الفاتورة في العرض والطباعة
     content.innerHTML = invoiceHTML;
-    document.getElementById('actualPrintArea').innerHTML = invoiceHTML; 
+    printArea.innerHTML = invoiceHTML;
 
-    // 🔴 حل مشكلة الـ QR Code Overflow للنصوص العربية 🔴
-    const qrContainer = document.getElementById("invoice-qr");
-    qrContainer.innerHTML = ""; 
+    // 🔴 حل مشكلة الباركود: استخدام ID المريض وقيمة إنجليزية قصيرة لتجنب الخطأ 🔴
+    const qrText = `ID:${selectedPatient.id} | Debt:${totalDebt}`;
     
-    let qrText = `Patient: ${selectedPatient.name} | Debt: ${totalDebt} | Clinic: NivaDent`;
-    let safeText = qrText;
-    try { 
-        safeText = unescape(encodeURIComponent(qrText)); 
-    } catch(e) {}
+    // رسم الـ QR في شاشة العرض
+    const displayQrContainer = content.querySelector('.invoice-qr');
+    if(displayQrContainer) {
+        displayQrContainer.innerHTML = '';
+        new QRCode(displayQrContainer, { text: qrText, width: 80, height: 80, correctLevel : QRCode.CorrectLevel.L });
+    }
 
-    new QRCode(qrContainer, {
-        text: safeText,
-        width: 80,
-        height: 80,
-        colorDark : "#0f172a",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.L
-    });
+    // رسم الـ QR في شاشة الطباعة
+    const printQrContainer = printArea.querySelector('.invoice-qr');
+    if(printQrContainer) {
+        printQrContainer.innerHTML = '';
+        new QRCode(printQrContainer, { text: qrText, width: 80, height: 80, correctLevel : QRCode.CorrectLevel.L });
+    }
 }
 
 window.onload = () => {
