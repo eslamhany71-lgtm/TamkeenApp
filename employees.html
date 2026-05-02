@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>إدارة الموظفين | NivaDent HR</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/finances.css?v=' + currentHour + '">'); // هنستخدم نفس تنسيق الماليات الجاهز
+    </script>
+    <link rel="icon" href="data:,">
+
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        .role-badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid transparent; }
+        .role-admin { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+        .role-doctor { background: #e0f2fe; color: #0284c7; border-color: #bae6fd; }
+        .role-reception { background: #fef3c7; color: #d97706; border-color: #fde68a; }
+        .role-nurse { background: #f3e8ff; color: #7c3aed; border-color: #d8b4fe; }
+        
+        .status-active { color: #10b981; font-weight: bold; }
+        .status-inactive { color: #ef4444; font-weight: bold; text-decoration: line-through; }
+    </style>
+</head>
+<body>
+
+    <div class="page-header no-print">
+        <div class="page-title">
+            <h1>شؤون الموظفين والصلاحيات</h1>
+            <p>إضافة فريق العمل، تحديد الصلاحيات، وإدارة الرواتب والنسب</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-primary" onclick="openEmployeeModal()">
+                <span>➕</span> <span>إضافة موظف / طبيب جديد</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="kpi-grid no-print" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
+        <div class="kpi-card" style="border-right: 4px solid #0284c7; background: #f0f9ff;">
+            <div class="kpi-info"><h4 style="color: #0369a1;">إجمالي الموظفين</h4><h2 id="stat-total-emps" style="color: #0284c7;">0</h2></div>
+            <div class="kpi-icon" style="background: #e0f2fe; color: #0284c7;">👥</div>
+        </div>
+        <div class="kpi-card" style="border-right: 4px solid #10b981; background: #ecfdf5;">
+            <div class="kpi-info"><h4 style="color: #047857;">موظفون نشطون</h4><h2 id="stat-active-emps" style="color: #10b981;">0</h2></div>
+            <div class="kpi-icon" style="background: #d1fae5; color: #10b981;">✅</div>
+        </div>
+        <div class="kpi-card" style="border-right: 4px solid #f59e0b; background: #fffbeb;">
+            <div class="kpi-info"><h4 style="color: #b45309;">إجمالي الرواتب (الثابتة)</h4><h2 id="stat-total-salaries" style="color: #d97706;">0</h2></div>
+            <div class="kpi-icon" style="background: #fef08a; color: #d97706;">💰</div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <div class="table-header" style="flex-direction: column; align-items: stretch; gap: 15px; background: white;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                <input type="text" id="search_emp" class="search-box" style="flex: 2; min-width: 200px;" oninput="searchEmployees()" placeholder="ابحث بالاسم، الموبايل، أو الإيميل...">
+                <select id="filter_role" class="search-box" style="flex: 1; min-width: 150px;" onchange="searchEmployees()">
+                    <option value="all">كل الوظائف</option>
+                    <option value="admin">مدير نظام</option>
+                    <option value="doctor">طبيب (نسبة / راتب)</option>
+                    <option value="receptionist">موظف استقبال</option>
+                    <option value="nurse">مساعد / ممرض</option>
+                </select>
+            </div>
+        </div>
+        
+        <table id="employeesTable">
+            <thead>
+                <tr>
+                    <th>الاسم والبيانات</th>
+                    <th>الوظيفة والصلاحية</th>
+                    <th>نظام المحاسبة</th>
+                    <th>الراتب / النسبة</th>
+                    <th style="text-align: center;">الحالة</th>
+                    <th style="text-align: center;">إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="employeesBody">
+                <tr><td colspan="6" style="text-align: center;">جاري تحميل بيانات الموظفين...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal إضافة / تعديل موظف -->
+    <div id="employeeModal" class="modal no-print">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close-modal" onclick="closeModal('employeeModal')">&times;</span>
+            <h2 id="modal-title" style="margin-top: 0; margin-bottom: 20px;">تسجيل موظف جديد</h2>
+            
+            <form onsubmit="saveEmployee(event)">
+                <input type="hidden" id="emp_id"> 
+                
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label>اسم الموظف / الطبيب <span style="color:red;">*</span></label>
+                        <input type="text" id="emp_name" class="search-box" required placeholder="الاسم ثلاثي">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label>رقم الموبايل</label>
+                        <input type="text" id="emp_phone" class="search-box" dir="ltr">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>البريد الإلكتروني (يُستخدم لتسجيل الدخول) <span style="color:red;">*</span></label>
+                    <input type="email" id="emp_email" class="search-box" required dir="ltr" placeholder="example@clinic.com">
+                    <small style="color: #64748b;">ملاحظة: يجب على الموظف إنشاء حساب بنفس هذا الإيميل ليتمكن من الدخول بالصلاحيات المحددة.</small>
+                </div>
+
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label>الوظيفة (الصلاحيات) <span style="color:red;">*</span></label>
+                        <select id="emp_role" class="search-box" required>
+                            <option value="receptionist">موظف استقبال (إدارة المرضى والمواعيد)</option>
+                            <option value="doctor">طبيب (معاينة الجلسات الخاصة به)</option>
+                            <option value="nurse">مساعد / تمريض (صلاحيات محدودة)</option>
+                            <option value="admin">مدير نظام (صلاحيات كاملة)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 200px;">
+                        <label>حالة الموظف</label>
+                        <select id="emp_status" class="search-box" required>
+                            <option value="active">نشط (يعمل حالياً)</option>
+                            <option value="inactive">موقوف / مستقيل (لا يمكنه الدخول)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h3 style="margin-top: 0; font-size: 16px; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;">نظام المحاسبة المالية</h3>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px;">
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                            <label>الراتب الأساسي الثابت (ج.م)</label>
+                            <input type="number" id="emp_salary" class="search-box" min="0" value="0">
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                            <label>نسبة العمولة من الجلسات (%)</label>
+                            <input type="number" id="emp_commission" class="search-box" min="0" max="100" value="0" placeholder="مثال: 30 أو 40">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-save" class="btn-primary" style="width: 100%; justify-content: center; font-size: 16px; padding: 12px; background: #0284c7;">حفظ بيانات الموظف</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/employees.js"></script>
+</body>
+</html>
