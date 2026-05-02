@@ -21,6 +21,7 @@ let currentLang = localStorage.getItem('preferredLang') || 'ar';
 // 🔴 متغيرات الـ ERP 
 let erpServices = [];
 let erpContracts = [];
+let clinicInventory = []; // المخزون للصرف التلقائي
 
 // ==========================================
 // 🔴 الترجمة الكاملة (Localization) 🔴
@@ -151,6 +152,23 @@ async function loadSessionDetails() {
             document.getElementById('sd-remaining').innerText = sessionData.remaining || 0;
             document.getElementById('sd-notes').innerText = sessionData.notes || (getLang() ? 'لا يوجد' : 'None');
 
+            // 🔴 عرض قائمة المستهلكات المسحوبة من المخزن 🔴
+            const matList = document.getElementById('session_materials_list');
+            if(matList) {
+                matList.innerHTML = '';
+                const used = sessionData.usedMaterials || [];
+                if(used.length === 0) {
+                    matList.innerHTML = `<li style="color:#64748b; font-size:14px; text-align:center; padding:10px;">لا يوجد مستهلكات تم سحبها.</li>`;
+                } else {
+                    used.forEach(m => {
+                        matList.innerHTML += `<li style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:#fff; border:1px solid #e2e8f0; margin-bottom:5px; border-radius:8px;">
+                            <span><strong style="color:#0f172a; font-size:15px;">${m.name}</strong> <span style="color:#8b5cf6; font-weight:bold;">(${m.qty} وحدة)</span></span>
+                            <button onclick="removeSessionMaterial('${m.id}', '${m.name}', ${m.qty}, '${m.consumedAt}')" style="background:#fee2e2; border:1px solid #fca5a5; color:#ef4444; border-radius:6px; cursor:pointer; padding:4px 8px; font-weight:bold; font-size:12px;">إلغاء الصرف ↩️</button>
+                        </li>`;
+                    });
+                }
+            }
+
             if (typeof updateChartWithData === "function") {
                 updateChartWithData(sessionData.dentalChart || {});
             }
@@ -195,6 +213,7 @@ async function loadSessionDetails() {
         }
     });
 
+    loadClinicInventory(); // 🔴 تحميل المخزون لعملية الصرف التلقائي
     loadSessionXRays();
     loadSessionPrescription();
     loadClinicPharmacy();
@@ -204,6 +223,65 @@ async function loadSessionDetails() {
         setTimeout(buildAdvancedDentalChart, 300); 
     }
 }
+
+// 🔴 دالة السحب التلقائي من المخزن 🔴
+function loadClinicInventory() {
+    db.collection("Inventory").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        clinicInventory = [];
+        const sel = document.getElementById('inv_item_select');
+        if(!sel) return;
+        sel.innerHTML = '<option value="">اختر الخامة المستهلكة...</option>';
+        snap.forEach(doc => {
+            const data = doc.data();
+            clinicInventory.push({ id: doc.id, ...data });
+            if(data.qty > 0) {
+                sel.innerHTML += `<option value="${doc.id}">${data.name} (المتاح بالمخزن: ${data.qty})</option>`;
+            }
+        });
+    });
+}
+
+async function consumeSessionMaterial() {
+    const sel = document.getElementById('inv_item_select');
+    const qtyInput = document.getElementById('inv_item_qty');
+    if(!sel || !qtyInput) return;
+    const itemId = sel.value;
+    const qty = Number(qtyInput.value) || 0;
+
+    if(!itemId || qty <= 0) { alert(getLang() ? "برجاء اختيار الصنف وتحديد الكمية!" : "Select item and valid quantity."); return; }
+
+    const item = clinicInventory.find(i => i.id === itemId);
+    if(!item || item.qty < qty) { alert(getLang() ? "الكمية المتاحة في المخزن لا تكفي!" : "Not enough stock in inventory!"); return; }
+
+    if (window.showLoader) window.showLoader(getLang() ? "جاري سحب الكمية من المخزن..." : "Deducting from stock...");
+
+    const materialObj = { id: itemId, name: item.name, qty: qty, consumedAt: new Date().toISOString() };
+
+    try {
+        const batch = db.batch();
+        batch.update(db.collection("Inventory").doc(itemId), { qty: firebase.firestore.FieldValue.increment(-qty) });
+        batch.update(db.collection("Sessions").doc(sessionId), { usedMaterials: firebase.firestore.FieldValue.arrayUnion(materialObj) });
+        await batch.commit();
+
+        sel.value = ''; qtyInput.value = '1';
+    } catch(e) { console.error(e); }
+    finally { if(window.hideLoader) window.hideLoader(); }
+}
+
+async function removeSessionMaterial(itemId, itemName, qty, consumedAt) {
+    if(!confirm(getLang() ? "هل تريد إلغاء صرف هذه الخامة وإرجاعها للمخزن؟" : "Undo deduction and return to stock?")) return;
+
+    if (window.showLoader) window.showLoader(getLang() ? "جاري الإرجاع للمخزن..." : "Returning to stock...");
+    try {
+        const materialObj = { id: itemId, name: itemName, qty: qty, consumedAt: consumedAt };
+        const batch = db.batch();
+        batch.update(db.collection("Inventory").doc(itemId), { qty: firebase.firestore.FieldValue.increment(qty) });
+        batch.update(db.collection("Sessions").doc(sessionId), { usedMaterials: firebase.firestore.FieldValue.arrayRemove(materialObj) });
+        await batch.commit();
+    } catch(e) { console.error(e); }
+    finally { if(window.hideLoader) window.hideLoader(); }
+}
+// 🔴 نهاية أكواد صرف المخزون 🔴
 
 function openEditSessionModal() {
     if(!sessionData) return;
@@ -817,7 +895,6 @@ async function deleteDoc(collectionName, docId) {
     }
 }
 
-// 🔴 دالة حقن عناصر الـ ERP أوتوماتيكياً في فاتورة الدكتور 🔴
 function setupERPSessionInputs() {
     const procInput = document.getElementById('es_procedure');
     if (procInput && procInput.tagName === 'INPUT') {
