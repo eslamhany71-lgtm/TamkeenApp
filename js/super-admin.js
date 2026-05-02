@@ -138,7 +138,8 @@ async function openClinicDetailsModal(clinicId) {
     let pkgLabel = '';
     if(clinic.package === 'trial_7') pkgLabel = isAr ? 'تجريبي 7 أيام' : 'Trial 7 Days';
     else if(clinic.package === 'trial_14') pkgLabel = isAr ? 'تجريبي 14 يوم' : 'Trial 14 Days';
-    else if(clinic.planType === 'trial_3_days') pkgLabel = isAr ? 'تجريبي (3 أيام)' : 'Trial (3 Days)'; 
+    // استبدل السطر القديم بالسطر ده (ضفنا trial_29_days)
+    else if(clinic.planType === 'trial_29_days' || clinic.planType === 'trial_3_days') pkgLabel = isAr ? 'تجريبي (29 يوم)' : 'Trial (29 Days)'; 
     else if(clinic.package === 'yearly') pkgLabel = isAr ? 'اشتراك سنوي' : 'Yearly';
     else pkgLabel = isAr ? 'اشتراك شهري' : 'Monthly';
 
@@ -551,8 +552,9 @@ function renderClinicsTable() {
     const now = new Date();
 
     const filteredClinics = allClinicsList.filter(c => {
-        if (currentActiveTab === 'trials') return c.planType === 'trial_3_days';
-        return c.planType !== 'trial_3_days'; 
+        // 🔴 عشان تظهر في تابة التجارب المجانية 🔴
+        if (currentActiveTab === 'trials') return c.planType === 'trial_29_days' || c.planType === 'trial_3_days';
+        return c.planType !== 'trial_29_days' && c.planType !== 'trial_3_days'; 
     });
 
     if (filteredClinics.length === 0) {
