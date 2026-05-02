@@ -1,4 +1,4 @@
-// js/employees.js
+// js/hr.js
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId');
 
@@ -41,7 +41,7 @@ async function loadEmployees() {
             document.getElementById('stat-active-emps').innerText = activeCount;
             document.getElementById('stat-total-salaries').innerText = totalSalaries.toLocaleString() + ' ج.م';
 
-            searchEmployees(); // لعرض الداتا وتطبيق الفلاتر إن وجدت
+            searchEmployees(); 
         });
     } catch (e) {
         console.error(e);
@@ -82,7 +82,6 @@ function renderEmployeesTable(dataArray) {
     }
 
     dataArray.forEach(emp => {
-        // تحديد شكل الوظيفة
         let roleBadge = '';
         let roleName = '';
         if (emp.role === 'admin') { roleBadge = 'role-admin'; roleName = 'مدير نظام'; }
@@ -90,18 +89,15 @@ function renderEmployeesTable(dataArray) {
         else if (emp.role === 'receptionist') { roleBadge = 'role-reception'; roleName = 'استقبال'; }
         else if (emp.role === 'nurse') { roleBadge = 'role-nurse'; roleName = 'مساعد/ممرض'; }
 
-        // تحديد الحالة
         const statusHtml = emp.status === 'active' 
             ? '<span class="status-active">نشط ✅</span>' 
             : '<span class="status-inactive">موقوف ❌</span>';
 
-        // نظام المحاسبة
         let accSystem = [];
         if(Number(emp.salary) > 0) accSystem.push('راتب ثابت');
         if(Number(emp.commission) > 0) accSystem.push('عمولة');
         const accTxt = accSystem.length > 0 ? accSystem.join(' + ') : 'بدون نظام مالي';
 
-        // الأرقام المالية
         let moneyTxt = '';
         if(Number(emp.salary) > 0) moneyTxt += `ثابت: <strong>${emp.salary}</strong><br>`;
         if(Number(emp.commission) > 0) moneyTxt += `نسبة: <strong style="color:#0ea5e9;">${emp.commission}%</strong>`;
@@ -132,7 +128,7 @@ function openEmployeeModal() {
     document.getElementById('emp_name').value = '';
     document.getElementById('emp_phone').value = '';
     document.getElementById('emp_email').value = '';
-    document.getElementById('emp_email').disabled = false; // يسمح بتغيير الإيميل في الجديد
+    document.getElementById('emp_email').disabled = false; 
     document.getElementById('emp_role').value = 'receptionist';
     document.getElementById('emp_status').value = 'active';
     document.getElementById('emp_salary').value = '0';
@@ -150,7 +146,7 @@ function openEditEmployee(docId) {
     document.getElementById('emp_name').value = emp.name;
     document.getElementById('emp_phone').value = emp.phone || '';
     document.getElementById('emp_email').value = emp.email;
-    document.getElementById('emp_email').disabled = true; // منع تغيير الإيميل لأنه مربوط بالـ Login
+    document.getElementById('emp_email').disabled = true; 
     document.getElementById('emp_role').value = emp.role;
     document.getElementById('emp_status').value = emp.status || 'active';
     document.getElementById('emp_salary').value = emp.salary || 0;
@@ -168,7 +164,6 @@ async function saveEmployee(e) {
     const empId = document.getElementById('emp_id').value;
     const emailInput = document.getElementById('emp_email').value.trim().toLowerCase();
 
-    // التحقق من تكرار الإيميل عند إضافة موظف جديد
     if (!empId) {
         const isDuplicate = allEmployees.some(e => e.email === emailInput);
         if (isDuplicate) {
