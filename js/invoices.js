@@ -137,7 +137,7 @@ function renderInvoice() {
             <div class="total-box">
                 <div class="total-row"><span>إجمالي الخدمات:</span> <span>${totalBill} ج.م</span></div>
                 <div class="total-row"><span>إجمالي المدفوعات:</span> <span style="color:#10b981;">${totalPaid} ج.م</span></div>
-                <div class="total-row" style="border-top:1px dashed #ffffff55; padding-top:10px; margin-top:10px; font-size:20px; font-weight:900;">
+                <div class="total-row" style="border-top:1px dashed #94a3b8; padding-top:10px; margin-top:10px; font-size:20px; font-weight:900;">
                     <span>صافي المديونية:</span> <span>${totalDebt} ج.م</span>
                 </div>
             </div>
@@ -149,13 +149,25 @@ function renderInvoice() {
     `;
 
     content.innerHTML = invoiceHTML;
-    document.getElementById('actualPrintArea').innerHTML = invoiceHTML; // لغرض الطباعة
+    document.getElementById('actualPrintArea').innerHTML = invoiceHTML; 
 
-    // توليد QR كود للفاتورة للتأكد من صحتها
-    new QRCode(document.getElementById("invoice-qr"), {
-        text: `Patient: ${selectedPatient.name} | Debt: ${totalDebt} | Clinic: NivaDent`,
+    // 🔴 حل مشكلة الـ QR Code Overflow للنصوص العربية 🔴
+    const qrContainer = document.getElementById("invoice-qr");
+    qrContainer.innerHTML = ""; 
+    
+    let qrText = `Patient: ${selectedPatient.name} | Debt: ${totalDebt} | Clinic: NivaDent`;
+    let safeText = qrText;
+    try { 
+        safeText = unescape(encodeURIComponent(qrText)); 
+    } catch(e) {}
+
+    new QRCode(qrContainer, {
+        text: safeText,
         width: 80,
-        height: 80
+        height: 80,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.L
     });
 }
 
