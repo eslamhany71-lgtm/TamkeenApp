@@ -105,7 +105,7 @@ function updatePageContent(lang) {
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
             alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
             navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال طلب الدعم",
-            aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم؟"
+            aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم?"
         },
         en: {
             header: "Dashboard",
@@ -139,6 +139,47 @@ function updatePageContent(lang) {
     window.homeLang = c;
 }
 
+// 🔴 تطبيق الصلاحيات بشكل ديناميكي (Role-Based Access Control) 🔴
+function applyRoles(role) {
+    const r = role.toLowerCase();
+    
+    // جلب عناصر القائمة من شاشة home.html (تأكد من مطابقة الـ id مع الـ HTML لديك)
+    const settingsLi = document.getElementById('nav-settings-li');
+    const superAdminLi = document.getElementById('nav-super-admin-li') || document.getElementById('nav-super-admin');
+    const financesLi = document.getElementById('nav-finances-li') || document.getElementById('nav-item-finances');
+    const inventoryLi = document.getElementById('nav-inventory-li') || document.getElementById('nav-item-inventory'); 
+    const reportsLi = document.getElementById('nav-reports-li') || document.getElementById('nav-item-reports');
+    const hrLi = document.getElementById('nav-hr-li') || document.getElementById('nav-item-hr');
+
+    // 1. الإخفاء الافتراضي للأشياء الحساسة
+    if (settingsLi) settingsLi.style.display = 'none';
+    if (superAdminLi) superAdminLi.style.display = 'none';
+    if (reportsLi) reportsLi.style.display = 'none';
+    if (hrLi) hrLi.style.display = 'none';
+
+    // 2. توزيع الصلاحيات الفعلية
+    if (r === 'nurse') {
+        // الممرضة لا ترى الحسابات
+        if (financesLi) financesLi.style.display = 'none';
+    } 
+    else if (r === 'receptionist') {
+        // الاستقبال يرى الحسابات لكن لا يرى التقارير والـ HR
+        if (financesLi) financesLi.style.display = 'block';
+    } 
+    else if (r === 'doctor' || r === 'admin') {
+        // المدير يرى كل شيء داخل العيادة
+        if (settingsLi) settingsLi.style.display = 'block';
+        if (reportsLi) reportsLi.style.display = 'block';
+        if (hrLi) hrLi.style.display = 'block';
+        if (financesLi) financesLi.style.display = 'block';
+    } 
+    else if (r === 'superadmin') {
+        // السوبر أدمن
+        if (superAdminLi) superAdminLi.style.display = 'block';
+        if (settingsLi) settingsLi.style.display = 'block';
+    }
+}
+
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -154,6 +195,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
 
                 sessionStorage.setItem('clinicId', clinicId);
 
+                // 🔴 تطبيق الصلاحيات 🔴
                 applyRoles(role);
                 loadClinicBranding(clinicId);
                 
@@ -180,6 +222,69 @@ firebase.auth().onAuthStateChanged(async (user) => {
         window.location.href = "index.html";
     }
 });
+
+// =========================================================================
+// 🔴 الرادار الذكي (Smart Presence) - يعيش في الصدفة الرئيسية فقط 🔴
+// =========================================================================
+const IDLE_TIMEOUT_MINUTES = 30; 
+const OFFLINE_MARK_MINUTES = 15; 
+let currentPresenceStatus = "online"; 
+
+function updateUserPresence(isOnlineStatus) {
+    const user = firebase.auth().currentUser;
+    if (user) {
+        const docId = user.email || user.uid; 
+        db.collection("Users").doc(docId).set({
+            isOnline: isOnlineStatus,
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(()=>{});
+    }
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        currentPresenceStatus = "online";
+        updateUserPresence(true);
+    } else if (document.visibilityState === 'hidden') {
+        currentPresenceStatus = "offline";
+        updateUserPresence(false);
+    }
+});
+
+function updateLastActiveTime() {
+    localStorage.setItem('lastActiveNiva', Date.now());
+    if (currentPresenceStatus === "offline" && firebase.auth().currentUser) {
+        currentPresenceStatus = "online";
+        updateUserPresence(true);
+    }
+}
+
+document.onmousemove = updateLastActiveTime;
+document.onkeypress = updateLastActiveTime;
+document.ontouchstart = updateLastActiveTime;
+
+setInterval(() => {
+    const lastActive = localStorage.getItem('lastActiveNiva');
+    if (lastActive && firebase.auth().currentUser) {
+        const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
+
+        if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
+            if(firebase.auth().currentUser) {
+                updateUserPresence(false);
+                firebase.auth().signOut().then(() => {
+                    sessionStorage.clear();
+                    localStorage.removeItem('lastActiveNiva');
+                    alert("🔒 تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
+                    window.top.location.href = 'index.html';
+                });
+            }
+        } 
+        else if (diffMinutes >= OFFLINE_MARK_MINUTES && currentPresenceStatus === "online") {
+            currentPresenceStatus = "offline";
+            updateUserPresence(false);
+        }
+    }
+}, 60000);
 
 // =========================================================================
 // 🔴 حارس الاشتراكات والفترة التجريبية (Subscription Validator) 🔴
@@ -265,7 +370,7 @@ function hidePaywallBlocker() {
 function showBillingAlert(daysLeft) {
     if(document.getElementById('billing-alert-banner')) return;
     const lang = localStorage.getItem('preferredLang') || 'ar';
-    const t = window.homeLang || { alertToday: "⚠️ اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.", alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد." };
+    const t = window.homeLang || { alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.", alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام." };
     let alertMsg = daysLeft === 0 ? t.alertToday : t.alertText.replace('{days}', daysLeft);
 
     const alertDiv = document.createElement('div');
@@ -302,33 +407,6 @@ async function loadClinicBranding(clinicId) {
         }
     } catch (error) {
         console.error("خطأ في جلب بيانات العيادة:", error);
-    }
-}
-
-function applyRoles(role) {
-    const r = role.toLowerCase();
-    
-    const settingsLi = document.getElementById('nav-settings-li');
-    const superAdminLi = document.getElementById('nav-super-admin');
-    const financesLi = document.getElementById('nav-finances-li');
-    const inventoryLi = document.getElementById('nav-item-inventory'); 
-    
-    if (settingsLi) settingsLi.style.display = 'none';
-    if (superAdminLi) superAdminLi.style.display = 'none';
-    if (financesLi) financesLi.style.display = 'block';
-    if (inventoryLi) inventoryLi.style.display = 'block'; 
-
-    if (r === 'nurse') {
-        if (financesLi) financesLi.style.display = 'none';
-    }
-
-    if (r === 'doctor' || r === 'admin') {
-        if (settingsLi) settingsLi.style.display = 'block';
-    }
-    
-    if (r === 'superadmin') {
-        if (settingsLi) settingsLi.style.display = 'block';
-        if (superAdminLi) superAdminLi.style.display = 'block';
     }
 }
 
@@ -543,107 +621,6 @@ async function askAI(promptType) {
 }
 
 // =========================================================================
-// 🔴 رادار الحضور والأمان (Smart Presence & Sleep Mode) - النسخة المحصنة 🔴
-// =========================================================================
-
-const IDLE_TIMEOUT_MINUTES = 30; // الطرد النهائي وتسجيل الخروج بعد 30 دقيقة
-const OFFLINE_MARK_MINUTES = 15; // اعتباره (غير متصل) بعد 15 دقيقة خمول
-let currentPresenceStatus = "online"; 
-
-// 🔴 دالة سحرية للتحديث (تدعم الحساب التجريبي والأساسي) 🔴
-function updateUserPresence(isOnlineStatus) {
-    const user = firebase.auth().currentUser;
-    if (user) {
-        // لو مفيش إيميل (زي الحساب التجريبي أحياناً)، هنستخدم الـ uid
-        const docId = user.email || user.uid; 
-        
-        // استخدام merge: true عشان لو الملف مش موجود يكريته من الصفر وميعلقش
-        db.collection("Users").doc(docId).set({
-            isOnline: isOnlineStatus,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch((e) => console.log("Presence Error:", e));
-    }
-}
-
-function updateLastActiveTime() {
-    localStorage.setItem('lastActiveNiva', Date.now());
-
-    // لو كان أوفلاين ولمس الماوس، نرجعه أونلاين فوراً
-    if (currentPresenceStatus === "offline" && firebase.auth().currentUser) {
-        currentPresenceStatus = "online";
-        updateUserPresence(true);
-    }
-}
-
-// دمج دوال التشغيل (اللغة وتنشيط الحركة)
-window.onload = () => {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
-    updatePageContent(lang);
-    updateLastActiveTime();
-};
-
-document.onmousemove = updateLastActiveTime;
-document.onkeypress = updateLastActiveTime;
-document.ontouchstart = updateLastActiveTime;
-
-// العداد السحري
-setInterval(() => {
-    const lastActive = localStorage.getItem('lastActiveNiva');
-    if (lastActive && firebase.auth().currentUser) {
-        const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
-
-        if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
-            forceSecurityLogout("تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
-        } 
-        else if (diffMinutes >= OFFLINE_MARK_MINUTES && currentPresenceStatus === "online") {
-            currentPresenceStatus = "offline";
-            updateUserPresence(false); // خليه أوفلاين
-        }
-    }
-}, 60000);
-
-// قناص إغلاق المتصفح من الـ X
-window.addEventListener('beforeunload', () => {
-    if(currentPresenceStatus === "online") {
-        updateUserPresence(false);
-    }
-});
-
-function checkHistoryRestore() {
-    const lastActive = localStorage.getItem('lastActiveNiva');
-    if (lastActive) {
-        const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
-        if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
-            forceSecurityLogout("انتهت الجلسة للأمان. يرجى تسجيل الدخول مرة أخرى.");
-        }
-    }
-}
-
-function forceSecurityLogout(msg) {
-    if(firebase.auth().currentUser) {
-        updateUserPresence(false); // أوفلاين قبل الطرد
-        
-        firebase.auth().signOut().then(() => {
-            sessionStorage.clear();
-            localStorage.removeItem('lastActiveNiva');
-            alert("🔒 " + msg);
-            window.top.location.href = 'index.html';
-        });
-    }
-}
-
-// تأكيد حالة الأونلاين أول ما يفتح الداشبورد
-firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-        currentPresenceStatus = "online";
-        updateUserPresence(true);
-    }
-});
-
-checkHistoryRestore();
-
-// =========================================================================
 // 🟢 الإضافة الجديدة: دوال بوابة العيادة (Portal Manager) 🟢
 // =========================================================================
 
@@ -659,9 +636,8 @@ function openPortalSettings() {
     document.getElementById('clinic_portal_link').value = portalUrl;
     
     const qrContainer = document.getElementById('clinic_qr_container');
-    qrContainer.innerHTML = ''; // تفريغ الـ QR القديم
+    qrContainer.innerHTML = ''; 
     
-    // إنشاء QR جديد
     new QRCode(qrContainer, {
         text: portalUrl,
         width: 180,
@@ -704,9 +680,8 @@ function printClinicQR() {
     `;
     
     document.getElementById('clinicPortalModal').style.display = 'none';
-    printArea.style.display = 'block'; // إظهار مساحة الطباعة
+    printArea.style.display = 'block'; 
     
-    // إخفاء كل محتوى الصفحة عدا مساحة الطباعة باستخدام CSS مؤقت
     const style = document.createElement('style');
     style.id = 'temp-print-style';
     style.innerHTML = `
@@ -722,7 +697,7 @@ function printClinicQR() {
         window.print();
         printArea.innerHTML = '';
         printArea.style.display = 'none';
-        document.head.removeChild(style); // تنظيف الستايل المؤقت
+        document.head.removeChild(style); 
     }, 500);
 }
 
