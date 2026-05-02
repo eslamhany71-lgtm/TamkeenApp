@@ -42,9 +42,9 @@
         [data-theme="dark"] .bill-table th { background: #0f172a !important; color: #f8fafc !important; }
         [data-theme="dark"] td { color: #cbd5e1 !important; }
 
-        /* 🔴 تظبيط الطباعة لورقة A4 🔴 */
+        /* 🔴 تظبيط الطباعة الصارمة لورقة A4 🔴 */
         @page {
-            size: A4;
+            size: A4 portrait;
             margin: 15mm; 
         }
         @media print {
@@ -52,27 +52,24 @@
             .no-print { display: none !important; }
             .print-only { display: block !important; width: 100%; }
             
-            #actualPrintArea {
-                width: 100%;
-                color: #000;
-                font-size: 14pt;
-            }
+            #actualPrintArea { width: 100%; color: #000; font-size: 14pt; }
 
             .bill-header { display: flex; justify-content: space-between; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
             .bill-header h1 { font-size: 24pt; margin: 0; color: #000 !important; }
-            .bill-header p { color: #000 !important; }
+            .bill-header p { color: #000 !important; font-size: 14pt;}
             
-            div[style*="background: #f8fafc"] { background: white !important; border: 2px solid #000 !important; }
-            h2, span { color: #000 !important; }
+            .patient-info-box { background: white !important; border: 2px solid #000 !important; padding: 15px !important; margin-bottom: 20px !important; border-radius: 0 !important; display: flex; justify-content: space-between; align-items: center;}
+            .patient-info-box h2, .patient-info-box span { color: #000 !important; }
 
             .bill-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12pt; }
-            .bill-table th { background: #f1f5f9 !important; padding: 10px; border: 1px solid #000; text-align: right; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+            .bill-table th { background: #f1f5f9 !important; padding: 10px; border: 2px solid #000; text-align: right; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold;}
             .bill-table td { padding: 10px; border: 1px solid #000; color: #000 !important; }
             
-            .bill-footer { margin-top: 30px; display: flex; justify-content: flex-end; }
-            .total-box { background: #f8fafc !important; color: #000 !important; padding: 15px; border-radius: 8px; border: 2px solid #000; min-width: 250px; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
-            .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14pt; font-weight: bold; }
+            .bill-footer { margin-top: 30px; display: flex; justify-content: flex-end; page-break-inside: avoid; }
+            .total-box { background: #f8fafc !important; color: #000 !important; padding: 15px; border-radius: 0 !important; border: 2px solid #000; min-width: 300px; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+            .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16pt; font-weight: bold; }
             .total-row span { color: #000 !important; }
+            .final-debt { border-top: 2px dashed #000 !important; padding-top: 10px; margin-top: 10px; font-size: 18pt !important; }
         }
     </style>
 </head>
@@ -91,7 +88,6 @@
     </div>
 
     <div class="invoice-wrapper no-print">
-        <!-- الجانب الأيمن: البحث واختيار المريض -->
         <div class="search-sidebar">
             <h3 style="margin-top: 0;">🔍 ابحث عن مريض</h3>
             <input type="text" id="patientSearch" class="search-box" placeholder="اسم المريض أو الموبايل..." oninput="searchPatientsForInvoice()">
@@ -101,7 +97,6 @@
             </div>
         </div>
 
-        <!-- الجانب الأيسر: عرض الفاتورة -->
         <div class="invoice-display" id="printableInvoice">
             <div id="invoicePlaceholder" style="text-align: center; padding: 100px 20px; color: #94a3b8;">
                 <span style="font-size: 60px;">📄</span>
@@ -110,12 +105,11 @@
             </div>
 
             <div id="invoiceContent" style="display: none;">
-                <!-- محتوى الفاتورة سيُحقن هنا -->
             </div>
         </div>
     </div>
 
-    <!-- 🔴 نسخة الطباعة الرسمية A4 🔴 -->
+    <!-- 🔴 نسخة الطباعة الرسمية 🔴 -->
     <div class="print-only" id="actualPrintArea"></div>
 
     <script src="js/firebase-config.js"></script>
