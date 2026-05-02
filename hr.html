@@ -8,7 +8,7 @@
     
     <script>
         var currentHour = Math.floor(Date.now() / 3600000);
-        document.write('<link rel="stylesheet" href="css/finances.css?v=' + currentHour + '">'); // هنستخدم نفس تنسيق الماليات الجاهز
+        document.write('<link rel="stylesheet" href="css/finances.css?v=' + currentHour + '">'); 
     </script>
     <link rel="icon" href="data:,">
 
@@ -87,7 +87,6 @@
         </table>
     </div>
 
-    <!-- Modal إضافة / تعديل موظف -->
     <div id="employeeModal" class="modal no-print">
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeModal('employeeModal')">&times;</span>
@@ -152,6 +151,6 @@
     </div>
 
     <script src="js/firebase-config.js"></script>
-    <script src="js/employees.js"></script>
+    <script src="js/hr.js"></script>
 </body>
 </html>
