@@ -52,15 +52,6 @@ async function logout() {
     window.location.href = "index.html";
 }
 
-window.addEventListener('beforeunload', () => {
-    const currentUser = auth.currentUser;
-    if (currentUser && window.location.pathname.includes("home.html")) {
-        db.collection("Users").doc(currentUser.email).update({
-            isOnline: false
-        }).catch(()=>{});
-    }
-});
-
 // 2. دالة تسجيل الدخول (الأساسية)
 async function loginById() {
     const codeInput = document.getElementById('empCode');
@@ -107,18 +98,15 @@ async function loginById() {
         const finalRole = userData.role;
         if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
 
-        // 🔴 تم تنظيف لوجيك فحص الانتهاء من هنا عشان home.js هو اللي يتعامل معاه 🔴
+        // 🔴 حماية الدخول لو الحساب موقوف إدارياً 🔴
         if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
                 const clinicStatus = clinicDoc.data().status;
-
-                // هنمنع الدخول من هنا "فقط" لو الحساب موقوف إدارياً (suspended)
                 if (clinicStatus === 'suspended') {
                     await auth.signOut();
                     throw { code: 'custom/suspended-clinic' };
                 }
-                // لو الحساب expired أو لسه هيـ expire، هنسيبه يدخل و home.js هتطلعلة شاشة الدفع
             }
         }
 
@@ -127,6 +115,7 @@ async function loginById() {
             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // 🔴 تخزين الصلاحيات للمرور من البوابات 🔴
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
@@ -158,7 +147,7 @@ async function loginById() {
 }
 
 // ==========================================
-// 🔴 إنشاء حساب تجريبي مجاني (3 أيام) - تم الإصلاح الجذري 🔴
+// إنشاء حساب تجريبي مجاني (3 أيام)
 // ==========================================
 function openTrialModal() {
     document.getElementById('trial_clinic_name').value = '';
@@ -187,21 +176,17 @@ async function registerTrialAccount(e) {
 
     if (window.showLoader) window.showLoader("جاري تجهيز النظام لك...");
 
-    // 🔴 الحل السحري: إيقاف التحويل المبكر فوراً قبل لمس الداتابيز 🔴
     isLoginInProgress = true;
 
     try {
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         
-        // 1. إنشاء الحساب
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const actualEmail = userCredential.user.email;
 
-        // 2. حساب موعد الانتهاء (3 أيام من الآن)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 3);
 
-        // 3. إنشاء العيادة في النظام
         const clinicRef = await db.collection("Clinics").add({
             clinicName: clinicName,
             adminEmail: actualEmail,
@@ -214,7 +199,6 @@ async function registerTrialAccount(e) {
 
         const newClinicId = clinicRef.id;
 
-        // 4. حفظ بيانات الدكتور في كوليكشن المستخدمين
         await db.collection("Users").doc(actualEmail).set({
             role: 'admin',
             name: adminName,
@@ -226,7 +210,6 @@ async function registerTrialAccount(e) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // 5. تهيئة الجلسة
         sessionStorage.setItem('userRole', 'admin');
         sessionStorage.setItem('empCode', 'TRIAL-ADMIN');
         sessionStorage.setItem('clinicId', newClinicId);
@@ -234,13 +217,10 @@ async function registerTrialAccount(e) {
         if (window.hideLoader) window.hideLoader();
         alert(`✅ مبروك يا ${adminName}!\nتم تفعيل العيادة بنجاح. فترة التجربة هتنتهي يوم ${expirationDate.toLocaleDateString('ar-EG')}`);
         
-        // 6. التحويل الآمن للوحة التحكم
         window.location.href = "home.html";
 
     } catch (error) {
         console.error("Trial Registration Error:", error);
-        
-        // في حالة الخطأ، نرجع المتغير لـ false عشان يقدر يكتب داتا تانية
         isLoginInProgress = false; 
         
         if (window.hideLoader) window.hideLoader();
