@@ -99,6 +99,22 @@
         @media screen {
             .print-only { display: none; }
         }
+
+        /* 🔴 ستايلات القوائم المنسدلة الذكية للـ ERP 🔴 */
+        select#es_procedure, select#es_contract, select#inv_item_select {
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+            background-color: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px;
+            padding: 12px 15px; padding-left: 40px; font-family: inherit; font-size: 15px; font-weight: bold; color: #0f172a; width: 100%; outline: none; cursor: pointer;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: left 15px center; background-size: 16px; transition: all 0.3s ease;
+        }
+        select#es_procedure:focus, select#es_contract:focus, select#inv_item_select:focus {
+            border-color: #0284c7; background-color: #fff; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
+        }
+        [data-theme="dark"] select#es_procedure, [data-theme="dark"] select#es_contract, [data-theme="dark"] select#inv_item_select {
+            background-color: #0f172a !important; border-color: #334155 !important; color: #f8fafc !important;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+        }
     </style>
 </head>
 <body>
@@ -151,6 +167,27 @@
                     <strong id="txt-doc-notes" style="color: #475569;">ملاحظات الطبيب:</strong> 
                     <p style="margin: 5px 0 0 0; color: #0f172a; line-height: 1.6;" id="sd-notes">---</p>
                 </div>
+
+                <!-- 🔴 قسم صرف المخزون الجديد (ERP) 🔴 -->
+                <div class="details-box" style="background: #f8fafc; border: 1px dashed #8b5cf6; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                    <h3 style="margin: 0 0 15px 0; color: #6d28d9; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">💉 المستهلكات الطبية المستخدمة (صرف مخزون)</h3>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: flex-end;">
+                        <div class="form-group" style="flex: 2; min-width: 200px; margin-bottom: 0;">
+                            <label style="font-size: 13px; font-weight: bold; color: #475569;">الخامة / الصنف (من المخزن)</label>
+                            <select id="inv_item_select"></select>
+                        </div>
+                        <div class="form-group" style="flex: 1; min-width: 80px; margin-bottom: 0;">
+                            <label style="font-size: 13px; font-weight: bold; color: #475569;">الكمية</label>
+                            <input type="number" id="inv_item_qty" min="1" value="1" style="width:100%; padding:11px; border-radius:8px; border:2px solid #e2e8f0; outline:none; font-weight:bold; text-align:center;">
+                        </div>
+                        <button class="btn-primary" onclick="consumeSessionMaterial()" style="padding: 10px 20px; background: #8b5cf6; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; height: 44px; white-space: nowrap;">صرف 📤</button>
+                    </div>
+                    <ul id="session_materials_list" style="list-style: none; padding: 0; margin: 0;">
+                        <li style="color:#64748b; font-size:14px; text-align: center;">جاري التحميل...</li>
+                    </ul>
+                </div>
+                <!-- 🔴 نهاية قسم المخزون 🔴 -->
+
             </div>
 
             <div class="dental-chart no-print">
@@ -210,9 +247,15 @@
                         <input type="date" id="es_next_date" class="search-box">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label id="lbl-sess-proc">الإجراء الطبي</label>
-                    <input type="text" id="es_procedure" class="search-box" required>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label id="lbl-sess-proc">الإجراء الطبي / الخدمة</label>
+                    <select id="es_procedure" required onchange="calculateEditSessionERP()"></select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>جهة التعاقد (الخصم)</label>
+                    <select id="es_contract" onchange="calculateEditSessionERP()"></select>
                 </div>
                 
                 <div class="finance-box finance-box-edit" style="flex-wrap: wrap; background: #fff7ed; padding: 15px; border-radius: 8px; border: 1px solid #fed7aa; display: flex; gap: 10px; margin-bottom: 15px;">
