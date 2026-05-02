@@ -1,3 +1,4 @@
+// js/super-admin.js
 const db = firebase.firestore();
 let allClinicsList = []; 
 let clinicUsersUnsubscribe = null; 
@@ -7,64 +8,97 @@ let currentActiveTab = 'active';
 function updatePageContent(lang) {
     const t = {
         ar: {
-            title: "إدارة النظام المركزية (SaaS)", sub: "لوحة تحكم المالك - صلاحيات عليا", search: "بحث باسم العيادة...", btnAdd: "إضافة عيادة جديدة",
+            title: "إدارة النظام المركزية (SaaS)", sub: "لوحة تحكم المالك - صلاحيات عليا", search: "بحث باسم العيادة...", btnAdd: "إضافة عيادة جديدة", btnAddUser: "توليد كود دعوة موظف",
             totClinics: "العيادات النشطة", totSusp: "العيادات الموقوفة", totPatients: "المرضى (في كل النظام)",
-            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد الانتهاء", thName: "اسم العيادة", thEmail: "إيميل الأدمن", thStatus: "الحالة", thAction: "إجراءات",
+            thDate: "تاريخ الاشتراك", thNextPay: "ميعاد الانتهاء", thName: "اسم العيادة / الباقة", thEmail: "إيميل الأدمن", thStatus: "الحالة", thAction: "إجراءات",
             loading: "جاري تحميل البيانات...", empty: "لا توجد عيادات مسجلة حالياً.",
             mTitle: "تسجيل عيادة جديدة بالنظام", lName: "اسم العيادة / المركز الطبي", lEmail: "البريد الإلكتروني للأدمن", 
-            lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.",
+            lHint: "* يجب إنشاء هذا الحساب لاحقاً من شاشة تسجيل الدخول.", lPhone: "رقم الموبايل",
             lPkg: "باقة الاشتراك", optPkgT7: "تجريبي (7 أيام)", optPkgT14: "تجريبي (14 يوم)", optPkgMonth: "شهري (Monthly)", optPkgYear: "سنوي (Yearly)",
             lPlan: "حالة الحساب", optAct: "نشط (Active)", optSusp: "موقوف (Suspended)", btnSave: "إنشاء العيادة وتوليد المعرف",
-            sAct: "نشط", sSusp: "موقوف", sExpired: "منتهي (خلص وقته)", // 🔴 ترجمة الحالة الجديدة 🔴
+            lLimit: "الحد الأقصى للمستخدمين (الموظفين)", hintLimit: "شاملاً حساب الدكتور المالك", lPrice: "قيمة الاشتراك (ج.م)",
+            sAct: "نشط", sSusp: "موقوف", sExpired: "منتهي (خلص وقته)", 
             btnPaid: "تم الدفع", btnCancelSub: "إيقاف الحساب", btnRenew: "تفعيل الحساب", btnDelete: "حذف العيادة",
             msgSuccess: "تم إنشاء العيادة بنجاح!\n\nكود الدخول: {id}\nإيميل الأدمن: {email}\n\nيرجى إرسال الكود للدكتور لتفعيل الحساب.",
             msgError: "حدث خطأ أثناء الإنشاء!", msgConfirmToggle: "هل متأكد من تغيير حالة العيادة؟",
             msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر؟",
             msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً ولن يمكن استرجاعها! اكتب '1234' للتأكيد:", msgDelSuccess: "تم حذف العيادة بنجاح.", btnSaving: "جاري الإنشاء...",
             
-            // ترجمات مودال الترقية الجديد
+            // ترجمة المودال الجديد
             mUpgTitle: "🚀 ترقية العيادة التجريبية", mUpgSub: "حدد الباقة وقيمة الاشتراك لتوليد كود الدخول الجديد للعيادة.",
             lUpgPkg: "باقة الاشتراك", optUpgMonth: "شهري (Monthly)", optUpgYear: "سنوي (Yearly)",
-            lUpgPrice: "قيمة الاشتراك (ج.م)", btnConfirmUpg: "تأكيد الترقية وتوليد الكود"
+            lUpgPrice: "الاشتراك (ج.م)", lUpgLimit: "الحد الأقصى للمستخدمين", btnConfirmUpg: "تأكيد الترقية وتوليد الكود",
+            
+            // ترجمة مودال الموظف السريع
+            mUserTitle: "توليد كود دعوة مستخدم", mUserSub: "اختر العيادة والوظيفة لتوليد كود (يعمل كـ Override في حالة الطوارئ).",
+            lUClinic: "العيادة التابعة لها", lUName: "اسم المستخدم", lURole: "الصلاحية الممنوحة (Role)",
+            optUAdmin: "مدير نظام (Doctor/Admin)", optUDoc: "طبيب (صلاحية محدودة)", optURec: "موظف استقبال", optUNur: "مساعد / ممرضة", btnSubUser: "توليد كود الدعوة",
+            
+            // تفاصيل العيادة
+            modDetTitle: "تفاصيل العيادة والمستخدمين", lblDetName: "اسم العيادة", lblDetCode: "كود العيادة", lblDetEmail: "إيميل الأدمن", lblDetPhone: "الموبايل",
+            lblDetPkg: "نوع الباقة", lblDetCreated: "تاريخ الإنشاء", lblDetLimit: "الحد الأقصى للمستخدمين:", lblDetPrice: "قيمة الاشتراك المتفق عليها:",
+            txtTeamTitle: "👥 فريق العمل والمستخدمين", thUName: "اسم المستخدم", thUEmail: "البريد / الكود", thURole: "الصلاحية",
+            thUDate: "تاريخ الانضمام", thUOnline: "متصل الآن؟", thULast: "آخر ظهور", txtULoad: "جاري تحميل المستخدمين..."
         },
         en: {
-            title: "Central SaaS Management", sub: "Owner Dashboard - Super Admin", search: "Search by clinic name...", btnAdd: "Add New Clinic",
+            title: "Central SaaS Management", sub: "Owner Dashboard - Super Admin", search: "Search by clinic name...", btnAdd: "Add New Clinic", btnAddUser: "Generate User Invite",
             totClinics: "Active Clinics", totSusp: "Suspended Clinics", totPatients: "Total Patients",
-            thDate: "Sub Date", thNextPay: "Next Payment", thName: "Clinic Name", thEmail: "Admin Email", thStatus: "Status", thAction: "Actions",
+            thDate: "Sub Date", thNextPay: "Next Payment", thName: "Clinic / Package", thEmail: "Admin Email", thStatus: "Status", thAction: "Actions",
             loading: "Loading data...", empty: "No clinics registered yet.",
             mTitle: "Register New Clinic", lName: "Clinic / Center Name", lEmail: "Admin Email", 
-            lHint: "* This account must be created later from the login screen.", 
+            lHint: "* This account must be created later from login screen.", lPhone: "Mobile Number",
             lPkg: "Subscription Package", optPkgT7: "Trial (7 Days)", optPkgT14: "Trial (14 Days)", optPkgMonth: "Monthly", optPkgYear: "Yearly",
             lPlan: "Account Status", optAct: "Active", optSusp: "Suspended", btnSave: "Create Clinic & Generate ID",
-            sAct: "Active", sSusp: "Suspended", sExpired: "Expired", // 🔴 ترجمة الحالة الجديدة 🔴
+            lLimit: "Max Allowed Users (Staff)", hintLimit: "Including Admin doctor", lPrice: "Subscription Price",
+            sAct: "Active", sSusp: "Suspended", sExpired: "Expired", 
             btnPaid: "Paid", btnCancelSub: "Suspend Acc", btnRenew: "Activate Acc", btnDelete: "Delete Clinic",
-            msgSuccess: "Clinic created successfully!\n\nAccess Code: {id}\nAdmin Email: {email}\n\nPlease send this code to the doctor to activate the account.",
+            msgSuccess: "Clinic created successfully!\n\nAccess Code: {id}\nAdmin Email: {email}\n\nPlease send code to the doctor.",
             msgError: "Error creating clinic!", msgConfirmToggle: "Are you sure you want to change the status?",
             msgConfirmPaid: "Confirm payment receipt and renew subscription for one month?",
-            msgWarnDel: "WARNING: This will permanently delete the clinic! Type '1234' to confirm:", msgDelSuccess: "Clinic deleted successfully.", btnSaving: "Creating...",
+            msgWarnDel: "WARNING: Type '1234' to confirm permanent deletion:", msgDelSuccess: "Clinic deleted successfully.", btnSaving: "Creating...",
             
             mUpgTitle: "🚀 Upgrade Trial Clinic", mUpgSub: "Select package and price to generate a new access code.",
             lUpgPkg: "Subscription Package", optUpgMonth: "Monthly", optUpgYear: "Yearly",
-            lUpgPrice: "Subscription Price (EGP)", btnConfirmUpg: "Confirm Upgrade & Generate Code"
+            lUpgPrice: "Price (EGP)", lUpgLimit: "Max Users Limit", btnConfirmUpg: "Confirm Upgrade & Generate",
+            
+            mUserTitle: "Generate User Invite", mUserSub: "Select clinic and role to override and generate code.",
+            lUClinic: "Select Clinic", lUName: "User Name", lURole: "Assigned Role",
+            optUAdmin: "System Admin", optUDoc: "Doctor", optURec: "Receptionist", optUNur: "Nurse / Assistant", btnSubUser: "Generate Invite Code",
+            
+            modDetTitle: "Clinic & Staff Details", lblDetName: "Clinic Name", lblDetCode: "Access Code", lblDetEmail: "Admin Email", lblDetPhone: "Phone",
+            lblDetPkg: "Package", lblDetCreated: "Created At", lblDetLimit: "Max Users Limit:", lblDetPrice: "Agreed Subscription Price:",
+            txtTeamTitle: "👥 Staff & Users", thUName: "User Name", thUEmail: "Email / Code", thURole: "Role",
+            thUDate: "Join Date", thUOnline: "Online?", thULast: "Last Seen", txtULoad: "Loading users..."
         }
     };
     const c = t[lang] || t.ar;
     const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); document.getElementById('searchInput').placeholder = c.search;
-    setTxt('btn-add-clinic', c.btnAdd); setTxt('lbl-tot-clinics', c.totClinics); setTxt('lbl-tot-susp', c.totSusp); setTxt('lbl-tot-patients', c.totPatients);
+    setTxt('btn-add-clinic', c.btnAdd); setTxt('btn-add-user', c.btnAddUser);
+    setTxt('lbl-tot-clinics', c.totClinics); setTxt('lbl-tot-susp', c.totSusp); setTxt('lbl-tot-patients', c.totPatients);
     setTxt('th-date', c.thDate); setTxt('th-next-pay', c.thNextPay); setTxt('th-name', c.thName); setTxt('th-email', c.thEmail); setTxt('th-status', c.thStatus); setTxt('th-action', c.thAction);
     if(document.getElementById('txt-loading')) setTxt('txt-loading', c.loading);
-    setTxt('mod-title', c.mTitle); setTxt('lbl-c-name', c.lName); setTxt('lbl-c-email', c.lEmail); setTxt('lbl-c-hint', c.lHint); 
     
+    setTxt('mod-title', c.mTitle); setTxt('lbl-c-name', c.lName); setTxt('lbl-c-email', c.lEmail); setTxt('lbl-c-hint', c.lHint); setTxt('lbl-c-phone', c.lPhone); 
     setTxt('lbl-c-pkg', c.lPkg); setTxt('opt-pkg-t7', c.optPkgT7); setTxt('opt-pkg-t14', c.optPkgT14); setTxt('opt-pkg-month', c.optPkgMonth); setTxt('opt-pkg-year', c.optPkgYear);
     setTxt('lbl-c-plan', c.lPlan); setTxt('opt-active', c.optAct); setTxt('opt-susp', c.optSusp); setTxt('btn-save', c.btnSave);
+    setTxt('lbl-c-limit', c.lLimit); setTxt('hint-c-limit', c.hintLimit); setTxt('lbl-c-price', c.lPrice);
     
-    // ترجمات مودال الترقية
     setTxt('mod-upgrade-title', c.mUpgTitle); setTxt('mod-upgrade-sub', c.mUpgSub);
     setTxt('lbl-upg-pkg', c.lUpgPkg); setTxt('opt-upg-month', c.optUpgMonth); setTxt('opt-upg-year', c.optUpgYear);
-    setTxt('lbl-upg-price', c.lUpgPrice); setTxt('btn-confirm-upgrade', c.btnConfirmUpg);
+    setTxt('lbl-upg-price', c.lUpgPrice); setTxt('lbl-upg-limit', c.lUpgLimit); setTxt('btn-confirm-upgrade', c.btnConfirmUpg);
     
+    setTxt('mod-user-title', c.mUserTitle); setTxt('mod-user-sub', c.mUserSub);
+    setTxt('lbl-u-clinic', c.lUClinic); setTxt('lbl-u-name', c.lUName); setTxt('lbl-u-role', c.lURole);
+    setTxt('opt-u-admin', c.optUAdmin); setTxt('opt-u-doc', c.optUDoc); setTxt('opt-u-rec', c.optURec); setTxt('opt-u-nur', c.optUNur); setTxt('btn-submit-user', c.btnSubUser);
+
+    setTxt('mod-det-title', c.modDetTitle); setTxt('lbl-det-name', c.lblDetName); setTxt('lbl-det-code', c.lblDetCode); setTxt('lbl-det-email', c.lblDetEmail); setTxt('lbl-det-phone', c.lblDetPhone);
+    setTxt('lbl-det-pkg', c.lblDetPkg); setTxt('lbl-det-created', c.lblDetCreated); setTxt('lbl-det-limit', c.lblDetLimit); setTxt('lbl-det-price', c.lblDetPrice);
+    setTxt('txt-team-title', c.txtTeamTitle); setTxt('th-u-name', c.thUName); setTxt('th-u-email', c.thUEmail); setTxt('th-u-role', c.thURole);
+    setTxt('th-u-date', c.thUDate); setTxt('th-u-online', c.thUOnline); setTxt('th-u-last', c.thULast);
+    if(document.getElementById('txt-u-load')) setTxt('txt-u-load', c.txtULoad);
+
     window.superLang = c;
 }
 
@@ -102,15 +136,15 @@ async function openClinicDetailsModal(clinicId) {
     const isAr = lang === 'ar';
 
     let pkgLabel = '';
-    if(clinic.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
-    else if(clinic.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
-    else if(clinic.planType === 'trial_3_days') pkgLabel = 'تجريبي مجاني (3 أيام)'; 
-    else if(clinic.package === 'yearly') pkgLabel = 'اشتراك سنوي';
-    else pkgLabel = 'اشتراك شهري';
+    if(clinic.package === 'trial_7') pkgLabel = isAr ? 'تجريبي 7 أيام' : 'Trial 7 Days';
+    else if(clinic.package === 'trial_14') pkgLabel = isAr ? 'تجريبي 14 يوم' : 'Trial 14 Days';
+    else if(clinic.planType === 'trial_3_days') pkgLabel = isAr ? 'تجريبي (3 أيام)' : 'Trial (3 Days)'; 
+    else if(clinic.package === 'yearly') pkgLabel = isAr ? 'اشتراك سنوي' : 'Yearly';
+    else pkgLabel = isAr ? 'اشتراك شهري' : 'Monthly';
 
     const detPhone = document.getElementById('det-clinic-phone');
     let phoneFound = clinic.phone1 || clinic.adminPhone || null;
-    if (detPhone) detPhone.innerText = phoneFound || 'جاري البحث...';
+    if (detPhone) detPhone.innerText = phoneFound || '---';
 
     let clinicCreatedStr = '---';
     if (clinic.createdAt) {
@@ -129,12 +163,16 @@ async function openClinicDetailsModal(clinicId) {
     const priceDisplay = document.getElementById('det-clinic-price');
     if (priceDisplay) priceDisplay.innerText = clinic.subPrice || 0;
     
+    // 🔴 عرض الحد الأقصى للمستخدمين 🔴
+    const limitDisplay = document.getElementById('det-clinic-limit');
+    if (limitDisplay) limitDisplay.innerText = clinic.maxUsers || 1;
+    
     const hiddenId = document.getElementById('current-det-clinic-id');
     if (hiddenId) hiddenId.value = clinic.id;
 
     document.getElementById('clinicDetailsModal').style.display = 'flex';
     const tbody = document.getElementById('det-users-body');
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${isAr ? 'جاري تجميع بيانات المستخدمين ومراقبة النشاط...' : 'Fetching users activity...'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">${isAr ? 'جاري تجميع بيانات المستخدمين...' : 'Fetching users...'}</td></tr>`;
 
     try {
         const [adminCodesSnap, invitesSnap] = await Promise.all([
@@ -143,15 +181,10 @@ async function openClinicDetailsModal(clinicId) {
         ]);
 
         let pendingUsers = [];
-
         let fallbackDate = clinic.createdAt ? (typeof clinic.createdAt.toDate === 'function' ? clinic.createdAt.toDate() : new Date(clinic.createdAt)) : new Date(0);
 
         adminCodesSnap.forEach(doc => {
             const a = doc.data();
-            if (!phoneFound && a.phone) {
-                phoneFound = a.phone;
-                if (detPhone) detPhone.innerText = phoneFound;
-            }
             if (!a.activated) {
                 pendingUsers.push({ 
                     name: 'مدير العيادة (الأدمن)', 
@@ -162,14 +195,12 @@ async function openClinicDetailsModal(clinicId) {
             }
         });
         
-        if (!phoneFound && detPhone) detPhone.innerText = 'غير مسجل';
-
         invitesSnap.forEach(doc => {
             const inv = doc.data();
             if (!inv.activated) {
                 let invDate = inv.createdAt ? (typeof inv.createdAt.toDate === 'function' ? inv.createdAt.toDate() : new Date(inv.createdAt)) : fallbackDate;
                 pendingUsers.push({ 
-                    name: inv.name || 'ممرضة', 
+                    name: inv.name || 'موظف مجهول', 
                     identifier: `كود الدعوة: ${doc.id}`, 
                     role: inv.role, status: 'pending', isOnline: false, lastLogin: null,
                     createdAt: invDate 
@@ -177,9 +208,7 @@ async function openClinicDetailsModal(clinicId) {
             }
         });
 
-        if (clinicUsersUnsubscribe) {
-            clinicUsersUnsubscribe(); 
-        }
+        if (clinicUsersUnsubscribe) { clinicUsersUnsubscribe(); }
 
         clinicUsersUnsubscribe = db.collection("Users").where("clinicId", "==", clinicId)
             .onSnapshot(usersSnap => {
@@ -207,9 +236,9 @@ async function openClinicDetailsModal(clinicId) {
                     tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b;">لا يوجد مستخدمين مسجلين أو أكواد معلقة.</td></tr>';
                 } else {
                     staffList.forEach(u => {
-                        let roleAr = u.role === 'admin' ? 'أدمن (طبيب)' : (u.role === 'nurse' ? 'ممرضة' : u.role);
-                        let roleColor = u.role === 'admin' ? '#0284c7' : '#7c3aed';
-                        let roleBg = u.role === 'admin' ? '#e0f2fe' : '#ede9fe';
+                        let roleAr = u.role === 'admin' ? 'أدمن (مدير)' : (u.role === 'nurse' ? 'ممرضة' : (u.role === 'receptionist' ? 'استقبال' : (u.role === 'doctor' ? 'طبيب' : u.role)));
+                        let roleColor = u.role === 'admin' ? '#dc2626' : (u.role === 'doctor' ? '#0284c7' : '#d97706');
+                        let roleBg = u.role === 'admin' ? '#fee2e2' : (u.role === 'doctor' ? '#e0f2fe' : '#fef3c7');
                         
                         let identHtml = u.status === 'pending' 
                             ? `<strong style="color: #dc2626;">${u.identifier}</strong>` 
@@ -222,8 +251,8 @@ async function openClinicDetailsModal(clinicId) {
                             onlineHtml = `<span style="color:#d97706; font-size:12px;">⏳ لم يفعل الحساب</span>`;
                         } else {
                             if (u.isOnline) {
-                                onlineHtml = `<span class="status-online">أونلاين</span>`;
-                                lastSeenHtml = `<span style="color:#10b981; font-weight:bold;">الآن</span>`;
+                                onlineHtml = `<span class="status-online">${isAr ? 'أونلاين' : 'Online'}</span>`;
+                                lastSeenHtml = `<span style="color:#10b981; font-weight:bold;">${isAr ? 'الآن' : 'Now'}</span>`;
                             } else {
                                 onlineHtml = `<span style="color:#94a3b8; font-size:20px;" title="أوفلاين">💤</span>`;
                                 if (u.lastLogin) {
@@ -232,7 +261,7 @@ async function openClinicDetailsModal(clinicId) {
                                         lastSeenHtml = `<span class="status-offline" dir="ltr">${d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')} ${d.toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-US', {hour:'2-digit', minute:'2-digit'})}</span>`;
                                     } catch(e) { lastSeenHtml = '---'; }
                                 } else {
-                                    lastSeenHtml = `<span class="status-offline">لم يسجل دخول مسبقاً</span>`;
+                                    lastSeenHtml = `<span class="status-offline">${isAr ? 'لم يسجل دخول' : 'Never'}</span>`;
                                 }
                             }
                         }
@@ -266,7 +295,6 @@ async function editClinicPrice() {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const currentPriceStr = document.getElementById('det-clinic-price').innerText;
     const clinicId = document.getElementById('current-det-clinic-id').value;
-    
     if (!clinicId) return;
 
     let newPrice = prompt(isAr ? "أدخل قيمة الاشتراك الجديدة (ج.م):" : "Enter new subscription price (EGP):", currentPriceStr);
@@ -274,12 +302,9 @@ async function editClinicPrice() {
     if (newPrice !== null && newPrice.trim() !== "") {
         const numPrice = Number(newPrice);
         if (!isNaN(numPrice) && numPrice >= 0) {
-            
             if (window.showLoader) window.showLoader(isAr ? "جاري التحديث..." : "Updating price...");
             try {
-                await db.collection("Clinics").doc(clinicId).update({
-                    subPrice: numPrice
-                });
+                await db.collection("Clinics").doc(clinicId).update({ subPrice: numPrice });
                 document.getElementById('det-clinic-price').innerText = numPrice;
             } catch (err) {
                 console.error(err);
@@ -287,9 +312,36 @@ async function editClinicPrice() {
             } finally {
                 if (window.hideLoader) window.hideLoader();
             }
-            
         } else {
             alert(isAr ? "برجاء إدخال رقم صحيح." : "Please enter a valid number.");
+        }
+    }
+}
+
+// 🔴 1. دالة تعديل عدد المستخدمين الأقصى للسوبر أدمن 🔴
+async function editClinicUsersLimit() {
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const currentLimit = document.getElementById('det-clinic-limit').innerText;
+    const clinicId = document.getElementById('current-det-clinic-id').value;
+    if (!clinicId) return;
+
+    let newLimit = prompt(isAr ? "أدخل الحد الأقصى الجديد للمستخدمين (شاملاً المدير):" : "Enter new max users limit (including admin):", currentLimit);
+    
+    if (newLimit !== null && newLimit.trim() !== "") {
+        const numLimit = Number(newLimit);
+        if (!isNaN(numLimit) && numLimit >= 1) {
+            if (window.showLoader) window.showLoader(isAr ? "جاري تحديث الصلاحيات..." : "Updating limit...");
+            try {
+                await db.collection("Clinics").doc(clinicId).update({ maxUsers: numLimit });
+                document.getElementById('det-clinic-limit').innerText = numLimit;
+            } catch (err) {
+                console.error(err);
+                alert(isAr ? "حدث خطأ أثناء التحديث" : "Error updating limit");
+            } finally {
+                if (window.hideLoader) window.hideLoader();
+            }
+        } else {
+            alert(isAr ? "برجاء إدخال رقم صحيح أكبر من 0." : "Please enter a valid number greater than 0.");
         }
     }
 }
@@ -332,6 +384,7 @@ async function openUserModal() {
 
 function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
 
+// 🔴 2. دالة حفظ المستخدم من لوحة السوبر أدمن (مفتوحة وبها 4 رولز) 🔴
 async function saveNewUser(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button');
@@ -340,9 +393,9 @@ async function saveNewUser(e) {
 
     const userName = document.getElementById('user_name').value.trim();
     const clinicId = document.getElementById('user_clinic').value;
-    const role = "nurse";
+    const role = document.getElementById('user_role').value; // القراءة من القائمة المنسدلة المتاحة
 
-    if (!clinicId) { alert("برجاء اختيار العيادة أولاً."); btn.disabled = false; btn.innerText = "توليد كود الدعوة"; return; }
+    if (!clinicId) { alert("برجاء اختيار العيادة أولاً."); btn.disabled = false; btn.innerText = window.superLang.btnSubUser; return; }
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء كود الدعوة..." : "Generating invite code...");
 
@@ -357,14 +410,14 @@ async function saveNewUser(e) {
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        alert(`✅ تم توليد كود الدعوة بنجاح!\n\nكود الممرضة: ${inviteCode}\nاسم الممرضة: ${userName}\n\nيرجى إعطاء هذا الكود للممرضة لتفعيل حسابها من شاشة تسجيل الدخول.`);
+        alert(`✅ تم توليد كود الدعوة بنجاح!\n\nالكود: ${inviteCode}\nالاسم: ${userName}\nالوظيفة: ${role}\n\nيرجى إعطاء هذا الكود للموظف لتفعيل حسابه من شاشة تسجيل الدخول.`);
         closeUserModal();
     } catch (error) {
         console.error("Error generating code:", error);
         alert("حدث خطأ أثناء توليد الكود!");
     } finally {
         btn.disabled = false;
-        btn.innerText = "توليد كود الدعوة";
+        btn.innerText = window.superLang.btnSubUser;
         if (window.hideLoader) window.hideLoader();
     }
 }
@@ -384,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// 🔴 3. دالة إضافة العيادة مع حفظ (Max Users) 🔴
 async function saveNewClinic(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -402,6 +456,9 @@ async function saveNewClinic(e) {
     const phoneInput = document.getElementById('clinic_phone');
     const adminPhone = phoneInput && phoneInput.value.trim() !== "" ? phoneInput.value.trim() : "01000000000";
 
+    const maxUsersInput = document.getElementById('clinic_max_users');
+    const maxUsers = maxUsersInput ? Number(maxUsersInput.value) : 3;
+
     try {
         const accessCode = Math.floor(10000 + Math.random() * 90000).toString();
         const uniqueClinicId = "clinic_" + accessCode + "_" + Date.now().toString().slice(-4);
@@ -417,6 +474,7 @@ async function saveNewClinic(e) {
             status: plan,
             package: packageType, 
             subPrice: subPrice, 
+            maxUsers: maxUsers, // 🔴 حفظ الليمت في قواعد البيانات 🔴
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             nextPaymentDate: nextPayDate,
             logoUrl: "",
@@ -446,7 +504,6 @@ async function saveNewClinic(e) {
     }
 }
 
-// 🔴 تم تحديث هذه الدالة لتعمل كرادار ذكي يغير الحالة لـ expired أوتوماتيكياً 🔴
 function loadClinics() {
     if (window.showLoader && allClinicsList.length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة بيانات النظام..." : "Syncing SaaS data...");
 
@@ -460,17 +517,15 @@ function loadClinics() {
             const c = doc.data();
             c.id = doc.id;
 
-            // الفحص الذكي لتاريخ الانتهاء
             if (c.nextPaymentDate) {
                 const npDate = typeof c.nextPaymentDate.toDate === 'function' ? c.nextPaymentDate.toDate() : new Date(c.nextPaymentDate);
-                // لو الوقت عدى والحالة لسه نشطة.. اقلبها "منتهي" في الداتا بيز في صمت
                 if (now > npDate && c.status !== 'expired' && c.status !== 'suspended') {
                     db.collection("Clinics").doc(c.id).update({
                         status: 'expired',
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     }).catch(e => console.error("Auto-expire error:", e));
                     
-                    c.status = 'expired'; // تحديث لحظي للواجهة عشان ما ترمش
+                    c.status = 'expired'; 
                 }
             }
 
@@ -534,20 +589,18 @@ function renderClinicsTable() {
         let accessCode = c.accessCode || ""; 
 
         let pkgLabel = '';
-        if(c.package === 'trial_7') pkgLabel = 'تجريبي 7 أيام';
-        else if(c.package === 'trial_14') pkgLabel = 'تجريبي 14 يوم';
-        else if(c.planType === 'trial_3_days') pkgLabel = 'تجريبي مجاني (3 أيام)';
-        else if(c.package === 'yearly') pkgLabel = 'اشتراك سنوي';
-        else pkgLabel = 'اشتراك شهري';
+        if(c.package === 'trial_7') pkgLabel = lang==='ar'?'تجريبي 7 أيام':'Trial 7';
+        else if(c.package === 'trial_14') pkgLabel = lang==='ar'?'تجريبي 14 يوم':'Trial 14';
+        else if(c.planType === 'trial_3_days') pkgLabel = lang==='ar'?'تجريبي (3 أيام)':'Trial 3';
+        else if(c.package === 'yearly') pkgLabel = lang==='ar'?'سنوي':'Yearly';
+        else pkgLabel = lang==='ar'?'شهري':'Monthly';
 
-        // 🔴 تم تحديث بادج الحالة عشان يعرض "منتهي" باللون الأحمر 🔴
         let statusHtml = '';
         if(c.status === 'active') statusHtml = `<span class="status-badge status-active">${window.superLang.sAct}</span>`;
         else if(c.status === 'expired') statusHtml = `<span class="status-badge" style="background:#fee2e2; color:#ef4444; border:1px solid #fca5a5;">${window.superLang.sExpired}</span>`;
         else statusHtml = `<span class="status-badge status-suspended">${window.superLang.sSusp}</span>`;
 
         let toggleBtnHtml = '';
-        // 🔴 لو منتهي أو موقوف هيظهرله زرار التفعيل ▶️ 🔴
         if (c.status === 'suspended' || c.status === 'expired') {
             toggleBtnHtml = `<button class="btn-primary" onclick="toggleSubscription('${c.id}', 'active')" style="background:#3b82f6; border:none; padding:5px 10px; color:white; border-radius:5px; cursor:pointer;">▶️ ${window.superLang.btnRenew}</button>`;
         } else {
@@ -578,7 +631,7 @@ function renderClinicsTable() {
             <td style="${payStyle}" dir="ltr">${nextPayStr} ${alertBadge}</td>
             <td>
                 <a class="clinic-link" onclick="openClinicDetailsModal('${c.id}')">🏢 ${c.clinicName}</a><br>
-                <small style="color:gray;">الكود: ${accessCode || 'بدون'} | الباقة: <span style="color:#3b82f6;">${pkgLabel}</span></small>
+                <small style="color:gray;">الكود: ${accessCode || 'بدون'} | الباقة: <span style="color:#3b82f6;">${pkgLabel}</span> | السعة: <strong>${c.maxUsers||1}</strong></small>
             </td>
             <td dir="ltr" style="text-align:start;">${adminEmail}</td>
             <td>${statusHtml}</td>
@@ -590,7 +643,6 @@ function renderClinicsTable() {
     });
 }
 
-// 🔴 دوال مودال الترقية الجديد 🔴
 function openUpgradeTrialModal(clinicId, clinicName, adminEmail, adminPhone) {
     document.getElementById('upg_clinic_id').value = clinicId;
     document.getElementById('upg_clinic_name').value = clinicName;
@@ -599,6 +651,7 @@ function openUpgradeTrialModal(clinicId, clinicName, adminEmail, adminPhone) {
     
     document.getElementById('upg_package').value = 'monthly';
     document.getElementById('upg_price').value = '';
+    document.getElementById('upg_max_users').value = '5'; // سعة افتراضية
     
     document.getElementById('upgradeTrialModal').style.display = 'flex';
 }
@@ -607,6 +660,7 @@ function closeUpgradeTrialModal() {
     document.getElementById('upgradeTrialModal').style.display = 'none';
 }
 
+// 🔴 4. ترقية الباقة مع حفظ (Max Users) 🔴
 async function confirmUpgradeTrial(e) {
     e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -619,6 +673,7 @@ async function confirmUpgradeTrial(e) {
     const adminPhone = document.getElementById('upg_admin_phone').value;
     const packageType = document.getElementById('upg_package').value;
     const subPrice = Number(document.getElementById('upg_price').value);
+    const maxUsers = Number(document.getElementById('upg_max_users').value);
 
     if (window.showLoader) window.showLoader(isAr ? "جاري ترقية العيادة وتوليد كود الدخول..." : "Upgrading clinic...");
 
@@ -633,6 +688,7 @@ async function confirmUpgradeTrial(e) {
             planType: firebase.firestore.FieldValue.delete(), 
             package: packageType,
             subPrice: subPrice,
+            maxUsers: maxUsers, // 🔴 حفظ الليمت 🔴
             accessCode: accessCode,
             nextPaymentDate: nextPayDate,
             status: 'active'
