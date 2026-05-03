@@ -9,30 +9,30 @@ let currentReportData = {
     patients: []
 };
 
-// 🔴 1. الترجمة ودعم اللغات 🔴
+// 🔴 1. الترجمة 🔴
 function updatePageContent(lang) {
     const t = {
         ar: {
             title: "التقارير التحليلية", sub: "تحليل الأداء المالي، نمو المرضى، وإحصائيات العيادة الشاملة",
-            btnExport: "📥 تصدير لإكسيل", btnPrint: "🖨️ طباعة التقرير", optAllBranches: "كل الفروع",
+            btnExport: "📥 تصدير لإكسيل", btnPrint: "🖨️ طباعة التقرير", optAllBranches: "الفرع الرئيسي (كل الفروع)",
             chipMonth: "هذا الشهر", chipWeek: "هذا الأسبوع", chipYear: "هذه السنة", chipAll: "كل الوقت",
             lblTo: "إلى", btnUpdate: "تحديث 🔄",
             kpiInc: "إجمالي الدخل", kpiExp: "إجمالي المصروفات", kpiNet: "صافي الربح", kpiNewPat: "مرضى جدد",
             cFin: "📊 مخطط الإيرادات والمصروفات الزمني", cServ: "🩺 أكثر الخدمات (الإجراءات) طلباً",
             cMeth: "💳 تحليل طرق التحصيل", cTab: "📑 ملخص العمليات المالية في الفترة المختارة",
             thDate: "التاريخ", thCat: "التصنيف", thNote: "البيان", thAmount: "المبلغ", loadingTable: "جاري تجميع البيانات...",
-            lInc: "إيرادات", lExp: "مصروفات", lCash: "نقدي", lWallet: "محافظ", lBank: "بنوك", unspec: "غير محدد", noData: "لا توجد حركات مالية في هذه الفترة."
+            lInc: "إيرادات", lExp: "مصروفات", lCash: "نقدي", lWallet: "محافظ", lBank: "بنوك", unspec: "غير محدد", noData: "لا توجد حركات مالية."
         },
         en: {
             title: "Analytical Reports", sub: "Financial performance, patient growth, and overall statistics",
-            btnExport: "📥 Export to Excel", btnPrint: "🖨️ Print Report", optAllBranches: "All Branches",
+            btnExport: "📥 Export to Excel", btnPrint: "🖨️ Print Report", optAllBranches: "Main Branch (All)",
             chipMonth: "This Month", chipWeek: "This Week", chipYear: "This Year", chipAll: "All Time",
             lblTo: "To", btnUpdate: "Update 🔄",
             kpiInc: "Total Income", kpiExp: "Total Expenses", kpiNet: "Net Profit", kpiNewPat: "New Patients",
             cFin: "📊 Financial Timeline Chart", cServ: "🩺 Most Requested Services",
             cMeth: "💳 Payment Methods Analysis", cTab: "📑 Financial Transactions Summary",
             thDate: "Date", thCat: "Category", thNote: "Description", thAmount: "Amount", loadingTable: "Compiling data...",
-            lInc: "Income", lExp: "Expenses", lCash: "Cash", lWallet: "Wallet", lBank: "Bank", unspec: "Unspecified", noData: "No transactions found in this period."
+            lInc: "Income", lExp: "Expenses", lCash: "Cash", lWallet: "Wallet", lBank: "Bank", unspec: "Unspecified", noData: "No transactions found."
         }
     };
     const c = t[lang] || t.ar;
@@ -60,9 +60,7 @@ async function loadBranchesForFilter() {
     db.collection("Branches").where("clinicId", "==", clinicId).onSnapshot(snap => {
         const currentVal = select.value;
         const isAr = document.body.dir === 'rtl';
-        select.innerHTML = `<option value="all" id="opt-all-branches">${isAr ? 'كل الفروع' : 'All Branches'}</option>`;
-        
-        select.innerHTML += `<option value="main">${isAr ? 'الفرع الرئيسي' : 'Main Branch'}</option>`;
+        select.innerHTML = `<option value="all" id="opt-all-branches">${isAr ? 'الفرع الرئيسي (كل الفروع)' : 'Main Branch (All)'}</option>`;
         
         snap.forEach(doc => {
             const b = doc.data();
@@ -72,6 +70,7 @@ async function loadBranchesForFilter() {
     });
 }
 
+// 🔴 3. إعدادات التواريخ (مأخوذة من كودك الأصلي حرفياً) 🔴
 function setReportPeriod(period, element) {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     if(element) {
@@ -94,22 +93,20 @@ function setReportPeriod(period, element) {
         fromDate = new Date(2020, 0, 1);
     }
 
-    const fromStr = new Date(fromDate.getTime() - (fromDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-    const toStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-
-    document.getElementById('rep_date_from').value = fromStr;
-    document.getElementById('rep_date_to').value = toStr;
+    document.getElementById('rep_date_from').value = fromDate.toISOString().split('T')[0];
+    document.getElementById('rep_date_to').value = today.toISOString().split('T')[0];
     
     loadAllReportsData();
 }
 
-// 🔴 3. جلب الداتا (باللوجيك القديم الشغال 100%) 🔴
+// 🔴 4. جلب كل الداتا مع دعم صامت للفروع 🔴
 async function loadAllReportsData() {
     if (!clinicId) return;
     
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
     
+    // فلتر الفروع (لو all هيعرض الداتا القديمة براحتها)
     const branchSelect = document.getElementById('branch_filter');
     const selectedBranch = branchSelect ? branchSelect.value : 'all';
 
@@ -126,8 +123,7 @@ async function loadAllReportsData() {
         
         currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
             if (selectedBranch === 'all') return true;
-            const tBranch = t.branchId || 'main'; 
-            return tBranch === selectedBranch;
+            return (t.branchId || 'main') === selectedBranch;
         });
 
         const sessSnap = await db.collection("Sessions")
@@ -138,37 +134,33 @@ async function loadAllReportsData() {
         
         currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => {
             if (selectedBranch === 'all') return true;
-            const sBranch = s.branchId || 'main';
-            return sBranch === selectedBranch;
+            return (s.branchId || 'main') === selectedBranch;
         });
 
         const patSnap = await db.collection("Patients")
             .where("clinicId", "==", clinicId)
-            .get();
+            .get(); 
         
-        // هنا رجعنا للوجيك الفلترة القديم اللي كان شغال معاك زي الفل
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
+            // فلتر الفرع أولاً
             if (selectedBranch !== 'all') {
-                const pBranch = p.branchId || 'main';
-                if (pBranch !== selectedBranch) return false;
+                if ((p.branchId || 'main') !== selectedBranch) return false;
             }
+            // كود الفلترة الأصلي بتاعك للمرضى (بدون أي تعديل يكسره)
             if(!p.createdAt) return false;
             const pDate = p.createdAt.toDate().toISOString().split('T')[0];
             return pDate >= dateFrom && pDate <= dateTo;
         });
 
         calculateKPIs();
-        
-        if (typeof Chart !== 'undefined') {
-            renderFinanceChart();
-            renderServicesChart();
-            renderMethodsChart();
-        }
+        renderFinanceChart();
+        renderServicesChart();
+        renderMethodsChart();
         renderDetailedTable();
 
     } catch (e) {
         console.error("Reports Error:", e);
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444; font-weight: bold;">حدث خطأ أثناء تجميع البيانات: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444; font-weight: bold;">حدث خطأ: ${e.message}</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
@@ -187,7 +179,7 @@ function calculateKPIs() {
     document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
 }
 
-// 🔴 4. رسم المخططات البيانية (مظبوطة الحجم واللون) 🔴
+// 🔴 5. المخططات (متظبطة للدارك مود ومصغرة) 🔴
 function getChartTextColor() {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     return isDark ? '#cbd5e1' : '#475569';
@@ -220,7 +212,7 @@ function renderFinanceChart() {
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, 
+            maintainAspectRatio: false, // السر هنا
             plugins: { legend: { position: 'top', labels: { color: textColor } } },
             scales: { x: { ticks: { color: textColor } }, y: { ticks: { color: textColor } } }
         }
@@ -281,11 +273,8 @@ function renderDetailedTable() {
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
     
-    currentReportData.transactions.sort((a,b) => {
-        const d1 = a.date || "";
-        const d2 = b.date || "";
-        return d2.localeCompare(d1);
-    });
+    // كودك الأصلي للترتيب (بدون أي تعديل)
+    currentReportData.transactions.sort((a,b) => b.date.localeCompare(a.date));
     
     if (currentReportData.transactions.length === 0) {
         const noDataTxt = window.reportLang ? window.reportLang.noData : "لا توجد حركات مالية في هذه الفترة.";
@@ -299,10 +288,10 @@ function renderDetailedTable() {
         const sign = t.type === 'income' ? '+' : '-';
         
         tr.innerHTML = `
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date || '---'}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category || '---'}</strong></td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.notes || '---'}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount || 0}</td>
+            <td>${t.date}</td>
+            <td><strong>${t.category}</strong></td>
+            <td>${t.notes || '---'}</td>
+            <td style="color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -326,7 +315,6 @@ function exportReportToExcel() {
     XLSX.writeFile(wb, `NivaDent_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-// 🔴 5. الإقلاع 🔴
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
@@ -335,9 +323,8 @@ window.onload = () => {
     updatePageContent(lang);
     loadBranchesForFilter();
 
+    // السطر الأصلي اللي كان شغال عندك
     firebase.auth().onAuthStateChanged((user) => {
-        if (user) {
-            setReportPeriod('month', document.getElementById('chip-month')); 
-        }
+        if (user) setReportPeriod('month', document.getElementById('chip-month')); 
     });
 };
