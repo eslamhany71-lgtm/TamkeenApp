@@ -22,6 +22,9 @@
         .chart-container { background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .full-width { grid-column: 1 / -1; }
         
+        /* ضبط حجم الرسوم البيانية */
+        .chart-wrapper { position: relative; height: 300px; width: 100%; margin-top: 15px; }
+        
         @media (max-width: 900px) {
             .reports-grid { grid-template-columns: 1fr; }
         }
@@ -30,16 +33,14 @@
         .filter-chip.active { background: #0284c7; color: white; border-color: #0284c7; }
         
         select.search-box, input.search-box { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-weight: bold; outline: none; }
-        select.search-box:focus, input.search-box:focus { border-color: #0284c7; }
-
-        /* 🔴 الدارك مود 🔴 */
+        
+        /* الدارك مود */
         [data-theme="dark"] .chart-container { background: #1e293b !important; border-color: #334155 !important; }
         [data-theme="dark"] h3 { color: #f8fafc !important; }
         [data-theme="dark"] .filters-bar { background: #1e293b !important; border-color: #334155 !important; }
         [data-theme="dark"] .filter-chip { background: #0f172a; color: #cbd5e1; border-color: #334155; }
-        [data-theme="dark"] .filter-chip.active { background: #0284c7; color: white; border-color: #0284c7; }
         [data-theme="dark"] select.search-box, [data-theme="dark"] input.search-box { background: #0f172a; color: #f8fafc; border-color: #334155; }
-        [data-theme="dark"] table th { background: #0f172a !important; color: #cbd5e1 !important; border-bottom: 1px solid #334155 !important; }
+        [data-theme="dark"] table th { background: #0f172a !important; color: #cbd5e1 !important; }
         [data-theme="dark"] table td { color: #f8fafc !important; border-bottom: 1px solid #334155 !important; }
     </style>
 </head>
@@ -62,7 +63,6 @@
 
     <div class="filters-bar no-print" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; align-items: center;">
         
-        <!-- 🔴 فلتر الفروع 🔴 -->
         <select id="branch_filter" class="search-box" style="min-width: 150px;" onchange="loadAllReportsData()">
             <option value="all" id="opt-all">كل الفروع (الرئيسي)</option>
         </select>
@@ -74,58 +74,51 @@
         <div class="filter-chip" id="chip-year" onclick="setReportPeriod('year', this)">هذه السنة</div>
         <div class="filter-chip" id="chip-all" onclick="setReportPeriod('all', this)">كل الوقت</div>
         
-        <div style="margin-right: auto; display: flex; gap: 10px; align-items: center;">
+        <div style="margin-right: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
             <input type="date" id="rep_date_from" class="search-box" style="width: 140px;">
-            <span id="lbl-to" style="font-weight: bold; color: #64748b;">إلى</span>
+            <span id="lbl-to">إلى</span>
             <input type="date" id="rep_date_to" class="search-box" style="width: 140px;">
             <button class="btn-primary" id="btn-update" onclick="loadAllReportsData()" style="padding: 10px 15px;">تحديث 🔄</button>
         </div>
     </div>
 
-    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-        <div class="kpi-card" style="border-right: 4px solid #10b981;">
+    <div class="kpi-grid" style="display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <div class="kpi-card" style="border-right: 4px solid #10b981; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
             <div class="kpi-info"><h4 id="txt-kpi-inc">إجمالي الدخل</h4><h2 id="rep-income">0</h2></div>
-            <div class="kpi-icon" style="color: #10b981;">📈</div>
+            <div class="kpi-icon" style="color: #10b981; font-size: 24px;">📈</div>
         </div>
-        <div class="kpi-card" style="border-right: 4px solid #ef4444;">
+        <div class="kpi-card" style="border-right: 4px solid #ef4444; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
             <div class="kpi-info"><h4 id="txt-kpi-exp">إجمالي المصروفات</h4><h2 id="rep-expense">0</h2></div>
-            <div class="kpi-icon" style="color: #ef4444;">📉</div>
+            <div class="kpi-icon" style="color: #ef4444; font-size: 24px;">📉</div>
         </div>
-        <div class="kpi-card" style="border-right: 4px solid #0284c7;">
+        <div class="kpi-card" style="border-right: 4px solid #0284c7; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
             <div class="kpi-info"><h4 id="txt-kpi-net">صافي الربح</h4><h2 id="rep-net">0</h2></div>
-            <div class="kpi-icon" style="color: #0284c7;">💰</div>
+            <div class="kpi-icon" style="color: #0284c7; font-size: 24px;">💰</div>
         </div>
-        <div class="kpi-card" style="border-right: 4px solid #8b5cf6;">
+        <div class="kpi-card" style="border-right: 4px solid #8b5cf6; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
             <div class="kpi-info"><h4 id="txt-kpi-pat">مرضى جدد</h4><h2 id="rep-new-patients">0</h2></div>
-            <div class="kpi-icon" style="color: #8b5cf6;">👥</div>
+            <div class="kpi-icon" style="color: #8b5cf6; font-size: 24px;">👥</div>
         </div>
     </div>
 
     <div class="reports-grid">
         <div class="chart-container full-width">
-            <h3 id="c-title-1" style="margin-top: 0;">📊 مخطط الإيرادات والمصروفات الزمني</h3>
-            <!-- 🔴 ضبط حجم الرسم البياني 🔴 -->
-            <div style="position: relative; height: 300px; width: 100%;">
-                <canvas id="financeChart"></canvas>
-            </div>
+            <h3 id="c-title-1">📊 مخطط الإيرادات والمصروفات الزمني</h3>
+            <div class="chart-wrapper"><canvas id="financeChart"></canvas></div>
         </div>
 
         <div class="chart-container">
-            <h3 id="c-title-2" style="margin-top: 0;">🩺 أكثر الخدمات (الإجراءات) طلباً</h3>
-            <div style="position: relative; height: 300px; width: 100%;">
-                <canvas id="servicesChart"></canvas>
-            </div>
+            <h3 id="c-title-2">🩺 أكثر الخدمات (الإجراءات) طلباً</h3>
+            <div class="chart-wrapper"><canvas id="servicesChart"></canvas></div>
         </div>
 
         <div class="chart-container">
-            <h3 id="c-title-3" style="margin-top: 0;">💳 تحليل طرق التحصيل</h3>
-            <div style="position: relative; height: 300px; width: 100%;">
-                <canvas id="methodsChart"></canvas>
-            </div>
+            <h3 id="c-title-3">💳 تحليل طرق التحصيل</h3>
+            <div class="chart-wrapper"><canvas id="methodsChart"></canvas></div>
         </div>
         
         <div class="chart-container full-width">
-            <h3 id="c-title-4" style="margin-top: 0;">📑 ملخص العمليات المالية في الفترة المختارة</h3>
+            <h3 id="c-title-4">📑 ملخص العمليات المالية في الفترة المختارة</h3>
             <div class="table-container" style="margin-top: 10px; max-height: 300px; overflow-y: auto;">
                 <table id="detailedReportTable" style="width: 100%; border-collapse: collapse;">
                     <thead>
@@ -137,7 +130,7 @@
                         </tr>
                     </thead>
                     <tbody id="detailedReportBody">
-                        <tr><td colspan="4" id="txt-loading" style="text-align: center; padding: 15px; color: #64748b;">جاري تجميع البيانات...</td></tr>
+                        <tr><td colspan="4" id="txt-loading" style="text-align: center; padding: 15px;">جاري تجميع البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
