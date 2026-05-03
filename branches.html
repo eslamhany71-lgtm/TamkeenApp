@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        var currentHour = Math.floor(Date.now() / 3600000);
+        document.write('<link rel="stylesheet" href="css/settings.css?v=' + currentHour + '">'); // سنستخدم ستايل الإعدادات للاتساق
+    </script>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        .branch-card { border-right: 5px solid #0ea5e9; transition: 0.3s; }
+        .branch-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .transfer-box { background: #f0f9ff; border: 2px dashed #0ea5e9; border-radius: 15px; padding: 25px; margin-top: 20px; }
+        [data-theme="dark"] .transfer-box { background: #0f172a; border-color: #1e293b; }
+        .patient-item { display: flex; justify-content: space-between; align-items: center; background: white; padding: 12px 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
+        [data-theme="dark"] .patient-item { background: #1e293b; border-color: #334155; }
+        .btn-transfer { background: #8b5cf6; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn-transfer:hover { background: #7c3aed; }
+    </style>
+</head>
+<body style="touch-action: manipulation;">
+
+    <div class="page-header">
+        <div class="page-title">
+            <h1 id="txt-title">إدارة فروع العيادة</h1>
+            <p id="txt-subtitle">إضافة فروع جديدة ونقل المرضى بين الفروع</p>
+        </div>
+        <button class="btn-primary" onclick="openAddBranchModal()">
+            <span>🏢</span> <span id="btn-add-branch-txt">إضافة فرع جديد</span>
+        </button>
+    </div>
+
+    <div class="settings-container">
+        
+        <div class="settings-card">
+            <h3 id="txt-branches-list-title" style="margin-top: 0; color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 20px;">الفروع المسجلة</h3>
+            <div id="branches-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <p id="txt-loading-branches" style="text-align: center; color: #64748b;">جاري تحميل الفروع...</p>
+            </div>
+        </div>
+
+        <div class="settings-card" style="margin-top: 25px;">
+            <h3 id="txt-transfer-title" style="margin-top: 0; color: #8b5cf6; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 10px;">🔄 مركز نقل ملفات المرضى</h3>
+            <p id="txt-transfer-desc" style="color: #64748b; font-size: 14px; margin-bottom: 20px;">يمكنك البحث عن مريض ونقله بكامل سجلاته الطبية من فرع إلى فرع آخر.</p>
+            
+            <div class="transfer-box">
+                <div class="form-group">
+                    <label id="lbl-search-patient">ابحث عن المريض (بالاسم أو الموبايل)</label>
+                    <input type="text" id="search_patient_input" placeholder="اكتب للبحث..." oninput="searchPatientsForTransfer()">
+                </div>
+                
+                <div id="transfer-results" style="margin-top: 15px; max-height: 300px; overflow-y: auto;">
+                    </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="branchModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeBranchModal()">&times;</span>
+            <h2 id="mod-branch-title">إضافة فرع جديد</h2>
+            <form id="branchForm" onsubmit="saveBranch(event)">
+                <div class="form-group">
+                    <label id="lbl-b-name">اسم الفرع</label>
+                    <input type="text" id="branch_name" placeholder="مثال: فرع مدينة نصر" required>
+                </div>
+                <div class="form-group">
+                    <label id="lbl-b-phone">تليفون الفرع</label>
+                    <input type="tel" id="branch_phone" placeholder="01xxxxxxxxx" dir="ltr" style="text-align: right;">
+                </div>
+                <div class="form-group">
+                    <label id="lbl-b-address">عنوان الفرع بالتفصيل</label>
+                    <input type="text" id="branch_address" placeholder="العنوان الذي سيظهر للمرضى" required>
+                </div>
+                <button type="submit" id="btn-save-branch" class="btn-success" style="margin-top: 10px;">حفظ الفرع</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="transferConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeTransferModal()">&times;</span>
+            <h2 id="mod-transfer-title">نقل المريض لفرع آخر</h2>
+            <p id="txt-moving-patient" style="font-weight: bold; color: #1e293b; margin-bottom: 20px;">نقل المريض: <span id="target-patient-name" style="color:#0ea5e9;">...</span></p>
+            
+            <div class="form-group">
+                <label id="lbl-select-branch">اختر الفرع الجديد:</label>
+                <select id="new_branch_select" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit;">
+                    </select>
+            </div>
+            
+            <p style="color: #ef4444; font-size: 12px; margin-top: 10px;" id="txt-transfer-warn">* سيتم تحديث ملف المريض فوراً ليظهر في مواعيد وتقارير الفرع الجديد.</p>
+            
+            <button type="button" class="btn-primary" onclick="executeTransfer()" style="width: 100%; margin-top: 20px; background: #8b5cf6;">تأكيد عملية النقل</button>
+        </div>
+    </div>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/branches.js"></script>
+</body>
+</html>
