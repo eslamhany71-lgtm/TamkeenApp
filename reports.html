@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title id="page_title">التقارير والإحصائيات | NivaDent Reports</title>
+    <title>التقارير والإحصائيات | NivaDent Reports</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -22,9 +22,6 @@
         .chart-container { background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .full-width { grid-column: 1 / -1; }
         
-        /* 🔴 السر هنا: دي الحاوية اللي بتخلي الرسم البياني حجمه محترم 🔴 */
-        .chart-wrapper { position: relative; height: 300px; width: 100%; margin-top: 15px; }
-        
         @media (max-width: 900px) {
             .reports-grid { grid-template-columns: 1fr; }
         }
@@ -32,9 +29,7 @@
         .filter-chip { background: #f1f5f9; color: #475569; padding: 8px 15px; border-radius: 20px; cursor: pointer; border: 1px solid #cbd5e1; font-weight: bold; transition: 0.3s; }
         .filter-chip.active { background: #0284c7; color: white; border-color: #0284c7; }
         
-        select.search-box, input.search-box { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-weight: bold; outline: none; }
-        select.search-box:focus, input.search-box:focus { border-color: #0284c7; }
-
+        /* دعم الدارك مود للأساسيات */
         [data-theme="dark"] .chart-container { background: #1e293b !important; border-color: #334155 !important; }
         [data-theme="dark"] h3 { color: #f8fafc !important; }
         [data-theme="dark"] .filters-bar { background: #1e293b !important; border-color: #334155 !important; }
@@ -54,92 +49,86 @@
         </div>
         <div class="header-actions">
             <button class="btn-primary" onclick="exportReportToExcel()">
-                <span id="btn-export">📥 تصدير لإكسيل</span>
+                <span>📥</span> <span>تصدير لإكسيل</span>
             </button>
             <button class="btn-action" style="background: #ecfdf5; color: #10b981; border-color: #a7f3d0;" onclick="window.print()">
-                <span id="btn-print">🖨️ طباعة التقرير</span>
+                <span>🖨️</span> <span>طباعة التقرير</span>
             </button>
         </div>
     </div>
 
     <div class="filters-bar no-print" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; align-items: center;">
         
-        <!-- 🔴 فلتر الفروع 🔴 -->
-        <select id="branch_filter" class="search-box" style="min-width: 150px;" onchange="loadAllReportsData()">
-            <option value="all" id="opt-all-branches">الفرع الرئيسي (كل الفروع)</option>
+        <!-- 🔴 قائمة الفروع الجديدة 🔴 -->
+        <select id="branch_filter" class="search-box" style="padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: bold; outline: none; min-width: 150px;" onchange="loadAllReportsData()">
+            <option value="all">كل الفروع</option>
         </select>
         
-        <div style="width: 2px; height: 30px; background: #e2e8f0; margin: 0 5px;"></div>
+        <div style="width: 1px; height: 30px; background: #e2e8f0; margin: 0 5px;"></div>
 
-        <div class="filter-chip active" id="chip-month" onclick="setReportPeriod('month', this)">هذا الشهر</div>
-        <div class="filter-chip" id="chip-week" onclick="setReportPeriod('week', this)">هذا الأسبوع</div>
-        <div class="filter-chip" id="chip-year" onclick="setReportPeriod('year', this)">هذه السنة</div>
-        <div class="filter-chip" id="chip-all" onclick="setReportPeriod('all', this)">كل الوقت</div>
+        <div class="filter-chip active" onclick="setReportPeriod('month', this)">هذا الشهر</div>
+        <div class="filter-chip" onclick="setReportPeriod('week', this)">هذا الأسبوع</div>
+        <div class="filter-chip" onclick="setReportPeriod('year', this)">هذه السنة</div>
+        <div class="filter-chip" onclick="setReportPeriod('all', this)">كل الوقت</div>
         
-        <div style="margin-right: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <input type="date" id="rep_date_from" class="search-box" style="width: 140px;">
-            <span id="lbl-to" style="font-weight: bold; color: #64748b;">إلى</span>
-            <input type="date" id="rep_date_to" class="search-box" style="width: 140px;">
-            <button class="btn-primary" id="btn-update" onclick="loadAllReportsData()" style="padding: 10px 15px;">تحديث 🔄</button>
+        <div style="margin-right: auto; display: flex; gap: 10px; align-items: center;">
+            <input type="date" id="rep_date_from" class="search-box" style="width: 150px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1;">
+            <span>إلى</span>
+            <input type="date" id="rep_date_to" class="search-box" style="width: 150px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1;">
+            <button class="btn-primary" onclick="loadAllReportsData()" style="padding: 10px 15px;">تحديث 🔄</button>
         </div>
     </div>
 
     <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
         <div class="kpi-card" style="border-right: 4px solid #10b981;">
-            <div class="kpi-info"><h4 id="txt-kpi-income">إجمالي الدخل</h4><h2 id="rep-income">0</h2></div>
+            <div class="kpi-info"><h4>إجمالي الدخل</h4><h2 id="rep-income">0</h2></div>
             <div class="kpi-icon" style="color: #10b981;">📈</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #ef4444;">
-            <div class="kpi-info"><h4 id="txt-kpi-expense">إجمالي المصروفات</h4><h2 id="rep-expense">0</h2></div>
+            <div class="kpi-info"><h4>إجمالي المصروفات</h4><h2 id="rep-expense">0</h2></div>
             <div class="kpi-icon" style="color: #ef4444;">📉</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #0284c7;">
-            <div class="kpi-info"><h4 id="txt-kpi-net">صافي الربح</h4><h2 id="rep-net">0</h2></div>
+            <div class="kpi-info"><h4>صافي الربح</h4><h2 id="rep-net">0</h2></div>
             <div class="kpi-icon" style="color: #0284c7;">💰</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #8b5cf6;">
-            <div class="kpi-info"><h4 id="txt-kpi-new-pat">مرضى جدد</h4><h2 id="rep-new-patients">0</h2></div>
+            <div class="kpi-info"><h4>مرضى جدد</h4><h2 id="rep-new-patients">0</h2></div>
             <div class="kpi-icon" style="color: #8b5cf6;">👥</div>
         </div>
     </div>
 
     <div class="reports-grid">
         <div class="chart-container full-width">
-            <h3 id="txt-chart-finance" style="margin-top: 0;">📊 مخطط الإيرادات والمصروفات الزمني</h3>
-            <!-- 🔴 حاوية الرسم البياني 🔴 -->
-            <div class="chart-wrapper">
-                <canvas id="financeChart"></canvas>
-            </div>
+            <h3 style="margin-top: 0;">📊 مخطط الإيرادات والمصروفات الزمني</h3>
+            <!-- 🔴 رجعتلك الـ height="100" بتاعك اللي بيخليها مظبوطة 🔴 -->
+            <canvas id="financeChart" height="100"></canvas>
         </div>
 
         <div class="chart-container">
-            <h3 id="txt-chart-services" style="margin-top: 0;">🩺 أكثر الخدمات (الإجراءات) طلباً</h3>
-            <div class="chart-wrapper">
-                <canvas id="servicesChart"></canvas>
-            </div>
+            <h3 style="margin-top: 0;">🩺 أكثر الخدمات (الإجراءات) طلباً</h3>
+            <canvas id="servicesChart"></canvas>
         </div>
 
         <div class="chart-container">
-            <h3 id="txt-chart-methods" style="margin-top: 0;">💳 تحليل طرق التحصيل</h3>
-            <div class="chart-wrapper">
-                <canvas id="methodsChart"></canvas>
-            </div>
+            <h3 style="margin-top: 0;">💳 تحليل طرق التحصيل</h3>
+            <canvas id="methodsChart"></canvas>
         </div>
         
         <div class="chart-container full-width">
-            <h3 id="txt-chart-table" style="margin-top: 0;">📑 ملخص العمليات المالية في الفترة المختارة</h3>
+            <h3 style="margin-top: 0;">📑 ملخص العمليات المالية في الفترة المختارة</h3>
             <div class="table-container" style="margin-top: 10px; max-height: 300px; overflow-y: auto;">
-                <table id="detailedReportTable">
+                <table id="detailedReportTable" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th id="th-date">التاريخ</th>
-                            <th id="th-cat">التصنيف</th>
-                            <th id="th-note">البيان</th>
-                            <th id="th-amount">المبلغ</th>
+                            <th style="background:#f8fafc; padding:10px; border-bottom:1px solid #cbd5e1; text-align:start;">التاريخ</th>
+                            <th style="background:#f8fafc; padding:10px; border-bottom:1px solid #cbd5e1; text-align:start;">التصنيف</th>
+                            <th style="background:#f8fafc; padding:10px; border-bottom:1px solid #cbd5e1; text-align:start;">البيان</th>
+                            <th style="background:#f8fafc; padding:10px; border-bottom:1px solid #cbd5e1; text-align:start;">المبلغ</th>
                         </tr>
                     </thead>
                     <tbody id="detailedReportBody">
-                        <tr><td colspan="4" id="txt-loading-table" style="text-align: center;">جاري تجميع البيانات...</td></tr>
+                        <tr><td colspan="4" style="text-align: center; padding:15px; color:#64748b;">جاري تجميع البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
