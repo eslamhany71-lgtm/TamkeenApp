@@ -177,7 +177,7 @@ window.onload = async () => {
             if(cData.logoUrl) {
                 const logoContainer = document.getElementById('portal_logo_container');
                 if(logoContainer) {
-                    logoContainer.innerHTML = `<img src="${cData.logoUrl}" alt="Clinic Logo" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">`;
+                    logoContainer.innerHTML = `<img src="${cData.logoUrl}" alt="Clinic Logo" style="width: 90px; height: 90px; object-fit: contain; border-radius: 50%; background: white; padding: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin: 0 auto;">`;
                 }
             }
             
