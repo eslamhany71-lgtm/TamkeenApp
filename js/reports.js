@@ -62,7 +62,6 @@ async function loadBranchesForFilter() {
         const isAr = document.body.dir === 'rtl';
         select.innerHTML = `<option value="all" id="opt-all-branches">${isAr ? 'كل الفروع' : 'All Branches'}</option>`;
         
-        // إضافة اختيار الفرع الرئيسي صراحة
         select.innerHTML += `<option value="main">${isAr ? 'الفرع الرئيسي' : 'Main Branch'}</option>`;
         
         snap.forEach(doc => {
@@ -104,7 +103,7 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 3. جلب الداتا والفلترة الذكية (للبيانات القديمة والجديدة) 🔴
+// 🔴 3. جلب الداتا (باللوجيك القديم الشغال 100%) 🔴
 async function loadAllReportsData() {
     if (!clinicId) return;
     
@@ -127,7 +126,7 @@ async function loadAllReportsData() {
         
         currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
             if (selectedBranch === 'all') return true;
-            const tBranch = t.branchId || 'main'; // لو مفيش فرع، اعتبره الفرع الرئيسي
+            const tBranch = t.branchId || 'main'; 
             return tBranch === selectedBranch;
         });
 
@@ -147,23 +146,14 @@ async function loadAllReportsData() {
             .where("clinicId", "==", clinicId)
             .get();
         
+        // هنا رجعنا للوجيك الفلترة القديم اللي كان شغال معاك زي الفل
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
             if (selectedBranch !== 'all') {
                 const pBranch = p.branchId || 'main';
                 if (pBranch !== selectedBranch) return false;
             }
-            
-            // حماية تاريخ المريض من أي داتا فاسدة
-            if (!p.createdAt) return false;
-            let pDate = "";
-            try {
-                if (typeof p.createdAt.toDate === 'function') {
-                    pDate = p.createdAt.toDate().toISOString().split('T')[0];
-                } else {
-                    pDate = new Date(p.createdAt).toISOString().split('T')[0];
-                }
-            } catch(err) { return false; }
-            
+            if(!p.createdAt) return false;
+            const pDate = p.createdAt.toDate().toISOString().split('T')[0];
             return pDate >= dateFrom && pDate <= dateTo;
         });
 
@@ -230,7 +220,7 @@ function renderFinanceChart() {
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, // يمنع التمدد البشع
+            maintainAspectRatio: false, 
             plugins: { legend: { position: 'top', labels: { color: textColor } } },
             scales: { x: { ticks: { color: textColor } }, y: { ticks: { color: textColor } } }
         }
@@ -309,10 +299,10 @@ function renderDetailedTable() {
         const sign = t.type === 'income' ? '+' : '-';
         
         tr.innerHTML = `
-            <td>${t.date || '---'}</td>
-            <td><strong>${t.category || '---'}</strong></td>
-            <td>${t.notes || '---'}</td>
-            <td style="color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount || 0}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date || '---'}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category || '---'}</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.notes || '---'}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount || 0}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -336,7 +326,7 @@ function exportReportToExcel() {
     XLSX.writeFile(wb, `NivaDent_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-// 🔴 5. الإقلاع المضمون 🔴
+// 🔴 5. الإقلاع 🔴
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
