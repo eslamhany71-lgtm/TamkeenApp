@@ -9,10 +9,75 @@ let currentReportData = {
     patients: []
 };
 
-// 🔴 1. إعدادات البداية والفلاتر 🔴
+// 🔴 1. الترجمة ودعم اللغات 🔴
+function updatePageContent(lang) {
+    const t = {
+        ar: {
+            title: "التقارير التحليلية", sub: "تحليل الأداء المالي، نمو المرضى، وإحصائيات العيادة الشاملة",
+            btnExport: "📥 تصدير لإكسيل", btnPrint: "🖨️ طباعة التقرير", optAllBranches: "كل الفروع",
+            chipMonth: "هذا الشهر", chipWeek: "هذا الأسبوع", chipYear: "هذه السنة", chipAll: "كل الوقت",
+            lblTo: "إلى", btnUpdate: "تحديث 🔄",
+            kpiInc: "إجمالي الدخل", kpiExp: "إجمالي المصروفات", kpiNet: "صافي الربح", kpiNewPat: "مرضى جدد",
+            cFin: "📊 مخطط الإيرادات والمصروفات الزمني", cServ: "🩺 أكثر الخدمات (الإجراءات) طلباً",
+            cMeth: "💳 تحليل طرق التحصيل", cTab: "📑 ملخص العمليات المالية في الفترة المختارة",
+            thDate: "التاريخ", thCat: "التصنيف", thNote: "البيان", thAmount: "المبلغ", loadingTable: "جاري تجميع البيانات...",
+            lInc: "إيرادات", lExp: "مصروفات", lCash: "نقدي", lWallet: "محافظ", lBank: "بنوك", unspec: "غير محدد", noData: "لا توجد حركات مالية في هذه الفترة."
+        },
+        en: {
+            title: "Analytical Reports", sub: "Financial performance, patient growth, and overall statistics",
+            btnExport: "📥 Export to Excel", btnPrint: "🖨️ Print Report", optAllBranches: "All Branches",
+            chipMonth: "This Month", chipWeek: "This Week", chipYear: "This Year", chipAll: "All Time",
+            lblTo: "To", btnUpdate: "Update 🔄",
+            kpiInc: "Total Income", kpiExp: "Total Expenses", kpiNet: "Net Profit", kpiNewPat: "New Patients",
+            cFin: "📊 Financial Timeline Chart", cServ: "🩺 Most Requested Services",
+            cMeth: "💳 Payment Methods Analysis", cTab: "📑 Financial Transactions Summary",
+            thDate: "Date", thCat: "Category", thNote: "Description", thAmount: "Amount", loadingTable: "Compiling data...",
+            lInc: "Income", lExp: "Expenses", lCash: "Cash", lWallet: "Wallet", lBank: "Bank", unspec: "Unspecified", noData: "No transactions found in this period."
+        }
+    };
+    const c = t[lang] || t.ar;
+    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+
+    setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub);
+    setTxt('btn-export', c.btnExport); setTxt('btn-print', c.btnPrint); 
+    if(document.getElementById('opt-all-branches')) document.getElementById('opt-all-branches').innerText = c.optAllBranches;
+    setTxt('chip-month', c.chipMonth); setTxt('chip-week', c.chipWeek); setTxt('chip-year', c.chipYear); setTxt('chip-all', c.chipAll);
+    setTxt('lbl-to', c.lblTo); setTxt('btn-update', c.btnUpdate);
+    setTxt('txt-kpi-income', c.kpiInc); setTxt('txt-kpi-expense', c.kpiExp); setTxt('txt-kpi-net', c.kpiNet); setTxt('txt-kpi-new-pat', c.kpiNewPat);
+    setTxt('txt-chart-finance', c.cFin); setTxt('txt-chart-services', c.cServ); setTxt('txt-chart-methods', c.cMeth); setTxt('txt-chart-table', c.cTab);
+    setTxt('th-date', c.thDate); setTxt('th-cat', c.thCat); setTxt('th-note', c.thNote); setTxt('th-amount', c.thAmount);
+    setTxt('txt-loading-table', c.loadingTable);
+
+    window.reportLang = c;
+}
+
+// 🔴 2. جلب الفروع لفلتر التقارير 🔴
+async function loadBranchesForFilter() {
+    if (!clinicId) return;
+    const select = document.getElementById('branch_filter');
+    if (!select) return;
+
+    db.collection("Branches").where("clinicId", "==", clinicId).onSnapshot(snap => {
+        const currentVal = select.value;
+        const isAr = document.body.dir === 'rtl';
+        select.innerHTML = `<option value="all" id="opt-all-branches">${isAr ? 'كل الفروع' : 'All Branches'}</option>`;
+        
+        snap.forEach(doc => {
+            const b = doc.data();
+            select.innerHTML += `<option value="${doc.id}">${b.name}</option>`;
+        });
+        select.value = currentVal || 'all';
+    });
+}
+
 function setReportPeriod(period, element) {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-    if(element) element.classList.add('active');
+    if(element) {
+        element.classList.add('active');
+    } else {
+        const chip = document.getElementById(`chip-${period}`);
+        if(chip) chip.classList.add('active');
+    }
 
     const today = new Date();
     let fromDate = new Date();
@@ -27,60 +92,79 @@ function setReportPeriod(period, element) {
         fromDate = new Date(2020, 0, 1);
     }
 
-    document.getElementById('rep_date_from').value = fromDate.toISOString().split('T')[0];
-    document.getElementById('rep_date_to').value = today.toISOString().split('T')[0];
+    const fromStr = new Date(fromDate.getTime() - (fromDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const toStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+    document.getElementById('rep_date_from').value = fromStr;
+    document.getElementById('rep_date_to').value = toStr;
     
     loadAllReportsData();
 }
 
-// 🔴 2. جلب كل الداتا المطلوبة في وقت واحد 🔴
+// 🔴 3. جلب الداتا بشكل محمي 🔴
 async function loadAllReportsData() {
     if (!clinicId) return;
     
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
+    
+    const branchSelect = document.getElementById('branch_filter');
+    const selectedBranch = branchSelect ? branchSelect.value : 'all';
 
     if (window.showLoader) window.showLoader("جاري إعداد التقارير...");
+    const tbody = document.getElementById('detailedReportBody');
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b;">${window.reportLang ? window.reportLang.loadingTable : 'جاري تجميع البيانات...'}</td></tr>`;
 
     try {
-        // أ. جلب الحركات المالية
         const finSnap = await db.collection("Finances")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
             .where("date", "<=", dateTo)
             .get();
         
-        currentReportData.transactions = finSnap.docs.map(doc => doc.data());
+        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => selectedBranch === 'all' || t.branchId === selectedBranch);
 
-        // ب. جلب الجلسات (لتحليل الإجراءات)
         const sessSnap = await db.collection("Sessions")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
             .where("date", "<=", dateTo)
             .get();
         
-        currentReportData.sessions = sessSnap.docs.map(doc => doc.data());
+        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => selectedBranch === 'all' || s.branchId === selectedBranch);
 
-        // ج. جلب المرضى الجدد
         const patSnap = await db.collection("Patients")
             .where("clinicId", "==", clinicId)
-            .get(); // الفلترة التاريخية للمرضى تتم برمجياً لسهولة التحكم
+            .get();
         
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
-            if(!p.createdAt) return false;
-            const pDate = p.createdAt.toDate().toISOString().split('T')[0];
+            if (selectedBranch !== 'all' && p.branchId && p.branchId !== selectedBranch) return false;
+            
+            // حماية تاريخ المريض من أي داتا فاسدة
+            if (!p.createdAt) return false;
+            let pDate = "";
+            try {
+                if (typeof p.createdAt.toDate === 'function') {
+                    pDate = p.createdAt.toDate().toISOString().split('T')[0];
+                } else {
+                    pDate = new Date(p.createdAt).toISOString().split('T')[0];
+                }
+            } catch(err) { return false; }
+            
             return pDate >= dateFrom && pDate <= dateTo;
         });
 
-        // 🔴 3. معالجة الداتا وعرضها 🔴
         calculateKPIs();
-        renderFinanceChart();
-        renderServicesChart();
-        renderMethodsChart();
+        
+        if (typeof Chart !== 'undefined') {
+            renderFinanceChart();
+            renderServicesChart();
+            renderMethodsChart();
+        }
         renderDetailedTable();
 
     } catch (e) {
         console.error("Reports Error:", e);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444; font-weight: bold;">حدث خطأ أثناء تجميع البيانات: ${e.message}</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
@@ -99,13 +183,16 @@ function calculateKPIs() {
     document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
 }
 
-// 🔴 4. رسم المخططات البيانية 🔴
+// 🔴 4. رسم المخططات البيانية (مظبوطة الحجم واللون) 🔴
+function getChartTextColor() {
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    return isDark ? '#cbd5e1' : '#475569';
+}
 
 function renderFinanceChart() {
     const ctx = document.getElementById('financeChart').getContext('2d');
     if (financeChart) financeChart.destroy();
 
-    // تجميع البيانات بالأيام
     const days = {};
     currentReportData.transactions.forEach(t => {
         if (!days[t.date]) days[t.date] = { inc: 0, exp: 0 };
@@ -114,17 +201,25 @@ function renderFinanceChart() {
     });
 
     const sortedLabels = Object.keys(days).sort();
+    const textColor = getChartTextColor();
+    const lInc = window.reportLang ? window.reportLang.lInc : 'إيرادات';
+    const lExp = window.reportLang ? window.reportLang.lExp : 'مصروفات';
     
     financeChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: sortedLabels,
             datasets: [
-                { label: 'إيرادات', data: sortedLabels.map(d => days[d].inc), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4 },
-                { label: 'مصروفات', data: sortedLabels.map(d => days[d].exp), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }
+                { label: lInc, data: sortedLabels.map(d => days[d].inc), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4 },
+                { label: lExp, data: sortedLabels.map(d => days[d].exp), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }
             ]
         },
-        options: { responsive: true, plugins: { legend: { position: 'top' } } }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, // يمنع التمدد البشع
+            plugins: { legend: { position: 'top', labels: { color: textColor } } },
+            scales: { x: { ticks: { color: textColor } }, y: { ticks: { color: textColor } } }
+        }
     });
 }
 
@@ -133,20 +228,21 @@ function renderServicesChart() {
     if (servicesChart) servicesChart.destroy();
 
     const counts = {};
+    const unspec = window.reportLang ? window.reportLang.unspec : "غير محدد";
     currentReportData.sessions.forEach(s => {
-        const proc = s.procedure || "غير محدد";
+        const proc = s.procedure || unspec;
         counts[proc] = (counts[proc] || 0) + 1;
     });
+
+    const textColor = getChartTextColor();
 
     servicesChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: Object.keys(counts),
-            datasets: [{
-                data: Object.values(counts),
-                backgroundColor: ['#0284c7', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899']
-            }]
-        }
+            datasets: [{ data: Object.values(counts), backgroundColor: ['#0284c7', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor } } } }
     });
 }
 
@@ -162,15 +258,18 @@ function renderMethodsChart() {
         }
     });
 
+    const textColor = getChartTextColor();
+    const lCash = window.reportLang ? window.reportLang.lCash : 'نقدي';
+    const lWallet = window.reportLang ? window.reportLang.lWallet : 'محافظ';
+    const lBank = window.reportLang ? window.reportLang.lBank : 'بنوك';
+
     methodsChart = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: ['نقدي', 'محافظ', 'بنوك'],
-            datasets: [{
-                data: [methods.cash, methods.wallet, methods.instapay],
-                backgroundColor: ['#10b981', '#8b5cf6', '#0284c7']
-            }]
-        }
+            labels: [lCash, lWallet, lBank],
+            datasets: [{ data: [methods.cash, methods.wallet, methods.instapay], backgroundColor: ['#10b981', '#8b5cf6', '#0284c7'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor } } } }
     });
 }
 
@@ -178,33 +277,43 @@ function renderDetailedTable() {
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
     
-    currentReportData.transactions.sort((a,b) => b.date.localeCompare(a.date));
+    currentReportData.transactions.sort((a,b) => {
+        const d1 = a.date || "";
+        const d2 = b.date || "";
+        return d2.localeCompare(d1);
+    });
     
+    if (currentReportData.transactions.length === 0) {
+        const noDataTxt = window.reportLang ? window.reportLang.noData : "لا توجد حركات مالية في هذه الفترة.";
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 15px;">${noDataTxt}</td></tr>`;
+        return;
+    }
+
     currentReportData.transactions.forEach(t => {
         const tr = document.createElement('tr');
         const color = t.type === 'income' ? '#10b981' : '#ef4444';
         const sign = t.type === 'income' ? '+' : '-';
         
         tr.innerHTML = `
-            <td>${t.date}</td>
-            <td><strong>${t.category}</strong></td>
+            <td>${t.date || '---'}</td>
+            <td><strong>${t.category || '---'}</strong></td>
             <td>${t.notes || '---'}</td>
-            <td style="color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount}</td>
+            <td style="color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount || 0}</td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// 🔴 تصدير إكسيل 🔴
 function exportReportToExcel() {
+    const isAr = document.body.dir === 'rtl';
     const data = currentReportData.transactions.map(t => ({
-        "التاريخ": t.date,
-        "النوع": t.type === 'income' ? 'إيراد' : 'مصروف',
-        "التصنيف": t.category,
-        "المبلغ": t.amount,
-        "طريقة الدفع": t.paymentMethod,
-        "البيان": t.notes,
-        "بواسطة": t.createdBy
+        [isAr ? "التاريخ" : "Date"]: t.date,
+        [isAr ? "النوع" : "Type"]: t.type === 'income' ? (isAr ? 'إيراد' : 'Income') : (isAr ? 'مصروف' : 'Expense'),
+        [isAr ? "التصنيف" : "Category"]: t.category,
+        [isAr ? "المبلغ" : "Amount"]: t.amount,
+        [isAr ? "الفرع" : "Branch"]: t.branchId || (isAr ? 'الفرع الرئيسي' : 'Main Branch'),
+        [isAr ? "البيان" : "Description"]: t.notes,
+        [isAr ? "بواسطة" : "By"]: t.createdBy
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -213,12 +322,19 @@ function exportReportToExcel() {
     XLSX.writeFile(wb, `NivaDent_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
+// 🔴 5. الإقلاع المضمون 🔴
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
+    updatePageContent(lang);
+    loadBranchesForFilter();
+
+    // الكود الأصلي بتاعك اللي بيستنى الـ Auth
     firebase.auth().onAuthStateChanged((user) => {
-        if (user) setReportPeriod('month'); // تحميل تقرير الشهر الحالي افتراضياً
+        if (user) {
+            setReportPeriod('month', document.getElementById('chip-month')); 
+        }
     });
 };
