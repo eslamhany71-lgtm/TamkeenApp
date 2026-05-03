@@ -7,52 +7,6 @@ let currentReportData = {
     sessions: [],
     patients: []
 };
-الترجمة 
-// 🔴 1. دالة الترجمة 🔴
-function updateLanguage(lang) {
-    const translations = {
-        ar: {
-            title: "التقارير التحليلية", sub: "تحليل الأداء المالي، نمو المرضى، وإحصائيات العيادة الشاملة",
-            exp: "📥 تصدير لإكسيل", print: "🖨️ طباعة التقرير", optAll: "الفرع الرئيسي (كل الفروع)",
-            month: "هذا الشهر", week: "هذا الأسبوع", year: "هذه السنة", all: "كل الوقت",
-            to: "إلى", update: "تحديث 🔄",
-            inc: "إجمالي الدخل", expen: "إجمالي المصروفات", net: "صافي الربح", pat: "مرضى جدد",
-            c1: "📊 مخطط الإيرادات والمصروفات الزمني", c2: "🩺 أكثر الخدمات (الإجراءات) طلباً",
-            c3: "💳 تحليل طرق التحصيل", c4: "📑 ملخص العمليات المالية في الفترة المختارة",
-            thD: "التاريخ", thC: "التصنيف", thN: "البيان", thA: "المبلغ", load: "جاري تجميع البيانات...",
-            lInc: "إيرادات", lExp: "مصروفات", lCash: "نقدي", lWallet: "محافظ", lBank: "بنوك", unspec: "غير محدد", noData: "لا توجد حركات."
-        },
-        en: {
-            title: "Analytical Reports", sub: "Financial performance and patient growth statistics",
-            exp: "📥 Export Excel", print: "🖨️ Print Report", optAll: "Main Branch (All)",
-            month: "This Month", week: "This Week", year: "This Year", all: "All Time",
-            to: "To", update: "Update 🔄",
-            inc: "Total Income", expen: "Total Expenses", net: "Net Profit", pat: "New Patients",
-            c1: "📊 Financial Timeline Chart", c2: "🩺 Most Requested Services",
-            c3: "💳 Payment Methods", c4: "📑 Transactions Summary",
-            thD: "Date", thC: "Category", thN: "Notes", thA: "Amount", load: "Compiling data...",
-            lInc: "Income", lExp: "Expense", lCash: "Cash", lWallet: "Wallet", lBank: "Bank", unspec: "Unspecified", noData: "No data found."
-        }
-    };
-    
-    reportLang = translations[lang] || translations.ar;
-    const set = (id, txt) => { const el = document.getElementById(id); if(el) el.innerText = txt; };
-
-    set('txt-title', reportLang.title); set('txt-subtitle', reportLang.sub);
-    set('btn-export', reportLang.exp); set('btn-print', reportLang.print);
-    set('opt-all', reportLang.optAll); set('chip-month', reportLang.month);
-    set('chip-week', reportLang.week); set('chip-year', reportLang.year); set('chip-all', reportLang.all);
-    set('lbl-to', reportLang.to); set('btn-update', reportLang.update);
-    set('txt-kpi-inc', reportLang.inc); set('txt-kpi-exp', reportLang.expen);
-    set('txt-kpi-net', reportLang.net); set('txt-kpi-pat', reportLang.pat);
-    set('c-title-1', reportLang.c1); set('c-title-2', reportLang.c2);
-    set('c-title-3', reportLang.c3); set('c-title-4', reportLang.c4);
-    set('th-d', reportLang.thD); set('th-c', reportLang.thC);
-    set('th-n', reportLang.thN); set('th-a', reportLang.thA);
-}
-
-
-
 
 // 🔴 1. إعدادات البداية والفلاتر 🔴
 function setReportPeriod(period, element) {
