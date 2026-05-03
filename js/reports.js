@@ -50,7 +50,6 @@ function updatePageContent(lang) {
     window.reportLang = c;
 }
 
-// 🔴 جلب الفروع لقائمة الفلتر (محمية) 🔴
 async function loadBranchesForFilter() {
     if (!clinicId) return;
     const select = document.getElementById('branch_filter');
@@ -68,6 +67,7 @@ async function loadBranchesForFilter() {
 }
 
 function setReportPeriod(period, element) {
+    console.log("Setting report period to:", period);
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     if(element) element.classList.add('active');
 
@@ -84,7 +84,6 @@ function setReportPeriod(period, element) {
         fromDate = new Date(2020, 0, 1);
     }
 
-    // تظبيط فرق التوقيت عشان التواريخ تطلع مظبوطة
     const fromStr = new Date(fromDate.getTime() - (fromDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const toStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
@@ -94,72 +93,76 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 جلب البيانات مفلترة بالفروع والتواريخ (مضادة للأعطال) 🔴
 async function loadAllReportsData() {
-    if (!clinicId) return;
+    console.log("🚀 loadAllReportsData triggered");
+    const tbody = document.getElementById('detailedReportBody');
+    
+    // 🔴 حماية وعرض واضح لو الـ clinicId مفقود 🔴
+    if (!clinicId) {
+        console.error("❌ Clinic ID is missing from sessionStorage!");
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444; font-weight: bold; padding: 20px;">خطأ: لم يتم العثور على معرف العيادة. يرجى تسجيل الدخول مجدداً من الصفحة الرئيسية.</td></tr>`;
+        if (window.hideLoader) window.hideLoader();
+        return;
+    }
     
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
     const selectedBranch = document.getElementById('branch_filter').value || 'all';
 
+    console.log(`📅 Fetching data from ${dateFrom} to ${dateTo} for branch: ${selectedBranch}`);
+
     if (window.showLoader) window.showLoader("جاري إعداد التقارير...");
-    const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px; color: #64748b;">${window.reportLang ? window.reportLang.loadingTable : 'جاري تجميع البيانات...'}</td></tr>`;
 
     try {
+        console.log("⌛ Fetching Finances...");
         const finSnap = await db.collection("Finances")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
             .where("date", "<=", dateTo)
             .get();
-        
         currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => selectedBranch === 'all' || t.branchId === selectedBranch);
+        console.log(`✅ Finances loaded: ${currentReportData.transactions.length} records.`);
 
+        console.log("⌛ Fetching Sessions...");
         const sessSnap = await db.collection("Sessions")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
             .where("date", "<=", dateTo)
             .get();
-        
         currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => selectedBranch === 'all' || s.branchId === selectedBranch);
+        console.log(`✅ Sessions loaded: ${currentReportData.sessions.length} records.`);
 
-        const patSnap = await db.collection("Patients")
-            .where("clinicId", "==", clinicId)
-            .get();
-        
+        console.log("⌛ Fetching Patients...");
+        const patSnap = await db.collection("Patients").where("clinicId", "==", clinicId).get();
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
             if (selectedBranch !== 'all' && p.branchId && p.branchId !== selectedBranch) return false;
-            
             let pDate = "";
-            if (p.createdAt && typeof p.createdAt.toDate === 'function') {
-                pDate = p.createdAt.toDate().toISOString().split('T')[0];
-            } else if (p.createdAt) {
-                pDate = new Date(p.createdAt).toISOString().split('T')[0];
-            } else {
-                return false; 
-            }
+            if (p.createdAt && typeof p.createdAt.toDate === 'function') { pDate = p.createdAt.toDate().toISOString().split('T')[0]; } 
+            else if (p.createdAt) { pDate = new Date(p.createdAt).toISOString().split('T')[0]; } 
+            else { return false; }
             return pDate >= dateFrom && pDate <= dateTo;
         });
+        console.log(`✅ Patients loaded: ${currentReportData.patients.length} new records.`);
 
         calculateKPIs();
         
-        // التأكد من وجود مكتبة Chart.js قبل محاولة رسم المخططات
         if (typeof Chart !== 'undefined') {
             renderFinanceChart();
             renderServicesChart();
             renderMethodsChart();
         } else {
-            console.warn("Chart.js is not loaded yet.");
+            console.warn("⚠️ Chart.js is not loaded properly.");
         }
         
         renderDetailedTable();
 
     } catch (e) {
-        console.error("Reports Error:", e);
-        // عرض الخطأ للمستخدم عشان نعرف لو فيه مشكلة في الفايربيز
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px; color: #ef4444; font-weight: bold;">حدث خطأ في النظام: ${e.message}</td></tr>`;
+        console.error("❌ Reports Error:", e);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #ef4444; font-weight: bold; background: #fee2e2; border-radius: 8px;">حدث خطأ في النظام: ${e.message}</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
+        console.log("🏁 Data loading process finished.");
     }
 }
 
@@ -176,7 +179,6 @@ function calculateKPIs() {
     document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
 }
 
-// 🔴 دوال الرسم البياني مع التحكم في الحجم 🔴
 function getChartTextColor() {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     return isDark ? '#cbd5e1' : '#475569';
@@ -212,10 +214,7 @@ function renderFinanceChart() {
             responsive: true, 
             maintainAspectRatio: false, 
             plugins: { legend: { position: 'top', labels: { color: textColor } } },
-            scales: {
-                x: { ticks: { color: textColor } },
-                y: { ticks: { color: textColor } }
-            }
+            scales: { x: { ticks: { color: textColor } }, y: { ticks: { color: textColor } } }
         }
     });
 }
@@ -237,16 +236,9 @@ function renderServicesChart() {
         type: 'doughnut',
         data: {
             labels: Object.keys(counts),
-            datasets: [{
-                data: Object.values(counts),
-                backgroundColor: ['#0284c7', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899']
-            }]
+            datasets: [{ data: Object.values(counts), backgroundColor: ['#0284c7', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899'] }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'right', labels: { color: textColor } } }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: textColor } } } }
     });
 }
 
@@ -271,16 +263,9 @@ function renderMethodsChart() {
         type: 'pie',
         data: {
             labels: [lCash, lWallet, lBank],
-            datasets: [{
-                data: [methods.cash, methods.wallet, methods.instapay],
-                backgroundColor: ['#10b981', '#8b5cf6', '#0284c7']
-            }]
+            datasets: [{ data: [methods.cash, methods.wallet, methods.instapay], backgroundColor: ['#10b981', '#8b5cf6', '#0284c7'] }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { color: textColor } } }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor } } } }
     });
 }
 
@@ -288,7 +273,6 @@ function renderDetailedTable() {
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
     
-    // حماية أثناء الترتيب
     currentReportData.transactions.sort((a,b) => {
         const d1 = a.date || "";
         const d2 = b.date || "";
@@ -334,6 +318,7 @@ function exportReportToExcel() {
 }
 
 window.onload = () => {
+    console.log("🟢 Window Loaded. Verifying Session...");
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
@@ -341,9 +326,18 @@ window.onload = () => {
     updatePageContent(lang);
     loadBranchesForFilter();
 
+    // تشغيل التقارير مباشرة في حال وجود Session
+    if (clinicId) {
+        setReportPeriod('month', document.getElementById('chip-month'));
+    } else {
+        document.getElementById('detailedReportBody').innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444; font-weight: bold; padding: 20px;">لم يتم العثور على جلسة صالحة. يرجى تسجيل الدخول.</td></tr>`;
+    }
+
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
-            setReportPeriod('month', document.getElementById('chip-month'));
+            console.log("👤 User Authenticated:", user.uid);
+        } else {
+            console.warn("⚠️ User not authenticated in Firebase Auth.");
         }
     });
 };
