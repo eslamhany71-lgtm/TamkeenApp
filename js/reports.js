@@ -1,11 +1,11 @@
-// js/reports.js
+// js/reports.js - Ultimate Fix (Bypassing Firebase Indexes)
 const db = firebase.firestore();
 
 let financeChart, servicesChart, methodsChart;
 let currentReportData = { transactions: [], sessions: [], patients: [] };
 let reportLang = {};
 
-// 🔴 1. دالة الترجمة (تم تصحيح الـ Typo) 🔴
+// 🔴 1. دالة الترجمة 🔴
 function updateLanguage(lang) {
     const translations = {
         ar: {
@@ -38,8 +38,7 @@ function updateLanguage(lang) {
     set('txt-title', reportLang.title); set('txt-subtitle', reportLang.sub);
     set('btn-export', reportLang.exp); set('btn-print', reportLang.print);
     set('opt-all', reportLang.optAll); set('chip-month', reportLang.month);
-    set('chip-week', reportLang.week); set('chip-year', reportLang.year); 
-    set('chip-all', reportLang.all); // هنا كان الخطأ الإملائي وتم تصحيحه
+    set('chip-week', reportLang.week); set('chip-year', reportLang.year); set('chip-all', reportLang.all);
     set('lbl-to', reportLang.to); set('btn-update', reportLang.update);
     set('txt-kpi-inc', reportLang.inc); set('txt-kpi-exp', reportLang.expen);
     set('txt-kpi-net', reportLang.net); set('txt-kpi-pat', reportLang.pat);
@@ -59,7 +58,7 @@ async function loadBranchesDropdown() {
         snap.forEach(doc => {
             select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
         });
-    }).catch(e => console.error("Error loading branches: ", e));
+    });
 }
 
 // 🔴 3. ضبط الفترة الزمنية 🔴
@@ -80,33 +79,38 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 4. جلب الداتا (تم إضافة الحماية الصارمة من الـ Permissions) 🔴
+// 🔴 4. جلب الداتا (تم إزالة الفلترة المزدوجة لتخطي مشكلة الـ Indexes) 🔴
 async function loadAllReportsData() {
     const cid = sessionStorage.getItem('clinicId');
-    const user = firebase.auth().currentUser; // التأكد من تسجيل الدخول
     const tbody = document.getElementById('detailedReportBody');
-    
-    // 🔴 حارس الأمن: لو مفيش توكن دخول، اقفل الدالة فوراً وماتطلبش داتا
-    if (!cid || !user) {
-        if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f59e0b;">الرجاء الانتظار حتى يتم التحقق من الصلاحيات...</td></tr>`;
-        return;
-    }
+    if (!cid) return;
 
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
     const selectedBranch = document.getElementById('branch_filter').value || 'all';
 
-    if (window.showLoader) window.showLoader(reportLang.load || "جاري التحميل...");
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">جاري جلب البيانات...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0ea5e9; font-weight:bold; padding: 20px;">1. جاري الاتصال بقاعدة البيانات...</td></tr>`;
 
     try {
-        // أ. الفواتير
-        const finSnap = await db.collection("Finances").where("clinicId", "==", cid).where("date", ">=", dateFrom).where("date", "<=", dateTo).get();
-        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => selectedBranch === 'all' || (t.branchId || 'main') === selectedBranch);
+        // أ. الفواتير (نجلب الكل ثم نفلتر محلياً)
+        const finSnap = await db.collection("Finances").where("clinicId", "==", cid).get();
+        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
+            const passBranch = selectedBranch === 'all' || (t.branchId || 'main') === selectedBranch;
+            const passDate = !t.date || (t.date >= dateFrom && t.date <= dateTo);
+            return passBranch && passDate;
+        });
 
-        // ب. الجلسات
-        const sessSnap = await db.collection("Sessions").where("clinicId", "==", cid).where("date", ">=", dateFrom).where("date", "<=", dateTo).get();
-        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => selectedBranch === 'all' || (s.branchId || 'main') === selectedBranch);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8b5cf6; font-weight:bold; padding: 20px;">2. جاري تجميع الجلسات والخدمات...</td></tr>`;
+
+        // ب. الجلسات (نجلب الكل ثم نفلتر محلياً)
+        const sessSnap = await db.collection("Sessions").where("clinicId", "==", cid).get();
+        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => {
+            const passBranch = selectedBranch === 'all' || (s.branchId || 'main') === selectedBranch;
+            const passDate = !s.date || (s.date >= dateFrom && s.date <= dateTo);
+            return passBranch && passDate;
+        });
+
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #10b981; font-weight:bold; padding: 20px;">3. جاري إحصاء المرضى الجدد...</td></tr>`;
 
         // ج. المرضى
         const patSnap = await db.collection("Patients").where("clinicId", "==", cid).get();
@@ -114,24 +118,29 @@ async function loadAllReportsData() {
             if (selectedBranch !== 'all' && (p.branchId || 'main') !== selectedBranch) return false;
             if(!p.createdAt) return false;
             try {
-                const pDate = p.createdAt.toDate().toISOString().split('T')[0];
+                // التعامل الآمن مع التواريخ القديمة
+                let pDate;
+                if (typeof p.createdAt.toDate === 'function') {
+                    pDate = p.createdAt.toDate().toISOString().split('T')[0];
+                } else {
+                    pDate = new Date(p.createdAt).toISOString().split('T')[0];
+                }
                 return pDate >= dateFrom && pDate <= dateTo;
             } catch(e) { return false; }
         });
+
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f59e0b; font-weight:bold; padding: 20px;">4. جاري رسم المخططات البيانية...</td></tr>`;
 
         // العرض
         renderAll();
 
     } catch (error) {
-        console.error("Firebase Read Error:", error);
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">Error: ${error.message}</td></tr>`;
-    } finally {
-        if (window.hideLoader) window.hideLoader();
+        console.error(error);
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red; font-weight:bold; padding: 20px;">خطأ: ${error.message}</td></tr>`;
     }
 }
 
 function renderAll() {
-    // حساب الـ KPIs
     let inc = 0; let exp = 0;
     currentReportData.transactions.forEach(t => {
         if(t.type === 'income') inc += Number(t.amount);
@@ -142,37 +151,37 @@ function renderAll() {
     document.getElementById('rep-net').innerText = (inc - exp).toLocaleString();
     document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
 
-    // الرسوم البيانية
     renderCharts();
     
-    // الجدول
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
-    currentReportData.transactions.sort((a,b) => b.date.localeCompare(a.date));
+    currentReportData.transactions.sort((a,b) => (b.date || "").localeCompare(a.date || ""));
     
     if(currentReportData.transactions.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">${reportLang.noData}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b;">${reportLang.noData}</td></tr>`;
         return;
     }
     
     currentReportData.transactions.forEach(t => {
         const tr = document.createElement('tr');
         const color = t.type === 'income' ? '#10b981' : '#ef4444';
-        tr.innerHTML = `<td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date}</td>
-                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category}</strong></td>
+        tr.innerHTML = `<td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date || ''}</td>
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category || ''}</strong></td>
                         <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.notes || '---'}</td>
-                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;">${t.type === 'income'?'+':'-'} ${t.amount}</td>`;
+                        <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;">${t.type === 'income'?'+':'-'} ${t.amount || 0}</td>`;
         tbody.appendChild(tr);
     });
 }
 
 function renderCharts() {
+    if (typeof Chart === 'undefined') return; // حماية لو مكتبة الرسم متأخرة في التحميل
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     const clr = isDark ? '#cbd5e1' : '#475569';
 
     // 1. الزمني
     const days = {};
     currentReportData.transactions.forEach(t => {
+        if(!t.date) return;
         if(!days[t.date]) days[t.date] = {i:0, e:0};
         if(t.type === 'income') days[t.date].i += Number(t.amount); else days[t.date].e += Number(t.amount);
     });
