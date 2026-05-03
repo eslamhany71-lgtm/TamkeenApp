@@ -12,9 +12,9 @@ function updatePageContent(lang) {
             listTitle: "الفروع المسجلة", loading: "جاري تحميل الفروع...",
             transTitle: "🔄 مركز نقل ملفات المرضى", transDesc: "يمكنك البحث عن مريض ونقله بكامل سجلاته الطبية من فرع إلى فرع آخر.",
             lSearch: "ابحث عن المريض (بالاسم أو الموبايل)", plhSearch: "اكتب للبحث...",
-            mBranchTitle: "إضافة فرع جديد", lBName: "اسم الفرع", lBPhone: "تليفون الفرع", lBAddr: "عنوان الفرع بالتفصيل", btnSaveB: "حفظ الفرع",
-            mTransTitle: "نقل المريض لفرع آخر", lMoving: "نقل المريض:", lSelectB: "اختر الفرع الجديد:", btnExec: "تأكيد عملية النقل",
-            warn: "* سيتم تحديث ملف المريض فوراً ليظهر في مواعيد وتقارير الفرع الجديد.",
+            mBranchTitle: "إضافة فرع جديد", lBName: "اسم الفرع", lBPhone: "تليفون الفرع", lBAddr: "عنوان الفرع بالتفصيل", btnSaveB: "حفظ بيانات الفرع",
+            mTransTitle: "نقل المريض لفرع آخر", lMoving: "نقل المريض:", lSelectB: "اختر الفرع الجديد لعملية النقل:", btnExec: "تأكيد عملية النقل ➔",
+            warn: "⚠️ سيتم تحديث ملف المريض فوراً ليظهر في مواعيد وتقارير الفرع الجديد بشكل حصري.",
             msgSuccess: "تم حفظ الفرع بنجاح", msgTransOk: "تم نقل المريض بنجاح إلى الفرع الجديد", confDel: "هل تريد حذف هذا الفرع؟ لن يتم حذف المرضى التابعين له."
         },
         en: {
@@ -22,9 +22,9 @@ function updatePageContent(lang) {
             listTitle: "Registered Branches", loading: "Loading branches...",
             transTitle: "🔄 Patient File Transfer", transDesc: "Search for a patient and move their entire medical record to another branch.",
             lSearch: "Search Patient (Name or Phone)", plhSearch: "Type to search...",
-            mBranchTitle: "Add New Branch", lBName: "Branch Name", lBPhone: "Branch Phone", lBAddr: "Branch Address", btnSaveB: "Save Branch",
-            mTransTitle: "Transfer Patient", lMoving: "Moving Patient:", lSelectB: "Select Target Branch:", btnExec: "Execute Transfer",
-            warn: "* Patient profile will be updated instantly to appear in the new branch reports.",
+            mBranchTitle: "Add New Branch", lBName: "Branch Name", lBPhone: "Branch Phone", lBAddr: "Branch Address", btnSaveB: "Save Branch Data",
+            mTransTitle: "Transfer Patient", lMoving: "Moving Patient:", lSelectB: "Select Target Branch:", btnExec: "Execute Transfer ➔",
+            warn: "⚠️ Patient profile will be updated instantly to appear exclusively in the new branch.",
             msgSuccess: "Branch saved successfully", msgTransOk: "Patient transferred successfully", confDel: "Delete this branch? Patients won't be deleted."
         }
     };
@@ -36,13 +36,12 @@ function updatePageContent(lang) {
     setTxt('txt-transfer-title', c.transTitle); setTxt('txt-transfer-desc', c.transDesc);
     setTxt('lbl-search-patient', c.lSearch); if(document.getElementById('search_patient_input')) document.getElementById('search_patient_input').placeholder = c.plhSearch;
     setTxt('mod-branch-title', c.mBranchTitle); setTxt('lbl-b-name', c.lBName); setTxt('lbl-b-phone', c.lBPhone); setTxt('lbl-b-address', c.lBAddr); setTxt('btn-save-branch', c.btnSaveB);
-    setTxt('mod-transfer-title', c.mTransTitle); setTxt('lbl-moving-patient', c.lMoving); setTxt('lbl-select-branch', c.lSelectB); setTxt('btn-confirm-transfer', c.btnExec);
-    setTxt('txt-transfer-warn', c.warn);
+    setTxt('mod-transfer-title', c.mTransTitle); setTxt('lbl-select-branch', c.lSelectB); setTxt('txt-transfer-warn', c.warn);
+    if(document.querySelector('.btn-modern-action')) document.querySelector('.btn-modern-action').innerText = c.btnExec;
 
     window.branchLang = c;
 }
 
-// 🟢 تحميل الفروع
 async function loadBranches() {
     if (!clinicId) return;
     const grid = document.getElementById('branches-grid');
@@ -54,7 +53,7 @@ async function loadBranches() {
         select.innerHTML = '<option value="">-- اختر الفرع --</option>';
         
         if (snap.empty) {
-            grid.innerHTML = '<p style="text-align: center; color: #94a3b8; grid-column: 1/-1;">لا يوجد فروع مسجلة. الفرع الرئيسي هو الافتراضي.</p>';
+            grid.innerHTML = '<p style="text-align: center; color: #94a3b8; grid-column: 1/-1; padding: 30px; background: #f8fafc; border-radius: 16px; border: 2px dashed #e2e8f0;">لا يوجد فروع إضافية مسجلة. الفرع الرئيسي يعمل كفرع افتراضي.</p>';
             return;
         }
 
@@ -64,13 +63,13 @@ async function loadBranches() {
             allBranches.push(b);
 
             grid.innerHTML += `
-                <div class="settings-card branch-card" style="margin-top:0; padding: 20px;">
+                <div class="settings-card branch-card" style="margin-top:0; padding: 25px;">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <h4 style="margin:0; color:#0f172a;">🏢 ${b.name}</h4>
-                        <button onclick="deleteBranch('${b.id}')" style="background:none; border:none; cursor:pointer; color:#ef4444;">🗑️</button>
+                        <h4 style="margin:0; color:#0f172a; font-size: 18px;">🏢 ${b.name}</h4>
+                        <button onclick="deleteBranch('${b.id}')" style="background:#fee2e2; color:#ef4444; border:none; cursor:pointer; padding: 8px; border-radius: 8px; transition: 0.2s;">🗑️</button>
                     </div>
-                    <p style="font-size:13px; color:#64748b; margin:10px 0;"><span style="color:#0ea5e9;">📍</span> ${b.address}</p>
-                    <p style="font-size:13px; color:#64748b; margin:0;"><span style="color:#10b981;">📞</span> ${b.phone || '---'}</p>
+                    <p style="font-size:14px; color:#475569; margin:15px 0 5px 0; font-weight: bold;"><span style="color:#0ea5e9;">📍</span> ${b.address}</p>
+                    <p style="font-size:14px; color:#475569; margin:0; font-weight: bold;"><span style="color:#10b981;">📞</span> ${b.phone || '---'}</p>
                 </div>
             `;
             
@@ -79,7 +78,6 @@ async function loadBranches() {
     });
 }
 
-// 🟢 إضافة فرع جديد
 async function saveBranch(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save-branch');
@@ -101,7 +99,6 @@ async function saveBranch(e) {
     finally { btn.disabled = false; }
 }
 
-// 🟢 محرك بحث المرضى للنقل
 async function searchPatientsForTransfer() {
     const query = document.getElementById('search_patient_input').value.trim().toLowerCase();
     const resultsBox = document.getElementById('transfer-results');
@@ -125,8 +122,8 @@ async function searchPatientsForTransfer() {
         div.className = 'patient-item';
         div.innerHTML = `
             <div>
-                <strong>${p.name}</strong><br>
-                <small style="color:#64748b;">الفرع الحالي: ${currentBranch}</small>
+                <strong style="color: #0f172a; font-size: 16px;">👤 ${p.name}</strong><br>
+                <small style="color:#64748b; font-weight: bold;">الفرع الحالي: ${currentBranch}</small>
             </div>
             <button class="btn-transfer" onclick="openTransferModal('${p.id}', '${p.name}')">نقل المريض ➔</button>
         `;
@@ -134,7 +131,6 @@ async function searchPatientsForTransfer() {
     });
 }
 
-// 🟢 تنفيذ النقل الفعلي (الرؤية العالمية)
 async function executeTransfer() {
     const newBranchId = document.getElementById('new_branch_select').value;
     if (!newBranchId || !patientToMove) { alert("برجاء اختيار الفرع الجديد!"); return; }
@@ -142,17 +138,13 @@ async function executeTransfer() {
     if (window.showLoader) window.showLoader("جاري نقل ملف المريض...");
 
     try {
-        // تحديث المريض بفرعه الجديد
         await db.collection("Patients").doc(patientToMove.id).update({
             branchId: newBranchId,
             lastTransferAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
-        // 💡 ملاحظة هندسية: بما أن الجلسات والمصاريف مرتبطة بـ patientId، 
-        // فهي ستظهر أوتوماتيكياً في سجل المريض أينما ذهب.
         
         alert(window.branchLang.msgTransOk);
-        allPatients = []; // لتحديث الكاش في البحث القادم
+        allPatients = []; 
         closeTransferModal();
         document.getElementById('search_patient_input').value = '';
         document.getElementById('transfer-results').innerHTML = '';
@@ -160,15 +152,31 @@ async function executeTransfer() {
     finally { if (window.hideLoader) window.hideLoader(); }
 }
 
-// دوال المودالات
-function openAddBranchModal() { document.getElementById('branchForm').reset(); document.getElementById('branchModal').style.display = 'flex'; }
-function closeBranchModal() { document.getElementById('branchModal').style.display = 'none'; }
+// 🔴 دوال المودال بتأثيرات الـ CSS 🔴
+function openAddBranchModal() { 
+    document.getElementById('branchForm').reset(); 
+    const modal = document.getElementById('branchModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
+}
+function closeBranchModal() { 
+    const modal = document.getElementById('branchModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
+
 function openTransferModal(id, name) { 
     patientToMove = { id, name }; 
     document.getElementById('target-patient-name').innerText = name;
-    document.getElementById('transferConfirmModal').style.display = 'flex'; 
+    const modal = document.getElementById('transferConfirmModal');
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('active'), 10);
 }
-function closeTransferModal() { document.getElementById('transferConfirmModal').style.display = 'none'; }
+function closeTransferModal() { 
+    const modal = document.getElementById('transferConfirmModal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.style.display = 'none', 300);
+}
 
 async function deleteBranch(id) {
     if(confirm(window.branchLang.confDel)) {
