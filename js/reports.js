@@ -9,7 +9,7 @@ let currentReportData = {
     patients: []
 };
 
-// 🔴 1. الترجمة ودعم اللغات 🔴
+// 🔴 الترجمة ودعم اللغات 🔴
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -39,8 +39,7 @@ function updatePageContent(lang) {
     const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub);
-    setTxt('btn-export', c.btnExport); setTxt('btn-print', c.btnPrint); 
-    if(document.getElementById('opt-all-branches')) document.getElementById('opt-all-branches').innerText = c.optAllBranches;
+    setTxt('btn-export', c.btnExport); setTxt('btn-print', c.btnPrint); setTxt('opt-all-branches', c.optAllBranches);
     setTxt('chip-month', c.chipMonth); setTxt('chip-week', c.chipWeek); setTxt('chip-year', c.chipYear); setTxt('chip-all', c.chipAll);
     setTxt('lbl-to', c.lblTo); setTxt('btn-update', c.btnUpdate);
     setTxt('txt-kpi-income', c.kpiInc); setTxt('txt-kpi-expense', c.kpiExp); setTxt('txt-kpi-net', c.kpiNet); setTxt('txt-kpi-new-pat', c.kpiNewPat);
@@ -51,16 +50,15 @@ function updatePageContent(lang) {
     window.reportLang = c;
 }
 
-// 🔴 2. جلب الفروع لقائمة الفلتر 🔴
+// 🔴 جلب الفروع لقائمة الفلتر 🔴
 async function loadBranchesForFilter() {
     if (!clinicId) return;
     const select = document.getElementById('branch_filter');
-    if (!select) return;
-    
     db.collection("Branches").where("clinicId", "==", clinicId).onSnapshot(snap => {
         const currentVal = select.value;
-        const isAr = document.body.dir === 'rtl';
-        select.innerHTML = `<option value="all" id="opt-all-branches">${isAr ? 'كل الفروع' : 'All Branches'}</option>`;
+        const optAll = document.getElementById('opt-all-branches');
+        select.innerHTML = '';
+        if(optAll) select.appendChild(optAll);
         
         snap.forEach(doc => {
             const b = doc.data();
@@ -70,14 +68,9 @@ async function loadBranchesForFilter() {
     });
 }
 
-// 🔴 3. إعدادات البداية والفلاتر 🔴
 function setReportPeriod(period, element) {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     if(element) element.classList.add('active');
-    else {
-        const chip = document.getElementById(`chip-${period}`);
-        if(chip) chip.classList.add('active');
-    }
 
     const today = new Date();
     let fromDate = new Date();
@@ -92,35 +85,36 @@ function setReportPeriod(period, element) {
         fromDate = new Date(2020, 0, 1);
     }
 
-    document.getElementById('rep_date_from').value = fromDate.toISOString().split('T')[0];
-    document.getElementById('rep_date_to').value = today.toISOString().split('T')[0];
+    // Adjust for timezone offset
+    const fromStr = new Date(fromDate.getTime() - (fromDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    const toStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+
+    document.getElementById('rep_date_from').value = fromStr;
+    document.getElementById('rep_date_to').value = toStr;
     
     loadAllReportsData();
 }
 
-// 🔴 4. جلب كل الداتا المطلوبة في وقت واحد 🔴
+// 🔴 جلب البيانات مفلترة بالفروع 🔴
 async function loadAllReportsData() {
     if (!clinicId) return;
     
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
-    
-    const branchSelect = document.getElementById('branch_filter');
-    const selectedBranch = branchSelect ? branchSelect.value : 'all';
+    const selectedBranch = document.getElementById('branch_filter').value;
 
     if (window.showLoader) window.showLoader("جاري إعداد التقارير...");
 
     try {
-        // أ. جلب الحركات المالية
         const finSnap = await db.collection("Finances")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
             .where("date", "<=", dateTo)
             .get();
         
+        // التصفية محلياً للفرع (Local Filtering) لتفادي Indexes معقدة
         currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => selectedBranch === 'all' || t.branchId === selectedBranch);
 
-        // ب. جلب الجلسات (لتحليل الإجراءات)
         const sessSnap = await db.collection("Sessions")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
@@ -129,19 +123,17 @@ async function loadAllReportsData() {
         
         currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => selectedBranch === 'all' || s.branchId === selectedBranch);
 
-        // ج. جلب المرضى الجدد
         const patSnap = await db.collection("Patients")
             .where("clinicId", "==", clinicId)
             .get();
         
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
-            if (selectedBranch !== 'all' && p.branchId && p.branchId !== selectedBranch) return false;
-            if(!p.createdAt) return false;
+            if (selectedBranch !== 'all' && p.branchId !== selectedBranch) return false;
+            if (!p.createdAt) return false;
             const pDate = p.createdAt.toDate().toISOString().split('T')[0];
             return pDate >= dateFrom && pDate <= dateTo;
         });
 
-        // د. معالجة الداتا وعرضها
         calculateKPIs();
         renderFinanceChart();
         renderServicesChart();
@@ -168,7 +160,7 @@ function calculateKPIs() {
     document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
 }
 
-// 🔴 5. رسم المخططات البيانية مع التحكم بالحجم والدارك مود 🔴
+// 🔴 دوال الرسم البياني مع التحكم في الحجم 🔴
 function getChartTextColor() {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
     return isDark ? '#cbd5e1' : '#475569';
@@ -301,7 +293,6 @@ function renderDetailedTable() {
     });
 }
 
-// 🔴 6. تصدير إكسيل 🔴
 function exportReportToExcel() {
     const isAr = document.body.dir === 'rtl';
     const data = currentReportData.transactions.map(t => ({
@@ -320,7 +311,6 @@ function exportReportToExcel() {
     XLSX.writeFile(wb, `NivaDent_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-// 🔴 7. الإقلاع الآمن (السر هنا) 🔴
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
@@ -329,7 +319,6 @@ window.onload = () => {
     updatePageContent(lang);
     loadBranchesForFilter();
 
-    // ننتظر التحقق من صلاحية المستخدم أولاً قبل سحب البيانات!
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
             setReportPeriod('month', document.getElementById('chip-month'));
