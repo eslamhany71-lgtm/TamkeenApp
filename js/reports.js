@@ -5,7 +5,7 @@ let financeChart, servicesChart, methodsChart;
 let currentReportData = { transactions: [], sessions: [], patients: [] };
 let reportLang = {};
 
-// 🔴 1. دالة الترجمة (تم استدعاؤها بشكل صحيح ومفرودة) 🔴
+// 🔴 1. دالة الترجمة (تم تصحيح الـ Typo) 🔴
 function updateLanguage(lang) {
     const translations = {
         ar: {
@@ -38,7 +38,8 @@ function updateLanguage(lang) {
     set('txt-title', reportLang.title); set('txt-subtitle', reportLang.sub);
     set('btn-export', reportLang.exp); set('btn-print', reportLang.print);
     set('opt-all', reportLang.optAll); set('chip-month', reportLang.month);
-    set('chip-week', reportLang.week); set('chip-year', reportLang.year); setTxt('chip-all', reportLang.all);
+    set('chip-week', reportLang.week); set('chip-year', reportLang.year); 
+    set('chip-all', reportLang.all); // هنا كان الخطأ الإملائي وتم تصحيحه
     set('lbl-to', reportLang.to); set('btn-update', reportLang.update);
     set('txt-kpi-inc', reportLang.inc); set('txt-kpi-exp', reportLang.expen);
     set('txt-kpi-net', reportLang.net); set('txt-kpi-pat', reportLang.pat);
@@ -58,10 +59,10 @@ async function loadBranchesDropdown() {
         snap.forEach(doc => {
             select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
         });
-    });
+    }).catch(e => console.error("Error loading branches: ", e));
 }
 
-// 🔴 3. ضبط الفترة الزمنية (نفس كود التيست) 🔴
+// 🔴 3. ضبط الفترة الزمنية 🔴
 function setReportPeriod(period, element) {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     if(element) element.classList.add('active');
@@ -79,12 +80,15 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 4. جلب الداتا (نفس عصب كود التيست المضمون) 🔴
+// 🔴 4. جلب الداتا (تم إضافة الحماية الصارمة من الـ Permissions) 🔴
 async function loadAllReportsData() {
     const cid = sessionStorage.getItem('clinicId');
+    const user = firebase.auth().currentUser; // التأكد من تسجيل الدخول
     const tbody = document.getElementById('detailedReportBody');
-    if (!cid) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">Error: Clinic ID Missing</td></tr>`;
+    
+    // 🔴 حارس الأمن: لو مفيش توكن دخول، اقفل الدالة فوراً وماتطلبش داتا
+    if (!cid || !user) {
+        if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f59e0b;">الرجاء الانتظار حتى يتم التحقق من الصلاحيات...</td></tr>`;
         return;
     }
 
@@ -119,7 +123,7 @@ async function loadAllReportsData() {
         renderAll();
 
     } catch (error) {
-        console.error(error);
+        console.error("Firebase Read Error:", error);
         tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">Error: ${error.message}</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
@@ -224,7 +228,6 @@ window.onload = () => {
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
-    // 🔴 الاستدعاء الصحيح للدوال 🔴
     updateLanguage(lang);
     loadBranchesDropdown();
 
