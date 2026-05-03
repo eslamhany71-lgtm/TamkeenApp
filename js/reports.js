@@ -79,46 +79,53 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 4. جلب الداتا (تم إزالة الفلترة المزدوجة لتخطي مشكلة الـ Indexes) 🔴
+// 🔴 4. جلب الداتا (بالطريقة السريعة اللي نجحت معاك) 🔴
 async function loadAllReportsData() {
     const cid = sessionStorage.getItem('clinicId');
+    const user = firebase.auth().currentUser; // حماية الصلاحيات
     const tbody = document.getElementById('detailedReportBody');
-    if (!cid) return;
+    
+    if (!cid || !user) {
+        if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f59e0b; padding: 20px;">الرجاء الانتظار حتى يتم التحقق من الصلاحيات...</td></tr>`;
+        return;
+    }
 
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
     const selectedBranch = document.getElementById('branch_filter').value || 'all';
 
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0ea5e9; font-weight:bold; padding: 20px;">1. جاري الاتصال بقاعدة البيانات...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0ea5e9; font-weight:bold; padding: 20px;">1. جاري سحب الحركات المالية السريعة...</td></tr>`;
 
     try {
-        // أ. الفواتير (نجلب الكل ثم نفلتر محلياً)
-        const finSnap = await db.collection("Finances").where("clinicId", "==", cid).get();
-        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
-            const passBranch = selectedBranch === 'all' || (t.branchId || 'main') === selectedBranch;
-            const passDate = !t.date || (t.date >= dateFrom && t.date <= dateTo);
-            return passBranch && passDate;
-        });
+        // أ. الفواتير (سحب سريع بالتواريخ زي الكود اللي اشتغل معاك)
+        const finSnap = await db.collection("Finances")
+            .where("clinicId", "==", cid)
+            .where("date", ">=", dateFrom)
+            .where("date", "<=", dateTo)
+            .get();
+        
+        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => selectedBranch === 'all' || (t.branchId || 'main') === selectedBranch);
 
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8b5cf6; font-weight:bold; padding: 20px;">2. جاري تجميع الجلسات والخدمات...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #8b5cf6; font-weight:bold; padding: 20px;">2. جاري سحب الجلسات...</td></tr>`;
 
-        // ب. الجلسات (نجلب الكل ثم نفلتر محلياً)
-        const sessSnap = await db.collection("Sessions").where("clinicId", "==", cid).get();
-        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => {
-            const passBranch = selectedBranch === 'all' || (s.branchId || 'main') === selectedBranch;
-            const passDate = !s.date || (s.date >= dateFrom && s.date <= dateTo);
-            return passBranch && passDate;
-        });
+        // ب. الجلسات (سحب سريع)
+        const sessSnap = await db.collection("Sessions")
+            .where("clinicId", "==", cid)
+            .where("date", ">=", dateFrom)
+            .where("date", "<=", dateTo)
+            .get();
+        
+        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => selectedBranch === 'all' || (s.branchId || 'main') === selectedBranch);
 
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #10b981; font-weight:bold; padding: 20px;">3. جاري إحصاء المرضى الجدد...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #10b981; font-weight:bold; padding: 20px;">3. جاري سحب ملفات المرضى...</td></tr>`;
 
         // ج. المرضى
         const patSnap = await db.collection("Patients").where("clinicId", "==", cid).get();
+            
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
             if (selectedBranch !== 'all' && (p.branchId || 'main') !== selectedBranch) return false;
             if(!p.createdAt) return false;
             try {
-                // التعامل الآمن مع التواريخ القديمة
                 let pDate;
                 if (typeof p.createdAt.toDate === 'function') {
                     pDate = p.createdAt.toDate().toISOString().split('T')[0];
@@ -129,17 +136,16 @@ async function loadAllReportsData() {
             } catch(e) { return false; }
         });
 
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f59e0b; font-weight:bold; padding: 20px;">4. جاري رسم المخططات البيانية...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #f59e0b; font-weight:bold; padding: 20px;">4. جاري رسم المخططات والجدول...</td></tr>`;
 
-        // العرض
+        // العرض النهائي
         renderAll();
 
     } catch (error) {
-        console.error(error);
+        console.error("Fetch Error:", error);
         tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red; font-weight:bold; padding: 20px;">خطأ: ${error.message}</td></tr>`;
     }
 }
-
 function renderAll() {
     let inc = 0; let exp = 0;
     currentReportData.transactions.forEach(t => {
