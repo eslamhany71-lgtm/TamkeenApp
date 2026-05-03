@@ -93,23 +93,21 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 4. جلب الداتا (باللوجيك الأصلي مع حماية Permissions) 🔴
+// 🔴 4. جلب الداتا (باللوجيك الأصلي مع تجاوز ذكي للفروع) 🔴
 async function loadAllReportsData() {
-    // حماية: تأكد إن اليوزر مسجل دخول بالفعل عشان تتجنب Missing Permissions
-    const user = firebase.auth().currentUser;
-    if (!clinicId || !user) {
-        console.warn("Waiting for Auth to resolve before fetching data...");
-        return;
-    }
+    if (!clinicId) return;
     
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
-    const branchSelect = document.getElementById('branch_filter');
-    const selectedBranch = branchSelect ? branchSelect.value : 'all';
 
     if (window.showLoader) window.showLoader("جاري إعداد التقارير...");
 
     try {
+        // سحب قيمة الفرع
+        const branchSelect = document.getElementById('branch_filter');
+        const selectedBranch = branchSelect ? branchSelect.value : 'all';
+
+        // أ. جلب الحركات المالية (كودك الأصلي)
         const finSnap = await db.collection("Finances")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
@@ -117,11 +115,13 @@ async function loadAllReportsData() {
             .get();
         
         let trans = finSnap.docs.map(doc => doc.data());
+        // 🔴 التعديل هنا: لو الداتا قديمة ومفيهاش فرع، هتتعامل كأنها تبع الفرع المختار أو "all"
         if (selectedBranch !== 'all') {
-            trans = trans.filter(t => t.branchId === selectedBranch);
+            trans = trans.filter(t => (t.branchId || 'main') === selectedBranch);
         }
         currentReportData.transactions = trans;
 
+        // ب. جلب الجلسات (كودك الأصلي)
         const sessSnap = await db.collection("Sessions")
             .where("clinicId", "==", clinicId)
             .where("date", ">=", dateFrom)
@@ -129,11 +129,13 @@ async function loadAllReportsData() {
             .get();
         
         let sess = sessSnap.docs.map(doc => doc.data());
+        // 🔴 التعديل هنا: نفس المعاملة الآمنة للفروع
         if (selectedBranch !== 'all') {
-            sess = sess.filter(s => s.branchId === selectedBranch);
+            sess = sess.filter(s => (s.branchId || 'main') === selectedBranch);
         }
         currentReportData.sessions = sess;
 
+        // ج. جلب المرضى الجدد (كودك الأصلي)
         const patSnap = await db.collection("Patients")
             .where("clinicId", "==", clinicId)
             .get(); 
@@ -144,11 +146,13 @@ async function loadAllReportsData() {
             return pDate >= dateFrom && pDate <= dateTo;
         });
 
+        // 🔴 التعديل هنا: فلترة آمنة للمرضى القدامى
         if (selectedBranch !== 'all') {
-            pats = pats.filter(p => p.branchId === selectedBranch);
+            pats = pats.filter(p => (p.branchId || 'main') === selectedBranch);
         }
         currentReportData.patients = pats;
 
+        // د. المعالجة والعرض
         calculateKPIs();
         renderFinanceChart();
         renderServicesChart();
@@ -156,9 +160,7 @@ async function loadAllReportsData() {
         renderDetailedTable();
 
     } catch (e) {
-        console.error("Reports Error (Check Firebase Rules):", e);
-        const tbody = document.getElementById('detailedReportBody');
-        if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ef4444;">حدث خطأ في الصلاحيات. تأكد من تحديث الصفحة.</td></tr>`;
+        console.error("Reports Error:", e);
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
