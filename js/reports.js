@@ -50,15 +50,14 @@ function updatePageContent(lang) {
     window.reportLang = c;
 }
 
-// 🔴 جلب الفروع لقائمة الفلتر 🔴
+// 🔴 جلب الفروع لقائمة الفلتر (محمية) 🔴
 async function loadBranchesForFilter() {
     if (!clinicId) return;
     const select = document.getElementById('branch_filter');
     db.collection("Branches").where("clinicId", "==", clinicId).onSnapshot(snap => {
         const currentVal = select.value;
-        const optAll = document.getElementById('opt-all-branches');
-        select.innerHTML = '';
-        if(optAll) select.appendChild(optAll);
+        const isAr = document.body.dir === 'rtl';
+        select.innerHTML = `<option value="all">${isAr ? 'كل الفروع' : 'All Branches'}</option>`;
         
         snap.forEach(doc => {
             const b = doc.data();
@@ -85,7 +84,7 @@ function setReportPeriod(period, element) {
         fromDate = new Date(2020, 0, 1);
     }
 
-    // Adjust for timezone offset
+    // تظبيط فرق التوقيت عشان التواريخ تطلع مظبوطة
     const fromStr = new Date(fromDate.getTime() - (fromDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     const toStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
@@ -95,15 +94,17 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 جلب البيانات مفلترة بالفروع 🔴
+// 🔴 جلب البيانات مفلترة بالفروع والتواريخ (مضادة للأعطال) 🔴
 async function loadAllReportsData() {
     if (!clinicId) return;
     
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
-    const selectedBranch = document.getElementById('branch_filter').value;
+    const selectedBranch = document.getElementById('branch_filter').value || 'all';
 
     if (window.showLoader) window.showLoader("جاري إعداد التقارير...");
+    const tbody = document.getElementById('detailedReportBody');
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px; color: #64748b;">${window.reportLang ? window.reportLang.loadingTable : 'جاري تجميع البيانات...'}</td></tr>`;
 
     try {
         const finSnap = await db.collection("Finances")
@@ -112,7 +113,6 @@ async function loadAllReportsData() {
             .where("date", "<=", dateTo)
             .get();
         
-        // التصفية محلياً للفرع (Local Filtering) لتفادي Indexes معقدة
         currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => selectedBranch === 'all' || t.branchId === selectedBranch);
 
         const sessSnap = await db.collection("Sessions")
@@ -128,20 +128,36 @@ async function loadAllReportsData() {
             .get();
         
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
-            if (selectedBranch !== 'all' && p.branchId !== selectedBranch) return false;
-            if (!p.createdAt) return false;
-            const pDate = p.createdAt.toDate().toISOString().split('T')[0];
+            if (selectedBranch !== 'all' && p.branchId && p.branchId !== selectedBranch) return false;
+            
+            let pDate = "";
+            if (p.createdAt && typeof p.createdAt.toDate === 'function') {
+                pDate = p.createdAt.toDate().toISOString().split('T')[0];
+            } else if (p.createdAt) {
+                pDate = new Date(p.createdAt).toISOString().split('T')[0];
+            } else {
+                return false; 
+            }
             return pDate >= dateFrom && pDate <= dateTo;
         });
 
         calculateKPIs();
-        renderFinanceChart();
-        renderServicesChart();
-        renderMethodsChart();
+        
+        // التأكد من وجود مكتبة Chart.js قبل محاولة رسم المخططات
+        if (typeof Chart !== 'undefined') {
+            renderFinanceChart();
+            renderServicesChart();
+            renderMethodsChart();
+        } else {
+            console.warn("Chart.js is not loaded yet.");
+        }
+        
         renderDetailedTable();
 
     } catch (e) {
         console.error("Reports Error:", e);
+        // عرض الخطأ للمستخدم عشان نعرف لو فيه مشكلة في الفايربيز
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px; color: #ef4444; font-weight: bold;">حدث خطأ في النظام: ${e.message}</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
@@ -172,9 +188,10 @@ function renderFinanceChart() {
 
     const days = {};
     currentReportData.transactions.forEach(t => {
-        if (!days[t.date]) days[t.date] = { inc: 0, exp: 0 };
-        if (t.type === 'income') days[t.date].inc += Number(t.amount);
-        else days[t.date].exp += Number(t.amount);
+        const tDate = t.date || "غير معروف";
+        if (!days[tDate]) days[tDate] = { inc: 0, exp: 0 };
+        if (t.type === 'income') days[tDate].inc += Number(t.amount);
+        else days[tDate].exp += Number(t.amount);
     });
 
     const sortedLabels = Object.keys(days).sort();
@@ -271,7 +288,12 @@ function renderDetailedTable() {
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
     
-    currentReportData.transactions.sort((a,b) => b.date.localeCompare(a.date));
+    // حماية أثناء الترتيب
+    currentReportData.transactions.sort((a,b) => {
+        const d1 = a.date || "";
+        const d2 = b.date || "";
+        return d2.localeCompare(d1);
+    });
     
     if (currentReportData.transactions.length === 0) {
         tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 15px; color: #64748b;">لا توجد حركات في هذه الفترة.</td></tr>`;
@@ -284,10 +306,10 @@ function renderDetailedTable() {
         const sign = t.type === 'income' ? '+' : '-';
         
         tr.innerHTML = `
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category}</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date || '---'}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category || '---'}</strong></td>
             <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.notes || '---'}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount || 0}</td>
         `;
         tbody.appendChild(tr);
     });
