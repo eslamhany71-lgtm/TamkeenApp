@@ -1,6 +1,10 @@
+// js/settings.js
 const db = firebase.firestore();
 const auth = firebase.auth(); 
 const clinicId = sessionStorage.getItem('clinicId');
+
+// 🔴 مصفوفة تخزين الخدمات والأسعار 🔴
+let clinicServices = [];
 
 function updatePageContent(lang) {
     const t = {
@@ -11,7 +15,16 @@ function updatePageContent(lang) {
             lPhone1: "رقم الهاتف الأساسي للعيادة", lPhone2: "رقم هاتف آخر (اختياري)",
             lAddress1: "عنوان العيادة الأساسي", lAddress2: "عنوان فرع آخر (اختياري)",
             lLang: "لغة النظام (System Language)",
-            btnSave: "حفظ التعديلات", msgSuccess: "تم حفظ التعديلات بنجاح!", msgError: "حدث خطأ أثناء الحفظ",
+            
+            // 🔴 التراجم الجديدة 🔴
+            billTitle: "إعدادات الفواتير والضرائب", lTaxId: "الرقم الضريبي (إن وجد)", pTax: "يُطبع على الفواتير الرسمية",
+            lInvMsg: "رسالة ترحيبية أسفل الفاتورة", pInv: "مثال: نتمنى لكم دوام الصحة والعافية",
+            workTitle: "أيام وساعات العمل", lWorkStart: "بداية الدوام", lWorkEnd: "نهاية الدوام", lOffDay: "يوم الإجازة الأسبوعي",
+            optFri: "الجمعة", optSat: "السبت", optSun: "الأحد", optNone: "بدون إجازة",
+            srvTitle: "قائمة الخدمات والأسعار", lSrvName: "اسم الخدمة", lSrvPrice: "السعر", btnAddSrv: "إضافة",
+            thSrv: "الخدمة", thPrice: "السعر", thDel: "حذف", noSrv: "لا توجد خدمات مضافة.",
+
+            btnSave: "حفظ وتطبيق إعدادات العيادة", msgSuccess: "تم حفظ الإعدادات وتحديث السيستم بنجاح!", msgError: "حدث خطأ أثناء الحفظ",
             bkpTitle: "النسخ الاحتياطي لـ Excel", bkpDesc: "قم بتحميل نسخة احتياطية كاملة من بيانات العيادة في ملف Excel واحد مقسم لشيتات (مرضى، حجوزات، حسابات، الخ) جاهز للطباعة أو الحفظ على جهازك.", btnBkp: "تحميل البيانات (Excel Backup)", msgBkpWait: "جاري استخراج البيانات لـ Excel...", msgBkpDone: "تم تحميل ملف الـ Excel بنجاح!",
             secTitle: "الأمان وتسجيل الدخول", secDesc: "يمكنك تغيير كلمة المرور الخاصة بحساب العيادة. ستحتاج إلى إدخال كلمة المرور الحالية للتأكيد.",
             btnPass: "تغيير كلمة المرور", modalPassTitle: "تغيير كلمة المرور", lOldPass: "كلمة المرور الحالية", lNewPass: "كلمة المرور الجديدة", lConfPass: "تأكيد كلمة المرور الجديدة", btnSavePass: "تحديث كلمة المرور"
@@ -23,7 +36,15 @@ function updatePageContent(lang) {
             lPhone1: "Main Phone Number", lPhone2: "Secondary Phone (Optional)",
             lAddress1: "Main Clinic Address", lAddress2: "Secondary Branch (Optional)",
             lLang: "System Language",
-            btnSave: "Save Changes", msgSuccess: "Changes saved successfully!", msgError: "Error saving changes",
+
+            billTitle: "Billing & Taxes Settings", lTaxId: "Tax ID Number (Optional)", pTax: "Printed on official invoices",
+            lInvMsg: "Invoice Footer Message", pInv: "e.g., Wishing you a speedy recovery",
+            workTitle: "Working Hours", lWorkStart: "Start Time", lWorkEnd: "End Time", lOffDay: "Weekly Day Off",
+            optFri: "Friday", optSat: "Saturday", optSun: "Sunday", optNone: "No Off Day",
+            srvTitle: "Services & Prices Catalog", lSrvName: "Service Name", lSrvPrice: "Price", btnAddSrv: "Add",
+            thSrv: "Service", thPrice: "Price", thDel: "Delete", noSrv: "No services added.",
+
+            btnSave: "Save & Apply Settings", msgSuccess: "Settings saved and system updated successfully!", msgError: "Error saving changes",
             bkpTitle: "Excel Backup & Data", bkpDesc: "Download a full backup of clinic data in a single Excel file with separated sheets (Patients, Appointments, Finances, etc.) ready for printing or storage.", btnBkp: "Download Excel Backup", msgBkpWait: "Extracting data to Excel...", msgBkpDone: "Excel file downloaded successfully!",
             secTitle: "Security & Login", secDesc: "You can change your clinic account password. You will need to enter your current password to confirm.",
             btnPass: "Change Password", modalPassTitle: "Change Password", lOldPass: "Current Password", lNewPass: "New Password", lConfPass: "Confirm New Password", btnSavePass: "Update Password"
@@ -31,24 +52,28 @@ function updatePageContent(lang) {
     };
     const c = t[lang] || t.ar;
     const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+    const setPlh = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).placeholder = txt; };
 
     setTxt('txt-title', c.title); setTxt('txt-subtitle', c.sub); setTxt('txt-card-title', c.cardTitle);
     setTxt('lbl-logo', c.lLogo); setTxt('lbl-logo-hint', c.lHint); setTxt('lbl-name', c.lName);
-    
     setTxt('lbl-phone1', c.lPhone1); setTxt('lbl-phone2', c.lPhone2);
     setTxt('lbl-address1', c.lAddress1); setTxt('lbl-address2', c.lAddress2);
-    
     setTxt('lbl-lang', c.lLang);
-    setTxt('txt-backup-title', c.bkpTitle); setTxt('txt-backup-desc', c.bkpDesc); setTxt('btn-backup-txt', c.btnBkp);
+    setPlh('clinic_name', c.pName);
     
+    // التراجم الجديدة
+    setTxt('txt-billing-title', c.billTitle); setTxt('lbl-tax-id', c.lTaxId); setPlh('clinic_tax_id', c.pTax);
+    setTxt('lbl-invoice-msg', c.lInvMsg); setPlh('clinic_invoice_msg', c.pInv);
+    setTxt('txt-work-title', c.workTitle); setTxt('lbl-work-start', c.lWorkStart); setTxt('lbl-work-end', c.lWorkEnd); setTxt('lbl-off-day', c.lOffDay);
+    setTxt('opt-fri', c.optFri); setTxt('opt-sat', c.optSat); setTxt('opt-sun', c.optSun); setTxt('opt-none', c.optNone);
+    setTxt('txt-services-title', c.srvTitle); setTxt('lbl-service-name', c.lSrvName); setTxt('lbl-service-price', c.lSrvPrice); setTxt('btn-add-srv', c.btnAddSrv);
+    setTxt('th-srv', c.thSrv); setTxt('th-price', c.thPrice); setTxt('th-del', c.thDel); setTxt('txt-no-srv', c.noSrv);
+
+    setTxt('txt-backup-title', c.bkpTitle); setTxt('txt-backup-desc', c.bkpDesc); setTxt('btn-backup-txt', c.btnBkp);
     setTxt('txt-security-title', c.secTitle); setTxt('txt-security-desc', c.secDesc); setTxt('btn-change-pass', c.btnPass);
     setTxt('modal-pass-title', c.modalPassTitle); setTxt('lbl-old-pass', c.lOldPass); setTxt('lbl-new-pass', c.lNewPass); setTxt('lbl-confirm-pass', c.lConfPass); setTxt('btn-save-pass', c.btnSavePass);
     
-    const nameInput = document.getElementById('clinic_name');
-    if(nameInput) nameInput.placeholder = c.pName;
-    
     setTxt('btn-save', c.btnSave);
-    
     const langSelect = document.getElementById('app_language');
     if(langSelect) langSelect.value = lang;
 
@@ -67,7 +92,6 @@ async function loadClinicSettings() {
         if (doc.exists) {
             const data = doc.data();
             if (data.clinicName) document.getElementById('clinic_name').value = data.clinicName;
-            
             if (data.phone1) document.getElementById('clinic_phone_1').value = data.phone1;
             if (data.phone2) document.getElementById('clinic_phone_2').value = data.phone2;
             if (data.address1) document.getElementById('clinic_address_1').value = data.address1;
@@ -80,12 +104,72 @@ async function loadClinicSettings() {
                 document.getElementById('logo-preview').src = defaultLogoSVG;
                 document.getElementById('logo_base64').value = "";
             }
+
+            // 🔴 جلب الإعدادات الجديدة 🔴
+            if (data.taxId) document.getElementById('clinic_tax_id').value = data.taxId;
+            if (data.invoiceMsg) document.getElementById('clinic_invoice_msg').value = data.invoiceMsg;
+            if (data.workStart) document.getElementById('work_start_time').value = data.workStart;
+            if (data.workEnd) document.getElementById('work_end_time').value = data.workEnd;
+            if (data.offDay) document.getElementById('off_day').value = data.offDay;
+
+            if (data.services) {
+                clinicServices = data.services;
+            }
+            renderServicesTable();
         }
     } catch (error) {
         console.error("Error loading settings:", error);
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
+}
+
+// 🔴 دوال إدارة الخدمات والأسعار 🔴
+function renderServicesTable() {
+    const tbody = document.getElementById('services-table-body');
+    const isAr = document.body.dir === 'rtl';
+    tbody.innerHTML = '';
+    
+    if (clinicServices.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 20px;">${isAr ? 'لا توجد خدمات مضافة.' : 'No services added.'}</td></tr>`;
+        return;
+    }
+    
+    clinicServices.forEach((srv, index) => {
+        tbody.innerHTML += `
+            <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${srv.name}</strong></td>
+                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0ea5e9; font-weight: bold;">${srv.price}</td>
+                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                    <button type="button" class="btn-danger-outline" style="margin: 0 auto; padding: 4px 10px; font-size: 16px;" onclick="deleteClinicService(${index})">🗑️</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function addClinicService() {
+    const nameInput = document.getElementById('new_service_name');
+    const priceInput = document.getElementById('new_service_price');
+    const name = nameInput.value.trim();
+    const price = Number(priceInput.value) || 0;
+
+    if (!name) { 
+        alert(document.body.dir === 'rtl' ? "برجاء إدخال اسم الخدمة!" : "Please enter service name!"); 
+        return; 
+    }
+    
+    clinicServices.push({ name: name, price: price });
+    renderServicesTable();
+    
+    nameInput.value = '';
+    priceInput.value = '';
+    nameInput.focus();
+}
+
+function deleteClinicService(index) {
+    clinicServices.splice(index, 1);
+    renderServicesTable();
 }
 
 function encodeLogo(element) {
@@ -95,9 +179,7 @@ function encodeLogo(element) {
         document.getElementById('logo-preview').src = reader.result;
         document.getElementById('logo_base64').value = reader.result;
     }
-    if (file) {
-        reader.readAsDataURL(file);
-    }
+    if (file) { reader.readAsDataURL(file); }
 }
 
 function deleteLogo() {
@@ -108,7 +190,6 @@ function deleteLogo() {
 
 function changeSystemLanguage(newLang) {
     localStorage.setItem('preferredLang', newLang);
-    
     if (window.showLoader) window.showLoader("...");
 
     if (window.parent && typeof window.parent.switchAppLanguage === 'function') {
@@ -131,7 +212,7 @@ async function saveSettings(e) {
         return;
     }
 
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ التعديلات..." : "Saving changes...");
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ إعدادات العيادة..." : "Saving settings...");
 
     const newName = document.getElementById('clinic_name').value.trim();
     const newLogo = document.getElementById('logo_base64').value;
@@ -139,6 +220,13 @@ async function saveSettings(e) {
     const newPhone2 = document.getElementById('clinic_phone_2').value.trim();
     const newAddress1 = document.getElementById('clinic_address_1').value.trim();
     const newAddress2 = document.getElementById('clinic_address_2').value.trim();
+    
+    // 🔴 قراءة الإعدادات الجديدة 🔴
+    const newTaxId = document.getElementById('clinic_tax_id').value.trim();
+    const newInvoiceMsg = document.getElementById('clinic_invoice_msg').value.trim();
+    const newWorkStart = document.getElementById('work_start_time').value;
+    const newWorkEnd = document.getElementById('work_end_time').value;
+    const newOffDay = document.getElementById('off_day').value;
 
     try {
         await db.collection("Clinics").doc(clinicId).update({
@@ -147,7 +235,13 @@ async function saveSettings(e) {
             phone1: newPhone1,
             phone2: newPhone2,
             address1: newAddress1,
-            address2: newAddress2
+            address2: newAddress2,
+            taxId: newTaxId,
+            invoiceMsg: newInvoiceMsg,
+            workStart: newWorkStart,
+            workEnd: newWorkEnd,
+            offDay: newOffDay,
+            services: clinicServices // 🔴 حفظ مصفوفة الخدمات والأسعار 🔴
         });
 
         alert(window.settingsLang.msgSuccess);
@@ -164,6 +258,9 @@ async function saveSettings(e) {
     }
 }
 
+// ==========================================
+// دوال الباسورد والإكسيل لم يتم المساس بها
+// ==========================================
 function openPasswordModal() {
     document.getElementById('pass-error-msg').style.display = 'none';
     document.getElementById('old_password').value = '';
@@ -171,10 +268,7 @@ function openPasswordModal() {
     document.getElementById('confirm_password').value = '';
     document.getElementById('passwordModal').style.display = 'flex';
 }
-
-function closePasswordModal() {
-    document.getElementById('passwordModal').style.display = 'none';
-}
+function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; }
 
 async function changePassword(e) {
     e.preventDefault();
@@ -193,8 +287,7 @@ async function changePassword(e) {
         return;
     }
 
-    btn.disabled = true;
-    btn.innerText = "جاري التحديث...";
+    btn.disabled = true; btn.innerText = "جاري التحديث...";
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تغيير كلمة المرور..." : "Changing password...");
 
@@ -229,15 +322,12 @@ async function changePassword(e) {
 
 window.addEventListener('click', function(event) {
     const modal = document.getElementById('passwordModal');
-    if (event.target === modal) {
-        closePasswordModal();
-    }
+    if (event.target === modal) { closePasswordModal(); }
 });
 
 async function exportClinicDataToExcel() {
     if (!clinicId || clinicId === 'default') {
-        alert("لا يوجد بيانات لتصديرها.");
-        return;
+        alert("لا يوجد بيانات لتصديرها."); return;
     }
 
     const btn = document.getElementById('btn-backup');
