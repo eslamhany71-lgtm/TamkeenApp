@@ -6,6 +6,9 @@ const clinicId = urlParams.get('clinicId');
 let currentLang = localStorage.getItem('portal_lang') || 'ar';
 let clinicWhatsApp = "";
 
+// 🔴 متغيرات إعدادات العيادة للبوابة 🔴
+let portalSettings = { workStart: '10:00', workEnd: '22:00', offDay: 'none' };
+
 // ==========================================
 // 🔴 الترجمة والدعم متعدد اللغات 🔴
 // ==========================================
@@ -41,7 +44,9 @@ const portalDict = {
         msgBooked: "تم حجز موعدك بنجاح! سيتم التواصل معك.",
         msgConflict: "عفواً، تم حجز هذا الموعد منذ لحظات!",
         statusPending: "قيد التنفيذ ⏳",
-        statusReady: "جاهز بالعيادة ✅"
+        statusReady: "جاهز بالعيادة ✅",
+        // 🔴 ترجمة أخطاء الإجازات للبوابة 🔴
+        errOffDay: "عفواً، العيادة مغلقة في هذا اليوم (إجازة أسبوعية)."
     },
     en: {
         pageTitle: "Patient Portal",
@@ -74,7 +79,8 @@ const portalDict = {
         msgBooked: "Appointment booked successfully! We will contact you.",
         msgConflict: "Sorry, this slot was just booked by someone else!",
         statusPending: "In Progress ⏳",
-        statusReady: "Ready at Clinic ✅"
+        statusReady: "Ready at Clinic ✅",
+        errOffDay: "Sorry, the clinic is closed on this date (Weekly Day Off)."
     }
 };
 
@@ -152,7 +158,6 @@ window.onload = async () => {
         return;
     }
 
-    // 🔴 جلب بيانات العيادة (الاسم ورقم الواتساب) من جدول Clinics 🔴
     try {
         const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
         if(clinicDoc.exists) {
@@ -163,14 +168,23 @@ window.onload = async () => {
             const dashNameEl = document.getElementById('txt_clinic_name_dash');
             if(loginNameEl) loginNameEl.innerText = cName;
             if(dashNameEl) dashNameEl.innerText = cName;
+
+            // 🔴 حقن اللوجو الديناميكي ومواعيد العمل للبوابة 🔴
+            portalSettings.workStart = cData.workStart || '10:00';
+            portalSettings.workEnd = cData.workEnd || '22:00';
+            portalSettings.offDay = cData.offDay || 'none';
+
+            if(cData.logoUrl) {
+                const logoContainer = document.getElementById('portal_logo_container');
+                if(logoContainer) {
+                    logoContainer.innerHTML = `<img src="${cData.logoUrl}" alt="Clinic Logo" style="width: 100%; height: 100%; object-fit: contain; border-radius: 50%;">`;
+                }
+            }
             
-            // 🔴 التعديل هنا: قراءة phone1 كأولوية 🔴
             const rawPhone = cData.phone1 || cData.phone || cData.whatsapp || "";
-            
             if(rawPhone) {
-                clinicWhatsApp = rawPhone.replace(/\D/g, ''); // تنظيف الرقم
+                clinicWhatsApp = rawPhone.replace(/\D/g, ''); 
                 
-                // تظبيط مفتاح الدولة (مصر) أوتوماتيك للواتساب
                 if (clinicWhatsApp.startsWith('0')) {
                     clinicWhatsApp = '2' + clinicWhatsApp;
                 } else if (!clinicWhatsApp.startsWith('20') && clinicWhatsApp.length >= 10) {
@@ -180,7 +194,7 @@ window.onload = async () => {
                 const waBtn = document.getElementById('wa-float-btn');
                 if(waBtn) {
                     waBtn.href = `https://wa.me/${clinicWhatsApp}`;
-                    waBtn.style.display = 'flex'; // إظهار زرار الواتساب العائم
+                    waBtn.style.display = 'flex'; 
                 }
             }
         }
@@ -359,7 +373,7 @@ function patientLogout() {
 }
 
 // ==========================================
-// 🔴 Booking Logic 🔴
+// 🔴 Booking Logic (Protected) 🔴
 // ==========================================
 function showBookingScreen() {
     document.getElementById('login-screen').style.display = 'none';
@@ -380,6 +394,17 @@ async function loadAvailableSlots() {
     const selectedDate = document.getElementById('book_date').value;
     if (!selectedDate) return;
 
+    // 🔴 حماية البوابة: التأكد إن المريض مختارش يوم إجازة 🔴
+    const selectedDateObj = new Date(selectedDate);
+    const dayOfWeek = selectedDateObj.getDay();
+    if (portalSettings.offDay !== 'none' && dayOfWeek === Number(portalSettings.offDay)) {
+        alert(portalDict[currentLang].errOffDay);
+        document.getElementById('slots-container').style.display = 'none';
+        document.getElementById('confirmBookingForm').style.display = 'none';
+        document.getElementById('book_date').value = ''; // تصفير التاريخ
+        return;
+    }
+
     showLoader();
     const slotsContainer = document.getElementById('slots-container');
     const slotsGrid = document.getElementById('time-slots');
@@ -395,8 +420,20 @@ async function loadAvailableSlots() {
         const isToday = selectedDate === now.toISOString().split('T')[0];
         const currentHour = now.getHours(); const currentMinute = now.getMinutes();
 
-        for (let h = 10; h < 22; h++) {
+        // 🔴 توليد المواعيد بناءً على ساعات العمل فقط 🔴
+        const startHour = parseInt(portalSettings.workStart.split(':')[0]);
+        let endHour = parseInt(portalSettings.workEnd.split(':')[0]);
+        
+        // التحويل إلى دقائق للفلترة الدقيقة
+        const startMinutes = parseInt(portalSettings.workStart.split(':')[0]) * 60 + parseInt(portalSettings.workStart.split(':')[1]);
+        const endMinutes = parseInt(portalSettings.workEnd.split(':')[0]) * 60 + parseInt(portalSettings.workEnd.split(':')[1]);
+
+        for (let h = startHour; h <= endHour; h++) {
             ['00', '30'].forEach(min => {
+                const timeMinutes = h * 60 + parseInt(min);
+                // تخطي المواعيد اللي بره الساعات الرسمية
+                if (timeMinutes < startMinutes || timeMinutes > endMinutes) return;
+
                 const timeStr = `${String(h).padStart(2, '0')}:${min}`;
                 const ampm = h >= 12 ? 'PM' : 'AM';
                 const displayH = h > 12 ? h - 12 : (h === 0 ? 12 : h);
@@ -416,6 +453,11 @@ async function loadAvailableSlots() {
                 slotsGrid.appendChild(btn);
             });
         }
+        
+        if (slotsGrid.innerHTML === '') {
+            slotsGrid.innerHTML = `<p style="color:#ef4444; font-weight:bold; text-align:center; width:100%;">لا توجد مواعيد متاحة في هذا اليوم.</p>`;
+        }
+        
         slotsContainer.style.display = 'block';
     } catch (error) { console.error(error); } finally { hideLoader(); }
 }
