@@ -5,10 +5,13 @@ let calendar;
 let currentEditAppId = null; 
 
 let allClinicPatients = [];
-let allAppointmentsData = []; // 🔴 قائمة لتخزين جميع الحجوزات للسجل
+let allAppointmentsData = []; 
 
 let erpServices = [];
 let erpContracts = [];
+
+// 🔴 متغيرات إعدادات العيادة 🔴
+let clinicSettings = { workStart: '08:00', workEnd: '22:00', offDay: 'none' };
 
 function updatePageContent(lang) {
     const t = {
@@ -21,7 +24,10 @@ function updatePageContent(lang) {
             btnEdit: "✏️ تعديل الحجز", btnDel: "🗑️ حذف الحجز نهائياً", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟", errSave: "حدث خطأ أثناء الحفظ!", msgDrag: "تم تغيير الموعد بنجاح!",
             lblSearch: "🔍 بحث عن مريض مسجل (اختياري)", searchPlh: "اكتب الاسم أو رقم الموبايل للبحث...", lblPhone: "رقم الموبايل", lblAge: "العمر (سنوات)", lblGender: "النوع", lblTotal: "الإجمالي", lblPaid: "المدفوع", lblRem: "المتبقي",
             lblHistoryTitle: "التاريخ الطبي وأمراض مزمنة (اختياري)", lblDetHistory: "📋 التاريخ الطبي:", lblDetFinance: "💰 الحساب (مدفوع / إجمالي):", lblDetPhone: "📱 الموبايل:",
-            btnWaRem: "📱 إرسال تذكير بالموعد (واتساب)", btnCompleteApp: "✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)", btnCancelApp: "🚫 إلغاء الحجز (بدون مسح)", btnRestoreApp: "🔄 إرجاع الحجز لقيد الانتظار"
+            btnWaRem: "📱 إرسال تذكير بالموعد (واتساب)", btnCompleteApp: "✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)", btnCancelApp: "🚫 إلغاء الحجز (بدون مسح)", btnRestoreApp: "🔄 إرجاع الحجز لقيد الانتظار",
+            // 🔴 تنبيهات المواعيد والقيود 🔴
+            errOffDay: "عفواً، هذا اليوم هو يوم الإجازة الأسبوعي للعيادة!",
+            errTimeBounds: "عفواً، الموعد المحدد خارج ساعات العمل الرسمية للعيادة!"
         },
         en: {
             title: "Appointments Calendar", sub: "Manage clinic bookings and organize doctor's time", btnAdd: "Book Appointment",
@@ -32,7 +38,9 @@ function updatePageContent(lang) {
             btnEdit: "✏️ Edit Appointment", btnDel: "🗑️ Delete Permanently", confDel: "Are you sure you want to permanently delete this appointment?", errSave: "Error saving appointment!", msgDrag: "Appointment updated successfully!",
             lblSearch: "🔍 Search Existing Patient (Optional)", searchPlh: "Type name or phone to search...", lblPhone: "Mobile Number", lblAge: "Age (Years)", lblGender: "Gender", lblTotal: "Total", lblPaid: "Paid", lblRem: "Remaining",
             lblHistoryTitle: "Medical History (Optional)", lblDetHistory: "📋 Med History:", lblDetFinance: "💰 Finance (Paid/Total):", lblDetPhone: "📱 Mobile:",
-            btnWaRem: "📱 Send WhatsApp Reminder", btnCompleteApp: "✅ Patient Attended (Complete & Add Income)", btnCancelApp: "🚫 Cancel Appointment", btnRestoreApp: "🔄 Restore to Pending"
+            btnWaRem: "📱 Send WhatsApp Reminder", btnCompleteApp: "✅ Patient Attended (Complete & Add Income)", btnCancelApp: "🚫 Cancel Appointment", btnRestoreApp: "🔄 Restore to Pending",
+            errOffDay: "Sorry, this day is the clinic's weekly day off!",
+            errTimeBounds: "Sorry, the selected time is outside official working hours!"
         }
     };
     const c = t[lang] || t.ar;
@@ -178,13 +186,56 @@ function showAppDetailsModal(appId, props) {
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
 
-// دوال الـ ERP
+// 🔴 تحميل الإعدادات والخدمات معاً 🔴
+function loadClinicSettingsAndERP() {
+    if (!currentClinicId) return;
+
+    db.collection("Clinics").doc(currentClinicId).onSnapshot(doc => {
+        if (doc.exists) {
+            const data = doc.data();
+            
+            // 1. تحميل مصفوفة الخدمات
+            erpServices = data.services || [];
+            const selectType = document.getElementById('app_type');
+            if (selectType) {
+                selectType.innerHTML = `<option value="">اختر الخدمة...</option>`;
+                erpServices.forEach(s => { 
+                    selectType.innerHTML += `<option value="${s.name}">${s.name} (${s.price} ج.م)</option>`; 
+                });
+            }
+
+            // 2. تحميل إعدادات مواعيد العمل
+            clinicSettings.workStart = data.workStart || '08:00';
+            clinicSettings.workEnd = data.workEnd || '22:00';
+            clinicSettings.offDay = data.offDay || 'none';
+
+            // 3. تحديث الكاليندر لو موجود، أو بناءه من الصفر
+            if (calendar) {
+                calendar.setOption('slotMinTime', clinicSettings.workStart + ':00');
+                calendar.setOption('slotMaxTime', clinicSettings.workEnd + ':00');
+                calendar.setOption('hiddenDays', clinicSettings.offDay !== 'none' ? [Number(clinicSettings.offDay)] : []);
+            } else {
+                initCalendar();
+            }
+        }
+    });
+
+    db.collection("Contracts").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const contEl = document.getElementById('app_contract');
+        if (contEl) {
+            contEl.innerHTML = `<option value="">بدون تعاقد (خصم 0%)</option>`;
+            erpContracts.forEach(c => { contEl.innerHTML += `<option value="${c.id}">${c.name} (خصم ${c.discountPercentage}%)</option>`; });
+        }
+    });
+}
+
 function calculateCalERP() {
-    const srvId = document.getElementById('app_type').value;
+    const srvName = document.getElementById('app_type').value;
     const contId = document.getElementById('app_contract').value;
     
     let basePrice = 0;
-    const srv = erpServices.find(s => s.id === srvId);
+    const srv = erpServices.find(s => s.name === srvName);
     if (srv) basePrice = Number(srv.price) || 0;
 
     let discount = 0;
@@ -200,28 +251,6 @@ function calcCalRemaining() {
     const t = Number(document.getElementById('app_total').value) || 0;
     const p = Number(document.getElementById('app_paid').value) || 0;
     document.getElementById('app_remaining').value = Math.max(0, t - p);
-}
-
-function loadERPData() {
-    if (!currentClinicId) return;
-
-    db.collection("Services").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
-        erpServices = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const selectType = document.getElementById('app_type');
-        if (selectType) {
-            selectType.innerHTML = `<option value="">اختر الخدمة...</option>`;
-            erpServices.forEach(s => { selectType.innerHTML += `<option value="${s.id}">${s.name} (${s.price} ج.م)</option>`; });
-        }
-    });
-
-    db.collection("Contracts").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
-        erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const contEl = document.getElementById('app_contract');
-        if (contEl) {
-            contEl.innerHTML = `<option value="">بدون تعاقد (خصم 0%)</option>`;
-            erpContracts.forEach(c => { contEl.innerHTML += `<option value="${c.id}">${c.name} (خصم ${c.discountPercentage}%)</option>`; });
-        }
-    });
 }
 
 function openAppointmentModal() {
@@ -341,13 +370,21 @@ function initCalendar() {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const isMobile = window.innerWidth < 768;
 
+    // 🔴 تطبيق القيود على شكل الكاليندر 🔴
+    let minTime = clinicSettings.workStart ? clinicSettings.workStart + ':00' : '00:00:00';
+    let maxTime = clinicSettings.workEnd ? clinicSettings.workEnd + ':00' : '24:00:00';
+    let hiddenDaysArr = clinicSettings.offDay && clinicSettings.offDay !== 'none' ? [Number(clinicSettings.offDay)] : [];
+
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
         locale: lang === 'ar' ? 'ar' : 'en',
         direction: lang === 'ar' ? 'rtl' : 'ltr',
         editable: true, 
         headerToolbar: { left: 'prev,next today', center: 'title', right: isMobile ? 'timeGridDay,listWeek' : 'dayGridMonth,timeGridWeek,timeGridDay' },
-        slotMinTime: '00:00:00', slotMaxTime: '24:00:00', allDaySlot: false, events: [],
+        slotMinTime: minTime,
+        slotMaxTime: maxTime,
+        hiddenDays: hiddenDaysArr,
+        allDaySlot: false, events: [],
         
         eventClick: function(info) {
             const props = info.event.extendedProps;
@@ -357,6 +394,26 @@ function initCalendar() {
         eventDrop: async function(info) {
             const newDate = info.event.startStr.split('T')[0];
             const newTime = info.event.startStr.split('T')[1].substring(0, 5);
+
+            // 🔴 حماية الدراج آند دروب 🔴
+            const selectedDateObj = new Date(newDate);
+            const dayOfWeek = selectedDateObj.getDay();
+            if (clinicSettings.offDay !== 'none' && dayOfWeek === Number(clinicSettings.offDay)) {
+                alert(window.calendarLang.errOffDay);
+                info.revert();
+                return;
+            }
+
+            const timeMinutes = parseInt(newTime.split(':')[0]) * 60 + parseInt(newTime.split(':')[1]);
+            const startMinutes = parseInt(clinicSettings.workStart.split(':')[0]) * 60 + parseInt(clinicSettings.workStart.split(':')[1]);
+            const endMinutes = parseInt(clinicSettings.workEnd.split(':')[0]) * 60 + parseInt(clinicSettings.workEnd.split(':')[1]);
+            
+            if (timeMinutes < startMinutes || timeMinutes > endMinutes) {
+                alert(window.calendarLang.errTimeBounds);
+                info.revert();
+                return;
+            }
+
             if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الموعد..." : "Updating...");
             try { await db.collection("Appointments").doc(info.event.id).update({ date: newDate, time: newTime }); } 
             catch (error) { console.error("Error moving event:", error); info.revert(); } 
@@ -403,6 +460,27 @@ async function saveAppointment(e) {
     const timeVal = document.getElementById('app_time').value || '12:00'; 
     const phoneInput = document.getElementById('app_phone').value.trim();
 
+    // 🔴 التحقق الأمني من مواعيد العمل 🔴
+    const selectedDate = new Date(dateVal);
+    const dayOfWeek = selectedDate.getDay();
+    if (clinicSettings.offDay !== 'none' && dayOfWeek === Number(clinicSettings.offDay)) {
+        alert(window.calendarLang.errOffDay);
+        btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave;
+        if (window.hideLoader) window.hideLoader();
+        return;
+    }
+
+    const timeMinutes = parseInt(timeVal.split(':')[0]) * 60 + parseInt(timeVal.split(':')[1]);
+    const startMinutes = parseInt(clinicSettings.workStart.split(':')[0]) * 60 + parseInt(clinicSettings.workStart.split(':')[1]);
+    const endMinutes = parseInt(clinicSettings.workEnd.split(':')[0]) * 60 + parseInt(clinicSettings.workEnd.split(':')[1]);
+    
+    if (timeMinutes < startMinutes || timeMinutes > endMinutes) {
+        alert(window.calendarLang.errTimeBounds);
+        btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave;
+        if (window.hideLoader) window.hideLoader();
+        return;
+    }
+
     let historyArr = [];
     document.querySelectorAll('.med-history-cb:checked').forEach(cb => { historyArr.push(cb.value); });
     const otherHistory = document.getElementById('app_history').value.trim();
@@ -410,8 +488,7 @@ async function saveAppointment(e) {
     const finalHistory = historyArr.join(' ، ');
 
     const srvSelect = document.getElementById('app_type');
-    const srv = erpServices.find(s => s.id === srvSelect.value);
-    const typeVal = srv ? srv.name : srvSelect.value;
+    const typeVal = srvSelect.value || "كشف"; // لأن القيمة بقت هي اسم الخدمة مباشرة
 
     const contSelect = document.getElementById('app_contract');
     const cont = erpContracts.find(c => c.id === contSelect.value);
@@ -553,7 +630,7 @@ async function openEditModal() {
         
         const typeEl = document.getElementById('app_type');
         const srv = erpServices.find(s => s.name === props.type);
-        if(srv) typeEl.value = srv.id;
+        if(srv) typeEl.value = srv.name;
 
         const contEl = document.getElementById('app_contract');
         const cont = erpContracts.find(c => c.name === props.contract);
@@ -652,8 +729,7 @@ window.onload = () => {
     
     firebase.auth().onAuthStateChanged((user) => {
         if (user) { 
-            loadERPData(); 
-            initCalendar(); 
+            loadClinicSettingsAndERP(); 
         }
     });
 };
