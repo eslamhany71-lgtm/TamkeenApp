@@ -62,6 +62,9 @@ async function loadBranchesForFilter() {
         const isAr = document.body.dir === 'rtl';
         select.innerHTML = `<option value="all" id="opt-all-branches">${isAr ? 'كل الفروع' : 'All Branches'}</option>`;
         
+        // إضافة اختيار الفرع الرئيسي صراحة
+        select.innerHTML += `<option value="main">${isAr ? 'الفرع الرئيسي' : 'Main Branch'}</option>`;
+        
         snap.forEach(doc => {
             const b = doc.data();
             select.innerHTML += `<option value="${doc.id}">${b.name}</option>`;
@@ -101,7 +104,7 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 3. جلب الداتا بشكل محمي 🔴
+// 🔴 3. جلب الداتا والفلترة الذكية (للبيانات القديمة والجديدة) 🔴
 async function loadAllReportsData() {
     if (!clinicId) return;
     
@@ -122,7 +125,11 @@ async function loadAllReportsData() {
             .where("date", "<=", dateTo)
             .get();
         
-        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => selectedBranch === 'all' || t.branchId === selectedBranch);
+        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
+            if (selectedBranch === 'all') return true;
+            const tBranch = t.branchId || 'main'; // لو مفيش فرع، اعتبره الفرع الرئيسي
+            return tBranch === selectedBranch;
+        });
 
         const sessSnap = await db.collection("Sessions")
             .where("clinicId", "==", clinicId)
@@ -130,14 +137,21 @@ async function loadAllReportsData() {
             .where("date", "<=", dateTo)
             .get();
         
-        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => selectedBranch === 'all' || s.branchId === selectedBranch);
+        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => {
+            if (selectedBranch === 'all') return true;
+            const sBranch = s.branchId || 'main';
+            return sBranch === selectedBranch;
+        });
 
         const patSnap = await db.collection("Patients")
             .where("clinicId", "==", clinicId)
             .get();
         
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
-            if (selectedBranch !== 'all' && p.branchId && p.branchId !== selectedBranch) return false;
+            if (selectedBranch !== 'all') {
+                const pBranch = p.branchId || 'main';
+                if (pBranch !== selectedBranch) return false;
+            }
             
             // حماية تاريخ المريض من أي داتا فاسدة
             if (!p.createdAt) return false;
@@ -331,7 +345,6 @@ window.onload = () => {
     updatePageContent(lang);
     loadBranchesForFilter();
 
-    // الكود الأصلي بتاعك اللي بيستنى الـ Auth
     firebase.auth().onAuthStateChanged((user) => {
         if (user) {
             setReportPeriod('month', document.getElementById('chip-month')); 
