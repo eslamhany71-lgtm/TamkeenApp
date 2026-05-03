@@ -52,18 +52,7 @@ function updateLanguage(lang) {
 }
 
 
-// 🔴 2. جلب الفروع 🔴
-async function loadBranchesDropdown() {
-    const cid = sessionStorage.getItem('clinicId');
-    const select = document.getElementById('branch_filter');
-    if (!cid || !select) return;
 
-    db.collection("Branches").where("clinicId", "==", cid).get().then(snap => {
-        snap.forEach(doc => {
-            select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
-        });
-    });
-}
 
 // 🔴 1. إعدادات البداية والفلاتر 🔴
 function setReportPeriod(period, element) {
