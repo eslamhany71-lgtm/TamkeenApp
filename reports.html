@@ -22,7 +22,7 @@
         .chart-container { background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
         .full-width { grid-column: 1 / -1; }
         
-        /* 🔴 السر هنا: حاوية للتحكم بحجم الرسم البياني 🔴 */
+        /* 🔴 السر هنا: دي الحاوية اللي بتخلي الرسم البياني حجمه محترم 🔴 */
         .chart-wrapper { position: relative; height: 300px; width: 100%; margin-top: 15px; }
         
         @media (max-width: 900px) {
@@ -66,7 +66,7 @@
         
         <!-- 🔴 فلتر الفروع 🔴 -->
         <select id="branch_filter" class="search-box" style="min-width: 150px;" onchange="loadAllReportsData()">
-            <option value="all" id="opt-all-branches">كل الفروع</option>
+            <option value="all" id="opt-all-branches">الفرع الرئيسي (كل الفروع)</option>
         </select>
         
         <div style="width: 2px; height: 30px; background: #e2e8f0; margin: 0 5px;"></div>
