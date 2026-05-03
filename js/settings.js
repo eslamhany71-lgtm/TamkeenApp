@@ -3,8 +3,7 @@ const db = firebase.firestore();
 const auth = firebase.auth(); 
 const clinicId = sessionStorage.getItem('clinicId');
 
-// 🔴 مصفوفة تخزين الخدمات والأسعار 🔴
-let clinicServices = [];
+
 
 function updatePageContent(lang) {
     const t = {
@@ -112,10 +111,7 @@ async function loadClinicSettings() {
             if (data.workEnd) document.getElementById('work_end_time').value = data.workEnd;
             if (data.offDay) document.getElementById('off_day').value = data.offDay;
 
-            if (data.services) {
-                clinicServices = data.services;
-            }
-            renderServicesTable();
+
         }
     } catch (error) {
         console.error("Error loading settings:", error);
@@ -124,53 +120,7 @@ async function loadClinicSettings() {
     }
 }
 
-// 🔴 دوال إدارة الخدمات والأسعار 🔴
-function renderServicesTable() {
-    const tbody = document.getElementById('services-table-body');
-    const isAr = document.body.dir === 'rtl';
-    tbody.innerHTML = '';
-    
-    if (clinicServices.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 20px;">${isAr ? 'لا توجد خدمات مضافة.' : 'No services added.'}</td></tr>`;
-        return;
-    }
-    
-    clinicServices.forEach((srv, index) => {
-        tbody.innerHTML += `
-            <tr>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${srv.name}</strong></td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #0ea5e9; font-weight: bold;">${srv.price}</td>
-                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">
-                    <button type="button" class="btn-danger-outline" style="margin: 0 auto; padding: 4px 10px; font-size: 16px;" onclick="deleteClinicService(${index})">🗑️</button>
-                </td>
-            </tr>
-        `;
-    });
-}
 
-function addClinicService() {
-    const nameInput = document.getElementById('new_service_name');
-    const priceInput = document.getElementById('new_service_price');
-    const name = nameInput.value.trim();
-    const price = Number(priceInput.value) || 0;
-
-    if (!name) { 
-        alert(document.body.dir === 'rtl' ? "برجاء إدخال اسم الخدمة!" : "Please enter service name!"); 
-        return; 
-    }
-    
-    clinicServices.push({ name: name, price: price });
-    renderServicesTable();
-    
-    nameInput.value = '';
-    priceInput.value = '';
-    nameInput.focus();
-}
-
-function deleteClinicService(index) {
-    clinicServices.splice(index, 1);
-    renderServicesTable();
-}
 
 function encodeLogo(element) {
     const file = element.files[0];
@@ -241,7 +191,7 @@ async function saveSettings(e) {
             workStart: newWorkStart,
             workEnd: newWorkEnd,
             offDay: newOffDay,
-            services: clinicServices // 🔴 حفظ مصفوفة الخدمات والأسعار 🔴
+            
         });
 
         alert(window.settingsLang.msgSuccess);
