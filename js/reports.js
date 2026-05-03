@@ -13,10 +13,10 @@ let currentReportData = {
 function loadBranchesDropdown() {
     if (!clinicId) return;
     const select = document.getElementById('branch_filter');
-    if (!select) return; // لو نسيت تضيفها في الـ HTML مش هيضرب إيرور
+    if (!select) return;
 
     db.collection("Branches").where("clinicId", "==", clinicId).get().then(snap => {
-        select.innerHTML = '<option value="all">كل الفروع (الفرع الرئيسي)</option>';
+        select.innerHTML = '<option value="all">الفرع الرئيسي (كل الفروع)</option>';
         snap.forEach(doc => {
             select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
         });
@@ -26,14 +26,7 @@ function loadBranchesDropdown() {
 // 🔴 1. إعدادات البداية والفلاتر (كودك الأصلي) 🔴
 function setReportPeriod(period, element) {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-    
-    if(element) {
-        element.classList.add('active');
-    } else {
-        // لو الـ element مش مبعوت (زي في بداية التحميل)، هننشط أول زرار كإفتراضي
-        const chips = document.querySelectorAll('.filter-chip');
-        if(chips.length > 0) chips[0].classList.add('active');
-    }
+    if(element) element.classList.add('active');
 
     const today = new Date();
     let fromDate = new Date();
@@ -54,14 +47,14 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 2. جلب كل الداتا (معدلة للفلترة بالفروع بأمان شديد) 🔴
+// 🔴 2. جلب كل الداتا المطلوبة في وقت واحد (مع فلترة الفروع بأمان) 🔴
 async function loadAllReportsData() {
     if (!clinicId) return;
     
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
     
-    // سحب الفرع المختار من الـ HTML
+    // سحب الفرع المختار
     const branchSelect = document.getElementById('branch_filter');
     const selectedBranch = branchSelect ? branchSelect.value : 'all';
 
@@ -75,12 +68,10 @@ async function loadAllReportsData() {
             .where("date", "<=", dateTo)
             .get();
         
-        let trans = finSnap.docs.map(doc => doc.data());
-        // فلتر الفروع (الداتا القديمة اللي مفهاش فرع بنعتبرها 'all')
-        if (selectedBranch !== 'all') {
-            trans = trans.filter(t => (t.branchId || 'main') === selectedBranch);
-        }
-        currentReportData.transactions = trans;
+        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
+            if (selectedBranch === 'all') return true;
+            return (t.branchId || 'main') === selectedBranch; // الداتا القديمة تعتبر main
+        });
 
         // ب. جلب الجلسات
         const sessSnap = await db.collection("Sessions")
@@ -89,11 +80,10 @@ async function loadAllReportsData() {
             .where("date", "<=", dateTo)
             .get();
         
-        let sess = sessSnap.docs.map(doc => doc.data());
-        if (selectedBranch !== 'all') {
-            sess = sess.filter(s => (s.branchId || 'main') === selectedBranch);
-        }
-        currentReportData.sessions = sess;
+        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => {
+            if (selectedBranch === 'all') return true;
+            return (s.branchId || 'main') === selectedBranch;
+        });
 
         // ج. جلب المرضى الجدد
         const patSnap = await db.collection("Patients")
@@ -101,12 +91,12 @@ async function loadAllReportsData() {
             .get(); 
         
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
-            // فلتر الفرع أولاً
+            // فلتر الفرع
             if (selectedBranch !== 'all') {
                 if ((p.branchId || 'main') !== selectedBranch) return false;
             }
             
-            // كودك الأصلي للتواريخ بدون أي مساس!
+            // كود التواريخ الأصلي بتاعك بدون تعديل
             if(!p.createdAt) return false;
             const pDate = p.createdAt.toDate().toISOString().split('T')[0];
             return pDate >= dateFrom && pDate <= dateTo;
@@ -121,8 +111,9 @@ async function loadAllReportsData() {
 
     } catch (e) {
         console.error("Reports Error:", e);
+        // طباعة الخطأ لو حصل عشان نعرف سببه
         const tbody = document.getElementById('detailedReportBody');
-        if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">حدث خطأ: ${e.message}</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: red;">حدث خطأ: ${e.message}</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
@@ -141,9 +132,9 @@ function calculateKPIs() {
     document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
 }
 
-// 🔴 4. رسم المخططات (مضاف إليها maintainAspectRatio لضبط الحجم) 🔴
+// 🔴 4. رسم المخططات البيانية (دعم لون الدارك مود) 🔴
 
-function getTextColor() {
+function getChartTextColor() {
     return document.body.getAttribute('data-theme') === 'dark' ? '#cbd5e1' : '#475569';
 }
 
@@ -159,21 +150,19 @@ function renderFinanceChart() {
     });
 
     const sortedLabels = Object.keys(days).sort();
-    const isAr = document.body.dir !== 'ltr';
-    const textColor = getTextColor();
+    const textColor = getChartTextColor();
     
     financeChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: sortedLabels,
             datasets: [
-                { label: isAr ? 'إيرادات' : 'Income', data: sortedLabels.map(d => days[d].inc), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4 },
-                { label: isAr ? 'مصروفات' : 'Expenses', data: sortedLabels.map(d => days[d].exp), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }
+                { label: 'إيرادات', data: sortedLabels.map(d => days[d].inc), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4 },
+                { label: 'مصروفات', data: sortedLabels.map(d => days[d].exp), borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', fill: true, tension: 0.4 }
             ]
         },
         options: { 
             responsive: true, 
-            maintainAspectRatio: false, // ده اللي بيمنع الرسم من إنه يبقى عملاق
             plugins: { legend: { position: 'top', labels: { color: textColor } } },
             scales: { x: { ticks: { color: textColor } }, y: { ticks: { color: textColor } } }
         }
@@ -185,15 +174,12 @@ function renderServicesChart() {
     if (servicesChart) servicesChart.destroy();
 
     const counts = {};
-    const isAr = document.body.dir !== 'ltr';
-    const unspec = isAr ? "غير محدد" : "Unspecified";
-
     currentReportData.sessions.forEach(s => {
-        const proc = s.procedure || unspec;
+        const proc = s.procedure || "غير محدد";
         counts[proc] = (counts[proc] || 0) + 1;
     });
 
-    const textColor = getTextColor();
+    const textColor = getChartTextColor();
 
     servicesChart = new Chart(ctx, {
         type: 'doughnut',
@@ -204,11 +190,7 @@ function renderServicesChart() {
                 backgroundColor: ['#0284c7', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899']
             }]
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { legend: { position: 'right', labels: { color: textColor } } } 
-        }
+        options: { plugins: { legend: { position: 'right', labels: { color: textColor } } } }
     });
 }
 
@@ -224,23 +206,18 @@ function renderMethodsChart() {
         }
     });
 
-    const isAr = document.body.dir !== 'ltr';
-    const textColor = getTextColor();
+    const textColor = getChartTextColor();
 
     methodsChart = new Chart(ctx, {
         type: 'pie',
         data: {
-            labels: [isAr?'نقدي':'Cash', isAr?'محافظ':'Wallet', isAr?'بنوك':'Bank'],
+            labels: ['نقدي', 'محافظ', 'بنوك'],
             datasets: [{
                 data: [methods.cash, methods.wallet, methods.instapay],
                 backgroundColor: ['#10b981', '#8b5cf6', '#0284c7']
             }]
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            plugins: { legend: { position: 'bottom', labels: { color: textColor } } } 
-        }
+        options: { plugins: { legend: { position: 'bottom', labels: { color: textColor } } } }
     });
 }
 
@@ -248,44 +225,39 @@ function renderDetailedTable() {
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
     
-    // كودك الأصلي للترتيب (محمي)
-    currentReportData.transactions.sort((a,b) => {
-        const d1 = a.date || "";
-        const d2 = b.date || "";
-        return d2.localeCompare(d1);
-    });
+    currentReportData.transactions.sort((a,b) => b.date.localeCompare(a.date));
     
+    if (currentReportData.transactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 15px;">لا توجد حركات مالية في هذه الفترة.</td></tr>`;
+        return;
+    }
+
     currentReportData.transactions.forEach(t => {
         const tr = document.createElement('tr');
         const color = t.type === 'income' ? '#10b981' : '#ef4444';
         const sign = t.type === 'income' ? '+' : '-';
         
         tr.innerHTML = `
-            <td>${t.date || ''}</td>
-            <td><strong>${t.category || ''}</strong></td>
-            <td>${t.notes || '---'}</td>
-            <td style="color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount || 0}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category}</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.notes || '---'}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount}</td>
         `;
         tbody.appendChild(tr);
     });
-
-    if (currentReportData.transactions.length === 0) {
-        const isAr = document.body.dir !== 'ltr';
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #64748b;">${isAr ? 'لا توجد حركات في هذه الفترة' : 'No transactions found'}</td></tr>`;
-    }
 }
 
 // 🔴 تصدير إكسيل 🔴
 function exportReportToExcel() {
-    const isAr = document.body.dir !== 'ltr';
     const data = currentReportData.transactions.map(t => ({
-        [isAr ? "التاريخ" : "Date"]: t.date,
-        [isAr ? "النوع" : "Type"]: t.type === 'income' ? (isAr ? 'إيراد' : 'Income') : (isAr ? 'مصروف' : 'Expense'),
-        [isAr ? "التصنيف" : "Category"]: t.category,
-        [isAr ? "المبلغ" : "Amount"]: t.amount,
-        [isAr ? "طريقة الدفع" : "Payment Method"]: t.paymentMethod,
-        [isAr ? "البيان" : "Description"]: t.notes,
-        [isAr ? "بواسطة" : "By"]: t.createdBy
+        "التاريخ": t.date,
+        "النوع": t.type === 'income' ? 'إيراد' : 'مصروف',
+        "التصنيف": t.category,
+        "المبلغ": t.amount,
+        "طريقة الدفع": t.paymentMethod,
+        "البيان": t.notes,
+        "الفرع": t.branchId || 'الفرع الرئيسي',
+        "بواسطة": t.createdBy
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -294,18 +266,15 @@ function exportReportToExcel() {
     XLSX.writeFile(wb, `NivaDent_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-// 🔴 5. تحميل الصفحة (نفس اللوجيك بتاعك اللي شغال) 🔴
 window.onload = () => {
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
+    // تفعيل الدارك مود بناءً على الإعدادات العامة
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
-    // سحب الفروع للفلتر لو موجود
+    // سحب قائمة الفروع
     loadBranchesDropdown();
 
+    // الكود الأصلي لتأكيد الدخول
     firebase.auth().onAuthStateChanged((user) => {
-        if (user) {
-            setReportPeriod('month'); // تحميل تقرير الشهر الحالي افتراضياً
-        }
+        if (user) setReportPeriod('month'); // تحميل تقرير الشهر الحالي افتراضياً
     });
 };
