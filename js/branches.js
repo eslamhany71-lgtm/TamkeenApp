@@ -15,7 +15,8 @@ function updatePageContent(lang) {
             mBranchTitle: "إضافة فرع جديد", lBName: "اسم الفرع", lBPhone: "تليفون الفرع", lBAddr: "عنوان الفرع بالتفصيل", btnSaveB: "حفظ بيانات الفرع",
             mTransTitle: "نقل المريض لفرع آخر", lMoving: "نقل المريض:", lSelectB: "اختر الفرع الجديد لعملية النقل:", btnExec: "تأكيد عملية النقل ➔",
             warn: "⚠️ سيتم تحديث ملف المريض فوراً ليظهر في مواعيد وتقارير الفرع الجديد بشكل حصري.",
-            msgSuccess: "تم حفظ الفرع بنجاح", msgTransOk: "تم نقل المريض بنجاح إلى الفرع الجديد", confDel: "هل تريد حذف هذا الفرع؟ لن يتم حذف المرضى التابعين له."
+            msgSuccess: "تم حفظ الفرع بنجاح", msgTransOk: "تم نقل المريض بنجاح إلى الفرع الجديد", confDel: "هل تريد حذف هذا الفرع؟ لن يتم حذف المرضى التابعين له.",
+            msgDuplicate: "❌ هذا الفرع مسجل بالفعل في النظام!" // 🔴 رسالة التكرار 🔴
         },
         en: {
             title: "Clinic Branches", sub: "Add new branches and transfer patients between them", btnAdd: "Add New Branch",
@@ -25,7 +26,8 @@ function updatePageContent(lang) {
             mBranchTitle: "Add New Branch", lBName: "Branch Name", lBPhone: "Branch Phone", lBAddr: "Branch Address", btnSaveB: "Save Branch Data",
             mTransTitle: "Transfer Patient", lMoving: "Moving Patient:", lSelectB: "Select Target Branch:", btnExec: "Execute Transfer ➔",
             warn: "⚠️ Patient profile will be updated instantly to appear exclusively in the new branch.",
-            msgSuccess: "Branch saved successfully", msgTransOk: "Patient transferred successfully", confDel: "Delete this branch? Patients won't be deleted."
+            msgSuccess: "Branch saved successfully", msgTransOk: "Patient transferred successfully", confDel: "Delete this branch? Patients won't be deleted.",
+            msgDuplicate: "❌ This branch is already registered in the system!"
         }
     };
     const c = t[lang] || t.ar;
@@ -81,11 +83,20 @@ async function loadBranches() {
 async function saveBranch(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save-branch');
+    const branchName = document.getElementById('branch_name').value.trim();
+    
+    // 🔴 حماية ضد التكرار 🔴
+    const isDuplicate = allBranches.some(b => b.name.toLowerCase() === branchName.toLowerCase());
+    if (isDuplicate) {
+        alert(window.branchLang.msgDuplicate || "هذا الفرع مسجل بالفعل!");
+        return;
+    }
+
     btn.disabled = true;
 
     const bData = {
         clinicId: clinicId,
-        name: document.getElementById('branch_name').value.trim(),
+        name: branchName,
         phone: document.getElementById('branch_phone').value.trim(),
         address: document.getElementById('branch_address').value.trim(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
