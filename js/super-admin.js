@@ -138,7 +138,6 @@ async function openClinicDetailsModal(clinicId) {
     let pkgLabel = '';
     if(clinic.package === 'trial_7') pkgLabel = isAr ? 'تجريبي 7 أيام' : 'Trial 7 Days';
     else if(clinic.package === 'trial_14') pkgLabel = isAr ? 'تجريبي 14 يوم' : 'Trial 14 Days';
-    // استبدل السطر القديم بالسطر ده (ضفنا trial_29_days)
     else if(clinic.planType === 'trial_29_days' || clinic.planType === 'trial_3_days') pkgLabel = isAr ? 'تجريبي (29 يوم)' : 'Trial (29 Days)'; 
     else if(clinic.package === 'yearly') pkgLabel = isAr ? 'اشتراك سنوي' : 'Yearly';
     else pkgLabel = isAr ? 'اشتراك شهري' : 'Monthly';
@@ -164,7 +163,6 @@ async function openClinicDetailsModal(clinicId) {
     const priceDisplay = document.getElementById('det-clinic-price');
     if (priceDisplay) priceDisplay.innerText = clinic.subPrice || 0;
     
-    // 🔴 عرض الحد الأقصى للمستخدمين 🔴
     const limitDisplay = document.getElementById('det-clinic-limit');
     if (limitDisplay) limitDisplay.innerText = clinic.maxUsers || 1;
     
@@ -319,7 +317,6 @@ async function editClinicPrice() {
     }
 }
 
-// 🔴 1. دالة تعديل عدد المستخدمين الأقصى للسوبر أدمن 🔴
 async function editClinicUsersLimit() {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const currentLimit = document.getElementById('det-clinic-limit').innerText;
@@ -364,10 +361,15 @@ function closeClinicModal() {
     document.getElementById('clinicModal').style.display = 'none';
 }
 
+// 🔴 1. دالة المودال أصبحت بتراقب اختيار العيادة لجلب الفروع 🔴
 async function openUserModal() {
     document.getElementById('userForm').reset();
     const clinicSelect = document.getElementById('user_clinic');
+    const branchSelect = document.getElementById('user_branch');
+    
     clinicSelect.innerHTML = '<option value="">جاري تحميل العيادات...</option>';
+    branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>'; // افتراضي
+    
     document.getElementById('userModal').style.display = 'flex';
 
     try {
@@ -377,6 +379,23 @@ async function openUserModal() {
             const c = doc.data();
             clinicSelect.innerHTML += `<option value="${doc.id}">${c.clinicName}</option>`;
         });
+
+        // 🔴 مراقبة تغيير العيادة لجلب الفروع الخاصة بها 🔴
+        clinicSelect.onchange = async function() {
+            const selectedClinicId = this.value;
+            branchSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+            try {
+                const branchSnap = await db.collection("Branches").where("clinicId", "==", selectedClinicId).get();
+                branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>';
+                branchSnap.forEach(bDoc => {
+                    branchSelect.innerHTML += `<option value="${bDoc.id}">${bDoc.data().name}</option>`;
+                });
+            } catch(err) {
+                console.error("Error fetching branches:", err);
+                branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>';
+            }
+        };
+
     } catch(e) {
         console.error(e);
         clinicSelect.innerHTML = '<option value="">خطأ في تحميل العيادات</option>';
@@ -385,7 +404,7 @@ async function openUserModal() {
 
 function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
 
-// 🔴 2. دالة حفظ المستخدم من لوحة السوبر أدمن (مفتوحة وبها 4 رولز) 🔴
+// 🔴 2. دالة حفظ المستخدم أصبحت تحفظ الـ branchId 🔴
 async function saveNewUser(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button');
@@ -394,7 +413,8 @@ async function saveNewUser(e) {
 
     const userName = document.getElementById('user_name').value.trim();
     const clinicId = document.getElementById('user_clinic').value;
-    const role = document.getElementById('user_role').value; // القراءة من القائمة المنسدلة المتاحة
+    const branchId = document.getElementById('user_branch').value; // 🔴 قراءة الفرع
+    const role = document.getElementById('user_role').value; 
 
     if (!clinicId) { alert("برجاء اختيار العيادة أولاً."); btn.disabled = false; btn.innerText = window.superLang.btnSubUser; return; }
 
@@ -407,11 +427,12 @@ async function saveNewUser(e) {
             name: userName,
             role: role,
             clinicId: clinicId,
+            branchId: branchId, // 🔴 حفظ الفرع جوه الكود
             activated: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        alert(`✅ تم توليد كود الدعوة بنجاح!\n\nالكود: ${inviteCode}\nالاسم: ${userName}\nالوظيفة: ${role}\n\nيرجى إعطاء هذا الكود للموظف لتفعيل حسابه من شاشة تسجيل الدخول.`);
+        alert(`✅ تم توليد كود الدعوة بنجاح!\n\nالكود: ${inviteCode}\nالاسم: ${userName}\nالوظيفة: ${role}\nالفرع: ${branchId === 'main' ? 'الرئيسي' : 'فرع إضافي'}\n\nيرجى إعطاء هذا الكود للموظف لتفعيل حسابه من شاشة تسجيل الدخول.`);
         closeUserModal();
     } catch (error) {
         console.error("Error generating code:", error);
@@ -438,7 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 🔴 3. دالة إضافة العيادة مع حفظ (Max Users) 🔴
 async function saveNewClinic(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-save');
@@ -475,7 +495,7 @@ async function saveNewClinic(e) {
             status: plan,
             package: packageType, 
             subPrice: subPrice, 
-            maxUsers: maxUsers, // 🔴 حفظ الليمت في قواعد البيانات 🔴
+            maxUsers: maxUsers,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             nextPaymentDate: nextPayDate,
             logoUrl: "",
@@ -552,7 +572,6 @@ function renderClinicsTable() {
     const now = new Date();
 
     const filteredClinics = allClinicsList.filter(c => {
-        // 🔴 عشان تظهر في تابة التجارب المجانية 🔴
         if (currentActiveTab === 'trials') return c.planType === 'trial_29_days' || c.planType === 'trial_3_days';
         return c.planType !== 'trial_29_days' && c.planType !== 'trial_3_days'; 
     });
@@ -653,7 +672,7 @@ function openUpgradeTrialModal(clinicId, clinicName, adminEmail, adminPhone) {
     
     document.getElementById('upg_package').value = 'monthly';
     document.getElementById('upg_price').value = '';
-    document.getElementById('upg_max_users').value = '5'; // سعة افتراضية
+    document.getElementById('upg_max_users').value = '5';
     
     document.getElementById('upgradeTrialModal').style.display = 'flex';
 }
@@ -662,7 +681,6 @@ function closeUpgradeTrialModal() {
     document.getElementById('upgradeTrialModal').style.display = 'none';
 }
 
-// 🔴 4. ترقية الباقة مع حفظ (Max Users) 🔴
 async function confirmUpgradeTrial(e) {
     e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -690,7 +708,7 @@ async function confirmUpgradeTrial(e) {
             planType: firebase.firestore.FieldValue.delete(), 
             package: packageType,
             subPrice: subPrice,
-            maxUsers: maxUsers, // 🔴 حفظ الليمت 🔴
+            maxUsers: maxUsers,
             accessCode: accessCode,
             nextPaymentDate: nextPayDate,
             status: 'active'
