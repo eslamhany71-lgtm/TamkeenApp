@@ -26,7 +26,7 @@
         
         .med-history-cb { width: 18px; height: 18px; cursor: pointer; accent-color: #d97706;}
 
-        select#app_type, select#app_contract, select#app_doctor {
+        select#app_type, select#app_contract {
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -48,12 +48,12 @@
             background-size: 16px;
             transition: all 0.3s ease;
         }
-        select#app_type:focus, select#app_contract:focus, select#app_doctor:focus {
+        select#app_type:focus, select#app_contract:focus {
             border-color: #0284c7;
             background-color: #fff;
             box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
         }
-        [data-theme="dark"] select#app_type, [data-theme="dark"] select#app_contract, [data-theme="dark"] select#app_doctor {
+        [data-theme="dark"] select#app_type, [data-theme="dark"] select#app_contract {
             background-color: #0f172a !important;
             border-color: #334155 !important;
             color: #f8fafc !important;
@@ -173,14 +173,6 @@
                     </div>
                 </div>
 
-                <!-- 🔴 اختيار الطبيب المعالج 🔴 -->
-                <div class="form-group" style="margin-bottom: 15px;">
-                    <label id="lbl-app-doctor" style="color: #0284c7; font-weight: bold;">الطبيب المعالج</label>
-                    <select id="app_doctor" required>
-                        <option value="">جاري تحميل الأطباء...</option>
-                    </select>
-                </div>
-
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label id="lbl-app-type">نوع الكشف / الخدمة</label>
                     <select id="app_type" required onchange="calculateCalERP()"></select>
@@ -235,14 +227,11 @@
             <div class="details-box" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-name">👤 اسم المريض:</strong> <span id="det_name" style="color: #0284C7; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-phone">📱 الموبايل:</strong> <span id="det_phone" dir="ltr" style="display:inline-block;"></span></p>
-                <!-- 🔴 بيانات الطبيب المعالج 🔴 -->
-                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>👨‍⚕️ الطبيب المعالج:</strong> <span id="det_doctor" style="color: #8b5cf6; font-weight: bold;"></span></p>
-
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-date">📅 التاريخ:</strong> <span id="det_date"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-time">⏰ الساعة:</strong> <span id="det_time"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-type">🩺 الإجراء الطبي:</strong> <span id="det_type"></span></p>
                 
-                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🌐 مصدر الحجز:</strong> <span id="det_source" style="color: #10b981; font-weight: bold;"></span></p>
+                <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🌐 مصدر الحجز:</strong> <span id="det_source" style="color: #8b5cf6; font-weight: bold;"></span></p>
                 
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-history">📋 التاريخ الطبي:</strong> <span id="det_history" style="color: #d97706; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-finance">💰 الحساب (مدفوع / إجمالي):</strong> <span id="det_finance" style="color: #10b981; font-weight: bold;"></span></p>
