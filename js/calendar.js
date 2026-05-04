@@ -202,14 +202,15 @@ function loadClinicSettingsAndERP() {
             clinicSettings.workStart = data.workStart || '08:00';
             clinicSettings.workEnd = data.workEnd || '22:00';
             clinicSettings.offDay = data.offDay || 'none';
-
-            if (calendar) {
-                calendar.setOption('slotMinTime', clinicSettings.workStart + ':00');
-                calendar.setOption('slotMaxTime', clinicSettings.workEnd + ':00');
-                calendar.setOption('hiddenDays', clinicSettings.offDay !== 'none' ? [Number(clinicSettings.offDay)] : []);
-            } else {
-                initCalendar();
-            }
+        }
+        
+        // 🔴 التعديل السحري: الكاليندر هيترسم غصب عنه حتى لو العيادة لسه جديدة ملهاش إعدادات
+        if (calendar) {
+            calendar.setOption('slotMinTime', clinicSettings.workStart + ':00');
+            calendar.setOption('slotMaxTime', clinicSettings.workEnd + ':00');
+            calendar.setOption('hiddenDays', clinicSettings.offDay !== 'none' ? [Number(clinicSettings.offDay)] : []);
+        } else {
+            setTimeout(() => { initCalendar(); }, 100); // تأخير جزء من الثانية لضمان اكتمال الشاشة
         }
     });
 
