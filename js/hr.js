@@ -19,14 +19,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-window.onload = async () => {
+window.onload = () => {
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
-    if (!currentClinicId) {
-        document.getElementById('employeesBody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">الرجاء تسجيل الدخول</td></tr>';
-        return;
-    }
-    await loadBranches();
-    startSyncingHR();
+    
+    // حارس الأمان: انتظر التأكد من تسجيل الدخول قبل سحب البيانات
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            if (!currentClinicId) {
+                document.getElementById('employeesBody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">الرجاء تسجيل الدخول</td></tr>';
+                return;
+            }
+            await loadBranches();
+            startSyncingHR();
+        } else {
+            console.log("No user found, please log in.");
+        }
+    });
 };
 
 async function loadBranches() {
@@ -395,4 +403,32 @@ async function saveGrandControl(e) {
         closeModal('grandControlModal');
     } catch(err) { console.error(err); alert("حدث خطأ أثناء الحفظ"); }
     finally { btn.disabled = false; btn.innerText = "💾 حفظ إعدادات الموظف"; }
+}
+
+
+async function deleteEmployeeComplete() {
+    const id = document.getElementById('ctrl_id').value;
+    const type = document.getElementById('ctrl_type').value;
+
+    if (!confirm("هل أنت متأكد من حذف هذا الموظف نهائياً من كل سجلات النظام؟")) return;
+
+    if (window.showLoader) window.showLoader("جاري المسح الشامل...");
+    try {
+        if (type === 'other') {
+            await db.collection("Employees").doc(id).delete();
+        } else if (type === 'pending') {
+            await db.collection("InviteCodes").doc(id).delete();
+            await db.collection("Employees").doc(`pending_${id}`).delete().catch(e=>{});
+        } else if (type === 'user') {
+            await db.collection("Users").doc(id).delete();
+            await db.collection("Employees").doc(id).delete().catch(e=>{});
+        }
+        closeModal('grandControlModal');
+        alert("تم فرمتة ومحو الموظف من النظام بنجاح!");
+    } catch (e) {
+        console.error(e);
+        alert("حدث خطأ أثناء الحذف");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
 }
