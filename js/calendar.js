@@ -1,6 +1,8 @@
 // js/calendar.js
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
+let currentBranchId = sessionStorage.getItem('branchId') || 'main'; // 🔴 قراءة الفرع الحالي 🔴
+
 let calendar; 
 let currentEditAppId = null; 
 
@@ -25,7 +27,6 @@ function updatePageContent(lang) {
             lblSearch: "🔍 بحث عن مريض مسجل (اختياري)", searchPlh: "اكتب الاسم أو رقم الموبايل للبحث...", lblPhone: "رقم الموبايل", lblAge: "العمر (سنوات)", lblGender: "النوع", lblTotal: "الإجمالي", lblPaid: "المدفوع", lblRem: "المتبقي",
             lblHistoryTitle: "التاريخ الطبي وأمراض مزمنة (اختياري)", lblDetHistory: "📋 التاريخ الطبي:", lblDetFinance: "💰 الحساب (مدفوع / إجمالي):", lblDetPhone: "📱 الموبايل:",
             btnWaRem: "📱 إرسال تذكير بالموعد (واتساب)", btnCompleteApp: "✅ المريض حضر (اكتمال الحجز وتوريد الإيراد)", btnCancelApp: "🚫 إلغاء الحجز (بدون مسح)", btnRestoreApp: "🔄 إرجاع الحجز لقيد الانتظار",
-            // 🔴 تنبيهات المواعيد والقيود 🔴
             errOffDay: "عفواً، هذا اليوم هو يوم الإجازة الأسبوعي للعيادة!",
             errTimeBounds: "عفواً، الموعد المحدد خارج ساعات العمل الرسمية للعيادة!"
         },
@@ -118,7 +119,8 @@ function renderAllAppointmentsList() {
                 phone: app.patientPhone || app.phone, age: app.age, gender: app.gender, history: app.history,
                 type: app.type || 'كشف', contract: app.contract || 'بدون تعاقد', notes: app.notes, status: app.status,
                 date: app.date, time: app.safeTime, total: app.total, paid: app.paid, remaining: app.remaining,
-                payMethod: app.payMethod || 'cash', source: app.source || 'clinic'
+                payMethod: app.payMethod || 'cash', source: app.source || 'clinic',
+                doctorId: app.doctorId, doctorName: app.doctorName // 🔴 
             };
             showAppDetailsModal(app.id, props);
         };
@@ -145,6 +147,9 @@ function showAppDetailsModal(appId, props) {
     document.getElementById('det_phone').innerText = props.phone || '---';
     document.getElementById('det_date').innerText = props.date;
     document.getElementById('det_time').innerText = props.time;
+    
+    // 🔴 عرض اسم الدكتور 🔴
+    document.getElementById('det_doctor').innerText = props.doctorName || 'غير محدد';
     
     let typeText = props.type;
     if(props.contract && props.contract !== 'بدون تعاقد') typeText += ` <span style="font-size:12px;color:#10b981;">(تأمين: ${props.contract})</span>`;
@@ -186,30 +191,18 @@ function showAppDetailsModal(appId, props) {
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
 
-// 🔴 تحميل الإعدادات والخدمات معاً 🔴
+// 🔴 تحميل الإعدادات والخدمات والأطباء 🔴
 function loadClinicSettingsAndERP() {
     if (!currentClinicId) return;
 
+    // 1. تحميل إعدادات مواعيد العمل من ملف العيادة
     db.collection("Clinics").doc(currentClinicId).onSnapshot(doc => {
         if (doc.exists) {
             const data = doc.data();
-            
-            // 1. تحميل مصفوفة الخدمات
-            erpServices = data.services || [];
-            const selectType = document.getElementById('app_type');
-            if (selectType) {
-                selectType.innerHTML = `<option value="">اختر الخدمة...</option>`;
-                erpServices.forEach(s => { 
-                    selectType.innerHTML += `<option value="${s.name}">${s.name} (${s.price} ج.م)</option>`; 
-                });
-            }
-
-            // 2. تحميل إعدادات مواعيد العمل
             clinicSettings.workStart = data.workStart || '08:00';
             clinicSettings.workEnd = data.workEnd || '22:00';
             clinicSettings.offDay = data.offDay || 'none';
 
-            // 3. تحديث الكاليندر لو موجود، أو بناءه من الصفر
             if (calendar) {
                 calendar.setOption('slotMinTime', clinicSettings.workStart + ':00');
                 calendar.setOption('slotMaxTime', clinicSettings.workEnd + ':00');
@@ -220,6 +213,33 @@ function loadClinicSettingsAndERP() {
         }
     });
 
+    // 2. تحميل الخدمات (مباشرة من جدول Services عشان تسمع فوراً)
+    db.collection("Services").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        erpServices = [];
+        const selectType = document.getElementById('app_type');
+        if (selectType) selectType.innerHTML = `<option value="">اختر الخدمة...</option>`;
+        
+        snap.forEach(doc => {
+            const s = Object.assign({id: doc.id}, doc.data());
+            erpServices.push(s);
+            if (selectType) selectType.innerHTML += `<option value="${s.name}">${s.name} (${s.price || 0} ج.م)</option>`; 
+        });
+    });
+
+    // 3. تحميل الأطباء (مفلترين حسب الفرع)
+    db.collection("Users").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        const docSelect = document.getElementById('app_doctor');
+        if (docSelect) docSelect.innerHTML = '<option value="">اختر الطبيب...</option>';
+        
+        snap.forEach(doc => {
+            const d = doc.data();
+            if (d.role === 'doctor' && (d.branchId === currentBranchId || currentBranchId === 'main')) {
+                if (docSelect) docSelect.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
+            }
+        });
+    });
+
+    // 4. تحميل التعاقدات
     db.collection("Contracts").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
         erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const contEl = document.getElementById('app_contract');
@@ -263,6 +283,7 @@ function openAppointmentModal() {
 
     document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
     
+    document.getElementById('app_doctor').value = ''; // 🔴
     document.getElementById('app_type').value = '';
     document.getElementById('app_contract').value = '';
     document.getElementById('app_total').value = '0';
@@ -370,7 +391,6 @@ function initCalendar() {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const isMobile = window.innerWidth < 768;
 
-    // 🔴 تطبيق القيود على شكل الكاليندر 🔴
     let minTime = clinicSettings.workStart ? clinicSettings.workStart + ':00' : '00:00:00';
     let maxTime = clinicSettings.workEnd ? clinicSettings.workEnd + ':00' : '24:00:00';
     let hiddenDaysArr = clinicSettings.offDay && clinicSettings.offDay !== 'none' ? [Number(clinicSettings.offDay)] : [];
@@ -395,7 +415,6 @@ function initCalendar() {
             const newDate = info.event.startStr.split('T')[0];
             const newTime = info.event.startStr.split('T')[1].substring(0, 5);
 
-            // 🔴 حماية الدراج آند دروب 🔴
             const selectedDateObj = new Date(newDate);
             const dayOfWeek = selectedDateObj.getDay();
             if (clinicSettings.offDay !== 'none' && dayOfWeek === Number(clinicSettings.offDay)) {
@@ -460,7 +479,6 @@ async function saveAppointment(e) {
     const timeVal = document.getElementById('app_time').value || '12:00'; 
     const phoneInput = document.getElementById('app_phone').value.trim();
 
-    // 🔴 التحقق الأمني من مواعيد العمل 🔴
     const selectedDate = new Date(dateVal);
     const dayOfWeek = selectedDate.getDay();
     if (clinicSettings.offDay !== 'none' && dayOfWeek === Number(clinicSettings.offDay)) {
@@ -488,7 +506,12 @@ async function saveAppointment(e) {
     const finalHistory = historyArr.join(' ، ');
 
     const srvSelect = document.getElementById('app_type');
-    const typeVal = srvSelect.value || "كشف"; // لأن القيمة بقت هي اسم الخدمة مباشرة
+    const typeVal = srvSelect.value || "كشف";
+
+    // 🔴 قراءة بيانات الدكتور المختار 🔴
+    const docSelect = document.getElementById('app_doctor');
+    const doctorId = docSelect.value;
+    const doctorName = docSelect.options[docSelect.selectedIndex]?.text || '';
 
     const contSelect = document.getElementById('app_contract');
     const cont = erpContracts.find(c => c.id === contSelect.value);
@@ -503,6 +526,8 @@ async function saveAppointment(e) {
 
     const appData = {
         clinicId: currentClinicId, patientId: linkedPatientId,
+        branchId: currentBranchId, // 🔴 تسجيل الحجز على الفرع الحالي 🔴
+        doctorId: doctorId, doctorName: doctorName, // 🔴
         patientName: document.getElementById('app_name').value.trim(),
         phone: phoneInput, patientPhone: phoneInput,
         age: document.getElementById('app_age').value, gender: document.getElementById('app_gender').value,
@@ -556,7 +581,7 @@ async function markAppAsCompleted() {
                 if(props.history && props.history.length > 0 && props.history !== "سليم (لا يوجد)") { historyArray = props.history.split(' ، ').map(item => item.trim()).filter(i => i); }
 
                 const newPat = await db.collection("Patients").add({
-                    clinicId: currentClinicId, name: props.patientName, phone: patientPhone, age: props.age || '', gender: props.gender || '',
+                    clinicId: currentClinicId, branchId: currentBranchId, name: props.patientName, phone: patientPhone, age: props.age || '', gender: props.gender || '',
                     medicalHistory: historyArray, notes: props.notes || '', totalDebt: remainingAmount, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 patientId = newPat.id;
@@ -572,7 +597,7 @@ async function markAppAsCompleted() {
         const currentPayDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
         await db.collection("Sessions").add({
-            clinicId: currentClinicId, patientId: patientId, date: currentPayDate,
+            clinicId: currentClinicId, branchId: currentBranchId, patientId: patientId, date: currentPayDate,
             procedure: props.type || "كشف / إجراء", contract: props.contract || 'بدون تعاقد',
             total: props.total || 0, paid: paidAmount, remaining: remainingAmount,
             notes: props.notes || "", createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -580,7 +605,7 @@ async function markAppAsCompleted() {
         
         if (paidAmount > 0) {
             await db.collection("Finances").add({
-                clinicId: currentClinicId, patientId: patientId, type: 'income', category: 'كشف / جلسة',
+                clinicId: currentClinicId, branchId: currentBranchId, patientId: patientId, type: 'income', category: 'كشف / جلسة',
                 amount: paidAmount, date: currentPayDate, paymentMethod: paymentMethod, 
                 notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -588,7 +613,7 @@ async function markAppAsCompleted() {
 
         if (remainingAmount > 0) {
             await db.collection("Finances").add({
-                clinicId: currentClinicId, patientId: patientId, type: 'debt', category: 'متبقي كشف / جلسة',
+                clinicId: currentClinicId, branchId: currentBranchId, patientId: patientId, type: 'debt', category: 'متبقي كشف / جلسة',
                 amount: remainingAmount, date: currentPayDate, notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
@@ -631,6 +656,10 @@ async function openEditModal() {
         const typeEl = document.getElementById('app_type');
         const srv = erpServices.find(s => s.name === props.type);
         if(srv) typeEl.value = srv.name;
+
+        // 🔴 تعيين الدكتور 🔴
+        const docEl = document.getElementById('app_doctor');
+        if (docEl) docEl.value = props.doctorId || '';
 
         const contEl = document.getElementById('app_contract');
         const cont = erpContracts.find(c => c.name === props.contract);
@@ -691,6 +720,10 @@ function loadAppointments() {
 
         snap.forEach(doc => {
             const data = doc.data();
+            
+            // 🔴 فلترة الحجوزات عشان يظهر حجوزات الفرع الحالي بس 🔴
+            if (data.branchId && data.branchId !== currentBranchId && currentBranchId !== 'main') return; 
+
             const safeTime = data.time || "12:00"; 
             const startDateTime = `${data.date}T${safeTime}:00`;
 
@@ -703,7 +736,8 @@ function loadAppointments() {
                 phone: data.patientPhone || data.phone, patientPhone: data.patientPhone || data.phone, age: data.age, gender: data.gender, history: data.history,
                 type: data.type || 'كشف', contract: data.contract || 'بدون تعاقد', notes: data.notes, status: data.status,
                 date: data.date, time: safeTime, safeTime: safeTime, total: data.total, paid: data.paid, remaining: data.remaining,
-                payMethod: data.payMethod || 'cash', source: data.source || 'clinic'
+                payMethod: data.payMethod || 'cash', source: data.source || 'clinic',
+                doctorId: data.doctorId, doctorName: data.doctorName // 🔴
             };
 
             allAppointmentsData.push(appObj);
