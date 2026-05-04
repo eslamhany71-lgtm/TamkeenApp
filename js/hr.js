@@ -1,8 +1,14 @@
-// js/hr.js
+// js/hr.js - Unified HR & Access Control System
 const db = firebase.firestore();
-const clinicId = sessionStorage.getItem('clinicId');
+const currentClinicId = sessionStorage.getItem('clinicId');
 
-let allEmployees = [];
+let allStaff = []; // Array to hold unified data
+let clinicBranches = [];
+
+// Listeners
+let usersUnsubscribe = null;
+let invitesUnsubscribe = null;
+let employeesUnsubscribe = null;
 
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -13,61 +19,151 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-async function loadEmployees() {
-    if (!clinicId) return;
-
-    const tbody = document.getElementById('employeesBody');
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">جاري تحميل البيانات...</td></tr>';
-    
-    if (window.showLoader) window.showLoader("جاري السحب...");
-
-    try {
-        db.collection("Employees").where("clinicId", "==", clinicId).onSnapshot(snap => {
-            allEmployees = [];
-            let totalSalaries = 0;
-            let activeCount = 0;
-
-            snap.forEach(doc => {
-                const emp = { id: doc.id, ...doc.data() };
-                allEmployees.push(emp);
-                
-                if (emp.status === 'active') {
-                    activeCount++;
-                    totalSalaries += Number(emp.salary) || 0;
-                }
-            });
-
-            document.getElementById('stat-total-emps').innerText = allEmployees.length;
-            document.getElementById('stat-active-emps').innerText = activeCount;
-            document.getElementById('stat-total-salaries').innerText = totalSalaries.toLocaleString() + ' ج.م';
-
-            searchEmployees(); 
-        });
-    } catch (e) {
-        console.error(e);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">خطأ في التحميل!</td></tr>';
-    } finally {
-        if (window.hideLoader) window.hideLoader();
+window.onload = async () => {
+    document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
+    if (!currentClinicId) {
+        document.getElementById('employeesBody').innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">الرجاء تسجيل الدخول</td></tr>';
+        return;
     }
+    await loadBranches();
+    startSyncingHR();
+};
+
+async function loadBranches() {
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", currentClinicId).get();
+        clinicBranches = [{ id: 'main', name: 'الفرع الرئيسي' }];
+        snap.forEach(doc => clinicBranches.push({ id: doc.id, name: doc.data().name }));
+        
+        populateBranchDropdown('filter_branch', true);
+        populateBranchDropdown('inv_branch', false);
+        populateBranchDropdown('oth_branch', false);
+        populateBranchDropdown('ctrl_branch', false);
+    } catch(e) { console.error("Error loading branches", e); }
+}
+
+function populateBranchDropdown(elementId, isFilter) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.innerHTML = isFilter ? '<option value="all">كل الفروع</option>' : '';
+    clinicBranches.forEach(b => {
+        el.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+    });
+}
+
+function startSyncingHR() {
+    if (window.showLoader) window.showLoader("جاري مزامنة بيانات الموظفين...");
+
+    let usersData = {};
+    let invitesData = {};
+    let payrollData = {};
+
+    const compileAndRender = () => {
+        allStaff = [];
+        let totalSalaries = 0;
+        let onlineCount = 0;
+
+        // 1. ضخ المستخدمين الفعليين (Users)
+        Object.values(usersData).forEach(u => {
+            const payroll = payrollData[u.email] || {};
+            const finalStaff = {
+                id: u.email, type: 'user', name: u.name, email: u.email, phone: payroll.phone || '',
+                role: u.role, branchId: u.branchId || 'main',
+                isOnline: u.isOnline, lastLogin: u.lastLogin,
+                salary: payroll.salary || 0, commission: payroll.commission || 0,
+                permissions: u.permissions || getDefaultPermissions(u.role)
+            };
+            allStaff.push(finalStaff);
+            if(u.isOnline) onlineCount++;
+            totalSalaries += Number(finalStaff.salary);
+            
+            // عشان منكررش، هنعلم على ده إنه اتقرأ
+            payroll.processed = true;
+        });
+
+        // 2. ضخ الدعوات المعلقة (Invites)
+        Object.keys(invitesData).forEach(inviteCode => {
+            const inv = invitesData[inviteCode];
+            if (!inv.activated) {
+                allStaff.push({
+                    id: inviteCode, type: 'pending', name: inv.name, email: `كود: ${inviteCode}`,
+                    role: inv.role, branchId: inv.branchId || 'main',
+                    isOnline: false, lastLogin: null,
+                    salary: 0, commission: 0, permissions: getDefaultPermissions(inv.role)
+                });
+            }
+        });
+
+        // 3. ضخ العمالة الأخرى من جدول المرتبات (التي لم يتم قراءتها كـ User)
+        Object.keys(payrollData).forEach(pId => {
+            const p = payrollData[pId];
+            if (!p.processed && p.role === 'other') {
+                allStaff.push({
+                    id: pId, type: 'other', name: p.name, email: 'بدون إيميل', phone: p.phone || '',
+                    role: 'other', branchId: p.branchId || 'main',
+                    isOnline: false, lastLogin: null,
+                    salary: p.salary || 0, commission: 0, permissions: getDefaultPermissions('other')
+                });
+                totalSalaries += Number(p.salary || 0);
+            }
+        });
+
+        document.getElementById('stat-total-emps').innerText = allStaff.length;
+        document.getElementById('stat-active-emps').innerText = onlineCount;
+        document.getElementById('stat-total-salaries').innerText = totalSalaries.toLocaleString();
+
+        searchEmployees();
+        if (window.hideLoader) window.hideLoader();
+    };
+
+    // الاستماع لجدول Users
+    usersUnsubscribe = db.collection("Users").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        usersData = {};
+        snap.forEach(doc => usersData[doc.id] = doc.data());
+        compileAndRender();
+    });
+
+    // الاستماع لجدول InviteCodes
+    invitesUnsubscribe = db.collection("InviteCodes").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        invitesData = {};
+        snap.forEach(doc => invitesData[doc.id] = doc.data());
+        compileAndRender();
+    });
+
+    // الاستماع لجدول Employees (الرواتب والعمالة)
+    employeesUnsubscribe = db.collection("Employees").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+        payrollData = {};
+        snap.forEach(doc => payrollData[doc.id] = doc.data());
+        compileAndRender();
+    });
+}
+
+function getDefaultPermissions(role) {
+    if (role === 'admin') return { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true };
+    if (role === 'doctor') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
+    if (role === 'receptionist') return { patients: true, calendar: true, finances: true, inventory: false, reports: false, settings: false };
+    if (role === 'nurse') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
+    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false }; // other
 }
 
 function searchEmployees() {
     const searchText = document.getElementById('search_emp').value.trim().toLowerCase();
     const roleFilter = document.getElementById('filter_role').value;
+    const branchFilter = document.getElementById('filter_branch').value;
     
-    let filtered = allEmployees;
+    let filtered = allStaff;
 
     if (searchText) {
         filtered = filtered.filter(e => 
             (e.name && e.name.toLowerCase().includes(searchText)) ||
             (e.email && e.email.toLowerCase().includes(searchText)) ||
-            (e.phone && e.phone.includes(searchText))
+            (e.phone && e.phone.includes(searchText)) ||
+            (e.id && e.id.toLowerCase().includes(searchText))
         );
     }
 
-    if (roleFilter !== 'all') {
-        filtered = filtered.filter(e => e.role === roleFilter);
-    }
+    if (roleFilter !== 'all') filtered = filtered.filter(e => e.role === roleFilter);
+    if (branchFilter !== 'all') filtered = filtered.filter(e => e.branchId === branchFilter);
 
     renderEmployeesTable(filtered);
 }
@@ -77,146 +173,226 @@ function renderEmployeesTable(dataArray) {
     tbody.innerHTML = '';
 
     if (dataArray.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b;">لا يوجد موظفين مطابقين للبحث.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b; padding:20px;">لا يوجد موظفين مطابقين.</td></tr>';
         return;
     }
 
     dataArray.forEach(emp => {
-        let roleBadge = '';
-        let roleName = '';
+        let roleBadge = ''; let roleName = '';
         if (emp.role === 'admin') { roleBadge = 'role-admin'; roleName = 'مدير نظام'; }
         else if (emp.role === 'doctor') { roleBadge = 'role-doctor'; roleName = 'طبيب'; }
         else if (emp.role === 'receptionist') { roleBadge = 'role-reception'; roleName = 'استقبال'; }
-        else if (emp.role === 'nurse') { roleBadge = 'role-nurse'; roleName = 'مساعد/ممرض'; }
+        else if (emp.role === 'nurse') { roleBadge = 'role-nurse'; roleName = 'مساعد / ممرض'; }
+        else { roleBadge = 'role-other'; roleName = 'عمالة أخرى'; }
 
-        const statusHtml = emp.status === 'active' 
-            ? '<span class="status-active">نشط ✅</span>' 
-            : '<span class="status-inactive">موقوف ❌</span>';
+        const branchName = (clinicBranches.find(b => b.id === emp.branchId) || {}).name || 'غير محدد';
+
+        let statusHtml = '';
+        if (emp.type === 'pending') {
+            statusHtml = `<span class="status-pending">⏳ بانتظار التفعيل</span>`;
+        } else if (emp.type === 'other') {
+            statusHtml = `<span class="status-offline">بدون حساب</span>`;
+        } else {
+            if (emp.isOnline) statusHtml = `<span class="status-online">أونلاين</span>`;
+            else {
+                let lastSeen = '---';
+                if (emp.lastLogin) {
+                    try {
+                        const d = typeof emp.lastLogin.toDate === 'function' ? emp.lastLogin.toDate() : new Date(emp.lastLogin);
+                        lastSeen = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+                    } catch(e){}
+                }
+                statusHtml = `<span class="status-offline" dir="ltr">اوفلاين: ${lastSeen}</span>`;
+            }
+        }
 
         let accSystem = [];
-        if(Number(emp.salary) > 0) accSystem.push('راتب ثابت');
-        if(Number(emp.commission) > 0) accSystem.push('عمولة');
-        const accTxt = accSystem.length > 0 ? accSystem.join(' + ') : 'بدون نظام مالي';
-
-        let moneyTxt = '';
-        if(Number(emp.salary) > 0) moneyTxt += `ثابت: <strong>${emp.salary}</strong><br>`;
-        if(Number(emp.commission) > 0) moneyTxt += `نسبة: <strong style="color:#0ea5e9;">${emp.commission}%</strong>`;
-        if(moneyTxt === '') moneyTxt = '---';
+        if(Number(emp.salary) > 0) accSystem.push(`ثابت: <strong>${emp.salary}</strong>`);
+        if(Number(emp.commission) > 0) accSystem.push(`نسبة: <strong style="color:#0ea5e9;">${emp.commission}%</strong>`);
+        const accTxt = accSystem.length > 0 ? accSystem.join(' | ') : '<span style="color:#94a3b8;">بدون راتب محدد</span>';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>
-                <strong style="color: #0f172a; font-size: 16px;">${emp.name}</strong><br>
+                <strong style="color: #0f172a; font-size: 15px;">${emp.name}</strong><br>
                 <small style="color: #64748b; font-family: monospace;">${emp.email}</small>
-                ${emp.phone ? `<br><small style="color: #64748b;" dir="ltr">📞 ${emp.phone}</small>` : ''}
             </td>
-            <td><span class="role-badge ${roleBadge}">${roleName}</span></td>
-            <td style="color: #475569; font-weight: bold; font-size: 13px;">${accTxt}</td>
-            <td style="line-height: 1.5;">${moneyTxt}</td>
+            <td>
+                <span class="role-badge ${roleBadge}" style="margin-bottom:4px;">${roleName}</span><br>
+                <small style="color: #475569;">📍 ${branchName}</small>
+            </td>
+            <td style="font-size: 13px;">${accTxt}</td>
             <td style="text-align: center;">${statusHtml}</td>
-            <td style="text-align: center; white-space: nowrap;">
-                <button class="btn-action" style="background:#fff7ed; color:#ea580c; border-color:#fed7aa;" onclick="openEditEmployee('${emp.id}')">✏️ تعديل</button>
-                <button class="btn-action" style="background:#fee2e2; color:#ef4444; border-color:#fca5a5;" onclick="deleteEmployee('${emp.id}', '${emp.email}')">🗑️ حذف</button>
+            <td style="text-align: center;">
+                <button class="btn-action" style="background:#f1f5f9; color:#0f172a; border-color:#cbd5e1; font-weight:bold;" onclick="openGrandControl('${emp.id}')">⚙️ كنترول وتعديل</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-function openEmployeeModal() {
-    document.getElementById('emp_id').value = '';
-    document.getElementById('emp_name').value = '';
-    document.getElementById('emp_phone').value = '';
-    document.getElementById('emp_email').value = '';
-    document.getElementById('emp_email').disabled = false; 
-    document.getElementById('emp_role').value = 'receptionist';
-    document.getElementById('emp_status').value = 'active';
-    document.getElementById('emp_salary').value = '0';
-    document.getElementById('emp_commission').value = '0';
-    
-    document.getElementById('modal-title').innerText = 'تسجيل موظف جديد';
-    openModal('employeeModal');
+// =====================================
+// دوال توليد الدعوة والعمالة المباشرة
+// =====================================
+function openInviteModal() {
+    document.getElementById('inv_name').value = '';
+    document.getElementById('inv_role').value = 'doctor';
+    document.getElementById('inv_branch').value = 'main';
+    openModal('inviteModal');
 }
 
-function openEditEmployee(docId) {
-    const emp = allEmployees.find(e => e.id === docId);
-    if (!emp) return;
-
-    document.getElementById('emp_id').value = emp.id;
-    document.getElementById('emp_name').value = emp.name;
-    document.getElementById('emp_phone').value = emp.phone || '';
-    document.getElementById('emp_email').value = emp.email;
-    document.getElementById('emp_email').disabled = true; 
-    document.getElementById('emp_role').value = emp.role;
-    document.getElementById('emp_status').value = emp.status || 'active';
-    document.getElementById('emp_salary').value = emp.salary || 0;
-    document.getElementById('emp_commission').value = emp.commission || 0;
-    
-    document.getElementById('modal-title').innerText = 'تعديل بيانات الموظف';
-    openModal('employeeModal');
-}
-
-async function saveEmployee(e) {
+async function generateInviteCode(e) {
     e.preventDefault();
-    const btn = document.getElementById('btn-save');
+    const btn = document.getElementById('btn-invite');
+    btn.disabled = true; btn.innerText = "جاري التوليد...";
+
+    try {
+        const inviteCode = Math.floor(10000 + Math.random() * 90000).toString();
+        await db.collection("InviteCodes").doc(inviteCode).set({
+            name: document.getElementById('inv_name').value.trim(),
+            role: document.getElementById('inv_role').value,
+            clinicId: currentClinicId,
+            branchId: document.getElementById('inv_branch').value,
+            activated: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        alert(`✅ تم توليد كود الدعوة بنجاح!\nالكود: ${inviteCode}\nأعطِ هذا الكود للموظف ليسجل به الدخول.`);
+        closeModal('inviteModal');
+    } catch(err) { console.error(err); alert("حدث خطأ"); }
+    finally { btn.disabled = false; btn.innerText = "توليد كود الدعوة"; }
+}
+
+function openOtherEmpModal() {
+    document.getElementById('oth_id').value = '';
+    document.getElementById('oth_name').value = '';
+    document.getElementById('oth_phone').value = '';
+    document.getElementById('oth_branch').value = 'main';
+    document.getElementById('oth_salary').value = '0';
+    openModal('otherEmpModal');
+}
+
+async function saveOtherEmployee(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-oth');
     btn.disabled = true; btn.innerText = "جاري الحفظ...";
 
-    const empId = document.getElementById('emp_id').value;
-    const emailInput = document.getElementById('emp_email').value.trim().toLowerCase();
-
-    if (!empId) {
-        const isDuplicate = allEmployees.some(e => e.email === emailInput);
-        if (isDuplicate) {
-            alert("❌ هذا البريد الإلكتروني مسجل لموظف آخر في العيادة!");
-            btn.disabled = false; btn.innerText = "حفظ بيانات الموظف";
-            return;
-        }
-    }
-
+    const id = document.getElementById('oth_id').value;
     const data = {
-        clinicId: clinicId,
-        name: document.getElementById('emp_name').value.trim(),
-        phone: document.getElementById('emp_phone').value.trim(),
-        email: emailInput,
-        role: document.getElementById('emp_role').value,
-        status: document.getElementById('emp_status').value,
-        salary: Number(document.getElementById('emp_salary').value) || 0,
-        commission: Number(document.getElementById('emp_commission').value) || 0,
+        clinicId: currentClinicId,
+        role: 'other',
+        name: document.getElementById('oth_name').value.trim(),
+        phone: document.getElementById('oth_phone').value.trim(),
+        branchId: document.getElementById('oth_branch').value,
+        salary: Number(document.getElementById('oth_salary').value) || 0,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
     try {
-        if (empId) {
-            await db.collection("Employees").doc(empId).update(data);
-        } else {
+        if(id) await db.collection("Employees").doc(id).update(data);
+        else {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection("Employees").add(data);
         }
-        closeModal('employeeModal');
-    } catch (error) {
-        console.error("Error saving employee:", error);
-        alert("حدث خطأ أثناء الحفظ!");
-    } finally {
-        btn.disabled = false; btn.innerText = "حفظ بيانات الموظف";
-    }
+        closeModal('otherEmpModal');
+    } catch(err) { console.error(err); alert("حدث خطأ"); }
+    finally { btn.disabled = false; btn.innerText = "حفظ الموظف"; }
 }
 
-async function deleteEmployee(docId, email) {
-    if (confirm("هل أنت متأكد من حذف هذا الموظف نهائياً؟\nسيؤدي ذلك لمنعه من تسجيل الدخول للعيادة.")) {
-        if (window.showLoader) window.showLoader("جاري الحذف...");
-        try {
-            await db.collection("Employees").doc(docId).delete();
-        } catch (error) {
-            console.error(error);
-        } finally {
-            if (window.hideLoader) window.hideLoader();
+// =====================================
+// المودال الشامل (Grand Control)
+// =====================================
+function openGrandControl(id) {
+    const emp = allStaff.find(s => s.id === id);
+    if (!emp) return;
+
+    document.getElementById('ctrl_id').value = emp.id;
+    document.getElementById('ctrl_type').value = emp.type;
+    
+    document.getElementById('ctrl_name').innerText = emp.name;
+    
+    let statusBadge = '';
+    if(emp.type === 'pending') statusBadge = '<span style="color:#fbbf24; font-size:13px;">⏳ كود دعوة لم يفعل</span>';
+    else if(emp.type === 'other') statusBadge = '<span style="color:#94a3b8; font-size:13px;">🧹 عمالة فقط</span>';
+    else if(emp.isOnline) statusBadge = '<span style="color:#34d399; font-size:13px;">🟢 متصل الآن</span>';
+    else statusBadge = '<span style="color:#94a3b8; font-size:13px;">💤 أوفلاين</span>';
+    document.getElementById('ctrl_status_badge').innerHTML = statusBadge;
+
+    document.getElementById('ctrl_branch').value = emp.branchId;
+    document.getElementById('ctrl_role').value = emp.role;
+    
+    document.getElementById('ctrl_salary').value = emp.salary;
+    document.getElementById('ctrl_commission').value = emp.commission;
+
+    // إخفاء النسب والـ Permissions للعمالة
+    const boxPerm = document.getElementById('box_permissions');
+    const boxComm = document.getElementById('box_commission');
+    
+    if (emp.type === 'other') {
+        boxPerm.style.display = 'none';
+        boxComm.style.display = 'none';
+    } else {
+        boxPerm.style.display = 'block';
+        boxComm.style.display = 'block';
+        
+        // ضبط التوجلز بناءً على الصلاحيات
+        const p = emp.permissions || getDefaultPermissions(emp.role);
+        document.getElementById('perm_patients').checked = !!p.patients;
+        document.getElementById('perm_calendar').checked = !!p.calendar;
+        document.getElementById('perm_finances').checked = !!p.finances;
+        document.getElementById('perm_inventory').checked = !!p.inventory;
+        document.getElementById('perm_reports').checked = !!p.reports;
+        document.getElementById('perm_settings').checked = !!p.settings;
+    }
+
+    openModal('grandControlModal');
+}
+
+async function saveGrandControl(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-save-ctrl');
+    btn.disabled = true; btn.innerText = "جاري الحفظ...";
+
+    const id = document.getElementById('ctrl_id').value;
+    const type = document.getElementById('ctrl_type').value;
+    const branchId = document.getElementById('ctrl_branch').value;
+    const salary = Number(document.getElementById('ctrl_salary').value) || 0;
+    const commission = Number(document.getElementById('ctrl_commission').value) || 0;
+
+    try {
+        if (type === 'other') {
+            // تحديث العمالة المباشرة
+            await db.collection("Employees").doc(id).update({ branchId, salary, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        } 
+        else if (type === 'pending') {
+            // تحديث كود الدعوة (لفرع آخر مثلاً)
+            await db.collection("InviteCodes").doc(id).update({ branchId });
+            // تحديث المرتبات لو ضاف ليه فلوس وهو لسه مدخلش
+            await db.collection("Employees").doc(`pending_${id}`).set({
+                clinicId: currentClinicId, salary, commission, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, {merge: true});
         }
-    }
-}
+        else if (type === 'user') {
+            // تجميع الصلاحيات
+            const permissions = {
+                patients: document.getElementById('perm_patients').checked,
+                calendar: document.getElementById('perm_calendar').checked,
+                finances: document.getElementById('perm_finances').checked,
+                inventory: document.getElementById('perm_inventory').checked,
+                reports: document.getElementById('perm_reports').checked,
+                settings: document.getElementById('perm_settings').checked
+            };
 
-window.onload = () => {
-    document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) loadEmployees();
-    });
-};
+            // تحديث الصلاحيات والفرع في جدول Users
+            await db.collection("Users").doc(id).update({ branchId, permissions });
+            
+            // تحديث المرتبات في جدول Employees (بنربطه بالإيميل)
+            await db.collection("Employees").doc(id).set({
+                clinicId: currentClinicId, salary, commission, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, {merge: true});
+        }
+        
+        closeModal('grandControlModal');
+    } catch(err) { console.error(err); alert("حدث خطأ أثناء الحفظ"); }
+    finally { btn.disabled = false; btn.innerText = "💾 حفظ إعدادات الموظف"; }
+}
