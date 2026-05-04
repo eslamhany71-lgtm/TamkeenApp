@@ -68,7 +68,7 @@
         
         <!-- فلتر الفروع -->
         <select id="branch_filter" class="search-box" style="min-width: 150px;" onchange="loadAllReportsData()">
-            <option value="all" id="opt-all-branches">كل الفروع (الفرع الرئيسي)</option>
+            <option value="all" id="opt-all">الفرع الرئيسي (كل الفروع)</option>
         </select>
         
         <div style="width: 2px; height: 30px; background: #e2e8f0; margin: 0 5px;"></div>
@@ -86,13 +86,14 @@
         </div>
     </div>
 
+    <!-- كروت الإحصائيات مضاف إليها كارت المخزون -->
     <div class="kpi-grid" style="display: grid; gap: 15px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
         <div class="kpi-card" style="border-right: 4px solid #10b981; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
-            <div class="kpi-info"><h4 id="txt-kpi-income" style="margin: 0; color: #64748b;">إجمالي الدخل</h4><h2 id="rep-income" style="margin: 5px 0 0;">0</h2></div>
+            <div class="kpi-info"><h4 id="txt-kpi-inc" style="margin: 0; color: #64748b;">إجمالي الدخل</h4><h2 id="rep-income" style="margin: 5px 0 0;">0</h2></div>
             <div class="kpi-icon" style="color: #10b981; font-size: 24px;">📈</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #ef4444; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
-            <div class="kpi-info"><h4 id="txt-kpi-expense" style="margin: 0; color: #64748b;">إجمالي المصروفات</h4><h2 id="rep-expense" style="margin: 5px 0 0;">0</h2></div>
+            <div class="kpi-info"><h4 id="txt-kpi-exp" style="margin: 0; color: #64748b;">إجمالي المصروفات</h4><h2 id="rep-expense" style="margin: 5px 0 0;">0</h2></div>
             <div class="kpi-icon" style="color: #ef4444; font-size: 24px;">📉</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #0284c7; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
@@ -100,10 +101,9 @@
             <div class="kpi-icon" style="color: #0284c7; font-size: 24px;">💰</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #8b5cf6; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
-            <div class="kpi-info"><h4 id="txt-kpi-new-patients" style="margin: 0; color: #64748b;">مرضى جدد</h4><h2 id="rep-new-patients" style="margin: 5px 0 0;">0</h2></div>
+            <div class="kpi-info"><h4 id="txt-kpi-pat" style="margin: 0; color: #64748b;">مرضى جدد</h4><h2 id="rep-new-patients" style="margin: 5px 0 0;">0</h2></div>
             <div class="kpi-icon" style="color: #8b5cf6; font-size: 24px;">👥</div>
         </div>
-        <!-- الكارت الجديد الخاص بالمخزون -->
         <div class="kpi-card" style="border-right: 4px solid #f59e0b; background: white; padding: 20px; border-radius: 12px; display: flex; justify-content: space-between;">
             <div class="kpi-info"><h4 id="txt-kpi-inventory" style="margin: 0; color: #64748b;">نواقص المخزون</h4><h2 id="rep-inventory-alerts" style="margin: 5px 0 0; color: #f59e0b;">0</h2></div>
             <div class="kpi-icon" style="color: #f59e0b; font-size: 24px;">📦</div>
@@ -112,40 +112,34 @@
 
     <div class="reports-grid">
         <div class="chart-container full-width">
-            <h3 id="txt-chart-finance" style="margin-top: 0;">📊 مخطط الإيرادات والمصروفات الزمني</h3>
-            <div class="chart-wrapper">
-                <canvas id="financeChart"></canvas>
-            </div>
+            <h3 id="c-title-1" style="margin-top: 0;">📊 مخطط الإيرادات والمصروفات الزمني</h3>
+            <div class="chart-wrapper"><canvas id="financeChart"></canvas></div>
         </div>
 
         <div class="chart-container">
-            <h3 id="txt-chart-services" style="margin-top: 0;">🩺 أكثر الخدمات (الإجراءات) طلباً</h3>
-            <div class="chart-wrapper">
-                <canvas id="servicesChart"></canvas>
-            </div>
+            <h3 id="c-title-2" style="margin-top: 0;">🩺 أكثر الخدمات (الإجراءات) طلباً</h3>
+            <div class="chart-wrapper"><canvas id="servicesChart"></canvas></div>
         </div>
 
         <div class="chart-container">
-            <h3 id="txt-chart-methods" style="margin-top: 0;">💳 تحليل طرق التحصيل</h3>
-            <div class="chart-wrapper">
-                <canvas id="methodsChart"></canvas>
-            </div>
+            <h3 id="c-title-3" style="margin-top: 0;">💳 تحليل طرق التحصيل</h3>
+            <div class="chart-wrapper"><canvas id="methodsChart"></canvas></div>
         </div>
         
         <div class="chart-container full-width">
-            <h3 id="txt-chart-table" style="margin-top: 0;">📑 ملخص العمليات المالية في الفترة المختارة</h3>
+            <h3 id="c-title-4" style="margin-top: 0;">📑 ملخص العمليات المالية في الفترة المختارة</h3>
             <div class="table-container" style="margin-top: 10px; max-height: 400px; overflow-y: auto;">
                 <table id="detailedReportTable" style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr>
-                            <th id="th-date" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">التاريخ</th>
-                            <th id="th-category" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">التصنيف</th>
-                            <th id="th-notes" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">البيان</th>
-                            <th id="th-amount" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">المبلغ</th>
+                            <th id="th-d" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">التاريخ</th>
+                            <th id="th-c" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">التصنيف</th>
+                            <th id="th-n" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">البيان</th>
+                            <th id="th-a" style="padding: 12px; border-bottom: 1px solid #cbd5e1; text-align: start;">المبلغ</th>
                         </tr>
                     </thead>
                     <tbody id="detailedReportBody">
-                        <tr><td colspan="4" id="txt-loading-table" style="text-align: center; padding: 20px; color: #64748b;">جاري تجميع البيانات...</td></tr>
+                        <tr><td colspan="4" id="txt-loading" style="text-align: center; padding: 20px; color: #64748b;">جاري تجميع البيانات...</td></tr>
                     </tbody>
                 </table>
             </div>
