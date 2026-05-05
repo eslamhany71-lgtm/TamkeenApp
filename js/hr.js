@@ -2,7 +2,7 @@
 const db = firebase.firestore();
 const currentClinicId = sessionStorage.getItem('clinicId');
 
-let allStaff = []; // Array to hold unified data
+let allStaff = []; 
 let clinicBranches = [];
 
 // Listeners
@@ -147,11 +147,14 @@ function startSyncingHR() {
 }
 
 function getDefaultPermissions(role) {
-    if (role === 'admin') return { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true };
-    if (role === 'doctor') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
-    if (role === 'receptionist') return { patients: true, calendar: true, finances: true, inventory: false, reports: false, settings: false };
-    if (role === 'nurse') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
-    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false }; // other
+    const allOn = { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
+    if (role === 'admin' || role === 'superadmin') return allOn;
+    
+    // الصلاحيات الافتراضية للطبيب (تقدر تعدلها براحتك)
+    if (role === 'doctor') return { ...allOn, finances: false, reports: false, settings: false, hr: false, branches: false };
+    if (role === 'receptionist') return { ...allOn, reports: false, settings: false, hr: false, branches: false, inventory: false };
+    
+    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false }; // other
 }
 
 function searchEmployees() {
@@ -343,13 +346,18 @@ function openGrandControl(id) {
         boxPerm.style.display = 'block';
         boxComm.style.display = 'block';
         
-        // ضبط التوجلز بناءً على الصلاحيات
+        // ضبط التوجلز بناءً على الصلاحيات الشاملة
         const p = emp.permissions || getDefaultPermissions(emp.role);
         document.getElementById('perm_patients').checked = !!p.patients;
         document.getElementById('perm_calendar').checked = !!p.calendar;
+        document.getElementById('perm_services').checked = !!p.services;
+        document.getElementById('perm_contracts').checked = !!p.contracts;
         document.getElementById('perm_finances').checked = !!p.finances;
         document.getElementById('perm_inventory').checked = !!p.inventory;
         document.getElementById('perm_reports').checked = !!p.reports;
+        document.getElementById('perm_branches').checked = !!p.branches;
+        document.getElementById('perm_hr').checked = !!p.hr;
+        document.getElementById('perm_notifications').checked = !!p.notifications;
         document.getElementById('perm_settings').checked = !!p.settings;
     }
 
@@ -381,13 +389,18 @@ async function saveGrandControl(e) {
             }, {merge: true});
         }
         else if (type === 'user') {
-            // تجميع الصلاحيات
+            // تجميع الصلاحيات الشاملة
             const permissions = {
                 patients: document.getElementById('perm_patients').checked,
                 calendar: document.getElementById('perm_calendar').checked,
+                services: document.getElementById('perm_services').checked,
+                contracts: document.getElementById('perm_contracts').checked,
                 finances: document.getElementById('perm_finances').checked,
                 inventory: document.getElementById('perm_inventory').checked,
                 reports: document.getElementById('perm_reports').checked,
+                branches: document.getElementById('perm_branches').checked,
+                hr: document.getElementById('perm_hr').checked,
+                notifications: document.getElementById('perm_notifications').checked,
                 settings: document.getElementById('perm_settings').checked
             };
 
@@ -404,7 +417,6 @@ async function saveGrandControl(e) {
     } catch(err) { console.error(err); alert("حدث خطأ أثناء الحفظ"); }
     finally { btn.disabled = false; btn.innerText = "💾 حفظ إعدادات الموظف"; }
 }
-
 
 async function deleteEmployeeComplete() {
     const id = document.getElementById('ctrl_id').value;
