@@ -1,5 +1,9 @@
+// js/patients.js
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
+const userRole = sessionStorage.getItem('userRole'); // 🔴 جلب وظيفة الموظف
+const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب فرع الموظف الافتراضي
+
 let currentEditPatientId = null;
 let patientsDataArray = []; 
 let filteredPatientsArray = []; 
@@ -7,6 +11,48 @@ let filteredPatientsArray = [];
 const PATIENTS_PER_PAGE = 50;
 let lastVisibleDoc = null; 
 let isSearchMode = false;  
+
+// 🔴 دالة لجلب قائمة الفروع (للمدير فقط)
+async function loadBranchesForAdmin() {
+    if (userRole !== 'admin' && userRole !== 'superadmin') return;
+
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", currentClinicId).get();
+        const filterSelect = document.getElementById('branch-filter');
+        const modalSelect = document.getElementById('p_branch');
+        
+        if (!filterSelect || !modalSelect) return;
+
+        let optionsHtml = `<option value="all" id="opt-all-branches">كل الفروع</option>`;
+        optionsHtml += `<option value="main">الفرع الرئيسي</option>`;
+        
+        let modalOptionsHtml = `<option value="main">الفرع الرئيسي</option>`;
+
+        snap.forEach(doc => {
+            optionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
+            modalOptionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
+        });
+
+        filterSelect.innerHTML = optionsHtml;
+        modalSelect.innerHTML = modalOptionsHtml;
+
+        // إظهار الفلتر وتحديد الفرع الافتراضي للمدير
+        filterSelect.style.display = 'block';
+        filterSelect.value = userBranch;
+        
+        // إظهار اختيار الفرع في مودال الإضافة للمدير
+        document.getElementById('admin-branch-group').style.display = 'block';
+
+        // ترجمة كلمة "كل الفروع" لو إنجليزي
+        const lang = localStorage.getItem('preferredLang') || 'ar';
+        if (lang === 'en') {
+            const allOpt = document.getElementById('opt-all-branches');
+            if (allOpt) allOpt.innerText = "All Branches";
+        }
+    } catch (e) {
+        console.error("Error loading branches:", e);
+    }
+}
 
 function updatePageContent(lang) {
     const t = {
@@ -19,7 +65,8 @@ function updatePageContent(lang) {
             lNotes: "ملاحظات إضافية", btnSave: "حفظ البيانات", btnView: "فتح الملف",
             selCount: "تم تحديد", patWord: "مريض", bulkDel: "🗑️ حذف المحدد", confDel: "هل أنت متأكد من حذف المريض؟ لا يمكن التراجع عن هذا الإجراء.", confBulkDel: "هل أنت متأكد من حذف جميع المرضى المحددين؟",
             loadMore: "⬇️ تحميل المزيد...", noMore: "لا يوجد مرضى آخرين", empty: "لا يوجد مرضى مسجلين",
-            btnSearch: "بحث دقيق", btnBarcode: "مسح بالكاميرا (سكان)", btnExcel: "استيراد إكسيل"
+            btnSearch: "بحث دقيق", btnBarcode: "مسح بالكاميرا (سكان)", btnExcel: "استيراد إكسيل",
+            optAll: "كل الفروع", lBranch: "الفرع التابع له المريض"
         },
         en: {
             title: "Patients Management", sub: "List of registered clinic patients and medical history",
@@ -30,7 +77,8 @@ function updatePageContent(lang) {
             lNotes: "Additional Notes", btnSave: "Save Data", btnView: "Open File",
             selCount: "Selected", patWord: "Patient(s)", bulkDel: "🗑️ Delete Selected", confDel: "Are you sure you want to delete this patient?", confBulkDel: "Are you sure you want to delete all selected patients?",
             loadMore: "⬇️ Load More...", noMore: "No more patients", empty: "No registered patients",
-            btnSearch: "Deep Search", btnBarcode: "Scan Barcode", btnExcel: "Import Excel"
+            btnSearch: "Deep Search", btnBarcode: "Scan Barcode", btnExcel: "Import Excel",
+            optAll: "All Branches", lBranch: "Patient's Branch"
         }
     };
     const c = t[lang] || t.ar;
@@ -46,8 +94,9 @@ function updatePageContent(lang) {
     setTxt('opt-male', c.optM); setTxt('opt-female', c.optF); setTxt('lbl-p-history', c.lHistory);
     setTxt('lbl-p-notes', c.lNotes); 
     setTxt('btn-bulk-delete', c.bulkDel);
+    setTxt('lbl-p-branch', c.lBranch);
+    if(document.getElementById('opt-all-branches')) setTxt('opt-all-branches', c.optAll);
     
-    // 🔴 ترجمة أزرار المرضى مع الحفاظ على الأيقونات 🔴
     const btnSearch = document.getElementById('btn-do-search');
     if(btnSearch) btnSearch.innerHTML = `🔍 ${c.btnSearch}`;
 
@@ -72,6 +121,12 @@ function openPatientModal(patientId = null) {
     const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     document.getElementById('p_date').value = todayStr;
 
+    // 🔴 ضبط الفرع الافتراضي في المودال للمدير
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        const filterVal = document.getElementById('branch-filter').value;
+        document.getElementById('p_branch').value = filterVal === 'all' ? 'main' : filterVal;
+    }
+
     if (patientId) {
         document.getElementById('modal-title').innerText = window.langVars.mTitleEdit;
         const p = patientsDataArray.find(x => x.id === patientId);
@@ -81,6 +136,9 @@ function openPatientModal(patientId = null) {
             document.getElementById('p_age').value = p.age;
             document.getElementById('p_gender').value = p.gender;
             document.getElementById('p_notes').value = p.notes || '';
+            if (userRole === 'admin' || userRole === 'superadmin') {
+                document.getElementById('p_branch').value = p.branchId || 'main';
+            }
             
             if(p.createdAt) {
                 const docDate = p.createdAt.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
@@ -117,19 +175,22 @@ async function savePatient(e) {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ البيانات..." : "Saving data...");
 
     let historyArr = [];
-    document.querySelectorAll('.med-history-cb:checked').forEach(cb => {
-        historyArr.push(cb.value);
-    });
+    document.querySelectorAll('.med-history-cb:checked').forEach(cb => { historyArr.push(cb.value); });
     const otherHistory = document.getElementById('p_history_notes').value.trim();
-    if(otherHistory) {
-        historyArr.push(otherHistory);
-    }
+    if(otherHistory) historyArr.push(otherHistory);
 
     const selectedDateStr = document.getElementById('p_date').value;
     const selectedDateObj = new Date(selectedDateStr);
     
+    // 🔴 تحديد الـ branchId للمريض الجديد 🔴
+    let targetBranchId = userBranch;
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        targetBranchId = document.getElementById('p_branch').value;
+    }
+
     const patientData = {
         clinicId: currentClinicId,
+        branchId: targetBranchId, // 🔴 ختم الفرع 🔴
         name: document.getElementById('p_name').value.trim(),
         phone: document.getElementById('p_phone').value.trim(),
         age: document.getElementById('p_age').value,
@@ -141,16 +202,12 @@ async function savePatient(e) {
     try {
         if (currentEditPatientId) {
             patientData.createdAt = firebase.firestore.Timestamp.fromDate(selectedDateObj);
-            
             await db.collection("Patients").doc(currentEditPatientId).update(patientData);
             const index = patientsDataArray.findIndex(p => p.id === currentEditPatientId);
-            if(index !== -1) {
-                patientsDataArray[index] = { ...patientsDataArray[index], ...patientData };
-            }
+            if(index !== -1) { patientsDataArray[index] = { ...patientsDataArray[index], ...patientData }; }
         } else {
             patientData.totalDebt = 0; 
             patientData.createdAt = firebase.firestore.Timestamp.fromDate(selectedDateObj);
-            
             const docRef = await db.collection("Patients").add(patientData);
             patientsDataArray.unshift({ id: docRef.id, ...patientData });
         }
@@ -175,9 +232,7 @@ async function deletePatient(patientId) {
             renderPatientsTable();
         } 
         catch (error) { console.error(error); }
-        finally {
-            if (window.hideLoader) window.hideLoader();
-        }
+        finally { if (window.hideLoader) window.hideLoader(); }
     }
 }
 
@@ -200,10 +255,21 @@ async function loadPatients(isLoadMore = false) {
     }
 
     try {
-        let queryRef = db.collection("Patients")
-                         .where("clinicId", "==", currentClinicId)
-                         .orderBy("createdAt", "desc")
-                         .limit(PATIENTS_PER_PAGE);
+        // 🔴 الكبسولة السحرية للفلترة والعزل 🔴
+        let queryRef = db.collection("Patients").where("clinicId", "==", currentClinicId);
+
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+            // عزل إجباري للموظف العادي
+            queryRef = queryRef.where("branchId", "==", userBranch);
+        } else {
+            // فلتر اختياري للمدير
+            const selectedBranch = document.getElementById('branch-filter').value;
+            if (selectedBranch !== 'all') {
+                queryRef = queryRef.where("branchId", "==", selectedBranch);
+            }
+        }
+
+        queryRef = queryRef.orderBy("createdAt", "desc").limit(PATIENTS_PER_PAGE);
 
         if (isLoadMore && lastVisibleDoc) {
             queryRef = queryRef.startAfter(lastVisibleDoc);
@@ -213,7 +279,6 @@ async function loadPatients(isLoadMore = false) {
         
         if (!snap.empty) {
             lastVisibleDoc = snap.docs[snap.docs.length - 1];
-            
             snap.forEach(doc => {
                 const p = doc.data();
                 p.id = doc.id;
@@ -249,7 +314,6 @@ function loadMorePatients() { loadPatients(true); }
 
 function filterPatientsLocally() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
-    
     if (!input) {
         filteredPatientsArray = [...patientsDataArray];
     } else {
@@ -275,7 +339,19 @@ async function searchPatients() {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري البحث في السجلات..." : "Searching...");
 
     try {
-        const snap = await db.collection("Patients").where("clinicId", "==", currentClinicId).get();
+        // 🔴 تطبيق العزل والفلترة أثناء البحث 🔴
+        let queryRef = db.collection("Patients").where("clinicId", "==", currentClinicId);
+        
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+            queryRef = queryRef.where("branchId", "==", userBranch);
+        } else {
+            const selectedBranch = document.getElementById('branch-filter').value;
+            if (selectedBranch !== 'all') {
+                queryRef = queryRef.where("branchId", "==", selectedBranch);
+            }
+        }
+
+        const snap = await queryRef.get();
         let searchResults = [];
 
         snap.forEach(doc => {
@@ -436,16 +512,12 @@ async function deleteSelectedPatients() {
     }
 }
 
-// 🔴 التوجيه المحصن ضد حظر الآيفون (تمرير كود العيادة في الرابط) 🔴
 function openMedicalProfile(patientId) { 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     if (window.showLoader) window.showLoader(isAr ? "جاري تجهيز ملف المريض..." : "Opening profile...");
-    
-    // بعتنا clinicId مع الرابط عشان الآيفون ميعملش بلوك للذاكرة
     window.location.href = `patient-profile.html?id=${patientId}&clinicId=${currentClinicId}&v=${Date.now()}`; 
 }
 
-// 🔴 دالة سحب وإضافة المرضى من الإكسيل
 function importPatientsFromExcel(input) {
     const file = input.files[0];
     if (!file) return;
@@ -467,6 +539,13 @@ function importPatientsFromExcel(input) {
             const batch = db.batch();
             
             const currentPatientsSet = new Set(patientsDataArray.map(p => String(p.phone).trim() + "_" + String(p.name).trim().toLowerCase()));
+
+            // 🔴 تحديد الفرع أثناء استيراد الإكسيل 🔴
+            let targetBranchId = userBranch;
+            if (userRole === 'admin' || userRole === 'superadmin') {
+                const filterVal = document.getElementById('branch-filter').value;
+                targetBranchId = filterVal === 'all' ? 'main' : filterVal;
+            }
 
             excelRows.forEach(row => {
                 const pName = row['الاسم'] || row['اسم المريض'] || row['name'];
@@ -494,6 +573,7 @@ function importPatientsFromExcel(input) {
                     const docRef = db.collection("Patients").doc();
                     batch.set(docRef, {
                         clinicId: currentClinicId,
+                        branchId: targetBranchId, // 🔴 ختم الفرع للإكسيل 🔴
                         name: String(pName).trim(),
                         phone: phoneStr,
                         age: String(pAge).trim(),
@@ -528,13 +608,18 @@ function importPatientsFromExcel(input) {
     reader.readAsArrayBuffer(file);
 }
 
-window.onload = () => {
+window.onload = async () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     updatePageContent(lang);
     
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) loadPatients();
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            // 🔴 جلب الفروع أولاً للمدير 🔴
+            await loadBranchesForAdmin();
+            // 🔴 بعدين جلب المرضى حسب الفلتر 🔴
+            loadPatients();
+        }
     });
 };
 
@@ -543,10 +628,6 @@ window.addEventListener('click', function(event) {
         event.target.style.display = 'none';
     }
 });
-
-// =========================================================
-// 🔴 لوجيك ماسح كارت المريض (QR Code Scanner) 🔴
-// =========================================================
 
 let html5QrcodeScanner = null;
 let isCameraRunning = false; 
