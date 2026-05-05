@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>إدارة الموظفين | NivaDent HR</title>
+    <title id="page_title">إدارة الموظفين | NivaDent HR</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -39,39 +39,49 @@
         .toggle-checkbox:checked + .toggle-bg::after { transform: translateX(-20px); }
         .perm-title { font-weight: bold; color: #334155; font-size: 14px; }
         
+        .search-box { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-weight: bold; outline: none; width: 100%; box-sizing: border-box; }
+        .search-box:focus { border-color: #0284c7; }
+
+        /* 🔴 الدارك مود للشاشة كاملة 🔴 */
         [data-theme="dark"] .toggle-label { background: #1e293b; border-color: #334155; }
         [data-theme="dark"] .perm-title { color: #cbd5e1; }
         [data-theme="dark"] .toggle-bg { background: #475569; }
+        [data-theme="dark"] .search-box { background: #0f172a; color: #f8fafc; border-color: #334155; }
+        [data-theme="dark"] .table-header { background: #1e293b !important; border-color: #334155 !important; }
+        [data-theme="dark"] table th { background: #0f172a !important; color: #f8fafc !important; border-color: #334155 !important;}
+        [data-theme="dark"] table td { color: #cbd5e1 !important; border-color: #334155 !important;}
+        [data-theme="dark"] .kpi-card { background: #1e293b !important; border-color: #334155 !important; color: #f8fafc;}
+        [data-theme="dark"] h3, [data-theme="dark"] h2, [data-theme="dark"] h1, [data-theme="dark"] p, [data-theme="dark"] span { color: #f8fafc; }
     </style>
 </head>
 <body>
 
     <div class="page-header no-print">
         <div class="page-title">
-            <h1>شؤون الموظفين والصلاحيات</h1>
-            <p>إدارة فريق العمل، الفروع، الصلاحيات، والرواتب</p>
+            <h1 id="txt-title">شؤون الموظفين والصلاحيات</h1>
+            <p id="txt-subtitle">إدارة فريق العمل، الفروع، الصلاحيات، والرواتب</p>
         </div>
         <div class="header-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="btn-primary" onclick="openInviteModal()" style="background: #8b5cf6;">
-                <span>🔑</span> <span>دعوة مستخدم للنظام</span>
+                <span>🔑</span> <span id="btn-invite-txt">دعوة مستخدم للنظام</span>
             </button>
             <button class="btn-action" onclick="openOtherEmpModal()" style="background: #f1f5f9; color: #475569; border-color: #cbd5e1;">
-                <span>🧹</span> <span>إضافة عمالة (بدون دخول)</span>
+                <span>🧹</span> <span id="btn-other-txt">إضافة عمالة (بدون دخول)</span>
             </button>
         </div>
     </div>
 
     <div class="kpi-grid no-print" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 20px;">
         <div class="kpi-card" style="border-right: 4px solid #0284c7; background: #f0f9ff;">
-            <div class="kpi-info"><h4>فريق العمل</h4><h2 id="stat-total-emps">0</h2></div>
+            <div class="kpi-info"><h4 id="kpi-team">فريق العمل</h4><h2 id="stat-total-emps">0</h2></div>
             <div class="kpi-icon">👥</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #10b981; background: #ecfdf5;">
-            <div class="kpi-info"><h4>متصل الآن</h4><h2 id="stat-active-emps">0</h2></div>
+            <div class="kpi-info"><h4 id="kpi-online">متصل الآن</h4><h2 id="stat-active-emps">0</h2></div>
             <div class="kpi-icon">🟢</div>
         </div>
         <div class="kpi-card" style="border-right: 4px solid #f59e0b; background: #fffbeb;">
-            <div class="kpi-info"><h4>إجمالي الرواتب</h4><h2 id="stat-total-salaries">0</h2></div>
+            <div class="kpi-info"><h4 id="kpi-salary">إجمالي الرواتب</h4><h2 id="stat-total-salaries">0</h2></div>
             <div class="kpi-icon">💰</div>
         </div>
     </div>
@@ -81,15 +91,15 @@
             <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                 <input type="text" id="search_emp" class="search-box" style="flex: 2; min-width: 200px;" oninput="searchEmployees()" placeholder="ابحث بالاسم، الموبايل، أو الإيميل...">
                 <select id="filter_role" class="search-box" style="flex: 1; min-width: 150px;" onchange="searchEmployees()">
-                    <option value="all">كل الوظائف</option>
-                    <option value="admin">مدير نظام</option>
-                    <option value="doctor">طبيب</option>
-                    <option value="receptionist">استقبال</option>
-                    <option value="nurse">مساعد / ممرض</option>
-                    <option value="other">عمالة أخرى</option>
+                    <option value="all" id="opt-all-roles">كل الوظائف</option>
+                    <option value="admin" id="opt-admin">مدير نظام</option>
+                    <option value="doctor" id="opt-doc">طبيب</option>
+                    <option value="receptionist" id="opt-rec">استقبال</option>
+                    <option value="nurse" id="opt-nur">مساعد / ممرض</option>
+                    <option value="other" id="opt-oth">عمالة أخرى</option>
                 </select>
                 <select id="filter_branch" class="search-box" style="flex: 1; min-width: 150px;" onchange="searchEmployees()">
-                    <option value="all">كل الفروع</option>
+                    <option value="all" id="opt-all-branches">كل الفروع</option>
                 </select>
             </div>
         </div>
@@ -97,15 +107,15 @@
         <table id="employeesTable">
             <thead>
                 <tr>
-                    <th>الاسم والبيانات</th>
-                    <th>الوظيفة والفرع</th>
-                    <th>نظام المحاسبة</th>
-                    <th style="text-align: center;">الحالة / التواجد</th>
-                    <th style="text-align: center;">إجراءات الكنترول</th>
+                    <th id="th-name">الاسم والبيانات</th>
+                    <th id="th-role">الوظيفة والفرع</th>
+                    <th id="th-acc">نظام المحاسبة</th>
+                    <th id="th-status" style="text-align: center;">الحالة / التواجد</th>
+                    <th id="th-action" style="text-align: center;">إجراءات الكنترول</th>
                 </tr>
             </thead>
             <tbody id="employeesBody">
-                <tr><td colspan="5" style="text-align: center;">جاري تحميل بيانات الموظفين...</td></tr>
+                <tr><td colspan="5" id="txt-loading" style="text-align: center;">جاري تحميل بيانات الموظفين...</td></tr>
             </tbody>
         </table>
     </div>
@@ -113,25 +123,25 @@
     <div id="inviteModal" class="modal no-print">
         <div class="modal-content" style="max-width: 450px;">
             <span class="close-modal" onclick="closeModal('inviteModal')">&times;</span>
-            <h2>🔑 دعوة مستخدم للنظام</h2>
+            <h2 id="m-inv-title">🔑 دعوة مستخدم للنظام</h2>
             <form onsubmit="generateInviteCode(event)">
                 <div class="form-group">
-                    <label>اسم الموظف *</label>
+                    <label id="lbl-inv-name">اسم الموظف *</label>
                     <input type="text" id="inv_name" class="search-box" required>
                 </div>
                 <div class="form-group">
-                    <label>الوظيفة *</label>
+                    <label id="lbl-inv-role">الوظيفة *</label>
                     <select id="inv_role" class="search-box" required>
-                        <option value="doctor">طبيب</option>
-                        <option value="receptionist">موظف استقبال</option>
-                        <option value="nurse">مساعد / تمريض</option>
-                        <option value="admin">مدير فرع / نظام</option>
+                        <option value="doctor" id="m-doc">طبيب</option>
+                        <option value="receptionist" id="m-rec">موظف استقبال</option>
+                        <option value="nurse" id="m-nur">مساعد / تمريض</option>
+                        <option value="admin" id="m-adm">مدير فرع / نظام</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>الفرع التابع له *</label>
+                    <label id="lbl-inv-branch">الفرع التابع له *</label>
                     <select id="inv_branch" class="search-box" required>
-                        <option value="main">الفرع الرئيسي</option>
+                        <option value="main" id="m-main">الفرع الرئيسي</option>
                     </select>
                 </div>
                 <button type="submit" id="btn-invite" class="btn-primary" style="width: 100%; background: #8b5cf6;">توليد كود الدعوة</button>
@@ -142,19 +152,19 @@
     <div id="otherEmpModal" class="modal no-print">
         <div class="modal-content" style="max-width: 450px;">
             <span class="close-modal" onclick="closeModal('otherEmpModal')">&times;</span>
-            <h2>🧹 إضافة عمالة (للمرتبات فقط)</h2>
+            <h2 id="m-oth-title">🧹 إضافة عمالة (للمرتبات فقط)</h2>
             <form onsubmit="saveOtherEmployee(event)">
                 <input type="hidden" id="oth_id">
                 <div class="form-group">
-                    <label>الاسم *</label>
+                    <label id="lbl-oth-name">الاسم *</label>
                     <input type="text" id="oth_name" class="search-box" required>
                 </div>
                 <div class="form-group">
-                    <label>الفرع *</label>
+                    <label id="lbl-oth-branch">الفرع *</label>
                     <select id="oth_branch" class="search-box" required></select>
                 </div>
                 <div class="form-group">
-                    <label>الراتب الثابت (ج.م)</label>
+                    <label id="lbl-oth-salary">الراتب الثابت</label>
                     <input type="number" id="oth_salary" class="search-box" min="0" value="0">
                 </div>
                 <button type="submit" id="btn-save-oth" class="btn-primary" style="width: 100%;">حفظ الموظف</button>
@@ -166,7 +176,7 @@
         <div class="modal-content" style="max-width: 700px; padding: 0; overflow: hidden;">
             <div style="background: #0f172a; color: white; padding: 20px; position: relative;">
                 <span class="close-modal" onclick="closeModal('grandControlModal')" style="color: white; left: 15px; right: auto;">&times;</span>
-                <h2 id="ctrl_name" style="margin: 0;">اسم الموظف</h2>
+                <h2 id="ctrl_name" style="margin: 0; color: white;">اسم الموظف</h2>
                 <div id="ctrl_status_badge"></div>
             </div>
 
@@ -175,108 +185,108 @@
                     <input type="hidden" id="ctrl_id">
                     <input type="hidden" id="ctrl_type">
                     
-                    <h3 style="color: #0284c7; border-bottom: 2px solid #e0f2fe;">🏢 التعيين والفرع</h3>
+                    <h3 id="ctrl-h1" style="color: #0284c7; border-bottom: 2px solid #e0f2fe; padding-bottom: 5px;">🏢 التعيين والفرع</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                         <div class="form-group">
-                            <label>الفرع المخصص</label>
+                            <label id="lbl-ctrl-branch">الفرع المخصص</label>
                             <select id="ctrl_branch" class="search-box" required></select>
                         </div>
                         <div class="form-group">
-                            <label>الوظيفة</label>
+                            <label id="lbl-ctrl-role">الوظيفة</label>
                             <select id="ctrl_role" class="search-box" disabled>
-                                <option value="admin">مدير نظام</option>
-                                <option value="doctor">طبيب</option>
-                                <option value="receptionist">استقبال</option>
-                                <option value="nurse">مساعد / ممرض</option>
-                                <option value="other">عمالة أخرى</option>
+                                <option value="admin" id="c-adm">مدير نظام</option>
+                                <option value="doctor" id="c-doc">طبيب</option>
+                                <option value="receptionist" id="c-rec">استقبال</option>
+                                <option value="nurse" id="c-nur">مساعد / ممرض</option>
+                                <option value="other" id="c-oth">عمالة أخرى</option>
                             </select>
                         </div>
                     </div>
 
-                    <h3 style="color: #10b981; border-bottom: 2px solid #d1fae5;">💰 المحاسبة</h3>
+                    <h3 id="ctrl-h2" style="color: #10b981; border-bottom: 2px solid #d1fae5; padding-bottom: 5px;">💰 المحاسبة</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                         <div class="form-group">
-                            <label>الراتب الثابت</label>
+                            <label id="lbl-ctrl-sal">الراتب الثابت</label>
                             <input type="number" id="ctrl_salary" class="search-box">
                         </div>
                         <div class="form-group" id="box_commission">
-                            <label>نسبة العمولة (%)</label>
+                            <label id="lbl-ctrl-com">نسبة العمولة (%)</label>
                             <input type="number" id="ctrl_commission" class="search-box">
                         </div>
                     </div>
 
                     <div id="box_permissions">
-                        <h3 style="color: #8b5cf6; border-bottom: 2px solid #ede9fe;">🔐 صلاحيات الأقسام (إظهار / إخفاء بالهوم)</h3>
+                        <h3 id="ctrl-h3" style="color: #8b5cf6; border-bottom: 2px solid #ede9fe; padding-bottom: 5px;">🔐 صلاحيات الأقسام (إظهار / إخفاء بالهوم)</h3>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 20px;">
                             
                             <label class="toggle-label">
-                                <span class="perm-title">👥 المرضى والجلسات</span>
+                                <span class="perm-title" id="p1">👥 المرضى والجلسات</span>
                                 <input type="checkbox" id="perm_patients" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
                             
                             <label class="toggle-label">
-                                <span class="perm-title">📅 المواعيد والتقويم</span>
+                                <span class="perm-title" id="p2">📅 المواعيد والتقويم</span>
                                 <input type="checkbox" id="perm_calendar" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">💉 الخدمات والأسعار</span>
+                                <span class="perm-title" id="p3">💉 الخدمات والأسعار</span>
                                 <input type="checkbox" id="perm_services" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">🤝 التعاقدات والخصومات</span>
+                                <span class="perm-title" id="p4">🤝 التعاقدات والخصومات</span>
                                 <input type="checkbox" id="perm_contracts" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">🧾 الفواتير (Invoices)</span>
+                                <span class="perm-title" id="p5">🧾 الفواتير (Invoices)</span>
                                 <input type="checkbox" id="perm_invoices" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
                             
                             <label class="toggle-label">
-                                <span class="perm-title">💰 الحسابات والماليات</span>
+                                <span class="perm-title" id="p6">💰 الحسابات والماليات</span>
                                 <input type="checkbox" id="perm_finances" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
                             
                             <label class="toggle-label">
-                                <span class="perm-title">📦 المخزون الطبي</span>
+                                <span class="perm-title" id="p7">📦 المخزون الطبي</span>
                                 <input type="checkbox" id="perm_inventory" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">📈 التقارير والإحصائيات</span>
+                                <span class="perm-title" id="p8">📈 التقارير والإحصائيات</span>
                                 <input type="checkbox" id="perm_reports" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">🏢 إدارة الفروع</span>
+                                <span class="perm-title" id="p9">🏢 إدارة الفروع</span>
                                 <input type="checkbox" id="perm_branches" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">👨‍ Staff (الموظفين)</span>
+                                <span class="perm-title" id="p10">👨‍ Staff (الموظفين)</span>
                                 <input type="checkbox" id="perm_hr" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">🔔 الإشعارات</span>
+                                <span class="perm-title" id="p11">🔔 الإشعارات</span>
                                 <input type="checkbox" id="perm_notifications" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
 
                             <label class="toggle-label">
-                                <span class="perm-title">⚙️ الإعدادات العامة</span>
+                                <span class="perm-title" id="p12">⚙️ الإعدادات العامة</span>
                                 <input type="checkbox" id="perm_settings" class="toggle-checkbox">
                                 <div class="toggle-bg"></div>
                             </label>
@@ -285,7 +295,7 @@
                     </div>
 
                     <button type="submit" id="btn-save-ctrl" class="btn-primary" style="width: 100%; padding: 12px; background: #0f172a;">💾 حفظ الإعدادات والصلاحيات</button>
-                    <button type="button" style="width: 100%; padding: 12px; background: #ef4444; margin-top: 10px; border:none; color:white; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="deleteEmployeeComplete()">🗑️ حذف الموظف نهائياً</button>
+                    <button type="button" id="btn-del-emp" style="width: 100%; padding: 12px; background: #ef4444; margin-top: 10px; border:none; color:white; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="deleteEmployeeComplete()">🗑️ حذف الموظف نهائياً</button>
                 </form>
             </div>
         </div>
