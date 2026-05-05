@@ -82,7 +82,7 @@ function updatePageContent(lang) {
             header: "لوحة التحكم",
             navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
             navFinances: "الحسابات والمصروفات",
-            navInvoices: "الفواتير", // 🔴 ترجمة الفواتير
+            navInvoices: "الفواتير", 
             navInventory: "المخزون الطبي", 
             navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
@@ -94,7 +94,7 @@ function updatePageContent(lang) {
             header: "Dashboard",
             navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
             navFinances: "Finances",
-            navInvoices: "Invoices", // 🔴 ترجمة الفواتير
+            navInvoices: "Invoices", 
             navInventory: "Medical Inventory", 
             navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
@@ -109,7 +109,7 @@ function updatePageContent(lang) {
     setTxt('txt-header', c.header);
     setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
     setTxt('nav-finances', c.navFinances);
-    setTxt('nav-invoices', c.navInvoices); // 🔴 تعيين النص
+    setTxt('nav-invoices', c.navInvoices); 
     setTxt('nav-inventory', c.navInventory); 
     setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
     
@@ -128,7 +128,6 @@ function updatePageContent(lang) {
 // 🔴 تطبيق الصلاحيات الصارم (Deny by Default) 🔴
 // =========================================================================
 function getDefaultPermissions(role) {
-    // 🔴 تم إضافة invoices 🔴
     const allOn = { patients: true, calendar: true, finances: true, invoices: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
     if (role === 'admin' || role === 'superadmin') return allOn;
     if (role === 'doctor') return { ...allOn, finances: false, invoices: false, reports: false, settings: false, hr: false, branches: false };
@@ -160,7 +159,7 @@ function applyPermissions(perms, role) {
 }
 
 // =========================================================================
-// تهيئة النظام وتأمين الدخول
+// تهيئة النظام وتأمين الدخول (تحديث الدمج التلقائي للحسابات القديمة)
 // =========================================================================
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
@@ -176,10 +175,28 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 sessionStorage.setItem('clinicId', clinicId);
 
                 let userPermissions = userData.permissions;
+                let defaultPerms = getDefaultPermissions(role);
+                
+                // 🔴 السحر بتاع التوافقية (Backward Compatibility Merge) 🔴
                 if (!userPermissions) {
-                    userPermissions = getDefaultPermissions(role);
+                    // لو الحساب معندوش أي صلاحيات خالص
+                    userPermissions = defaultPerms;
                     db.collection("Users").doc(user.email).update({ permissions: userPermissions }).catch(e=>{});
+                } else {
+                    // لو الحساب قديم وعنده صلاحيات بس ناقصة المفاتيح الجديدة (زي invoices و hr وغيرها)
+                    let isMissingKeys = false;
+                    for (let key in defaultPerms) {
+                        if (userPermissions[key] === undefined) {
+                            userPermissions[key] = defaultPerms[key]; // بياخد القيمة الافتراضية بتاعته (true للمدير)
+                            isMissingKeys = true;
+                        }
+                    }
+                    // تحديث قاعدة البيانات بالمفاتيح الناقصة عشان تفضل مسجلة
+                    if (isMissingKeys) {
+                        db.collection("Users").doc(user.email).update({ permissions: userPermissions }).catch(e=>{});
+                    }
                 }
+                
                 sessionStorage.setItem('userPermissions', JSON.stringify(userPermissions));
 
                 applyPermissions(userPermissions, role);
