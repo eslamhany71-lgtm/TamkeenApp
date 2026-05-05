@@ -31,6 +31,10 @@
             .receipt-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
         }
         @media screen { .print-only { display: none; } }
+
+        /* 🔴 ستايل فلتر الفروع (يدعم الدارك مود) 🔴 */
+        .branch-filter-select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-family: inherit; font-weight: bold; outline: none; cursor: pointer; height: 42px; }
+        [data-theme="dark"] .branch-filter-select { background: #1e293b; border-color: #334155; color: #f8fafc; }
     </style>
 </head>
 <body>
@@ -100,6 +104,13 @@
             
             <div class="filters-bar" style="display: flex; gap: 15px; flex-wrap: wrap; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; align-items: flex-end;">
                 
+                <div class="filter-group" id="admin-branch-group" style="display: none; flex: 1; min-width: 140px;">
+                    <label style="font-size: 13px; color: #8b5cf6; margin-bottom: 5px; display: block; font-weight: bold;" id="lbl-branch-filter">فرع العيادة</label>
+                    <select id="branch-filter" class="branch-filter-select" style="width: 100%; box-sizing: border-box;" onchange="loadFinances()">
+                        <option value="all" id="opt-all-branches">كل الفروع</option>
+                    </select>
+                </div>
+
                 <div class="filter-group" style="flex: 1; min-width: 200px;">
                     <label style="font-size: 13px; color: #64748b; margin-bottom: 5px; display: block;" id="lbl-search">بحث بالبيان أو الملاحظات</label>
                     <input type="text" id="search_text" class="search-box" oninput="filterTransactionsLocally()" placeholder="ابحث عن مريض أو ملاحظة..." style="width: 100%; box-sizing: border-box;">
@@ -244,13 +255,13 @@
         </div>
     </div>
 
-    <!-- 🔴 منطقة طباعة ريسيت الشيفت (مخفية) 🔴 -->
     <div class="print-only" id="shift-print-area">
         <div id="shift-receipt">
             <h2>NivaDent Clinic</h2>
             <div style="text-align: center; margin-bottom: 10px; font-weight: bold;">تقرير وردية الكاشير (اليومية)</div>
             <div class="receipt-row"><span>التاريخ:</span> <span id="sh-date" dir="ltr"></span></div>
             <div class="receipt-row"><span>الموظف:</span> <span id="sh-user"></span></div>
+            <div class="receipt-row"><span>الفرع:</span> <span id="sh-branch"></span></div> 
             <div style="margin: 15px 0; border-top: 1px dashed #000; padding-top: 10px;">
                 <div class="receipt-row"><span style="font-weight: bold;">إجمالي المقبوضات (كاش):</span> <span id="sh-income"></span></div>
                 <div class="receipt-row"><span style="font-weight: bold;">إجمالي المصروفات (كاش):</span> <span id="sh-expense"></span></div>
