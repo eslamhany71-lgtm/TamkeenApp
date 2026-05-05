@@ -22,6 +22,8 @@ const portalDict = {
         btnBookNew: "📅 حجز موعد جديد",
         bookTitle: "📅 حجز موعد جديد",
         bookSub: "اختر اليوم والوقت المناسب لك",
+        lblBookBranch: "اختر الفرع:", // 🔴
+        optMainBranch: "الفرع الرئيسي", // 🔴
         lblBookDate: "اختر تاريخ الحجز:",
         lblSlots: "المواعيد المتاحة:",
         txtSelectedTime: "الموعد المحدد:",
@@ -45,7 +47,6 @@ const portalDict = {
         msgConflict: "عفواً، تم حجز هذا الموعد منذ لحظات!",
         statusPending: "قيد التنفيذ ⏳",
         statusReady: "جاهز بالعيادة ✅",
-        // 🔴 ترجمة أخطاء الإجازات للبوابة 🔴
         errOffDay: "عفواً، العيادة مغلقة في هذا اليوم (إجازة أسبوعية)."
     },
     en: {
@@ -57,6 +58,8 @@ const portalDict = {
         btnBookNew: "📅 Book New Appointment",
         bookTitle: "📅 Book New Appointment",
         bookSub: "Choose a suitable date and time",
+        lblBookBranch: "Select Branch:", // 🔴
+        optMainBranch: "Main Branch", // 🔴
         lblBookDate: "Select Date:",
         lblSlots: "Available Slots:",
         txtSelectedTime: "Selected Time:",
@@ -97,6 +100,9 @@ function updatePortalContent(lang) {
     document.getElementById('btn_book_new').innerText = d.btnBookNew;
     document.getElementById('txt_book_title').innerText = d.bookTitle;
     document.getElementById('txt_book_sub').innerText = d.bookSub;
+    
+    if(document.getElementById('lbl_book_branch')) document.getElementById('lbl_book_branch').innerText = d.lblBookBranch; // 🔴
+    
     document.getElementById('lbl_book_date').innerText = d.lblBookDate;
     document.getElementById('lbl_slots').innerText = d.lblSlots;
     document.getElementById('txt_selected_time').innerText = d.txtSelectedTime;
@@ -112,6 +118,12 @@ function updatePortalContent(lang) {
     
     document.getElementById('btn_ar').className = lang === 'ar' ? 'active' : '';
     document.getElementById('btn_en').className = lang === 'en' ? 'active' : '';
+    
+    // تحديث اسم الفرع الرئيسي لو موجود
+    const mainOpt = document.querySelector('#book_branch option[value="main"]');
+    if (mainOpt && !mainOpt.hasAttribute('data-custom-name')) {
+        mainOpt.innerText = d.optMainBranch;
+    }
 }
 
 function switchPortalLang(lang) {
@@ -169,7 +181,6 @@ window.onload = async () => {
             if(loginNameEl) loginNameEl.innerText = cName;
             if(dashNameEl) dashNameEl.innerText = cName;
 
-            // 🔴 حقن اللوجو الديناميكي ومواعيد العمل للبوابة 🔴
             portalSettings.workStart = cData.workStart || '10:00';
             portalSettings.workEnd = cData.workEnd || '22:00';
             portalSettings.offDay = cData.offDay || 'none';
@@ -198,6 +209,10 @@ window.onload = async () => {
                 }
             }
         }
+        
+        // 🔴 جلب الفروع للبوابة 🔴
+        await loadPortalBranches();
+
     } catch(e) { console.error("Branding Error", e); }
 
     const savedPatient = sessionStorage.getItem(`patient_${clinicId}`);
@@ -206,6 +221,33 @@ window.onload = async () => {
         loadDashboard(patientData);
     }
 };
+
+// 🔴 دالة جلب فروع العيادة للبوابة 🔴
+async function loadPortalBranches() {
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", clinicId).get();
+        const branchSelect = document.getElementById('book_branch');
+        const branchGroup = document.getElementById('portal-branch-group');
+        
+        branchSelect.innerHTML = '';
+        branchSelect.innerHTML += `<option value="main">${portalDict[currentLang].optMainBranch}</option>`;
+        
+        if (!snap.empty) {
+            snap.forEach(doc => {
+                if (doc.id !== 'main') {
+                    branchSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
+                } else {
+                    const mainOpt = branchSelect.querySelector('option[value="main"]');
+                    mainOpt.innerText = doc.data().name;
+                    mainOpt.setAttribute('data-custom-name', 'true');
+                }
+            });
+            branchGroup.style.display = 'block'; // إظهار القائمة لو في فروع
+        }
+    } catch (e) {
+        console.error("Error loading branches for portal:", e);
+    }
+}
 
 // ==========================================
 // 🔴 Login Logic 🔴
@@ -373,7 +415,7 @@ function patientLogout() {
 }
 
 // ==========================================
-// 🔴 Booking Logic (Protected) 🔴
+// 🔴 Booking Logic (Protected & Branch Isolated) 🔴
 // ==========================================
 function showBookingScreen() {
     document.getElementById('login-screen').style.display = 'none';
@@ -392,16 +434,17 @@ function cancelBooking() {
 
 async function loadAvailableSlots() {
     const selectedDate = document.getElementById('book_date').value;
+    const selectedBranch = document.getElementById('book_branch').value || 'main'; // 🔴 تحديد الفرع
+
     if (!selectedDate) return;
 
-    // 🔴 حماية البوابة: التأكد إن المريض مختارش يوم إجازة 🔴
     const selectedDateObj = new Date(selectedDate);
     const dayOfWeek = selectedDateObj.getDay();
     if (portalSettings.offDay !== 'none' && dayOfWeek === Number(portalSettings.offDay)) {
         alert(portalDict[currentLang].errOffDay);
         document.getElementById('slots-container').style.display = 'none';
         document.getElementById('confirmBookingForm').style.display = 'none';
-        document.getElementById('book_date').value = ''; // تصفير التاريخ
+        document.getElementById('book_date').value = ''; 
         return;
     }
 
@@ -412,7 +455,12 @@ async function loadAvailableSlots() {
     document.getElementById('confirmBookingForm').style.display = 'none';
 
     try {
-        const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", selectedDate).get();
+        // 🔴 سحب المواعيد المحجوزة مسبقاً في الفرع المحدد فقط 🔴
+        const snap = await db.collection("Appointments")
+            .where("clinicId", "==", clinicId)
+            .where("branchId", "==", selectedBranch)
+            .where("date", "==", selectedDate).get();
+            
         const bookedTimes = [];
         snap.forEach(doc => { if(doc.data().status !== 'cancelled') bookedTimes.push(doc.data().time) });
 
@@ -420,18 +468,15 @@ async function loadAvailableSlots() {
         const isToday = selectedDate === now.toISOString().split('T')[0];
         const currentHour = now.getHours(); const currentMinute = now.getMinutes();
 
-        // 🔴 توليد المواعيد بناءً على ساعات العمل فقط 🔴
         const startHour = parseInt(portalSettings.workStart.split(':')[0]);
         let endHour = parseInt(portalSettings.workEnd.split(':')[0]);
         
-        // التحويل إلى دقائق للفلترة الدقيقة
         const startMinutes = parseInt(portalSettings.workStart.split(':')[0]) * 60 + parseInt(portalSettings.workStart.split(':')[1]);
         const endMinutes = parseInt(portalSettings.workEnd.split(':')[0]) * 60 + parseInt(portalSettings.workEnd.split(':')[1]);
 
         for (let h = startHour; h <= endHour; h++) {
             ['00', '30'].forEach(min => {
                 const timeMinutes = h * 60 + parseInt(min);
-                // تخطي المواعيد اللي بره الساعات الرسمية
                 if (timeMinutes < startMinutes || timeMinutes > endMinutes) return;
 
                 const timeStr = `${String(h).padStart(2, '0')}:${min}`;
@@ -477,13 +522,20 @@ async function submitBooking(e) {
     
     const date = document.getElementById('book_date').value;
     const time = document.getElementById('selected_time').value;
+    const selectedBranch = document.getElementById('book_branch').value || 'main'; // 🔴 ختم الفرع
     const inputName = document.getElementById('book_name').value.trim();
     const inputPhone = document.getElementById('book_phone').value.trim();
 
     showLoader();
 
     try {
-        const checkSnap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", date).where("time", "==", time).get();
+        // 🔴 حماية مزدوجة: التأكد إن الموعد مش محجوز في نفس الفرع 🔴
+        const checkSnap = await db.collection("Appointments")
+            .where("clinicId", "==", clinicId)
+            .where("branchId", "==", selectedBranch)
+            .where("date", "==", date)
+            .where("time", "==", time).get();
+            
         let isConflict = false;
         checkSnap.forEach(d => { if(d.data().status !== 'cancelled') isConflict = true; });
 
@@ -500,10 +552,16 @@ async function submitBooking(e) {
             finalPatientName = patientSnap.docs[0].data().name; 
         }
 
+        // 🔴 رمي الموعد في الفايربيز مع الفرع الصحيح 🔴
         await db.collection("Appointments").add({
-            clinicId: clinicId, patientId: finalPatientId, patientName: finalPatientName,
-            patientPhone: inputPhone, phone: inputPhone, date: date, time: time,
-            status: "pending", source: "portal", createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            clinicId: clinicId, 
+            branchId: selectedBranch, 
+            patientId: finalPatientId, 
+            patientName: finalPatientName,
+            patientPhone: inputPhone, phone: inputPhone, 
+            date: date, time: time,
+            status: "pending", source: "portal", 
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
         alert(portalDict[currentLang].msgBooked);
