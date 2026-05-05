@@ -237,9 +237,9 @@ function populateModalDoctors() {
     }
 
     allClinicDoctors.forEach(d => {
-        // إظهار طبيب الفرع المختار + أطباء الفرع الرئيسي لزيادة الدعم
         if (targetBranch === 'all' || d.branchId === targetBranch || d.branchId === 'main') {
-            docSelect.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
+            // 🔴 تم التصحيح هنا: d.id بدلاً من doc.id 🔴
+            docSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
         }
     });
 }
