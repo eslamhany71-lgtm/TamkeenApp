@@ -76,47 +76,90 @@ function switchAppLanguage(lang) {
     if(frame.contentWindow) frame.contentWindow.location.reload();
 }
 
+// 🔴 تحديث قاموس الترجمة الشامل للـ Sidebar 🔴
 function updatePageContent(lang) {
     const t = {
         ar: {
             header: "لوحة التحكم",
-            navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
-            navFinances: "الحسابات والمصروفات",
+            navDash: "الداشبورد", 
+            navPatients: "المرضى والأشعة", 
+            navCalendar: "المواعيد والتقويم", 
+            navServices: "الخدمات والأسعار",
+            navContracts: "التعاقدات والخصومات",
             navInvoices: "الفواتير", 
+            navFinances: "الحسابات والمصروفات",
             navInventory: "المخزون الطبي", 
-            navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
+            navReports: "التقارير التحليلية",
+            navBranches: "إدارة الفروع",
+            navHr: "شؤون الموظفين",
+            navNotif: "الإشعارات",
+            navPortal: "بوابة العيادة (للمرضى)",
+            navSettings: "إعدادات العيادة", 
+            navSuper: "إدارة النظام المركزية", 
+            logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
             alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
             navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال طلب الدعم",
-            aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم?"
+            aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم?",
+            poweredBy: "Powered by"
         },
         en: {
             header: "Dashboard",
-            navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
-            navFinances: "Finances",
+            navDash: "Overview", 
+            navPatients: "Patients & X-Rays", 
+            navCalendar: "Calendar", 
+            navServices: "Services & Pricing",
+            navContracts: "Contracts & Discounts",
             navInvoices: "Invoices", 
+            navFinances: "Finances",
             navInventory: "Medical Inventory", 
-            navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
+            navReports: "Analytical Reports",
+            navBranches: "Branches Management",
+            navHr: "Staff Management",
+            navNotif: "Notifications",
+            navPortal: "Patient Portal",
+            navSettings: "Clinic Settings", 
+            navSuper: "Super Admin", 
+            logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
             alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension.",
             navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send Support Ticket",
-            aiTitle: "Niva Assistant", aiWelcome: "Hello Doctor! 👋 I'm Niva, your smart assistant. How can I help you today?"
+            aiTitle: "Niva Assistant", aiWelcome: "Hello Doctor! 👋 I'm Niva, your smart assistant. How can I help you today?",
+            poweredBy: "Powered by"
         }
     };
     const c = t[lang] || t.ar;
     const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
 
     setTxt('txt-header', c.header);
-    setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
+    setTxt('nav-dash', c.navDash); 
+    setTxt('nav-patients', c.navPatients); 
+    setTxt('nav-calendar', c.navCalendar); 
     setTxt('nav-finances', c.navFinances);
     setTxt('nav-invoices', c.navInvoices); 
     setTxt('nav-inventory', c.navInventory); 
-    setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
+    setTxt('nav-settings', c.navSettings); 
+    setTxt('nav-super', c.navSuper); 
+    setTxt('btn-logout', c.logout);
     
+    // الأقسام اللي كانت ناقصة ترجمتها
+    const itemsList = document.querySelectorAll('#nav-links li');
+    itemsList.forEach(li => {
+        const perm = li.getAttribute('data-perm');
+        if (perm === 'services') li.querySelector('span:last-child').innerText = c.navServices;
+        if (perm === 'contracts') li.querySelector('span:last-child').innerText = c.navContracts;
+        if (perm === 'reports') li.querySelector('span:last-child').innerText = c.navReports;
+        if (perm === 'branches') li.querySelector('span:last-child').innerText = c.navBranches;
+        if (perm === 'hr') li.querySelector('span:last-child').innerText = c.navHr;
+        if (perm === 'notifications') li.querySelector('span:last-child').innerText = c.navNotif;
+    });
+
+    setTxt('nav-portal', c.navPortal);
     setTxt('nav-support', c.navSupport); setTxt('mod-support-title', c.modSupTitle);
     setTxt('mod-support-desc', c.modSupDesc); setTxt('btn-support-send', c.btnSupSend);
     
     setTxt('ai-title', c.aiTitle); setTxt('ai-welcome-msg', c.aiWelcome);
+    setTxt('txt-powered-sidebar', c.poweredBy);
 
     const msgBox = document.getElementById('support_message');
     if(msgBox) msgBox.placeholder = lang === 'ar' ? "اكتب تفاصيل المشكلة أو طلبك هنا..." : "Type issue details or request here...";
@@ -124,9 +167,6 @@ function updatePageContent(lang) {
     window.homeLang = c;
 }
 
-// =========================================================================
-// 🔴 تطبيق الصلاحيات الصارم (Deny by Default) 🔴
-// =========================================================================
 function getDefaultPermissions(role) {
     const allOn = { patients: true, calendar: true, finances: true, invoices: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
     if (role === 'admin' || role === 'superadmin') return allOn;
@@ -158,9 +198,6 @@ function applyPermissions(perms, role) {
     }
 }
 
-// =========================================================================
-// تهيئة النظام وتأمين الدخول (تحديث الدمج التلقائي للحسابات القديمة)
-// =========================================================================
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -177,21 +214,17 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 let userPermissions = userData.permissions;
                 let defaultPerms = getDefaultPermissions(role);
                 
-                // 🔴 السحر بتاع التوافقية (Backward Compatibility Merge) 🔴
                 if (!userPermissions) {
-                    // لو الحساب معندوش أي صلاحيات خالص
                     userPermissions = defaultPerms;
                     db.collection("Users").doc(user.email).update({ permissions: userPermissions }).catch(e=>{});
                 } else {
-                    // لو الحساب قديم وعنده صلاحيات بس ناقصة المفاتيح الجديدة (زي invoices و hr وغيرها)
                     let isMissingKeys = false;
                     for (let key in defaultPerms) {
                         if (userPermissions[key] === undefined) {
-                            userPermissions[key] = defaultPerms[key]; // بياخد القيمة الافتراضية بتاعته (true للمدير)
+                            userPermissions[key] = defaultPerms[key];
                             isMissingKeys = true;
                         }
                     }
-                    // تحديث قاعدة البيانات بالمفاتيح الناقصة عشان تفضل مسجلة
                     if (isMissingKeys) {
                         db.collection("Users").doc(user.email).update({ permissions: userPermissions }).catch(e=>{});
                     }
