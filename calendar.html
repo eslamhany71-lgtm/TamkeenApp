@@ -66,6 +66,10 @@
         .btn-log:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
         [data-theme="dark"] .btn-log { background: #1e293b; color: #cbd5e1; border-color: #334155; }
         [data-theme="dark"] .btn-log:hover { background: #334155; color: #f8fafc; }
+
+        /* 🔴 ستايل فلتر الفروع (يدعم الدارك مود) 🔴 */
+        .branch-filter-select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-family: inherit; font-weight: bold; outline: none; cursor: pointer; }
+        [data-theme="dark"] .branch-filter-select { background: #1e293b; border-color: #334155; color: #f8fafc; }
     </style>
 </head>
 <body>
@@ -77,6 +81,11 @@
                 <p id="txt-subtitle">إدارة حجوزات العيادة وتنظيم وقت الطبيب</p>
             </div>
             <div class="header-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                
+                <select id="branch-filter" class="branch-filter-select" style="display: none;" onchange="loadAppointments()">
+                    <option value="all" id="opt-all-branches">كل الفروع</option>
+                </select>
+
                 <button class="btn-log" onclick="openAllAppointmentsModal()">
                     <span>📋</span> <span id="btn-all-apps-txt">سجل الحجوزات</span>
                 </button>
@@ -91,7 +100,6 @@
         </div>
     </div>
 
-    <!-- Modal: سجل جميع الحجوزات -->
     <div id="allAppointmentsModal" class="modal" style="display: none; z-index: 1000;">
         <div class="modal-content" style="max-width: 700px; max-height: 85vh; overflow-y: auto; overflow-x: hidden;">
             <span class="close-modal" onclick="closeAllAppointmentsModal()">&times;</span>
@@ -100,12 +108,10 @@
             <input type="text" id="search_all_apps" placeholder="بحث بالاسم أو الموبايل..." oninput="renderAllAppointmentsList()" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 15px; margin-bottom: 15px; outline: none;">
 
             <div id="all-apps-list-container">
-                <!-- List goes here -->
-            </div>
+                </div>
         </div>
     </div>
 
-    <!-- Modal الحجز والإضافة والتعديل -->
     <div id="appointmentModal" class="modal" style="display: none; z-index: 1000;">
         <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto; overflow-x: hidden;">
             <span class="close-modal" onclick="closeAppointmentModal()">&times;</span>
@@ -149,6 +155,11 @@
                         </div>
                     </div>
 
+                    <div class="form-group" id="admin-branch-group" style="display: none; margin-top: 10px;">
+                        <label style="color: #8b5cf6;">الفرع التابع له الموعد</label>
+                        <select id="app_branch" class="branch-filter-select" style="width: 100%; border-radius: 6px;"></select>
+                    </div>
+
                     <div style="grid-column: 1 / -1; background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px dashed #fcd34d; margin-top: 10px;">
                         <label id="lbl-app-history-title" style="font-weight: bold; color: #d97706; margin-bottom: 10px; display: block;">التاريخ الطبي وأمراض مزمنة (اختياري)</label>
                         <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 10px; color: #0f172a; font-weight: 500;">
@@ -173,7 +184,6 @@
                     </div>
                 </div>
 
-                <!-- 🔴 اختيار الطبيب المعالج 🔴 -->
                 <div class="form-group" style="margin-bottom: 15px;">
                     <label id="lbl-app-doctor" style="color: #0284c7; font-weight: bold;">الطبيب المعالج</label>
                     <select id="app_doctor" required>
@@ -226,7 +236,6 @@
         </div>
     </div>
 
-    <!-- Modal التفاصيل -->
     <div id="appDetailsModal" class="modal" style="display: none; z-index: 1005;">
         <div class="modal-content" style="max-height: 85vh; overflow-y: auto; overflow-x: hidden;">
             <span class="close-modal" onclick="closeAppDetailsModal()">&times;</span>
@@ -235,15 +244,11 @@
             <div class="details-box" style="background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-name">👤 اسم المريض:</strong> <span id="det_name" style="color: #0284C7; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-phone">📱 الموبايل:</strong> <span id="det_phone" dir="ltr" style="display:inline-block;"></span></p>
-                <!-- 🔴 بيانات الطبيب المعالج 🔴 -->
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>👨‍⚕️ الطبيب المعالج:</strong> <span id="det_doctor" style="color: #8b5cf6; font-weight: bold;"></span></p>
-
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-date">📅 التاريخ:</strong> <span id="det_date"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-time">⏰ الساعة:</strong> <span id="det_time"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-type">🩺 الإجراء الطبي:</strong> <span id="det_type"></span></p>
-                
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>🌐 مصدر الحجز:</strong> <span id="det_source" style="color: #10b981; font-weight: bold;"></span></p>
-                
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-history">📋 التاريخ الطبي:</strong> <span id="det_history" style="color: #d97706; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong class="lbl-det-finance">💰 الحساب (مدفوع / إجمالي):</strong> <span id="det_finance" style="color: #10b981; font-weight: bold;"></span></p>
                 <p style="margin: 0 0 10px 0; font-size: 16px;"><strong>💳 طريقة الدفع:</strong> <span id="det_pay_method" style="color: #475569; font-weight: bold;"></span></p>
