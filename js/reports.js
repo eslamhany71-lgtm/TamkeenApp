@@ -1,6 +1,9 @@
 // js/reports.js
 const db = firebase.firestore();
 
+const userRole = sessionStorage.getItem('userRole'); // 🔴 جلب وظيفة الموظف
+const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب فرع الموظف
+
 let financeChart, servicesChart, methodsChart;
 let currentReportData = {
     transactions: [],
@@ -15,7 +18,7 @@ function updateLanguage(lang) {
     const translations = {
         ar: {
             title: "التقارير التحليلية", sub: "تحليل الأداء المالي، نمو المرضى، وإحصائيات العيادة الشاملة",
-            exp: "📥 تصدير لإكسيل", print: "🖨️ طباعة التقرير", optAll: "الفرع الرئيسي (كل الفروع)",
+            exp: "📥 تصدير لإكسيل", print: "🖨️ طباعة التقرير", optAll: "كل الفروع (إجمالي العيادة)",
             month: "هذا الشهر", week: "هذا الأسبوع", year: "هذه السنة", all: "كل الوقت",
             to: "إلى", update: "تحديث 🔄",
             inc: "إجمالي الدخل", expen: "إجمالي المصروفات", net: "صافي الربح", pat: "مرضى جدد", inv: "نواقص المخزون",
@@ -26,7 +29,7 @@ function updateLanguage(lang) {
         },
         en: {
             title: "Analytical Reports", sub: "Financial performance, patient growth, and statistics",
-            exp: "📥 Export Excel", print: "🖨️ Print Report", optAll: "Main Branch (All)",
+            exp: "📥 Export Excel", print: "🖨️ Print Report", optAll: "All Branches (Total)",
             month: "This Month", week: "This Week", year: "This Year", all: "All Time",
             to: "To", update: "Update 🔄",
             inc: "Total Income", expen: "Total Expenses", net: "Net Profit", pat: "New Patients", inv: "Low Stock Alerts",
@@ -41,7 +44,8 @@ function updateLanguage(lang) {
 
     set('txt-title', reportLang.title); set('txt-subtitle', reportLang.sub);
     set('btn-export', reportLang.exp); set('btn-print', reportLang.print);
-    set('opt-all', reportLang.optAll); set('chip-month', reportLang.month);
+    if(document.getElementById('opt-all')) set('opt-all', reportLang.optAll); 
+    set('chip-month', reportLang.month);
     set('chip-week', reportLang.week); set('chip-year', reportLang.year); set('chip-all', reportLang.all);
     set('lbl-to', reportLang.to); set('btn-update', reportLang.update);
     set('txt-kpi-inc', reportLang.inc); set('txt-kpi-exp', reportLang.expen);
@@ -54,17 +58,33 @@ function updateLanguage(lang) {
     set('txt-loading', reportLang.load);
 }
 
-// 🔴 2. جلب الفروع (آمن داخل الصلاحيات) 🔴
+// 🔴 2. جلب الفروع (للمدير فقط) 🔴
 async function loadBranchesDropdown() {
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        document.getElementById('branch_filter').style.display = 'none';
+        document.getElementById('branch-divider').style.display = 'none';
+        return;
+    }
+
     const cid = sessionStorage.getItem('clinicId');
     const select = document.getElementById('branch_filter');
     if (!cid || !select) return;
 
     try {
         const snap = await db.collection("Branches").where("clinicId", "==", cid).get();
+        let optionsHtml = `<option value="all" id="opt-all">${reportLang.optAll || 'كل الفروع'}</option>`;
+        optionsHtml += `<option value="main">الفرع الرئيسي</option>`;
+        
         snap.forEach(doc => {
-            select.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
+            optionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
         });
+        
+        select.innerHTML = optionsHtml;
+        select.style.display = 'block';
+        
+        // 🔴 تعيين الفرع الافتراضي لفرع المدير عشان ميحملش داتا الفروع التانية إلا لما يطلب 🔴
+        select.value = userBranch;
+
     } catch (e) {
         console.error("خطأ في جلب الفروع:", e);
     }
@@ -94,7 +114,7 @@ function setReportPeriod(period, element) {
     loadAllReportsData();
 }
 
-// 🔴 4. جلب الداتا (بالاعتماد التام على عصب الكود السريع المضمون) 🔴
+// 🔴 4. جلب الداتا (بالتصفية في الذاكرة لتجنب مشاكل الـ Indexes) 🔴
 async function loadAllReportsData() {
     const tbody = document.getElementById('detailedReportBody');
     const currentClinicId = sessionStorage.getItem('clinicId');
@@ -108,27 +128,32 @@ async function loadAllReportsData() {
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
     
-    const branchSelect = document.getElementById('branch_filter');
-    const selectedBranch = branchSelect ? branchSelect.value : 'all';
+    // تحديد الفرع المراد عرض تقاريره بناءً على الوظيفة والفلتر
+    let targetBranch = userBranch;
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        const branchSelect = document.getElementById('branch_filter');
+        targetBranch = branchSelect ? branchSelect.value : 'all';
+    }
 
     if (window.showLoader) window.showLoader(reportLang.load || "جاري إعداد التقارير...");
     if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">1. جاري سحب الحركات المالية...</td></tr>`;
 
     try {
-        // أ. جلب الحركات المالية (استعلامك السريع)
+        // أ. جلب الحركات المالية 
         const finSnap = await db.collection("Finances")
             .where("clinicId", "==", currentClinicId)
             .where("date", ">=", dateFrom)
             .where("date", "<=", dateTo)
             .get();
         
+        // العزل والفلترة في الذاكرة
         currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
-            return selectedBranch === 'all' || (t.branchId || 'main') === selectedBranch;
+            return targetBranch === 'all' || (t.branchId || 'main') === targetBranch;
         });
 
         if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">2. جاري سحب الجلسات...</td></tr>`;
 
-        // ب. جلب الجلسات (استعلامك السريع)
+        // ب. جلب الجلسات 
         const sessSnap = await db.collection("Sessions")
             .where("clinicId", "==", currentClinicId)
             .where("date", ">=", dateFrom)
@@ -136,18 +161,18 @@ async function loadAllReportsData() {
             .get();
         
         currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => {
-            return selectedBranch === 'all' || (s.branchId || 'main') === selectedBranch;
+            return targetBranch === 'all' || (s.branchId || 'main') === targetBranch;
         });
 
         if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">3. جاري سحب ملفات المرضى والمخزون...</td></tr>`;
 
-        // ج. جلب المرضى (محلية التواريخ للهروب من الـ Timestamp Trap)
+        // ج. جلب المرضى 
         const patSnap = await db.collection("Patients")
             .where("clinicId", "==", currentClinicId)
             .get(); 
         
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
-            if (selectedBranch !== 'all' && (p.branchId || 'main') !== selectedBranch) return false;
+            if (targetBranch !== 'all' && (p.branchId || 'main') !== targetBranch) return false;
             if(!p.createdAt) return false;
             try {
                 let pDate;
@@ -166,7 +191,7 @@ async function loadAllReportsData() {
             .get();
         
         currentReportData.inventory = invSnap.docs.map(doc => doc.data()).filter(inv => {
-            return selectedBranch === 'all' || (inv.branchId || 'main') === selectedBranch;
+            return targetBranch === 'all' || (inv.branchId || 'main') === targetBranch;
         });
 
         if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">4. جاري فلترة البيانات والمعالجة...</td></tr>`;
@@ -272,7 +297,6 @@ function renderServicesChart() {
     const unspec = reportLang.unspec || "غير محدد";
     
     currentReportData.sessions.forEach(s => {
-        // حماية الإجراءات لتقرأ من dentalChart كما أوضحت الصور
         let proc = unspec;
         if (s.dentalChart && s.dentalChart.procedure) {
             proc = s.dentalChart.procedure;
@@ -352,10 +376,10 @@ window.onload = () => {
     
     updateLanguage(lang);
 
-    firebase.auth().onAuthStateChanged((user) => {
+    firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
-            // 🔴 تم نقل هذه الدوال إلى هنا لضمان عدم تنفيذها إلا بعد توثيق الصلاحيات 🔴
-            loadBranchesDropdown();
+            // 🔴 تم استدعاء الفروع أولاً وبعدين جلب التقارير لضمان الفلتر 🔴
+            await loadBranchesDropdown();
             setReportPeriod('month', document.querySelector('.filter-chip.active')); 
         } else {
             const tbody = document.getElementById('detailedReportBody');
