@@ -141,20 +141,16 @@
                 <li class="active" onclick="loadPage('dashboard.html', this)" id="nav-item-dash">
                     <a href="javascript:void(0)"><span class="icon">📊</span> <span id="nav-dash">الداشبورد</span></a>
                 </li>
-                
-                <li onclick="loadPage('patients.html', this)" id="nav-item-patients" data-perm="patients">
+                <li onclick="loadPage('patients.html', this)" id="nav-item-patients">
                     <a href="javascript:void(0)"><span class="icon">🩻</span> <span id="nav-patients">المرضى والأشعة</span></a>
                 </li>
-                
-                <li onclick="loadPage('calendar.html', this)" id="nav-item-calendar" data-perm="calendar">
+                <li onclick="loadPage('calendar.html', this)" id="nav-item-calendar">
                     <a href="javascript:void(0)"><span class="icon">📅</span> <span id="nav-calendar">المواعيد والتقويم</span></a>
                 </li>
-                
-                <li onclick="loadPage('inventory.html', this)" id="nav-item-inventory" data-perm="inventory">
+                <li onclick="loadPage('inventory.html', this)" id="nav-item-inventory">
                     <a href="javascript:void(0)"><span class="icon">📦</span> <span id="nav-inventory">المخزون الطبي</span></a>
                 </li>
-                
-                <li id="nav-finances-li" onclick="loadPage('finances.html', this)" data-perm="finances">
+                <li id="nav-finances-li" onclick="loadPage('finances.html', this)">
                     <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والمصروفات</span></a>
                 </li>
                 
@@ -162,14 +158,12 @@
                     <a href="javascript:void(0)" style="color: #6ee7b7;"><span class="icon">🌐</span> <span id="nav-portal">بوابة العيادة (للمرضى)</span></a>
                 </li>
                 
-                <li id="nav-settings-li" onclick="loadPage('settings.html', this)" data-perm="settings" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                <li id="nav-settings-li" onclick="loadPage('settings.html', this)" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
                     <a href="javascript:void(0)"><span class="icon">⚙️</span> <span id="nav-settings">إعدادات العيادة</span></a>
                 </li>
-                
                 <li id="nav-super-admin" style="display: none;" onclick="loadPage('super-admin.html', this)">
                     <a href="javascript:void(0)"><span class="icon">👑</span> <span id="nav-super">إدارة النظام المركزية</span></a>
                 </li>
-                
                 <li id="nav-support-li" onclick="openSupportModal()" style="margin-top: 10px;">
                     <a href="javascript:void(0)"><span class="icon">🎧</span> <span id="nav-support">الدعم الفني والتواصل</span></a>
                 </li>
@@ -269,46 +263,6 @@
         document.write('<script src="js/lang-manager.js?v=' + h + '"><\/script>');
         document.write('<script src="js/auth.js?v=' + h + '"><\/script>');
         document.write('<script src="js/home.js?v=' + h + '"><\/script>');
-    </script>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            applyPermissions();
-        });
-
-        function applyPermissions() {
-            const userRole = sessionStorage.getItem('userRole');
-            
-            // السوبر أدمن ملوش دعوة بالصلاحيات، كله مفتوح ليه
-            if (userRole === 'superadmin') return; 
-
-            // بنقرأ الصلاحيات اللي خزناها وإحنا بنعمل Login
-            const permsRaw = sessionStorage.getItem('userPermissions');
-            if (!permsRaw) return;
-
-            try {
-                const perms = JSON.parse(permsRaw);
-                
-                // هنلف على كل الزراير اللي إديناها data-perm في الـ HTML
-                const restrictedItems = document.querySelectorAll('li[data-perm]');
-                restrictedItems.forEach(item => {
-                    const permKey = item.getAttribute('data-perm'); // مثلاً: finances
-                    
-                    // لو الصلاحية متسجلة بـ False (أو مش موجودة)، اخفي الزرار كأنه مش موجود
-                    if (perms[permKey] === false) {
-                        item.style.display = 'none';
-                    }
-                });
-
-                // لو الدكتور ملوش صلاحية يشوف "التقارير التحليلية"، هنخفي كمان زراير المساعد الذكي اللي بتجيب فلوس وإيرادات
-                if (perms.reports === false) {
-                    document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'none');
-                }
-
-            } catch(e) {
-                console.error("Error parsing permissions", e);
-            }
-        }
     </script>
 </body>
 </html>
