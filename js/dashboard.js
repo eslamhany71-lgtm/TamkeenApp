@@ -11,7 +11,6 @@ let todayRevenueData = [];
 let currentSelectedPatientId = null; 
 let currentSelectedApp = null; 
 
-// 🔴 متغيرات الـ ERP لربط الخدمات والتعاقدات
 let erpServices = [];
 let erpContracts = [];
 
@@ -23,6 +22,7 @@ function getLocalTodayString() {
     return `${yyyy}-${mm}-${dd}`;
 }
 
+// 🔴 تحديث القاموس عشان يشمل الترجمات المفقودة في الداشبورد 🔴
 function updatePageContent(lang) {
     const t = { 
         ar: { 
@@ -41,6 +41,11 @@ function updatePageContent(lang) {
             mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الحجوزات المكتملة", empty: "لا يوجد بيانات حالياً.",
             btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟",
             mRevDetTitle: "تفاصيل الإيراد", lRevAmt: "المبلغ:", lRevDate: "التاريخ:", lRevCat: "البند:", lRevNotes: "البيان:",
+            
+            // ترجمة الأقسام الحية الجديدة
+            lblMonthSummary: "📊 ملخص أداء الشهر الحالي", lblMonthPat: "مرضى جُدد", lblMonthSess: "جلسات مكتملة", lblMonthRev: "إيرادات (ج.م)",
+            lblLiveUpcoming: "📅 المواعيد القادمة فوراً", noUpcoming: "لا يوجد مواعيد في الانتظار حالياً.",
+            lblLiveFinances: "💸 أحدث العمليات المالية (اليوم)", noFinances: "لا توجد عمليات مالية مسجلة اليوم."
         }, 
         en: { 
             welcome: "Clinic Overview", sub: "Daily performance and real-time statistics",
@@ -58,6 +63,11 @@ function updatePageContent(lang) {
             mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently.",
             btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?",
             mRevDetTitle: "Revenue Details", lRevAmt: "Amount:", lRevDate: "Date:", lRevCat: "Category:", lRevNotes: "Notes:",
+            
+            // ترجمة الأقسام الحية الجديدة
+            lblMonthSummary: "📊 Current Month Summary", lblMonthPat: "New Patients", lblMonthSess: "Completed Sessions", lblMonthRev: "Revenue (EGP)",
+            lblLiveUpcoming: "📅 Upcoming Appointments", noUpcoming: "No pending appointments currently.",
+            lblLiveFinances: "💸 Recent Transactions (Today)", noFinances: "No financial transactions recorded today."
         } 
     };
     const c = t[lang] || t.ar;
@@ -70,6 +80,25 @@ function updatePageContent(lang) {
     setTxt('btn-wait-list', c.btnWait); setTxt('btn-add-patient', c.btnPat); setTxt('btn-book-app', c.btnApp);
     setTxt('lbl-inventory-alerts', c.invAlerts); setTxt('lbl-system-modules', c.sysMods);
     setTxt('txt-loading-inv', c.loadingInv);
+    
+    // الأقسام الجديدة
+    const monthSummaryTitle = document.querySelector('h3.panel-title[style*="8b5cf6"]');
+    if(monthSummaryTitle) monthSummaryTitle.innerText = c.lblMonthSummary;
+    
+    const monthPatHead = document.querySelector('#stat-month-patients').previousElementSibling;
+    if(monthPatHead) monthPatHead.innerText = c.lblMonthPat;
+    
+    const monthSessHead = document.querySelector('#stat-month-sessions').previousElementSibling;
+    if(monthSessHead) monthSessHead.innerText = c.lblMonthSess;
+    
+    const monthRevHead = document.querySelector('#stat-month-revenue').previousElementSibling;
+    if(monthRevHead) monthRevHead.innerText = c.lblMonthRev;
+
+    const liveUpcomingTitle = document.querySelector('h3.panel-title[style*="f59e0b"]');
+    if(liveUpcomingTitle) liveUpcomingTitle.innerText = c.lblLiveUpcoming;
+    
+    const liveFinancesTitle = document.querySelector('h3.panel-title[style*="10b981"]');
+    if(liveFinancesTitle) liveFinancesTitle.innerText = c.lblLiveFinances;
     
     setTxt('mod-reports', c.modRep); setTxt('mod-invoices', c.modInv); setTxt('mod-hr', c.modHr);
     setTxt('mod-branches', c.modBran); setTxt('mod-stock', c.modStock); setTxt('mod-notif', c.modNotif);
@@ -94,6 +123,7 @@ function updatePageContent(lang) {
     window.invCurrentTxt = c.current;
     window.invMinTxt = c.minQty;
     window.invEmptyTxt = c.emptyInv;
+    window.dashLangVars = c; // تخزين عشان القوائم الحية تقرا منه
 }
 
 let dashChart = null;
@@ -172,18 +202,17 @@ function loadInventoryAlerts() {
     });
 }
 
-// 🔴 دوال عرض القوائم الحية في الشاشة الرئيسية 🔴
 function renderLiveUpcoming() {
     const container = document.getElementById('live-upcoming-apps');
     if (!container) return;
     
     if (todayPendingApps.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding: 30px; color: #64748b;">لا يوجد مواعيد في الانتظار حالياً.</div>`;
+        const msg = window.dashLangVars ? window.dashLangVars.noUpcoming : "لا يوجد مواعيد في الانتظار حالياً.";
+        container.innerHTML = `<div style="text-align:center; padding: 30px; color: #64748b;">${msg}</div>`;
         return;
     }
 
     container.innerHTML = '';
-    // سحب أول 5 مواعيد مرتبين بالوقت
     const topApps = todayPendingApps.slice(0, 5);
     
     topApps.forEach(app => {
@@ -208,25 +237,31 @@ function renderLiveFinances() {
     if (!container) return;
 
     if (todayRevenueData.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding: 30px; color: #64748b;">لا توجد عمليات مالية مسجلة اليوم.</div>`;
+        const msg = window.dashLangVars ? window.dashLangVars.noFinances : "لا توجد عمليات مالية مسجلة اليوم.";
+        container.innerHTML = `<div style="text-align:center; padding: 30px; color: #64748b;">${msg}</div>`;
         return;
     }
 
     container.innerHTML = '';
-    // ترتيب تنازلي (الأحدث أولاً) وسحب آخر 5
     const recentFinances = [...todayRevenueData].reverse().slice(0, 5);
+    const lang = localStorage.getItem('preferredLang') || 'ar';
     
     recentFinances.forEach(rev => {
         const div = document.createElement('div');
         div.className = 'live-list-item';
         div.onclick = () => openRevDetails(rev);
+        
+        let methodTxt = lang === 'ar' ? 'كاش' : 'Cash';
+        if(rev.paymentMethod === 'wallet') methodTxt = lang === 'ar' ? 'محفظة' : 'Wallet';
+        if(rev.paymentMethod === 'instapay') methodTxt = lang === 'ar' ? 'بنكي' : 'Bank';
+
         div.innerHTML = `
             <div>
-                <strong style="color: #0f172a; font-size: 15px;">${rev.notes || 'إيراد عيادة'}</strong><br>
-                <small style="color: #64748b;">${rev.paymentMethod === 'wallet' ? 'محفظة' : (rev.paymentMethod === 'instapay' ? 'بنكي' : 'كاش')}</small>
+                <strong style="color: #0f172a; font-size: 15px;">${rev.notes || 'إيراد'}</strong><br>
+                <small style="color: #64748b;">${methodTxt}</small>
             </div>
             <div style="background: #ecfdf5; color: #10b981; padding: 5px 10px; border-radius: 8px; font-weight: bold; border: 1px solid #a7f3d0;">
-                + ${rev.amount} ج.م
+                + ${rev.amount}
             </div>
         `;
         container.appendChild(div);
@@ -236,7 +271,7 @@ function renderLiveFinances() {
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = getLocalTodayString(); 
-    const currentMonthPrefix = todayStr.substring(0, 7); // مثال: 2026-05
+    const currentMonthPrefix = todayStr.substring(0, 7); 
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
 
@@ -244,7 +279,6 @@ function loadDashboardStats() {
         if (window.hideLoader) window.hideLoader();
     }, 1500);
 
-    // 🔴 جلب الخدمات للـ ERP
     db.collection("Services").where("clinicId", "==", clinicId).onSnapshot(snap => {
         erpServices = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const selectType = document.getElementById('app_type');
@@ -258,7 +292,6 @@ function loadDashboardStats() {
         }
     });
 
-    // 🔴 جلب التعاقدات للـ ERP
     db.collection("Contracts").where("clinicId", "==", clinicId).onSnapshot(snap => {
         erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const contEl = document.getElementById('app_contract');
@@ -272,7 +305,6 @@ function loadDashboardStats() {
         }
     });
 
-    // 🔴 إحصائيات المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             allPatientsData = [];
@@ -282,12 +314,11 @@ function loadDashboardStats() {
                 const data = doc.data();
                 allPatientsData.push({ id: doc.id, ...data });
                 
-                // حساب مرضى الشهر الحالي
                 if (data.createdAt) {
                     let pDate = typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date(data.createdAt);
                     if (pDate.toISOString().startsWith(currentMonthPrefix)) monthlyPatients++;
                 } else {
-                    monthlyPatients++; // Fallback
+                    monthlyPatients++; 
                 }
             });
             
@@ -298,7 +329,6 @@ function loadDashboardStats() {
         } catch(e) { console.error("Patients Error:", e); }
     });
 
-    // 🔴 إحصائيات المالية (نسحب الشهر الحالي عشان نطلع منه اليوم والشهر)
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
         try {
             todayRevenueData = []; 
@@ -307,11 +337,9 @@ function loadDashboardStats() {
             snap.forEach(doc => { 
                 const data = doc.data();
                 if (data.amount) {
-                    // سحب إيرادات اليوم
                     if (data.date === todayStr) {
                         todayRevenueData.push({ id: doc.id, ...data }); 
                     }
-                    // سحب إيرادات الشهر
                     if (data.date && data.date.startsWith(currentMonthPrefix)) {
                         monthRevenue += Number(data.amount);
                     }
@@ -322,11 +350,10 @@ function loadDashboardStats() {
                 document.getElementById('stat-month-revenue').innerText = monthRevenue.toLocaleString();
             }
             updateTotalRevenue();
-            renderLiveFinances(); // 🔴 تحديث قائمة أحدث العمليات
+            renderLiveFinances(); 
         } catch(e) { console.error("Finances Error:", e); }
     });
 
-    // 🔴 إحصائيات المواعيد
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             let pending = 0, completed = 0, cancelled = 0;
@@ -338,7 +365,6 @@ function loadDashboardStats() {
                 if (data.status === 'completed') { 
                     completed++; 
                     completedSessionsData.push({ id: doc.id, ...data }); 
-                    // حساب جلسات الشهر
                     if (data.date && data.date.startsWith(currentMonthPrefix)) monthlyCompleted++;
                 }
                 if (data.status === 'cancelled') cancelled++;
@@ -355,9 +381,8 @@ function loadDashboardStats() {
                 document.getElementById('stat-month-sessions').innerText = monthlyCompleted;
             }
             
-            // ترتيب المواعيد للوحة الحية
             todayPendingApps.sort((a, b) => a.time.localeCompare(b.time));
-            renderLiveUpcoming(); // 🔴 تحديث قائمة المواعيد القادمة
+            renderLiveUpcoming(); 
 
             updateChart(pending, completed, cancelled);
             
