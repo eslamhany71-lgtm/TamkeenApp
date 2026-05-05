@@ -115,7 +115,7 @@
             .niva-ai-float-btn { left: 20px; bottom: 20px; width: 50px; height: 50px; font-size: 24px; }
         }
         
-        /* 🔴 تأثير الماوس على اللوجو عشان يبان إنه كليكابل 🔴 */
+        /* 🔴 تأثير الماوس على اللوجو 🔴 */
         .sidebar-brand { cursor: pointer; transition: 0.3s; }
         .sidebar-brand:hover { opacity: 0.8; transform: translateY(-2px); }
     </style>
@@ -141,30 +141,60 @@
                 <li class="active" onclick="loadPage('dashboard.html', this)" id="nav-item-dash">
                     <a href="javascript:void(0)"><span class="icon">📊</span> <span id="nav-dash">الداشبورد</span></a>
                 </li>
-                <li onclick="loadPage('patients.html', this)" id="nav-item-patients">
+                
+                <li onclick="loadPage('patients.html', this)" data-perm="patients">
                     <a href="javascript:void(0)"><span class="icon">🩻</span> <span id="nav-patients">المرضى والأشعة</span></a>
                 </li>
-                <li onclick="loadPage('calendar.html', this)" id="nav-item-calendar">
+                
+                <li onclick="loadPage('calendar.html', this)" data-perm="calendar">
                     <a href="javascript:void(0)"><span class="icon">📅</span> <span id="nav-calendar">المواعيد والتقويم</span></a>
                 </li>
-                <li onclick="loadPage('inventory.html', this)" id="nav-item-inventory">
-                    <a href="javascript:void(0)"><span class="icon">📦</span> <span id="nav-inventory">المخزون الطبي</span></a>
+
+                <li onclick="loadPage('services.html', this)" data-perm="services">
+                    <a href="javascript:void(0)"><span class="icon">💉</span> <span>الخدمات والأسعار</span></a>
                 </li>
-                <li id="nav-finances-li" onclick="loadPage('finances.html', this)">
-                    <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والمصروفات</span></a>
+
+                <li onclick="loadPage('contracts.html', this)" data-perm="contracts">
+                    <a href="javascript:void(0)"><span class="icon">🤝</span> <span>التعاقدات والخصومات</span></a>
                 </li>
                 
-                <li id="nav-portal-li" onclick="openPortalSettings()" style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 15px;">
+                <li onclick="loadPage('finances.html', this)" data-perm="finances">
+                    <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والماليات</span></a>
+                </li>
+
+                <li onclick="loadPage('inventory.html', this)" data-perm="inventory">
+                    <a href="javascript:void(0)"><span class="icon">📦</span> <span id="nav-inventory">المخزون الطبي</span></a>
+                </li>
+
+                <li onclick="loadPage('reports.html', this)" data-perm="reports">
+                    <a href="javascript:void(0)"><span class="icon">📈</span> <span>التقارير التحليلية</span></a>
+                </li>
+
+                <li onclick="loadPage('branches.html', this)" data-perm="branches">
+                    <a href="javascript:void(0)"><span class="icon">🏢</span> <span>إدارة الفروع</span></a>
+                </li>
+
+                <li onclick="loadPage('hr.html', this)" data-perm="hr">
+                    <a href="javascript:void(0)"><span class="icon">👥</span> <span>شؤون الموظفين</span></a>
+                </li>
+
+                <li onclick="loadPage('notifications.html', this)" data-perm="notifications">
+                    <a href="javascript:void(0)"><span class="icon">🔔</span> <span>الإشعارات</span></a>
+                </li>
+                
+                <li onclick="openPortalSettings()" style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 15px;">
                     <a href="javascript:void(0)" style="color: #6ee7b7;"><span class="icon">🌐</span> <span id="nav-portal">بوابة العيادة (للمرضى)</span></a>
                 </li>
                 
-                <li id="nav-settings-li" onclick="loadPage('settings.html', this)" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                <li onclick="loadPage('settings.html', this)" data-perm="settings" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
                     <a href="javascript:void(0)"><span class="icon">⚙️</span> <span id="nav-settings">إعدادات العيادة</span></a>
                 </li>
+                
                 <li id="nav-super-admin" style="display: none;" onclick="loadPage('super-admin.html', this)">
                     <a href="javascript:void(0)"><span class="icon">👑</span> <span id="nav-super">إدارة النظام المركزية</span></a>
                 </li>
-                <li id="nav-support-li" onclick="openSupportModal()" style="margin-top: 10px;">
+                
+                <li onclick="openSupportModal()" style="margin-top: 10px;">
                     <a href="javascript:void(0)"><span class="icon">🎧</span> <span id="nav-support">الدعم الفني والتواصل</span></a>
                 </li>
             </ul>
