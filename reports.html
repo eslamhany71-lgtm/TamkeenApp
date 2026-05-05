@@ -62,11 +62,11 @@
 
     <div class="filters-bar no-print" style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: white; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; align-items: center;">
         
-        <select id="branch_filter" class="search-box" style="min-width: 150px;" onchange="loadAllReportsData()">
+        <select id="branch_filter" class="search-box" style="min-width: 150px; display: none;" onchange="loadAllReportsData()">
             <option value="all" id="opt-all">الفرع الرئيسي (كل الفروع)</option>
         </select>
         
-        <div style="width: 2px; height: 30px; background: #e2e8f0; margin: 0 5px;"></div>
+        <div style="width: 2px; height: 30px; background: #e2e8f0; margin: 0 5px;" id="branch-divider"></div>
 
         <div class="filter-chip active" id="chip-month" onclick="setReportPeriod('month', this)">هذا الشهر</div>
         <div class="filter-chip" id="chip-week" onclick="setReportPeriod('week', this)">هذا الأسبوع</div>
