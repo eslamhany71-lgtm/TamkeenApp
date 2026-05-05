@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>نظام الفواتير والتحصيل | NivaDent Invoices</title>
+    <title id="page_title">نظام الفواتير والتحصيل | NivaDent Invoices</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <script>
@@ -17,13 +17,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
+        * { box-sizing: border-box; }
         .invoice-wrapper { display: grid; grid-template-columns: 350px 1fr; gap: 20px; margin-top: 20px; align-items: start; }
         .search-sidebar { background: white; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; position: sticky; top: 20px; }
         .invoice-display { background: white; padding: 40px; border-radius: 16px; border: 1px solid #e2e8f0; min-height: 600px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
         
-        .patient-result-item { padding: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; border-radius: 8px; }
+        .patient-result-item { padding: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; border-radius: 8px; color: #0f172a;}
         .patient-result-item:hover { background: #f0f9ff; color: #0284c7; }
-        .patient-result-item.active { background: #0284c7; color: white; }
+        .patient-result-item.active { background: #0284c7; color: white !important; }
+
+        .search-box { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: inherit; font-weight: bold; outline: none; width: 100%; box-sizing: border-box; }
+        .search-box:focus { border-color: #0284c7; }
 
         @media (max-width: 900px) {
             .invoice-wrapper { grid-template-columns: 1fr; }
@@ -31,18 +35,24 @@
         }
 
         .bill-header { display: flex; justify-content: space-between; border-bottom: 3px solid #0f172a; padding-bottom: 20px; margin-bottom: 30px; }
-        .bill-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .bill-table { width: 100%; border-collapse: collapse; margin: 20px 0; color: #0f172a;}
         .bill-table th { background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; text-align: right; }
         .bill-table td { padding: 12px; border: 1px solid #e2e8f0; }
         .bill-footer { margin-top: 30px; display: flex; justify-content: flex-end; }
         .total-box { background: #0f172a; color: white; padding: 20px; border-radius: 12px; min-width: 250px; }
         .total-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 16px; }
         
+        /* 🔴 الدارك مود للشاشة فقط 🔴 */
         [data-theme="dark"] .search-sidebar, [data-theme="dark"] .invoice-display { background: #1e293b !important; border-color: #334155 !important; }
-        [data-theme="dark"] .bill-table th { background: #0f172a !important; color: #f8fafc !important; }
-        [data-theme="dark"] td { color: #cbd5e1 !important; }
+        [data-theme="dark"] .bill-table th { background: #0f172a !important; color: #f8fafc !important; border-color: #334155 !important;}
+        [data-theme="dark"] .bill-table td { color: #cbd5e1 !important; border-color: #334155 !important;}
+        [data-theme="dark"] .patient-result-item { border-color: #334155; color: #cbd5e1;}
+        [data-theme="dark"] .patient-result-item:hover { background: #334155; color: #38bdf8; }
+        [data-theme="dark"] .search-box { background: #0f172a; color: #f8fafc; border-color: #334155; }
+        [data-theme="dark"] h3, [data-theme="dark"] h2, [data-theme="dark"] h1, [data-theme="dark"] p, [data-theme="dark"] span { color: #f8fafc; }
+        [data-theme="dark"] .patient-info-box { background: #0f172a !important; border-color: #334155 !important;}
 
-        /* 🔴 تظبيط الطباعة الصارمة لورقة A4 🔴 */
+        /* 🔴 تظبيط الطباعة الصارمة لورقة A4 (أبيض وأسود دائماً) 🔴 */
         @page {
             size: A4 portrait;
             margin: 15mm; 
@@ -52,11 +62,11 @@
             .no-print { display: none !important; }
             .print-only { display: block !important; width: 100%; }
             
-            #actualPrintArea { width: 100%; color: #000; font-size: 14pt; }
+            #actualPrintArea { width: 100%; color: #000; font-size: 14pt; background: white !important; }
 
             .bill-header { display: flex; justify-content: space-between; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
             .bill-header h1 { font-size: 24pt; margin: 0; color: #000 !important; }
-            .bill-header p { color: #000 !important; font-size: 14pt;}
+            .bill-header p, .bill-header span { color: #000 !important; font-size: 14pt;}
             
             .patient-info-box { background: white !important; border: 2px solid #000 !important; padding: 15px !important; margin-bottom: 20px !important; border-radius: 0 !important; display: flex; justify-content: space-between; align-items: center;}
             .patient-info-box h2, .patient-info-box span { color: #000 !important; }
@@ -77,31 +87,35 @@
 
     <div class="page-header no-print">
         <div class="page-title">
-            <h1>الفواتير وكشوف الحساب</h1>
-            <p>إصدار الفواتير الرسمية، مراجعة مديونيات المرضى، وطباعة السندات</p>
+            <h1 id="txt-title">الفواتير وكشوف الحساب</h1>
+            <p id="txt-subtitle">إصدار الفواتير الرسمية، مراجعة مديونيات المرضى، وطباعة السندات</p>
         </div>
         <div class="header-actions">
             <button class="btn-primary" onclick="window.print()">
-                <span>🖨️</span> <span>طباعة الفاتورة الحالية</span>
+                <span>🖨️</span> <span id="btn-print-txt">طباعة الفاتورة الحالية</span>
             </button>
         </div>
     </div>
 
     <div class="invoice-wrapper no-print">
         <div class="search-sidebar">
-            <h3 style="margin-top: 0;">🔍 ابحث عن مريض</h3>
+            <select id="branch_filter" class="search-box" style="display: none; margin-bottom: 15px; background-color: #f0f9ff; border-color: #bae6fd; color: #0284c7;" onchange="loadPatients()">
+                <option value="all" id="opt-all-branches">كل الفروع</option>
+            </select>
+
+            <h3 style="margin-top: 0;" id="lbl-search-pat">🔍 ابحث عن مريض</h3>
             <input type="text" id="patientSearch" class="search-box" placeholder="اسم المريض أو الموبايل..." oninput="searchPatientsForInvoice()">
             
             <div id="searchResults" style="margin-top: 15px; max-height: 400px; overflow-y: auto;">
-                <div class="empty-state" style="font-size: 13px;">ابدأ البحث لعرض المرضى...</div>
+                <div class="empty-state" style="font-size: 13px;" id="txt-start-search">ابدأ البحث لعرض المرضى...</div>
             </div>
         </div>
 
         <div class="invoice-display" id="printableInvoice">
             <div id="invoicePlaceholder" style="text-align: center; padding: 100px 20px; color: #94a3b8;">
                 <span style="font-size: 60px;">📄</span>
-                <h2>اختر مريضاً من القائمة لعرض كشف الحساب</h2>
-                <p>سيتم تجميع كافة الجلسات والمدفوعات والديون تلقائياً</p>
+                <h2 id="txt-sel-pat">اختر مريضاً من القائمة لعرض كشف الحساب</h2>
+                <p id="txt-sel-sub">سيتم تجميع كافة الجلسات والمدفوعات والديون تلقائياً</p>
             </div>
 
             <div id="invoiceContent" style="display: none;">
@@ -109,7 +123,6 @@
         </div>
     </div>
 
-    <!-- 🔴 نسخة الطباعة الرسمية 🔴 -->
     <div class="print-only" id="actualPrintArea"></div>
 
     <script src="js/firebase-config.js"></script>
