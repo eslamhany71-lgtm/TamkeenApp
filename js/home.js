@@ -1,716 +1,625 @@
-// js/home.js - NivaDent Master Shell (SaaS Routing, Dynamic Branding, Roles, Translations)
+// auth.js - Al Dokan ERP Cloud System - Full Security & Fixed Premature Redirect
 
-const SMART_VERSION = Math.floor(Date.now() / 3600000); 
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-function applyTheme(themeName) {
-    document.body.setAttribute('data-theme', themeName);
-    localStorage.setItem('niva_theme', themeName);
+// المتغير ده هو حارس البوابة، بيمنع التحويل قبل ما الداتا تترفع
+let isLoginInProgress = false; 
+
+// 1. مراقب الحالة
+auth.onAuthStateChanged((user) => {
+    const path = window.location.pathname;
+    const fileName = path.split("/").pop() || "index.html";
     
-    const themeBtn = document.getElementById('btn-theme');
-    if (themeName === 'dark') {
-        themeBtn.innerText = '☀️';
-        themeBtn.title = 'الوضع الفاتح';
+    if (fileName === "activate.html") return; 
+
+    const isLoginPage = fileName === "index.html" || fileName === "";
+
+    if (user) {
+        if (isLoginPage && !isLoginInProgress) {
+            window.location.href = "home.html";
+        }
+        if (!isLoginPage) requestNotificationPermission();
     } else {
-        themeBtn.innerText = '🌙';
-        themeBtn.title = 'الوضع الليلي';
+        if (!isLoginPage) window.location.href = "index.html";
     }
-
-    const frame = document.getElementById('content-frame');
-    if (frame && frame.contentWindow) {
-        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: themeName }, '*');
-    }
-}
-
-function toggleTheme() {
-    const currentTheme = document.body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    applyTheme(newTheme);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('niva_theme') || 'light';
-    applyTheme(savedTheme);
-
-    if (localStorage.getItem('sidebarPinned') === 'true' && window.innerWidth > 992) {
-        document.body.classList.add('sidebar-pinned');
-    }
-
-    let overlay = document.createElement('div');
-    overlay.id = 'mobile-overlay';
-    overlay.className = 'mobile-overlay';
-    overlay.onclick = toggleSidebar; 
-    document.body.appendChild(overlay);
 });
 
-function loadPage(pageUrl, clickedLi) {
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فتح الصفحة..." : "Loading page...");
-    
-    let finalUrl = pageUrl.includes('?') 
-        ? `${pageUrl}&v=${SMART_VERSION}` 
-        : `${pageUrl}?v=${SMART_VERSION}`;
-
-    const frame = document.getElementById('content-frame');
-    frame.src = finalUrl;
-    
-    frame.onload = function() {
-        if (window.hideLoader) window.hideLoader();
-        const currentTheme = document.body.getAttribute('data-theme');
-        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: currentTheme }, '*');
-    };
-    
-    sessionStorage.setItem('lastOpenedPage', pageUrl);
-
-    if (clickedLi) {
-        const allLinks = document.querySelectorAll('#nav-links li');
-        allLinks.forEach(li => li.classList.remove('active'));
-        clickedLi.classList.add('active');
-        if(clickedLi.id) {
-            sessionStorage.setItem('lastActiveNavId', clickedLi.id);
+function requestNotificationPermission() {
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") console.log("تم تفعيل إذن التنبيهات");
+            });
         }
-    } else {
-        const lastNavId = sessionStorage.getItem('lastActiveNavId');
-        if (lastNavId) {
-            const allLinks = document.querySelectorAll('#nav-links li');
-            allLinks.forEach(li => li.classList.remove('active'));
-            const activeLi = document.getElementById(lastNavId);
-            if(activeLi) activeLi.classList.add('active');
-        }
-    }
-
-    if (window.innerWidth <= 992) {
-        document.getElementById('sidebar').classList.remove('active');
-        const overlay = document.getElementById('mobile-overlay');
-        if(overlay) overlay.classList.remove('active');
     }
 }
 
-function switchAppLanguage(lang) {
-    setLanguage(lang); 
-    updatePageContent(lang); 
-    const frame = document.getElementById('content-frame');
-    if(frame.contentWindow) {
-        frame.contentWindow.location.reload();
+async function logout() {
+    const currentUser = auth.currentUser;
+    if (currentUser && currentUser.email) {
+        try {
+            await db.collection("Users").doc(currentUser.email).update({
+                isOnline: false,
+                lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (e) { console.error("Error setting offline status:", e); }
     }
+    
+    await auth.signOut();
+    sessionStorage.clear();
+    localStorage.removeItem('lastActiveNiva');
+    window.location.href = "index.html";
+}
+
+// 2. دالة تسجيل الدخول (الأساسية)
+async function loginById() {
+    const codeInput = document.getElementById('empCode');
+    const passInput = document.getElementById('password');
+    const errorDiv = document.getElementById('errorMessage');
+
+    if (!codeInput || !passInput) return;
+
+    const rawInput = codeInput.value.trim().toLowerCase(); 
+    const pass = passInput.value.trim();
+
+    if (!rawInput || !pass) { 
+        if (errorDiv) errorDiv.innerText = document.body.dir === 'rtl' ? "برجاء إكمال البيانات" : "Please complete data"; 
+        return; 
+    }
+
+    const btn = document.getElementById('btn-login');
+    if (btn) { btn.innerText = "..."; btn.disabled = true; }
+
+    isLoginInProgress = true; 
+    
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحقق من البيانات..." : "Checking credentials...");
+
+    try {
+        let loginEmail = rawInput;
+        let usedCode = rawInput;
+
+        if (!rawInput.includes('@')) {
+            const empDoc = await db.collection("clinicId").doc(rawInput).get();
+            if (!empDoc.exists || !empDoc.data().email) throw { code: 'custom/user-not-found' }; 
+            loginEmail = empDoc.data().email;
+        }
+
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+
+        const userCredential = await auth.signInWithEmailAndPassword(loginEmail, pass);
+        const actualEmail = userCredential.user.email;
+
+        const userDoc = await db.collection("Users").doc(actualEmail).get();
+        if (!userDoc.exists) throw { code: 'custom/user-not-found' };
+        
+        const userData = userDoc.data();
+        const targetClinicId = userData.clinicId || 'default';
+        const targetBranchId = userData.branchId || 'main'; // 🔴 سحب الفرع من ملف الموظف
+        const finalRole = userData.role;
+        const userPermissions = userData.permissions || {}; // 🔴 سحب الصلاحيات
+
+        if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
+
+        // 🔴 حماية الدخول لو الحساب موقوف إدارياً 🔴
+        if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
+            const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
+            if (clinicDoc.exists) {
+                const clinicStatus = clinicDoc.data().status;
+                if (clinicStatus === 'suspended') {
+                    await auth.signOut();
+                    throw { code: 'custom/suspended-clinic' };
+                }
+            }
+        }
+
+        await db.collection("Users").doc(actualEmail).update({
+            isOnline: true,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 🔴 تخزين الصلاحيات والفرع للمرور من البوابات 🔴
+        sessionStorage.setItem('userRole', finalRole);
+        sessionStorage.setItem('empCode', usedCode);
+        sessionStorage.setItem('clinicId', targetClinicId);
+        sessionStorage.setItem('branchId', targetBranchId); 
+        sessionStorage.setItem('userPermissions', JSON.stringify(userPermissions));
+        
+        window.location.href = "home.html"; 
+
+    } catch (error) {
+        if (window.hideLoader) window.hideLoader();
+        
+        await auth.signOut().catch(()=>{}); 
+        isLoginInProgress = false; 
+        
+        if (btn) {
+            btn.innerText = document.body.dir === 'rtl' ? "تسجيل الدخول" : "Login";
+            btn.disabled = false;
+        }
+        if (errorDiv) {
+            const isRtl = document.body.dir === 'rtl';
+            
+            if (error.code === 'custom/suspended-clinic') {
+                errorDiv.innerText = isRtl ? "عفواً، حساب هذه العيادة موقوف مؤقتاً." : "Account suspended.";
+            } else if (error.code === 'auth/user-not-found' || error.code === 'custom/user-not-found' || error.code === 'auth/wrong-password') {
+                errorDiv.innerText = isRtl ? "خطأ في البريد/الكود أو كلمة المرور" : "Error in Email/Code or Password";
+            } else {
+                errorDiv.innerText = isRtl ? "خطأ في عملية الدخول" : "Login error occurred";
+            }
+        }
+    }
+}
+
+// ==========================================
+// إنشاء حساب تجريبي مجاني
+// ==========================================
+function openTrialModal() {
+    document.getElementById('trial_clinic_name').value = '';
+    document.getElementById('trial_admin_name').value = '';
+    document.getElementById('trial_phone').value = '';
+    document.getElementById('trial_email').value = '';
+    document.getElementById('trial_password').value = '';
+    document.getElementById('trialModal').style.display = 'flex';
+}
+
+function closeTrialModal() {
+    document.getElementById('trialModal').style.display = 'none';
+}
+
+async function registerTrialAccount(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit-trial');
+    btn.disabled = true;
+    btn.innerText = "جاري إنشاء العيادة...";
+
+    const clinicName = document.getElementById('trial_clinic_name').value.trim();
+    const adminName = document.getElementById('trial_admin_name').value.trim();
+    const phone = document.getElementById('trial_phone').value.trim();
+    const email = document.getElementById('trial_email').value.trim().toLowerCase();
+    const password = document.getElementById('trial_password').value;
+
+    if (window.showLoader) window.showLoader("جاري تجهيز النظام لك...");
+
+    isLoginInProgress = true;
+
+    try {
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const actualEmail = userCredential.user.email;
+
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + 29); 
+
+        const clinicRef = await db.collection("Clinics").add({
+            clinicName: clinicName,
+            adminEmail: actualEmail,
+            phone1: phone,
+            status: 'active',
+            planType: 'trial_29_days', 
+            maxUsers: 2, 
+            nextPaymentDate: firebase.firestore.Timestamp.fromDate(expirationDate),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        const newClinicId = clinicRef.id;
+
+        await db.collection("Users").doc(actualEmail).set({
+            role: 'admin',
+            name: adminName,
+            empCode: 'TRIAL-ADMIN', 
+            email: actualEmail,
+            clinicId: newClinicId,
+            branchId: 'main', 
+            permissions: { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true },
+            isOnline: true,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        sessionStorage.setItem('userRole', 'admin');
+        sessionStorage.setItem('empCode', 'TRIAL-ADMIN');
+        sessionStorage.setItem('clinicId', newClinicId);
+        sessionStorage.setItem('branchId', 'main'); 
+        sessionStorage.setItem('userPermissions', JSON.stringify({ patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true }));
+
+        if (window.hideLoader) window.hideLoader();
+        alert(`✅ مبروك يا ${adminName}!\nتم تفعيل العيادة بنجاح. فترة التجربة هتنتهي يوم ${expirationDate.toLocaleDateString('ar-EG')}`);
+        
+        window.location.href = "home.html";
+
+    } catch (error) {
+        console.error("Trial Registration Error:", error);
+        isLoginInProgress = false; 
+        
+        if (window.hideLoader) window.hideLoader();
+        btn.disabled = false;
+        btn.innerText = "إنشاء الحساب وبدء التجربة";
+        
+        if (error.code === 'auth/email-already-in-use') {
+            alert("❌ هذا البريد مسجل بالفعل في النظام.");
+        } else if (error.code === 'auth/weak-password') {
+            alert("❌ كلمة المرور ضعيفة جداً.");
+        } else {
+            alert("❌ حدث خطأ أثناء التسجيل: " + error.message);
+        }
+    }
+}
+
+// ==========================================
+// دوال تفعيل حساب موظف (الممرضة/الدكتور)
+// ==========================================
+function openStaffModal() {
+    document.getElementById('staffInviteCode').value = '';
+    document.getElementById('staffEmail').value = '';
+    document.getElementById('staffPassword').value = '';
+    document.getElementById('staffModal').style.display = 'flex';
+}
+
+function closeStaffModal() {
+    document.getElementById('staffModal').style.display = 'none';
+}
+
+async function activateStaffAccount(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btn-activate-staff');
+    btn.disabled = true;
+    btn.innerText = "جاري فحص الكود والتفعيل...";
+
+    const inviteCode = document.getElementById('staffInviteCode').value.trim().toUpperCase(); 
+    const newEmail = document.getElementById('staffEmail').value.trim().toLowerCase();
+    const newPassword = document.getElementById('staffPassword').value.trim();
+
+    if (window.showLoader) window.showLoader("جاري فحص الكود...");
+
+    try {
+        const inviteDoc = await db.collection("InviteCodes").doc(inviteCode).get();
+
+        if (!inviteDoc.exists) {
+            if (window.hideLoader) window.hideLoader();
+            alert("❌ كود الدعوة غير صحيح أو غير مسجل في النظام.");
+            btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
+            return;
+        }
+
+        const inviteData = inviteDoc.data();
+
+        if (inviteData.activated) {
+            if (window.hideLoader) window.hideLoader();
+            alert("❌ هذا الكود تم استخدامه وتفعيله مسبقاً.");
+            btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
+            return;
+        }
+
+        isLoginInProgress = true;
+        if (window.showLoader) window.showLoader("جاري تفعيل الحساب...");
+
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+        await auth.createUserWithEmailAndPassword(newEmail, newPassword);
+
+        const assignedBranch = inviteData.branchId || 'main';
+        
+        // 🔴 توفير صلاحيات افتراضية حسب وظيفته في كود الدعوة (Deny by Default) 🔴
+        let defaultPerms = { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false };
+        if (inviteData.role === 'admin') defaultPerms = { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
+        else if (inviteData.role === 'doctor') defaultPerms = { ...defaultPerms, patients: true, calendar: true, inventory: true };
+        else if (inviteData.role === 'receptionist') defaultPerms = { ...defaultPerms, patients: true, calendar: true, finances: true };
+        else defaultPerms = { ...defaultPerms, patients: true, calendar: true, inventory: true }; // nurse
+
+        await db.collection("Users").doc(newEmail).set({
+            name: inviteData.name,
+            email: newEmail,
+            role: inviteData.role, 
+            clinicId: inviteData.clinicId,
+            branchId: assignedBranch,
+            permissions: defaultPerms,
+            empCode: inviteCode,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            isOnline: true,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        await db.collection("InviteCodes").doc(inviteCode).update({
+            activated: true,
+            activatedByEmail: newEmail,
+            activatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        sessionStorage.setItem('userRole', inviteData.role);
+        sessionStorage.setItem('empCode', inviteCode);
+        sessionStorage.setItem('clinicId', inviteData.clinicId);
+        sessionStorage.setItem('branchId', assignedBranch); 
+        sessionStorage.setItem('userPermissions', JSON.stringify(defaultPerms));
+
+        if (window.hideLoader) window.hideLoader();
+        alert(`✅ تم تفعيل الحساب بنجاح يا ${inviteData.name}!\nجاري تحويلك للعيادة...`);
+        
+        if (window.showLoader) window.showLoader("جاري التحويل...");
+        window.location.href = "home.html";
+
+    } catch (error) {
+        if (window.hideLoader) window.hideLoader();
+        console.error("Staff Activation Error:", error);
+        isLoginInProgress = false;
+        btn.disabled = false; btn.innerText = "تفعيل الحساب والدخول";
+        
+        if (error.code === 'auth/email-already-in-use') {
+            alert("❌ هذا البريد الإلكتروني مستخدم بالفعل في حساب آخر.");
+        } else if (error.code === 'auth/weak-password') {
+            alert("❌ كلمة المرور ضعيفة، يجب أن تكون 6 أحرف على الأقل.");
+        } else {
+            alert("❌ حدث خطأ أثناء التفعيل: " + error.message);
+        }
+    }
+}
+
+// ==========================================
+// باقي دوال استعادة الباسورد والتفعيل الأساسي
+// ==========================================
+function openResetModal() {
+    const emailInput = document.getElementById('resetEmailInput');
+    const modal = document.getElementById('resetModal');
+    if (emailInput) emailInput.value = "";
+    if (modal) modal.style.display = "flex";
+}
+
+function closeResetModal() {
+    const modal = document.getElementById('resetModal');
+    if (modal) modal.style.display = "none";
+}
+
+async function sendResetLink(e) {
+    e.preventDefault();
+    const email = document.getElementById('resetEmailInput').value;
+    const btn = document.getElementById('btn-send-reset');
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = lang === 'ar' ? "جاري الإرسال..." : "Sending...";
+        btn.style.opacity = "0.7";
+    }
+
+    try {
+        await auth.sendPasswordResetEmail(email);
+        alert(lang === 'ar' ? "تم إرسال رابط استعادة كلمة المرور بنجاح! يرجى مراجعة صندوق الوارد الخاص بك (أو مجلد Spam)." : "Password reset link sent successfully! Please check your inbox (or Spam folder).");
+        closeResetModal();
+    } catch (error) {
+        if (error.code === 'auth/user-not-found') alert(lang === 'ar' ? "هذا البريد الإلكتروني غير مسجل في النظام." : "This email is not registered.");
+        else if (error.code === 'auth/invalid-email') alert(lang === 'ar' ? "صيغة البريد الإلكتروني غير صحيحة." : "Invalid email format.");
+        else alert((lang === 'ar' ? "حدث خطأ: " : "Error: ") + error.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = lang === 'ar' ? "إرسال رابط الاستعادة" : "Send Reset Link";
+            btn.style.opacity = "1";
+        }
+    }
+}
+
+async function activateAccount() {
+    const codeRaw = document.getElementById('reg-code').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const realEmail = document.getElementById('reg-email').value.trim().toLowerCase();
+    const pass = document.getElementById('reg-pass').value.trim();
+    const msg = document.getElementById('reg-msg');
+
+    if(!codeRaw || !phone || !realEmail || !pass) { 
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "برجاء إكمال كافة البيانات" : "Please complete all fields"; 
+        return; 
+    }
+
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...");
+
+    try {
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري فحص البيانات..." : "Checking data...";
+
+        const empDoc = await db.collection("clinicId").doc(codeRaw).get();
+
+        if (!empDoc.exists) {
+            if(window.hideLoader) window.hideLoader();
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "الكود غير مسجل، راجع إدارة النظام" : "Code not registered, contact admin"; 
+            return;
+        }
+
+        const empData = empDoc.data();
+        if (empData.phone !== phone) {
+            if(window.hideLoader) window.hideLoader();
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "رقم الموبايل غير مطابق للسجلات" : "Phone number does not match records"; 
+            return;
+        }
+
+        if (empData.activated === true) {
+            if(window.hideLoader) window.hideLoader();
+            if(msg) msg.innerText = document.body.dir === 'rtl' ? "هذا الحساب مفعل بالفعل" : "Account already activated"; 
+            return;
+        }
+
+        if(window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري إنشاء الحساب..." : "Creating account...");
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "جاري إنشاء الحساب... برجاء الانتظار" : "Creating account... Please wait";
+
+        isLoginInProgress = true;
+        await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+
+        await auth.createUserWithEmailAndPassword(realEmail, pass);
+        
+        await db.collection("Users").doc(realEmail).set({
+            role: (empData.role || "admin").toLowerCase().trim(),
+            name: empData.name,
+            empCode: codeRaw, 
+            email: realEmail,
+            clinicId: empData.clinicId || 'default',
+            branchId: 'main', 
+            permissions: { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true }
+        });
+
+        await db.collection("clinicId").doc(codeRaw).update({ 
+            activated: true,
+            email: realEmail 
+        });
+
+        if(window.hideLoader) window.hideLoader();
+        if(msg) msg.innerText = document.body.dir === 'rtl' ? "تم التفعيل بنجاح! جاري تحويلك..." : "Activation successful! Redirecting...";
+        
+        setTimeout(() => { 
+            if(window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري التحويل..." : "Redirecting...");
+            window.location.href = "index.html"; 
+        }, 1500);
+
+    } catch (error) {
+        if(window.hideLoader) window.hideLoader();
+        isLoginInProgress = false;
+        if(msg) {
+            const isRtl = document.body.dir === 'rtl';
+            if (error.code === 'auth/email-already-in-use') {
+                msg.innerText = isRtl ? "هذا البريد الإلكتروني مستخدم بالفعل" : "Email already in use";
+            } else if (error.code === 'auth/invalid-email') {
+                msg.innerText = isRtl ? "صيغة البريد الإلكتروني غير صحيحة" : "Invalid email format";
+            } else {
+                msg.innerText = (isRtl ? "خطأ: " : "Error: ") + error.message;
+            }
+        }
+    }
+}
+
+// 🔴 دوال الترجمة ومودال الخصوصية 🔴
+function openPrivacyModal() {
+    document.getElementById('privacyModal').style.display = 'flex';
+}
+function closePrivacyModal() {
+    document.getElementById('privacyModal').style.display = 'none';
 }
 
 function updatePageContent(lang) {
-    const t = {
+    const currentYear = new Date().getFullYear();
+    const translations = {
         ar: {
-            header: "لوحة التحكم",
-            navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
-            navFinances: "الحسابات والمصروفات",
-            navInventory: "المخزون الطبي", 
-            navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
-            alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
-            alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
-            navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال طلب الدعم",
-            aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم?"
+            title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
+            code: "البريد الإلكتروني أو كود العيادة", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "حساب جديد؟", actLink: "تفعيل حساب العيادة من هنا",
+            brandTitle: "NivaDent", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان من إنتاج Al Dokan ERP. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
+            feat1: "✔️ ملف طبي ذكي وأشعة", feat2: "✔️ إدارة الجلسات والمواعيد", feat3: "✔️ روشتات وحسابات دقيقة",
+            forgotPass: "نسيت كلمة المرور؟", resetTitle: "استعادة كلمة المرور", resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
+            btnReset: "إرسال رابط الاستعادة", emailPlaceholder: "أدخل البريد الإلكتروني",
+            actPageTitle: "تفعيل الحساب - NivaDent", actWelcome: "تفعيل حساب العيادة", actSub: "يرجى إدخال البيانات المسجلة لدى إدارة النظام",
+            actCode: "كود الدخول", actPhone: "رقم الموبايل", actPass: "اختر كلمة مرور جديدة", btnAct: "تفعيل الحساب الآن",
+            backLoginStr: "لديك حساب بالفعل؟", backLoginLink: "العودة للدخول", brandActTitle: "أهلاً بك في NivaDent",
+            brandActDesc: "يسعدنا انضمامك. قم بتفعيل حسابك للوصول إلى لوحة تحكم عيادتك وإدارة مواعيدك وملفات مرضاك بكل سهولة.", actEmail: "البريد الإلكتروني للعيادة",
+            
+            staffInvite: "🔑 لدي كود دعوة (تفعيل حساب موظف)",
+            btnTrialTxt: "ابدأ فترة تجريبية مجانية (29 أيام)",
+            copyright: `© ${currentYear} Al Dokan ERP. جميع الحقوق محفوظة.`,
+            privacy: "سياسة الخصوصية والتأمين (Privacy Policy)",
+            poweredBy: "Powered by",
+            mTrialTitle: "🚀 إنشاء حساب تجريبي",
+            mTrialSub: "جرب النظام بكامل مميزاته مجاناً لمدة 29 أيام",
+            lTClinic: "اسم العيادة", pTClinic: "مثال: عيادة النور لطب الأسنان",
+            lTAdmin: "اسم الطبيب / المدير", pTAdmin: "الاسم بالكامل",
+            lTPhone: "رقم الموبايل للتواصل", pTPhone: "01xxxxxxxxx",
+            lTEmail: "البريد الإلكتروني (للدخول)", pTEmail: "clinic@example.com",
+            lTPass: "كلمة المرور (6 أحرف أو أكثر)", pTPass: "********",
+            btnSubmitTrial: "إنشاء الحساب وبدء التجربة",
+            
+            mPrivTitle: "سياسة الخصوصية وتأمين البيانات",
+            privH1: "1. سرية السجلات الطبية",
+            privP1: "نحن في Al Dokan ERP ندرك تماماً حساسية السجلات الطبية. جميع بيانات مرضاك (التشخيص، الأشعة، المديونيات) مشفرة ومحفوظة في قواعد بيانات سحابية آمنة لا يمكن لأي طرف ثالث الاطلاع عليها.",
+            privH2: "2. النسخ الاحتياطي التلقائي (Cloud Backup)",
+            privP2: "لا داعي للقلق من فقدان البيانات. يقوم النظام بعمل نسخ احتياطي تلقائي ولحظي للبيانات. في حالة فقدان جهازك أو تغييره، ستجد جميع بيانات عيادتك كما هي بمجرد تسجيل الدخول.",
+            privH3: "3. حقوق الملكية الفكرية",
+            privP3: "نظام NivaDent هو منتج برمجي مملوك بالكامل لشركة Al Dokan ERP. لا يجوز نسخ، إعادة بيع، أو هندسة عكسية لأي جزء من النظام دون إذن كتابي مسبق.",
+            privH4: "4. استخدام البيانات للتطوير",
+            privP4: "نحن لا نقوم ببيع أو مشاركة بيانات عيادتك مع أي جهة إعلانية. النظام يجمع فقط بعض الإحصائيات الفنية مجهولة المصدر لتحسين الأداء وسرعة النظام.",
+            btnPrivOk: "موافق ومفهوم"
         },
         en: {
-            header: "Dashboard",
-            navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
-            navFinances: "Finances",
-            navInventory: "Medical Inventory", 
-            navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
-            alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
-            alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension.",
-            navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send Support Ticket",
-            aiTitle: "Niva Assistant", aiWelcome: "Hello Doctor! 👋 I'm Niva, your smart assistant. How can I help you today?"
+            title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
+            code: "Email or Access Code", pass: "Password", btn: "Login", newEmp: "New Account?", actLink: "Activate clinic account here",
+            brandTitle: "NivaDent", brandDesc: "The smartest cloud system for dental practice management powered by Al Dokan ERP. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
+            feat1: "✔️ Smart Medical Records & X-Rays", feat2: "✔️ Appointments & Sessions Management", feat3: "✔️ E-Prescriptions & Accurate Billing",
+            forgotPass: "Forgot Password?", resetTitle: "Reset Password", resetSub: "Enter your registered email, and we will send you a link to set a new password.",
+            btnReset: "Send Reset Link", emailPlaceholder: "Enter email address",
+            actPageTitle: "Activate Account - NivaDent", actWelcome: "Activate Clinic Account", actSub: "Please enter the data registered with the system administration",
+            actCode: "Access Code", actPhone: "Mobile Number", actPass: "Choose a new password", btnAct: "Activate Account Now",
+            backLoginStr: "Already have an account?", backLoginLink: "Back to Login", brandActTitle: "Welcome to NivaDent",
+            brandActDesc: "We are glad you joined. Activate your account to access your clinic's dashboard, manage appointments, and track patient files easily.", actEmail: "Clinic Email Address",
+            
+            staffInvite: "🔑 I have an invite code (Staff)",
+            btnTrialTxt: "Start Free Trial (29 Days)",
+            copyright: `© ${currentYear} Al Dokan ERP. All rights reserved.`,
+            privacy: "Privacy Policy & Security",
+            poweredBy: "Powered by",
+            mTrialTitle: "🚀 Create Trial Account",
+            mTrialSub: "Try full features free for 29 days",
+            lTClinic: "Clinic Name", pTClinic: "e.g., Al-Nour Dental Clinic",
+            lTAdmin: "Doctor / Admin Name", pTAdmin: "Full Name",
+            lTPhone: "Contact Phone", pTPhone: "01xxxxxxxxx",
+            lTEmail: "Email (For Login)", pTEmail: "clinic@example.com",
+            lTPass: "Password (Min 6 chars)", pTPass: "********",
+            btnSubmitTrial: "Create Account & Start Trial",
+            
+            mPrivTitle: "Privacy Policy & Data Security",
+            privH1: "1. Medical Records Confidentiality",
+            privP1: "At Al Dokan ERP, we fully understand the sensitivity of medical records. All your patient data is encrypted and stored in secure cloud databases inaccessible to any third party.",
+            privH2: "2. Automatic Cloud Backup",
+            privP2: "No need to worry about data loss. The system performs automatic real-time backups. If your device is lost, you will find your clinic's data intact upon logging in.",
+            privH3: "3. Intellectual Property Rights",
+            privP3: "NivaDent is a software product fully owned by Al Dokan ERP. Copying, reselling, or reverse engineering any part of the system without prior written permission is prohibited.",
+            privH4: "4. Data Usage for Development",
+            privP4: "We do not sell or share your clinic's data with advertisers. The system only collects anonymous technical statistics to improve performance.",
+            btnPrivOk: "I Understand & Agree"
         }
     };
-    const c = t[lang] || t.ar;
-    const setTxt = (id, txt) => { if(document.getElementById(id)) document.getElementById(id).innerText = txt; };
+    const t = translations[lang] || translations['ar'];
+    document.body.dir = (lang === 'en') ? 'ltr' : 'rtl';
+    const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
+    const safeSetPlaceholder = (id, text) => { const el = document.getElementById(id); if (el) el.placeholder = text; };
 
-    setTxt('txt-header', c.header);
-    setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
-    setTxt('nav-finances', c.navFinances);
-    setTxt('nav-inventory', c.navInventory); 
-    setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
+    if (document.title.includes('دخول') || document.title.includes('Login')) document.title = t.title;
+    safeSetText('txt-welcome', t.welcome); safeSetText('sub-login', t.subLogin); safeSetText('lbl-code', t.code);
+    safeSetText('lbl-pass', t.pass); safeSetText('btn-login', t.btn); safeSetText('txt-new', t.newEmp);
+    safeSetText('link-activate', t.actLink); safeSetText('txt-brand', t.brandTitle); safeSetText('brand-desc', t.brandDesc);
+    safeSetText('feat-1', t.feat1); safeSetText('feat-2', t.feat2); safeSetText('feat-3', t.feat3);
+    safeSetText('link-forgot', t.forgotPass); safeSetText('txt-reset-title', t.resetTitle); safeSetText('txt-reset-sub', t.resetSub);
+    safeSetText('btn-send-reset', t.btnReset); safeSetPlaceholder('resetEmailInput', t.emailPlaceholder);
+    if (document.title.includes('تفعيل') || document.title.includes('Activate')) document.title = t.actPageTitle;
+    safeSetText('txt-act-welcome', t.actWelcome); safeSetText('txt-act-sub', t.actSub); safeSetText('lbl-act-code', t.actCode);
+    safeSetText('lbl-act-phone', t.actPhone); safeSetText('lbl-act-pass', t.actPass); safeSetText('btn-activate', t.btnAct);
+    safeSetText('txt-back-str', t.backLoginStr); safeSetText('link-back-login', t.backLoginLink); safeSetText('brand-act-title', t.brandActTitle);
+    safeSetText('brand-act-desc', t.brandActDesc); safeSetText('lbl-act-email', t.actEmail);
     
-    setTxt('nav-support', c.navSupport); setTxt('mod-support-title', c.modSupTitle);
-    setTxt('mod-support-desc', c.modSupDesc); setTxt('btn-support-send', c.btnSupSend);
+    safeSetText('txt-staff-invite', t.staffInvite);
+    safeSetText('btn-trial-txt', t.btnTrialTxt);
+    safeSetText('txt-copyright', t.copyright);
+    safeSetText('link-privacy', t.privacy);
+    safeSetText('txt-powered', t.poweredBy);
     
-    setTxt('ai-title', c.aiTitle); setTxt('ai-welcome-msg', c.aiWelcome);
+    safeSetText('mod-trial-title', t.mTrialTitle);
+    safeSetText('mod-trial-sub', t.mTrialSub);
+    safeSetText('lbl-t-clinic', t.lTClinic); safeSetPlaceholder('trial_clinic_name', t.pTClinic);
+    safeSetText('lbl-t-admin', t.lTAdmin); safeSetPlaceholder('trial_admin_name', t.pTAdmin);
+    safeSetText('lbl-t-phone', t.lTPhone); safeSetPlaceholder('trial_phone', t.pTPhone);
+    safeSetText('lbl-t-email', t.lTEmail); safeSetPlaceholder('trial_email', t.pTEmail);
+    safeSetText('lbl-t-pass', t.lTPass); safeSetPlaceholder('trial_password', t.pTPass);
+    safeSetText('btn-submit-trial', t.btnSubmitTrial);
 
-    const msgBox = document.getElementById('support_message');
-    if(msgBox) msgBox.placeholder = lang === 'ar' ? "اكتب تفاصيل المشكلة أو طلبك هنا..." : "Type issue details or request here...";
-
-    window.homeLang = c;
+    safeSetText('mod-priv-title', t.mPrivTitle);
+    safeSetText('priv-h1', t.privH1); safeSetText('priv-p1', t.privP1);
+    safeSetText('priv-h2', t.privH2); safeSetText('priv-p2', t.privP2);
+    safeSetText('priv-h3', t.privH3); safeSetText('priv-p3', t.privP3);
+    safeSetText('priv-h4', t.privH4); safeSetText('priv-p4', t.privP4);
+    safeSetText('btn-priv-ok', t.btnPrivOk);
 }
 
-// =========================================================================
-// 🔴 تطبيق الصلاحيات الديناميكي المركزي (RBAC) 🔴
-// =========================================================================
-function getDefaultPermissions(role) {
-    if (role === 'admin' || role === 'superadmin') return { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true };
-    if (role === 'doctor') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
-    if (role === 'receptionist') return { patients: true, calendar: true, finances: true, inventory: false, reports: false, settings: false };
-    if (role === 'nurse') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
-    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false }; // other
-}
-
-function applyPermissions(perms, role) {
-    // 1. السوبر أدمن الوحيد اللي بيشوف إدارته
-    const superAdminLi = document.getElementById('nav-super-admin') || document.getElementById('nav-super-admin-li');
-    if (superAdminLi) {
-        superAdminLi.style.display = (role === 'superadmin') ? 'block' : 'none';
-    }
-    
-    // لو هو سوبر أدمن، سيبه يشوف الباقي كله
-    if (role === 'superadmin') return;
-
-    // 2. إخفاء أو إظهار الزراير بناءً على الأوبجكت
-    const restrictedItems = document.querySelectorAll('li[data-perm]');
-    restrictedItems.forEach(item => {
-        const permKey = item.getAttribute('data-perm');
-        if (perms[permKey] === false) {
-            item.style.display = 'none';
+function togglePasswordVisibility() {
+    const passInput = document.getElementById('password');
+    const toggleIcon = document.querySelector('.toggle-password');
+    if (passInput && toggleIcon) {
+        if (passInput.type === 'password') {
+            passInput.type = 'text';
+            toggleIcon.innerText = '🙈';
         } else {
-            item.style.display = 'block';
-        }
-    });
-
-    // 3. إخفاء زراير المالية في الذكاء الاصطناعي لو مفيش صلاحية تقارير
-    if (perms.reports === false) {
-        document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'none');
-    } else {
-        document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'inline-block');
-    }
-}
-
-// =========================================================================
-// 🔴 تهيئة النظام وتأمين الدخول 🔴
-// =========================================================================
-firebase.auth().onAuthStateChanged(async (user) => {
-    if (user) {
-        document.getElementById('userEmail').innerText = user.email;
-
-        if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تهيئة النظام..." : "Initializing...");
-
-        try {
-            const userDoc = await db.collection("Users").doc(user.email).get();
-            if (userDoc.exists) {
-                const userData = userDoc.data();
-                const role = userData.role || 'reception';
-                const clinicId = userData.clinicId || sessionStorage.getItem('clinicId') || 'default';
-
-                sessionStorage.setItem('clinicId', clinicId);
-
-                // 🔴 استخراج الصلاحيات أو توليدها للموظفين القدامى (Fallback) 🔴
-                let userPermissions = userData.permissions;
-                if (!userPermissions) {
-                    userPermissions = getDefaultPermissions(role);
-                    // تحديثها في السيرفر عشان تفضل مسجلة
-                    db.collection("Users").doc(user.email).update({ permissions: userPermissions }).catch(e=>{});
-                }
-                sessionStorage.setItem('userPermissions', JSON.stringify(userPermissions));
-
-                // 🔴 تطبيق الصلاحيات على الواجهة فوراً 🔴
-                applyPermissions(userPermissions, role);
-                loadClinicBranding(clinicId);
-                
-                if(role !== 'superadmin' && clinicId !== 'default') {
-                    checkSubscriptionAlert(clinicId);
-                }
-
-                // التوجيه الذكي
-                const lastPage = sessionStorage.getItem('lastOpenedPage');
-                const lastNavId = sessionStorage.getItem('lastActiveNavId');
-                
-                // حماية إضافية لو كان فاتح صفحة مش من حقه يشوفها
-                let pageToLoad = lastPage || 'dashboard.html';
-                let navToClick = lastNavId ? document.getElementById(lastNavId) : document.getElementById('nav-item-dash');
-
-                if (navToClick && navToClick.style.display === 'none') {
-                    // لو الشاشة دي مخفية عنه، رجعه للداشبورد أو المرضى
-                    pageToLoad = 'dashboard.html';
-                    navToClick = document.getElementById('nav-item-dash');
-                }
-
-                loadPage(pageToLoad, navToClick);
-            }
-        } catch (error) {
-            console.error("خطأ في جلب بيانات المستخدم:", error);
-        } finally {
-            if (window.hideLoader) window.hideLoader();
-        }
-    } else {
-        window.location.href = "index.html";
-    }
-});
-
-// =========================================================================
-// الرادار الذكي (Smart Presence) - يعيش في الصدفة الرئيسية فقط
-// =========================================================================
-const IDLE_TIMEOUT_MINUTES = 30; 
-const OFFLINE_MARK_MINUTES = 15; 
-let currentPresenceStatus = "online"; 
-
-function updateUserPresence(isOnlineStatus) {
-    const user = firebase.auth().currentUser;
-    if (user) {
-        const docId = user.email || user.uid; 
-        db.collection("Users").doc(docId).set({
-            isOnline: isOnlineStatus,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch(()=>{});
-    }
-}
-
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        currentPresenceStatus = "online";
-        updateUserPresence(true);
-    } else if (document.visibilityState === 'hidden') {
-        currentPresenceStatus = "offline";
-        updateUserPresence(false);
-    }
-});
-
-function updateLastActiveTime() {
-    localStorage.setItem('lastActiveNiva', Date.now());
-    if (currentPresenceStatus === "offline" && firebase.auth().currentUser) {
-        currentPresenceStatus = "online";
-        updateUserPresence(true);
-    }
-}
-
-document.onmousemove = updateLastActiveTime;
-document.onkeypress = updateLastActiveTime;
-document.ontouchstart = updateLastActiveTime;
-
-setInterval(() => {
-    const lastActive = localStorage.getItem('lastActiveNiva');
-    if (lastActive && firebase.auth().currentUser) {
-        const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
-
-        if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
-            if(firebase.auth().currentUser) {
-                updateUserPresence(false);
-                firebase.auth().signOut().then(() => {
-                    sessionStorage.clear();
-                    localStorage.removeItem('lastActiveNiva');
-                    alert("🔒 تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
-                    window.top.location.href = 'index.html';
-                });
-            }
-        } 
-        else if (diffMinutes >= OFFLINE_MARK_MINUTES && currentPresenceStatus === "online") {
-            currentPresenceStatus = "offline";
-            updateUserPresence(false);
+            passInput.type = 'password';
+            toggleIcon.innerText = '👁️';
         }
     }
-}, 60000);
-
-// =========================================================================
-// حارس الاشتراكات والفترة التجريبية (Subscription Validator)
-// =========================================================================
-async function checkSubscriptionAlert(clinicId) {
-    try {
-        db.collection("Clinics").doc(clinicId).onSnapshot(async (clinicDoc) => {
-            if (clinicDoc.exists) {
-                const cData = clinicDoc.data();
-                const now = new Date();
-                
-                if (cData.status === 'suspended') {
-                    showPaywallBlocker("تم إيقاف الحساب", "عفواً، تم إيقاف حساب عيادتك إدارياً. يرجى التواصل مع الدعم الفني للاستفسار.");
-                    return;
-                }
-
-                let expireDate = null;
-                if (cData.nextPaymentDate) {
-                    expireDate = typeof cData.nextPaymentDate.toDate === 'function' ? cData.nextPaymentDate.toDate() : new Date(cData.nextPaymentDate);
-                } else if (cData.trialEndDate) {
-                    expireDate = typeof cData.trialEndDate.toDate === 'function' ? cData.trialEndDate.toDate() : new Date(cData.trialEndDate);
-                }
-
-                if (expireDate) {
-                    if (now > expireDate) {
-                        if (cData.status !== 'expired') {
-                            await db.collection("Clinics").doc(clinicId).update({
-                                status: 'expired',
-                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                        }
-                        showPaywallBlocker("انتهى الاشتراك", "عفواً، لقد انتهت فترة تجربتك المجانية أو اشتراكك. برجاء التواصل مع الدعم لتجديد الباقة.");
-                    } 
-                    else {
-                        hidePaywallBlocker();
-                        const diffTime = expireDate - now;
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
-                        if (diffDays >= 0 && diffDays <= 3) {
-                            showBillingAlert(diffDays);
-                        } else {
-                            hideBillingAlert(); 
-                        }
-                    }
-                }
-            }
-        });
-    } catch (error) {
-        console.error("خطأ في فحص الاشتراك:", error);
-    }
 }
-
-function showPaywallBlocker(title, message) {
-    let blocker = document.getElementById('paywall-blocker');
-    if (!blocker) {
-        blocker = document.createElement('div');
-        blocker.id = 'paywall-blocker';
-        blocker.style.cssText = "position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); color: white; text-align: center; direction: rtl; padding: 20px;";
-        document.body.appendChild(blocker);
-    }
-    
-    blocker.innerHTML = `
-        <div style="background: white; color: #0f172a; padding: 40px; border-radius: 20px; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
-            <div style="font-size: 50px; margin-bottom: 15px;">⚠️</div>
-            <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #dc2626; font-weight: 900;">${title}</h2>
-            <p style="margin: 0 0 25px 0; color: #475569; line-height: 1.6; font-size: 16px;">${message}</p>
-            <button onclick="firebase.auth().signOut().then(() => { sessionStorage.clear(); window.location.href = 'index.html'; })" style="background: #dc2626; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">
-                تسجيل الخروج
-            </button>
-        </div>
-    `;
-}
-
-function hidePaywallBlocker() {
-    const blocker = document.getElementById('paywall-blocker');
-    if (blocker) blocker.remove();
-}
-
-function showBillingAlert(daysLeft) {
-    if(document.getElementById('billing-alert-banner')) return;
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    const t = window.homeLang || { alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.", alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام." };
-    let alertMsg = daysLeft === 0 ? t.alertToday : t.alertText.replace('{days}', daysLeft);
-
-    const alertDiv = document.createElement('div');
-    alertDiv.id = "billing-alert-banner";
-    alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: slideDown 0.3s ease-out;";
-    alertDiv.innerHTML = `<span>${alertMsg}</span>`;
-    document.body.insertBefore(alertDiv, document.body.firstChild);
-}
-
-function hideBillingAlert() {
-    const alertDiv = document.getElementById('billing-alert-banner');
-    if(alertDiv) alertDiv.remove();
-}
-
-async function loadClinicBranding(clinicId) {
-    if (clinicId === 'default' || !clinicId) return; 
-
-    try {
-        const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
-        if (clinicDoc.exists) {
-            const clinicData = clinicDoc.data();
-            
-            if (clinicData.clinicName) {
-                const nameElement = document.getElementById('txt-clinic-name');
-                if (nameElement) nameElement.innerText = clinicData.clinicName;
-            }
-            
-            if (clinicData.logoUrl) {
-                const logoContainer = document.getElementById('clinic-logo-container');
-                if (logoContainer) {
-                    logoContainer.innerHTML = `<img src="${clinicData.logoUrl}" alt="Clinic Logo" style="max-width: 45px; max-height: 45px; border-radius: 8px; object-fit: contain;">`;
-                }
-            }
-        }
-    } catch (error) {
-        console.error("خطأ في جلب بيانات العيادة:", error);
-    }
-}
-
-function toggleSidebar() { 
-    document.getElementById('sidebar').classList.toggle('active'); 
-    document.getElementById('mobile-overlay').classList.toggle('active');
-}
-
-function toggleSidebarDesktop() {
-    document.body.classList.toggle('sidebar-pinned');
-    const isPinned = document.body.classList.contains('sidebar-pinned');
-    localStorage.setItem('sidebarPinned', isPinned);
-}
-
-// =========================================================================
-// الدعم الفني
-// =========================================================================
-function openSupportModal() {
-    document.getElementById('support_message').value = '';
-    document.getElementById('supportModal').style.display = 'flex';
-}
-
-function closeSupportModal() {
-    document.getElementById('supportModal').style.display = 'none';
-}
-
-async function sendSupportWhatsApp() {
-    const msg = document.getElementById('support_message').value.trim();
-    if (!msg) {
-        alert(document.body.dir === 'rtl' ? "برجاء كتابة الرسالة أولاً!" : "Please write a message first!");
-        return;
-    }
-
-    const clinicName = document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'غير معروف';
-    const userEmail = document.getElementById('userEmail') ? document.getElementById('userEmail').innerText : 'غير معروف';
-    const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
-
-    const btn = document.getElementById('btn-support-send');
-    const originalText = btn ? btn.innerText : 'إرسال';
-    if(btn) btn.innerText = "⏳ جاري الإرسال...";
-
-    try {
-        await db.collection("SupportTickets").add({
-            clinicId: clinicId,
-            clinicName: clinicName,
-            userEmail: userEmail,
-            message: msg,
-            status: "open",
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        alert(document.body.dir === 'rtl' ? "✅ تم إرسال رسالتك لفريق الدعم الفني بنجاح! سيتم التواصل معك قريباً." : "✅ Ticket sent successfully! We will contact you soon.");
-        document.getElementById('support_message').value = '';
-        closeSupportModal();
-    } catch (error) {
-        console.error("Error sending support ticket:", error);
-        alert(document.body.dir === 'rtl' ? "❌ حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقاً." : "❌ Error sending ticket, please try again.");
-    } finally {
-        if(btn) btn.innerText = originalText;
-    }
-}
-
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('supportModal');
-    if (event.target === modal) {
-        closeSupportModal();
-    }
-});
-
-
-// =========================================================================
-// المساعد الذكي Niva AI
-// =========================================================================
-function toggleAIPanel() {
-    const panel = document.getElementById('niva-ai-panel');
-    const triggerBtn = document.getElementById('niva-btn-trigger');
-    
-    if (panel.style.display === 'flex') {
-        panel.style.display = 'none';
-        triggerBtn.innerHTML = '🤖'; 
-        triggerBtn.classList.remove('open');
-    } else {
-        panel.style.display = 'flex';
-        triggerBtn.innerHTML = '❌'; 
-        triggerBtn.classList.add('open');
-    }
-}
-
-function appendToAIChat(text, isUser = false) {
-    const chatBody = document.getElementById('niva-ai-chat');
-    const msgDiv = document.createElement('div');
-    msgDiv.className = isUser ? 'user-msg' : 'ai-msg';
-    msgDiv.innerHTML = text;
-    chatBody.appendChild(msgDiv);
-    chatBody.scrollTop = chatBody.scrollHeight; 
-}
-
-async function askAI(promptType) {
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
-    const clinicId = sessionStorage.getItem('clinicId');
-
-    let userMsg = "";
-    if (promptType === 'income') userMsg = isAr ? "كم إجمالي إيرادات العيادة اليوم؟" : "What is today's total income?";
-    else if (promptType === 'expenses') userMsg = isAr ? "كم إجمالي مصروفات العيادة اليوم؟" : "What is today's total expenses?";
-    else if (promptType === 'debts') userMsg = isAr ? "من هم المرضى المتعثرين؟ وما هو إجمالي الديون؟" : "Who are the defaulting patients? Total debts?";
-    else if (promptType === 'appointments') userMsg = isAr ? "ما هو موقف مواعيد اليوم؟" : "What is today's appointment status?";
-    else if (promptType === 'tomorrow') userMsg = isAr ? "ما هي مواعيد عيادة الغد؟" : "What are tomorrow's appointments?";
-    else if (promptType === 'inventory') userMsg = isAr ? "هل يوجد نواقص في المخزن الطبي؟" : "Are there any inventory shortages?";
-
-    appendToAIChat(userMsg, true);
-    
-    if (!clinicId || clinicId === 'default') {
-        setTimeout(() => {
-            appendToAIChat(isAr ? "⚠️ <strong>تنبيه:</strong> أنا مساعد ذكي مخصص لقراءة بيانات العيادات فقط. أنت الآن مسجل دخول بحساب (الإدارة المركزية). قم بالدخول بحساب عيادة (طبيب/ممرضة) لتجربة استخراج الأرقام الحقيقية! 🚀" : "⚠️ <strong>Alert:</strong> AI reads clinic data only. Please login with a clinic account to test.", false);
-        }, 500);
-        return;
-    }
-
-    const loadingId = "ai-loading-" + Date.now();
-    appendToAIChat(`<span id="${loadingId}" style="color:#64748b;">⏳ ${isAr ? 'جاري الفحص السريع...' : 'Checking data...'}</span>`);
-
-    try {
-        const todayStr = new Date().toISOString().split('T')[0];
-        
-        const tomorrowDate = new Date();
-        tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-        const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
-
-        let aiResponse = "";
-
-        if (promptType === 'income') {
-            const snap = await db.collection("Finances").where("clinicId", "==", clinicId).where("date", "==", todayStr).where("type", "==", "income").get();
-            let total = 0;
-            snap.forEach(doc => total += Number(doc.data().amount));
-            aiResponse = isAr ? `✅ إجمالي المبالغ المحصلة اليوم هو: <strong>${total} ج.م</strong> من ${snap.size} عملية توريد.` : `✅ Today's total collected income is: <strong>${total} EGP</strong> from ${snap.size} transactions.`;
-        } 
-        
-        else if (promptType === 'expenses') {
-            const snap = await db.collection("Finances").where("clinicId", "==", clinicId).where("date", "==", todayStr).where("type", "==", "expense").get();
-            let total = 0;
-            snap.forEach(doc => total += Number(doc.data().amount));
-            aiResponse = isAr ? `📉 إجمالي المصروفات المسجلة اليوم هو: <strong style="color:#dc2626;">${total} ج.م</strong> في ${snap.size} بند.` : `📉 Today's total expenses are: <strong style="color:#dc2626;">${total} EGP</strong> in ${snap.size} items.`;
-        }
-        
-        else if (promptType === 'debts') {
-            const snap = await db.collection("Patients").where("clinicId", "==", clinicId).where("totalDebt", ">", 0).get();
-            let totalDebts = 0;
-            let patientsList = [];
-            snap.forEach(doc => {
-                let d = doc.data();
-                totalDebts += Number(d.totalDebt);
-                patientsList.push(`${d.name} (${d.totalDebt} ج.م)`);
-            });
-            
-            if (snap.size === 0) {
-                aiResponse = isAr ? "✨ ممتاز! لا يوجد مرضى عليهم مديونيات للعيادة." : "✨ Great! No patients with outstanding debts.";
-            } else {
-                let topList = patientsList.slice(0, 3).join('<br> - '); 
-                let moreHtml = patientsList.length > 3 ? `<br><small>...و ${patientsList.length - 3} مرضى آخرين (راجع صفحة المرضى).</small>` : "";
-                aiResponse = isAr ? `💸 إجمالي الديون المستحقة للعيادة هو: <strong>${totalDebts} ج.م</strong> موزع على ${snap.size} مريض.<br><strong>أبرز المتعثرين:</strong><br> - ${topList} ${moreHtml}` : `💸 Total debts owed to clinic: <strong>${totalDebts} EGP</strong> across ${snap.size} patients.`;
-            }
-        }
-
-        else if (promptType === 'appointments') {
-            const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", todayStr).get();
-            let total = snap.size, completed = 0, pending = 0, cancelled = 0;
-            snap.forEach(doc => {
-                const s = doc.data().status;
-                if (s === 'completed') completed++;
-                else if (s === 'cancelled') cancelled++;
-                else pending++;
-            });
-            aiResponse = isAr ? `📅 إجمالي حجوزات اليوم: <strong>${total}</strong><br>✔️ اكتمل: ${completed}<br>⏳ في الانتظار: ${pending}<br>🚫 ملغي: ${cancelled}` : `📅 Total appointments today: <strong>${total}</strong><br>✔️ Completed: ${completed}<br>⏳ Pending: ${pending}<br>🚫 Cancelled: ${cancelled}`;
-        }
-        
-        else if (promptType === 'tomorrow') {
-            const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", tomorrowStr).get();
-            let total = snap.size;
-            if (total === 0) {
-                aiResponse = isAr ? "لا توجد أي حجوزات مسجلة لغدٍ حتى الآن. 🏖️" : "No appointments scheduled for tomorrow yet. 🏖️";
-            } else {
-                aiResponse = isAr ? `🔮 يوجد <strong>${total} كشوفات</strong> مسجلة غداً. يرجى التنبيه على السكرتارية لتأكيد المواعيد.` : `🔮 There are <strong>${total} appointments</strong> scheduled for tomorrow.`;
-            }
-        }
-
-        else if (promptType === 'inventory') {
-            const snap = await db.collection("Inventory").where("clinicId", "==", clinicId).get();
-            let shortages = [];
-            snap.forEach(doc => {
-                const item = doc.data();
-                if (item.qty <= item.minAlert) shortages.push(item.name);
-            });
-
-            if (shortages.length === 0) {
-                aiResponse = isAr ? "📦 المخزون في أمان! لا توجد نواقص حالياً." : "📦 Inventory is safe! No shortages currently.";
-            } else {
-                aiResponse = isAr ? `🚨 <strong>تحذير!</strong> يوجد ${shortages.length} أصناف أوشكت على الانتهاء:<br> - ${shortages.join('<br> - ')}` : `🚨 <strong>Warning!</strong> ${shortages.length} items are running low:<br> - ${shortages.join('<br> - ')}`;
-            }
-        }
-
-        const loadingElement = document.getElementById(loadingId);
-        if(loadingElement && loadingElement.parentElement) loadingElement.parentElement.remove();
-        appendToAIChat(aiResponse, false);
-
-    } catch (error) {
-        console.error(error);
-        const loadingElement = document.getElementById(loadingId);
-        if(loadingElement && loadingElement.parentElement) loadingElement.parentElement.remove();
-        appendToAIChat(isAr ? "❌ حدث خطأ أثناء سحب البيانات. يرجى المحاولة لاحقاً." : "❌ Error fetching data. Please try again.", false);
-    }
-}
-
-// =========================================================================
-// دوال بوابة العيادة (Portal Manager)
-// =========================================================================
-function openPortalSettings() {
-    const currentClinicId = sessionStorage.getItem('clinicId');
-    if (!currentClinicId || currentClinicId === 'default') {
-        alert("لا يمكن إنشاء رابط لعيادة افتراضية. يرجى تسجيل الدخول بحساب عيادة.");
-        return;
-    }
-
-    const portalUrl = `https://nivadent.web.app/portal.html?clinicId=${currentClinicId}`;
-    
-    document.getElementById('clinic_portal_link').value = portalUrl;
-    
-    const qrContainer = document.getElementById('clinic_qr_container');
-    qrContainer.innerHTML = ''; 
-    
-    new QRCode(qrContainer, {
-        text: portalUrl,
-        width: 180,
-        height: 180,
-        colorDark : "#0f172a",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
-    });
-    
-    document.getElementById('clinicPortalModal').style.display = 'flex';
-}
-
-function copyPortalLink() {
-    const linkInput = document.getElementById('clinic_portal_link');
-    linkInput.select();
-    document.execCommand("copy");
-    alert("✅ تم نسخ الرابط بنجاح!");
-}
-
-function printClinicQR() {
-    const qrCanvas = document.querySelector('#clinic_qr_container canvas');
-    if (!qrCanvas) return;
-    
-    const imgData = qrCanvas.toDataURL("image/png");
-    const clinicName = document.getElementById('txt-clinic-name').innerText;
-    
-    const printArea = document.getElementById('portalPrintArea');
-    printArea.innerHTML = `
-        <div style="text-align: center; font-family: 'Tajawal', sans-serif; padding: 40px; border: 4px solid #0284c7; border-radius: 20px; max-width: 500px; margin: 0 auto; background: white;">
-            <h1 style="color: #0284c7; font-size: 36px; margin-bottom: 10px;">${clinicName}</h1>
-            <h2 style="color: #0f172a; margin-top: 0;">بوابة المريض الذكية</h2>
-            <img src="${imgData}" style="width: 250px; height: 250px; margin: 20px 0;">
-            <p style="font-size: 20px; font-weight: bold; color: #d97706;">قم بمسح الكود بكاميرا هاتفك</p>
-            <ul style="text-align: right; font-size: 18px; color: #475569; display: inline-block; padding-right: 20px;">
-                <li style="margin-bottom: 10px;">✅ تابع دورك في الانتظار</li>
-                <li style="margin-bottom: 10px;">✅ احجز موعد جديد بسهولة</li>
-                <li style="margin-bottom: 10px;">✅ راجع حساباتك الطبية</li>
-            </ul>
-        </div>
-    `;
-    
-    document.getElementById('clinicPortalModal').style.display = 'none';
-    printArea.style.display = 'block'; 
-    
-    const style = document.createElement('style');
-    style.id = 'temp-print-style';
-    style.innerHTML = `
-        @media print {
-            body * { visibility: hidden; }
-            #portalPrintArea, #portalPrintArea * { visibility: visible; }
-            #portalPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
-        }
-    `;
-    document.head.appendChild(style);
-
-    setTimeout(() => {
-        window.print();
-        printArea.innerHTML = '';
-        printArea.style.display = 'none';
-        document.head.removeChild(style); 
-    }, 500);
-}
-
-window.openPortalSettings = openPortalSettings;
-window.copyPortalLink = copyPortalLink;
-window.printClinicQR = printClinicQR;
