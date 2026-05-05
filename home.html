@@ -18,7 +18,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
 
     <style>
-        /* 🔴 ستايلات المساعد الذكي Niva AI 🔴 */
         .niva-ai-float-btn {
             position: fixed;
             bottom: 30px;
@@ -115,7 +114,6 @@
             .niva-ai-float-btn { left: 20px; bottom: 20px; width: 50px; height: 50px; font-size: 24px; }
         }
         
-        /* 🔴 تأثير الماوس على اللوجو 🔴 */
         .sidebar-brand { cursor: pointer; transition: 0.3s; }
         .sidebar-brand:hover { opacity: 0.8; transform: translateY(-2px); }
     </style>
@@ -158,6 +156,10 @@
                     <a href="javascript:void(0)"><span class="icon">🤝</span> <span>التعاقدات والخصومات</span></a>
                 </li>
                 
+                <li onclick="loadPage('invoices.html', this)" data-perm="invoices">
+                    <a href="javascript:void(0)"><span class="icon">🧾</span> <span id="nav-invoices">الفواتير</span></a>
+                </li>
+
                 <li onclick="loadPage('finances.html', this)" data-perm="finances">
                     <a href="javascript:void(0)"><span class="icon">💸</span> <span id="nav-finances">الحسابات والماليات</span></a>
                 </li>
