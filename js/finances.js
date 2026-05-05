@@ -1,10 +1,43 @@
 // js/finances.js
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId'); 
+const userRole = sessionStorage.getItem('userRole'); // 🔴 جلب وظيفة الموظف
+const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب فرع الموظف الافتراضي
+
 let allTransactionsForEdit = []; 
 let currentDisplayedData = []; 
-
 let currentUserDisplayName = "مستخدم غير معروف";
+
+// 🔴 دالة لجلب قائمة الفروع (للمدير فقط)
+async function loadBranchesForAdmin() {
+    if (userRole !== 'admin' && userRole !== 'superadmin') return;
+
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", clinicId).get();
+        const filterSelect = document.getElementById('branch-filter');
+        
+        if (!filterSelect) return;
+
+        let optionsHtml = `<option value="all" id="opt-all-branches">كل الفروع</option>`;
+        optionsHtml += `<option value="main">الفرع الرئيسي</option>`;
+
+        snap.forEach(doc => {
+            optionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
+        });
+
+        filterSelect.innerHTML = optionsHtml;
+        document.getElementById('admin-branch-group').style.display = 'block';
+        filterSelect.value = userBranch;
+
+        const lang = localStorage.getItem('preferredLang') || 'ar';
+        if (lang === 'en') {
+            const allOpt = document.getElementById('opt-all-branches');
+            if (allOpt) allOpt.innerText = "All Branches";
+        }
+    } catch (e) {
+        console.error("Error loading branches:", e);
+    }
+}
 
 function updatePageContent(lang) {
     const t = {
@@ -20,7 +53,8 @@ function updatePageContent(lang) {
             catExp1: "مشتريات خامات ومخزون", catExp2: "مصروفات معمل", catExp3: "رواتب ومكافآت", catExp4: "فواتير (كهرباء/إيجار)", catExp5: "مصروفات أخرى",
             bInc: "إيراد", bExp: "مصروف", bDebt: "مديونية", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مطابقة للبحث.",
             lSearch: "بحث بالبيان أو الملاحظات", lType: "النوع", lDateFrom: "من تاريخ", lDateTo: "إلى تاريخ",
-            optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", optDebt: "مديونيات", btnSearch: "🔍 بحث"
+            optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", optDebt: "مديونيات", btnSearch: "🔍 بحث",
+            optAllBranches: "كل الفروع", lblBranch: "فرع العيادة"
         },
         en: {
             title: "Financial & Accounting Center", sub: "Manage treasury, banks, income, expenses, and debts",
@@ -34,7 +68,8 @@ function updatePageContent(lang) {
             catExp1: "Inventory Purchase", catExp2: "Lab Expense", catExp3: "Salaries", catExp4: "Bills (Rent/Utility)", catExp5: "Other Expenses",
             bInc: "Income", bExp: "Expense", bDebt: "Debt", confDel: "Are you sure you want to delete?", empty: "No financial transactions match your search.",
             lSearch: "Search by Details", lType: "Type", lDateFrom: "From Date", lDateTo: "To Date",
-            optAllTypes: "All", optInc: "Income", optExp: "Expense", optDebt: "Debts", btnSearch: "🔍 Search"
+            optAllTypes: "All", optInc: "Income", optExp: "Expense", optDebt: "Debts", btnSearch: "🔍 Search",
+            optAllBranches: "All Branches", lblBranch: "Clinic Branch"
         }
     };
     const c = t[lang] || t.ar;
@@ -51,6 +86,9 @@ function updatePageContent(lang) {
     setTxt('lbl-search', c.lSearch); setTxt('lbl-type', c.lType); setTxt('lbl-date-from', c.lDateFrom); setTxt('lbl-date-to', c.lDateTo);
     setTxt('opt-all-types', c.optAllTypes); setTxt('opt-inc', c.optInc); setTxt('opt-exp', c.optExp); 
     if(document.getElementById('opt-debt')) document.getElementById('opt-debt').innerText = c.optDebt;
+
+    if(document.getElementById('opt-all-branches')) document.getElementById('opt-all-branches').innerText = c.optAllBranches;
+    setTxt('lbl-branch-filter', c.lblBranch);
     
     const searchInput = document.getElementById('search_text');
     if(searchInput) searchInput.placeholder = lang === 'ar' ? "ابحث عن مريض أو ملاحظة..." : "Search patient or note...";
@@ -78,7 +116,6 @@ function setQuickFilter(type) {
     loadFinances();
 }
 
-// 🔴 دالة الضغط على كروت طرق الدفع العلوية 🔴
 function filterByMethodCard(method, element) {
     document.getElementById('filter_method').value = method;
     document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
@@ -90,6 +127,7 @@ function resetFilters() {
     document.getElementById('search_text').value = '';
     document.getElementById('filter_type').value = 'all';
     document.getElementById('filter_method').value = 'all';
+    if(document.getElementById('branch-filter')) document.getElementById('branch-filter').value = userBranch; // Reset Branch
     document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
     setDefaultDates();
     loadFinances();
@@ -104,7 +142,6 @@ function openTransactionModal(type) {
     const select = document.getElementById('trans_category');
     select.innerHTML = '';
     
-    // 🔴 توحيد المسميات المحاسبية لتطابق أرقام الـ ERP الأوتوماتيك 🔴
     if (type === 'income') {
         document.getElementById('modal-title').innerText = window.finLang.mInc;
         select.innerHTML = `
@@ -138,8 +175,16 @@ async function saveTransaction(e) {
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ العملية..." : "Saving transaction...");
 
+    // 🔴 تحديد الـ branchId للمصروف/الإيراد الجديد 🔴
+    let targetBranchId = userBranch;
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        const filterVal = document.getElementById('branch-filter').value;
+        targetBranchId = filterVal === 'all' ? 'main' : filterVal;
+    }
+
     const data = {
         clinicId: clinicId,
+        branchId: targetBranchId, // 🔴 ختم الفرع 🔴
         type: document.getElementById('trans_type').value,
         amount: Number(document.getElementById('trans_amount').value),
         date: document.getElementById('trans_date').value,
@@ -195,7 +240,17 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
+        // 🔴 الكبسولة السحرية للفلترة والعزل (الجدول) 🔴
         let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
+        
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+            finQuery = finQuery.where("branchId", "==", userBranch);
+        } else {
+            const selectedBranch = document.getElementById('branch-filter').value;
+            if (selectedBranch && selectedBranch !== 'all') {
+                finQuery = finQuery.where("branchId", "==", selectedBranch);
+            }
+        }
         
         if (dateFrom) finQuery = finQuery.where("date", ">=", dateFrom);
         if (dateTo) finQuery = finQuery.where("date", "<=", dateTo);
@@ -224,11 +279,23 @@ async function loadFinances() {
     }
 }
 
-// 🔴 حساب الرصيد الصافي (يتم استبعاد الديون لإنها ورق مش فلوس حقيقية في الدرج) 🔴
+// 🔴 حساب الرصيد الصافي مع العزل 🔴
 async function calculateOverallBalances() {
     if (!clinicId) return;
     try {
-        const snap = await db.collection("Finances").where("clinicId", "==", clinicId).get();
+        // 🔴 الكبسولة السحرية للفلترة والعزل (الأرصدة) 🔴
+        let balQuery = db.collection("Finances").where("clinicId", "==", clinicId);
+        
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+            balQuery = balQuery.where("branchId", "==", userBranch);
+        } else {
+            const selectedBranch = document.getElementById('branch-filter').value;
+            if (selectedBranch && selectedBranch !== 'all') {
+                balQuery = balQuery.where("branchId", "==", selectedBranch);
+            }
+        }
+
+        const snap = await balQuery.get();
         let netCash = 0, netWallet = 0, netBank = 0;
 
         snap.forEach(doc => {
@@ -236,7 +303,6 @@ async function calculateOverallBalances() {
             const method = d.paymentMethod || 'cash';
             const amt = Number(d.amount) || 0;
 
-            // استبعاد تام للديون من حسبة الخزنة الفعلية
             if (d.type === 'income') {
                 if (method === 'cash') netCash += amt;
                 else if (method === 'wallet') netWallet += amt;
@@ -371,7 +437,7 @@ function renderFinancesTable(dataArray) {
     }
 }
 
-// 🔴 دالة تقفيل الشيفت (طباعة ريسيت يومية الكاشير) 🔴
+// 🔴 دالة تقفيل الشيفت (الطباعة مع العزل) 🔴
 async function printShiftClosure() {
     const today = new Date().toISOString().split('T')[0];
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -379,10 +445,27 @@ async function printShiftClosure() {
     if (window.showLoader) window.showLoader(isAr ? "جاري تجميع حركات الدرج..." : "Calculating shift...");
 
     try {
-        const snap = await db.collection("Finances")
+        // 🔴 الكبسولة السحرية للفلترة والعزل (تقفيل الشيفت) 🔴
+        let shiftQuery = db.collection("Finances")
             .where("clinicId", "==", clinicId)
-            .where("date", "==", today)
-            .get();
+            .where("date", "==", today);
+
+        let printedBranchName = isAr ? "الفرع الرئيسي" : "Main Branch";
+
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+            shiftQuery = shiftQuery.where("branchId", "==", userBranch);
+        } else {
+            const selectedBranch = document.getElementById('branch-filter').value;
+            if (selectedBranch && selectedBranch !== 'all') {
+                shiftQuery = shiftQuery.where("branchId", "==", selectedBranch);
+                const selectElement = document.getElementById('branch-filter');
+                printedBranchName = selectElement.options[selectElement.selectedIndex].text;
+            } else {
+                printedBranchName = isAr ? "كل الفروع" : "All Branches";
+            }
+        }
+
+        const snap = await shiftQuery.get();
 
         let shiftCashIn = 0;
         let shiftCashOut = 0;
@@ -402,6 +485,7 @@ async function printShiftClosure() {
 
         document.getElementById('sh-date').innerText = new Date().toLocaleString('ar-EG');
         document.getElementById('sh-user').innerText = currentUserDisplayName;
+        document.getElementById('sh-branch').innerText = printedBranchName; // 🔴 وضع اسم الفرع في الريسيت
         document.getElementById('sh-income').innerText = shiftCashIn + (isAr ? ' ج.م' : ' EGP');
         document.getElementById('sh-expense').innerText = shiftCashOut + (isAr ? ' ج.م' : ' EGP');
         document.getElementById('sh-net').innerText = shiftNet + (isAr ? ' ج.م' : ' EGP');
@@ -484,7 +568,8 @@ window.onload = () => {
                 }
             } catch(e) { console.error("Error fetching user name"); }
             
-            loadFinances(); 
+            await loadBranchesForAdmin(); // 🔴 جلب الفروع أولاً 
+            loadFinances(); // 🔴 جلب الماليات بعد تحديد الفرع
         }
     });
 };
