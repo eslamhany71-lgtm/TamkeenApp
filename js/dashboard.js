@@ -536,7 +536,8 @@ function populateModalDoctors() {
 
     allClinicDoctors.forEach(d => {
         if (targetBranch === 'all' || d.branchId === targetBranch || d.branchId === 'main') {
-            docSelect.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
+            // 🔴 تم التصحيح هنا: d.id بدلاً من doc.id 🔴
+            docSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
         }
     });
 }
