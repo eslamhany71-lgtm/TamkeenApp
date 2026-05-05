@@ -95,11 +95,14 @@ async function loginById() {
         
         const userData = userDoc.data();
         const targetClinicId = userData.clinicId || 'default';
-        const targetBranchId = userData.branchId || 'main'; // 🔴 سحب الفرع من ملف الموظف 🔴
+        const targetBranchId = userData.branchId || 'main'; // 🔴 سحب الفرع
         const finalRole = userData.role;
+        // 🔴 سحب الصلاحيات (الـ Permissions) اللي سجلناها في HR
+        const userPermissions = userData.permissions || {}; 
+
         if(rawInput.includes('@')) usedCode = userData.empCode || rawInput;
 
-        // 🔴 حماية الدخول لو الحساب موقوف إدارياً 🔴
+        // 🔴 حماية الدخول لو الحساب موقوف إدارياً
         if (targetClinicId !== 'default' && finalRole !== 'superadmin') {
             const clinicDoc = await db.collection("Clinics").doc(targetClinicId).get();
             if (clinicDoc.exists) {
@@ -120,7 +123,10 @@ async function loginById() {
         sessionStorage.setItem('userRole', finalRole);
         sessionStorage.setItem('empCode', usedCode);
         sessionStorage.setItem('clinicId', targetClinicId);
-        sessionStorage.setItem('branchId', targetBranchId); // 🔴 تخزين الفرع
+        sessionStorage.setItem('branchId', targetBranchId);
+        
+        // 🔴 تخزين أوبجكت الصلاحيات كـ Text عشان نقرأه في الـ Home
+        sessionStorage.setItem('userPermissions', JSON.stringify(userPermissions));
         
         window.location.href = "home.html"; 
 
@@ -208,7 +214,9 @@ async function registerTrialAccount(e) {
             empCode: 'TRIAL-ADMIN', 
             email: actualEmail,
             clinicId: newClinicId,
-            branchId: 'main', // 🔴 أدمن التجريبي بينزل أوتوماتيك عالفرع الرئيسي
+            branchId: 'main', 
+            // أدمن العيادة بياخد كل الصلاحيات بشكل افتراضي
+            permissions: { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true },
             isOnline: true,
             lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -217,7 +225,8 @@ async function registerTrialAccount(e) {
         sessionStorage.setItem('userRole', 'admin');
         sessionStorage.setItem('empCode', 'TRIAL-ADMIN');
         sessionStorage.setItem('clinicId', newClinicId);
-        sessionStorage.setItem('branchId', 'main'); // 🔴
+        sessionStorage.setItem('branchId', 'main');
+        sessionStorage.setItem('userPermissions', JSON.stringify({ patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true }));
 
         if (window.hideLoader) window.hideLoader();
         alert(`✅ مبروك يا ${adminName}!\nتم تفعيل العيادة بنجاح. فترة التجربة هتنتهي يوم ${expirationDate.toLocaleDateString('ar-EG')}`);
@@ -293,15 +302,22 @@ async function activateStaffAccount(e) {
         await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
         await auth.createUserWithEmailAndPassword(newEmail, newPassword);
 
-        // 🔴 زرع الفرع المتربط بكود الدعوة جوه ملف الموظف 🔴
         const assignedBranch = inviteData.branchId || 'main';
+        
+        // 🔴 توفير صلاحيات افتراضية حسب وظيفته في كود الدعوة 🔴
+        let defaultPerms = {};
+        if (inviteData.role === 'admin') defaultPerms = { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true };
+        else if (inviteData.role === 'doctor') defaultPerms = { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
+        else if (inviteData.role === 'receptionist') defaultPerms = { patients: true, calendar: true, finances: true, inventory: false, reports: false, settings: false };
+        else defaultPerms = { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false }; // nurse
 
         await db.collection("Users").doc(newEmail).set({
             name: inviteData.name,
             email: newEmail,
             role: inviteData.role, 
             clinicId: inviteData.clinicId,
-            branchId: assignedBranch, // 🔴 تم الحفظ بنجاح
+            branchId: assignedBranch, 
+            permissions: defaultPerms, // 🔴 حفظ الصلاحيات الافتراضية
             empCode: inviteCode,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             isOnline: true,
@@ -317,7 +333,8 @@ async function activateStaffAccount(e) {
         sessionStorage.setItem('userRole', inviteData.role);
         sessionStorage.setItem('empCode', inviteCode);
         sessionStorage.setItem('clinicId', inviteData.clinicId);
-        sessionStorage.setItem('branchId', assignedBranch); // 🔴
+        sessionStorage.setItem('branchId', assignedBranch); 
+        sessionStorage.setItem('userPermissions', JSON.stringify(defaultPerms));
 
         if (window.hideLoader) window.hideLoader();
         alert(`✅ تم تفعيل الحساب بنجاح يا ${inviteData.name}!\nجاري تحويلك للعيادة...`);
@@ -437,7 +454,8 @@ async function activateAccount() {
             empCode: codeRaw, 
             email: realEmail,
             clinicId: empData.clinicId || 'default',
-            branchId: 'main' // 🔴 صاحب العيادة/الأدمن الرئيسي بينزل على الفرع الرئيسي تلقائي 🔴
+            branchId: 'main',
+            permissions: { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true }
         });
 
         await db.collection("clinicId").doc(codeRaw).update({ 
