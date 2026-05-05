@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('niva_theme') || 'light';
     applyTheme(savedTheme);
 
-    // 🔴 تفعيل التثبيت المحفوظ للقائمة الجانبية 🔴
     if (localStorage.getItem('sidebarPinned') === 'true' && window.innerWidth > 992) {
         document.body.classList.add('sidebar-pinned');
     }
@@ -139,47 +138,49 @@ function updatePageContent(lang) {
     window.homeLang = c;
 }
 
-// 🔴 تطبيق الصلاحيات بشكل ديناميكي (Role-Based Access Control) 🔴
-function applyRoles(role) {
-    const r = role.toLowerCase();
+// =========================================================================
+// 🔴 تطبيق الصلاحيات الديناميكي المركزي (RBAC) 🔴
+// =========================================================================
+function getDefaultPermissions(role) {
+    if (role === 'admin' || role === 'superadmin') return { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true };
+    if (role === 'doctor') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
+    if (role === 'receptionist') return { patients: true, calendar: true, finances: true, inventory: false, reports: false, settings: false };
+    if (role === 'nurse') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
+    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false }; // other
+}
+
+function applyPermissions(perms, role) {
+    // 1. السوبر أدمن الوحيد اللي بيشوف إدارته
+    const superAdminLi = document.getElementById('nav-super-admin') || document.getElementById('nav-super-admin-li');
+    if (superAdminLi) {
+        superAdminLi.style.display = (role === 'superadmin') ? 'block' : 'none';
+    }
     
-    // جلب عناصر القائمة من شاشة home.html (تأكد من مطابقة الـ id مع الـ HTML لديك)
-    const settingsLi = document.getElementById('nav-settings-li');
-    const superAdminLi = document.getElementById('nav-super-admin-li') || document.getElementById('nav-super-admin');
-    const financesLi = document.getElementById('nav-finances-li') || document.getElementById('nav-item-finances');
-    const inventoryLi = document.getElementById('nav-inventory-li') || document.getElementById('nav-item-inventory'); 
-    const reportsLi = document.getElementById('nav-reports-li') || document.getElementById('nav-item-reports');
-    const hrLi = document.getElementById('nav-hr-li') || document.getElementById('nav-item-hr');
+    // لو هو سوبر أدمن، سيبه يشوف الباقي كله
+    if (role === 'superadmin') return;
 
-    // 1. الإخفاء الافتراضي للأشياء الحساسة
-    if (settingsLi) settingsLi.style.display = 'none';
-    if (superAdminLi) superAdminLi.style.display = 'none';
-    if (reportsLi) reportsLi.style.display = 'none';
-    if (hrLi) hrLi.style.display = 'none';
+    // 2. إخفاء أو إظهار الزراير بناءً على الأوبجكت
+    const restrictedItems = document.querySelectorAll('li[data-perm]');
+    restrictedItems.forEach(item => {
+        const permKey = item.getAttribute('data-perm');
+        if (perms[permKey] === false) {
+            item.style.display = 'none';
+        } else {
+            item.style.display = 'block';
+        }
+    });
 
-    // 2. توزيع الصلاحيات الفعلية
-    if (r === 'nurse') {
-        // الممرضة لا ترى الحسابات
-        if (financesLi) financesLi.style.display = 'none';
-    } 
-    else if (r === 'receptionist') {
-        // الاستقبال يرى الحسابات لكن لا يرى التقارير والـ HR
-        if (financesLi) financesLi.style.display = 'block';
-    } 
-    else if (r === 'doctor' || r === 'admin') {
-        // المدير يرى كل شيء داخل العيادة
-        if (settingsLi) settingsLi.style.display = 'block';
-        if (reportsLi) reportsLi.style.display = 'block';
-        if (hrLi) hrLi.style.display = 'block';
-        if (financesLi) financesLi.style.display = 'block';
-    } 
-    else if (r === 'superadmin') {
-        // السوبر أدمن
-        if (superAdminLi) superAdminLi.style.display = 'block';
-        if (settingsLi) settingsLi.style.display = 'block';
+    // 3. إخفاء زراير المالية في الذكاء الاصطناعي لو مفيش صلاحية تقارير
+    if (perms.reports === false) {
+        document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'none');
+    } else {
+        document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'inline-block');
     }
 }
 
+// =========================================================================
+// 🔴 تهيئة النظام وتأمين الدخول 🔴
+// =========================================================================
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -195,23 +196,38 @@ firebase.auth().onAuthStateChanged(async (user) => {
 
                 sessionStorage.setItem('clinicId', clinicId);
 
-                // 🔴 تطبيق الصلاحيات 🔴
-                applyRoles(role);
+                // 🔴 استخراج الصلاحيات أو توليدها للموظفين القدامى (Fallback) 🔴
+                let userPermissions = userData.permissions;
+                if (!userPermissions) {
+                    userPermissions = getDefaultPermissions(role);
+                    // تحديثها في السيرفر عشان تفضل مسجلة
+                    db.collection("Users").doc(user.email).update({ permissions: userPermissions }).catch(e=>{});
+                }
+                sessionStorage.setItem('userPermissions', JSON.stringify(userPermissions));
+
+                // 🔴 تطبيق الصلاحيات على الواجهة فوراً 🔴
+                applyPermissions(userPermissions, role);
                 loadClinicBranding(clinicId);
                 
                 if(role !== 'superadmin' && clinicId !== 'default') {
                     checkSubscriptionAlert(clinicId);
                 }
 
+                // التوجيه الذكي
                 const lastPage = sessionStorage.getItem('lastOpenedPage');
                 const lastNavId = sessionStorage.getItem('lastActiveNavId');
                 
-                if (lastPage) {
-                    const navLi = lastNavId ? document.getElementById(lastNavId) : null;
-                    loadPage(lastPage, navLi);
-                } else {
-                    loadPage('dashboard.html', document.getElementById('nav-item-dash'));
+                // حماية إضافية لو كان فاتح صفحة مش من حقه يشوفها
+                let pageToLoad = lastPage || 'dashboard.html';
+                let navToClick = lastNavId ? document.getElementById(lastNavId) : document.getElementById('nav-item-dash');
+
+                if (navToClick && navToClick.style.display === 'none') {
+                    // لو الشاشة دي مخفية عنه، رجعه للداشبورد أو المرضى
+                    pageToLoad = 'dashboard.html';
+                    navToClick = document.getElementById('nav-item-dash');
                 }
+
+                loadPage(pageToLoad, navToClick);
             }
         } catch (error) {
             console.error("خطأ في جلب بيانات المستخدم:", error);
@@ -224,7 +240,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
 });
 
 // =========================================================================
-// 🔴 الرادار الذكي (Smart Presence) - يعيش في الصدفة الرئيسية فقط 🔴
+// الرادار الذكي (Smart Presence) - يعيش في الصدفة الرئيسية فقط
 // =========================================================================
 const IDLE_TIMEOUT_MINUTES = 30; 
 const OFFLINE_MARK_MINUTES = 15; 
@@ -287,7 +303,7 @@ setInterval(() => {
 }, 60000);
 
 // =========================================================================
-// 🔴 حارس الاشتراكات والفترة التجريبية (Subscription Validator) 🔴
+// حارس الاشتراكات والفترة التجريبية (Subscription Validator)
 // =========================================================================
 async function checkSubscriptionAlert(clinicId) {
     try {
@@ -296,13 +312,11 @@ async function checkSubscriptionAlert(clinicId) {
                 const cData = clinicDoc.data();
                 const now = new Date();
                 
-                // 1. لو الحساب موقوف إدارياً من قبلك (Super Admin)
                 if (cData.status === 'suspended') {
                     showPaywallBlocker("تم إيقاف الحساب", "عفواً، تم إيقاف حساب عيادتك إدارياً. يرجى التواصل مع الدعم الفني للاستفسار.");
                     return;
                 }
 
-                // 2. فحص تاريخ الانتهاء (سواء فترة تجريبية أو اشتراك)
                 let expireDate = null;
                 if (cData.nextPaymentDate) {
                     expireDate = typeof cData.nextPaymentDate.toDate === 'function' ? cData.nextPaymentDate.toDate() : new Date(cData.nextPaymentDate);
@@ -312,7 +326,6 @@ async function checkSubscriptionAlert(clinicId) {
 
                 if (expireDate) {
                     if (now > expireDate) {
-                        // 🔴 لو الوقت خلص والحالة مش "منتهي"، بنحدث الداتا بيز 🔴
                         if (cData.status !== 'expired') {
                             await db.collection("Clinics").doc(clinicId).update({
                                 status: 'expired',
@@ -323,7 +336,6 @@ async function checkSubscriptionAlert(clinicId) {
                     } 
                     else {
                         hidePaywallBlocker();
-                        // حساب الأيام المتبقية للتنبيه
                         const diffTime = expireDate - now;
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
@@ -480,7 +492,6 @@ window.addEventListener('click', function(event) {
 // =========================================================================
 // المساعد الذكي Niva AI
 // =========================================================================
-
 function toggleAIPanel() {
     const panel = document.getElementById('niva-ai-panel');
     const triggerBtn = document.getElementById('niva-btn-trigger');
@@ -621,9 +632,8 @@ async function askAI(promptType) {
 }
 
 // =========================================================================
-// 🟢 الإضافة الجديدة: دوال بوابة العيادة (Portal Manager) 🟢
+// دوال بوابة العيادة (Portal Manager)
 // =========================================================================
-
 function openPortalSettings() {
     const currentClinicId = sessionStorage.getItem('clinicId');
     if (!currentClinicId || currentClinicId === 'default') {
