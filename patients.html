@@ -25,12 +25,15 @@
         .btn-excel { background: #10b981; color: white; padding: 10px 15px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; transition: 0.3s; }
         .btn-excel:hover { background: #059669; }
 
-        /* 🔴 ستايل زرار الكاميرا 🔴 */
         .btn-qr { background: #f8fafc; border: 1px solid #cbd5e1; color: #0f172a; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
         .btn-qr:hover { background: #e2e8f0; border-color: #94a3b8; }
         
         #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 15px; border: 2px solid #e2e8f0; }
         #reader video { border-radius: 12px; object-fit: cover; }
+
+        /* 🔴 ستايل فلتر الفروع (يدعم الدارك مود) 🔴 */
+        .branch-filter-select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-family: inherit; font-weight: bold; outline: none; cursor: pointer; }
+        [data-theme="dark"] .branch-filter-select { background: #1e293b; border-color: #334155; color: #f8fafc; }
     </style>
 </head>
 <body>
@@ -41,6 +44,11 @@
             <p id="txt-subtitle">قائمة المرضى المسجلين بالعيادة والتاريخ الطبي</p>
         </div>
         <div class="header-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            
+            <select id="branch-filter" class="branch-filter-select" style="display: none;" onchange="loadPatients()">
+                <option value="all" id="opt-all-branches">كل الفروع</option>
+                </select>
+
             <div style="display: flex; gap: 5px; flex: 1; min-width: 250px;">
                 <input type="text" id="searchInput" class="search-box" oninput="filterPatientsLocally()" placeholder="بحث بالاسم أو رقم الموبايل..." style="flex: 1;">
                 <button class="btn-primary" onclick="searchPatients()" id="btn-do-search" style="padding: 10px 15px; border-radius: 8px;">🔍 بحث دقيق</button>
@@ -102,6 +110,11 @@
                 <div class="form-group" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
                     <label style="color: #0284c7; margin-bottom: 5px;">تاريخ تسجيل الملف (افتراضي: اليوم)</label>
                     <input type="date" id="p_date" required>
+                </div>
+
+                <div class="form-group" id="admin-branch-group" style="display: none;">
+                    <label id="lbl-p-branch" style="color: #8b5cf6;">الفرع التابع له المريض</label>
+                    <select id="p_branch" class="branch-filter-select" style="width: 100%; border-radius: 6px;"></select>
                 </div>
 
                 <div class="form-group">
