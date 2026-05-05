@@ -5,73 +5,58 @@ const SMART_VERSION = Math.floor(Date.now() / 3600000);
 function applyTheme(themeName) {
     document.body.setAttribute('data-theme', themeName);
     localStorage.setItem('niva_theme', themeName);
-    
     const themeBtn = document.getElementById('btn-theme');
-    if (themeName === 'dark') {
-        themeBtn.innerText = '☀️';
-        themeBtn.title = 'الوضع الفاتح';
-    } else {
-        themeBtn.innerText = '🌙';
-        themeBtn.title = 'الوضع الليلي';
+    if (themeName === 'dark') { 
+        themeBtn.innerText = '☀️'; 
+        themeBtn.title = 'الوضع الفاتح'; 
+    } else { 
+        themeBtn.innerText = '🌙'; 
+        themeBtn.title = 'الوضع الليلي'; 
     }
-
     const frame = document.getElementById('content-frame');
-    if (frame && frame.contentWindow) {
-        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: themeName }, '*');
+    if (frame && frame.contentWindow) { 
+        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: themeName }, '*'); 
     }
 }
 
 function toggleTheme() {
     const currentTheme = document.body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    applyTheme(newTheme);
+    applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const savedTheme = localStorage.getItem('niva_theme') || 'light';
-    applyTheme(savedTheme);
-
-    if (localStorage.getItem('sidebarPinned') === 'true' && window.innerWidth > 992) {
-        document.body.classList.add('sidebar-pinned');
+    applyTheme(localStorage.getItem('niva_theme') || 'light');
+    if (localStorage.getItem('sidebarPinned') === 'true' && window.innerWidth > 992) { 
+        document.body.classList.add('sidebar-pinned'); 
     }
-
     let overlay = document.createElement('div');
-    overlay.id = 'mobile-overlay';
-    overlay.className = 'mobile-overlay';
+    overlay.id = 'mobile-overlay'; 
+    overlay.className = 'mobile-overlay'; 
     overlay.onclick = toggleSidebar; 
     document.body.appendChild(overlay);
 });
 
 function loadPage(pageUrl, clickedLi) {
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فتح الصفحة..." : "Loading page...");
-    
-    let finalUrl = pageUrl.includes('?') 
-        ? `${pageUrl}&v=${SMART_VERSION}` 
-        : `${pageUrl}?v=${SMART_VERSION}`;
-
+    let finalUrl = pageUrl.includes('?') ? `${pageUrl}&v=${SMART_VERSION}` : `${pageUrl}?v=${SMART_VERSION}`;
     const frame = document.getElementById('content-frame');
     frame.src = finalUrl;
     
     frame.onload = function() {
         if (window.hideLoader) window.hideLoader();
-        const currentTheme = document.body.getAttribute('data-theme');
-        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: currentTheme }, '*');
+        frame.contentWindow.postMessage({ type: 'THEME_CHANGE', theme: document.body.getAttribute('data-theme') }, '*');
     };
     
     sessionStorage.setItem('lastOpenedPage', pageUrl);
 
     if (clickedLi) {
-        const allLinks = document.querySelectorAll('#nav-links li');
-        allLinks.forEach(li => li.classList.remove('active'));
+        document.querySelectorAll('#nav-links li').forEach(li => li.classList.remove('active'));
         clickedLi.classList.add('active');
-        if(clickedLi.id) {
-            sessionStorage.setItem('lastActiveNavId', clickedLi.id);
-        }
+        if(clickedLi.id) sessionStorage.setItem('lastActiveNavId', clickedLi.id);
     } else {
         const lastNavId = sessionStorage.getItem('lastActiveNavId');
         if (lastNavId) {
-            const allLinks = document.querySelectorAll('#nav-links li');
-            allLinks.forEach(li => li.classList.remove('active'));
+            document.querySelectorAll('#nav-links li').forEach(li => li.classList.remove('active'));
             const activeLi = document.getElementById(lastNavId);
             if(activeLi) activeLi.classList.add('active');
         }
@@ -88,9 +73,7 @@ function switchAppLanguage(lang) {
     setLanguage(lang); 
     updatePageContent(lang); 
     const frame = document.getElementById('content-frame');
-    if(frame.contentWindow) {
-        frame.contentWindow.location.reload();
-    }
+    if(frame.contentWindow) frame.contentWindow.location.reload();
 }
 
 function updatePageContent(lang) {
@@ -139,39 +122,34 @@ function updatePageContent(lang) {
 }
 
 // =========================================================================
-// 🔴 تطبيق الصلاحيات الديناميكي المركزي (RBAC) 🔴
+// 🔴 تطبيق الصلاحيات الصارم (Deny by Default) 🔴
 // =========================================================================
 function getDefaultPermissions(role) {
-    if (role === 'admin' || role === 'superadmin') return { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true };
-    if (role === 'doctor') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
-    if (role === 'receptionist') return { patients: true, calendar: true, finances: true, inventory: false, reports: false, settings: false };
-    if (role === 'nurse') return { patients: true, calendar: true, finances: false, inventory: true, reports: false, settings: false };
-    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false }; // other
+    const allOn = { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
+    if (role === 'admin' || role === 'superadmin') return allOn;
+    if (role === 'doctor') return { ...allOn, finances: false, reports: false, settings: false, hr: false, branches: false };
+    if (role === 'receptionist') return { ...allOn, reports: false, settings: false, hr: false, branches: false, inventory: false };
+    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false };
 }
 
 function applyPermissions(perms, role) {
-    // 1. السوبر أدمن الوحيد اللي بيشوف إدارته
     const superAdminLi = document.getElementById('nav-super-admin') || document.getElementById('nav-super-admin-li');
-    if (superAdminLi) {
-        superAdminLi.style.display = (role === 'superadmin') ? 'block' : 'none';
-    }
+    if (superAdminLi) superAdminLi.style.display = (role === 'superadmin') ? 'block' : 'none';
     
-    // لو هو سوبر أدمن، سيبه يشوف الباقي كله
     if (role === 'superadmin') return;
 
-    // 2. إخفاء أو إظهار الزراير بناءً على الأوبجكت
     const restrictedItems = document.querySelectorAll('li[data-perm]');
     restrictedItems.forEach(item => {
         const permKey = item.getAttribute('data-perm');
-        if (perms[permKey] === false) {
+        // 🔴 السحر هنا: لو الصلاحية مش True صريحة في الفايربيز، الزرار هيختفي فوراً 🔴
+        if (!perms || perms[permKey] !== true) {
             item.style.display = 'none';
         } else {
             item.style.display = 'block';
         }
     });
 
-    // 3. إخفاء زراير المالية في الذكاء الاصطناعي لو مفيش صلاحية تقارير
-    if (perms.reports === false) {
+    if (!perms || perms.reports !== true) {
         document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'none');
     } else {
         document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'inline-block');
@@ -179,12 +157,11 @@ function applyPermissions(perms, role) {
 }
 
 // =========================================================================
-// 🔴 تهيئة النظام وتأمين الدخول 🔴
+// تهيئة النظام وتأمين الدخول
 // =========================================================================
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
-
         if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تهيئة النظام..." : "Initializing...");
 
         try {
@@ -193,19 +170,16 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 const userData = userDoc.data();
                 const role = userData.role || 'reception';
                 const clinicId = userData.clinicId || sessionStorage.getItem('clinicId') || 'default';
-
                 sessionStorage.setItem('clinicId', clinicId);
 
-                // 🔴 استخراج الصلاحيات أو توليدها للموظفين القدامى (Fallback) 🔴
+                // سحب الصلاحيات أو توليدها للموظفين القدامى
                 let userPermissions = userData.permissions;
                 if (!userPermissions) {
                     userPermissions = getDefaultPermissions(role);
-                    // تحديثها في السيرفر عشان تفضل مسجلة
                     db.collection("Users").doc(user.email).update({ permissions: userPermissions }).catch(e=>{});
                 }
                 sessionStorage.setItem('userPermissions', JSON.stringify(userPermissions));
 
-                // 🔴 تطبيق الصلاحيات على الواجهة فوراً 🔴
                 applyPermissions(userPermissions, role);
                 loadClinicBranding(clinicId);
                 
@@ -213,16 +187,14 @@ firebase.auth().onAuthStateChanged(async (user) => {
                     checkSubscriptionAlert(clinicId);
                 }
 
-                // التوجيه الذكي
+                // التوجيه الذكي الآمن
                 const lastPage = sessionStorage.getItem('lastOpenedPage');
                 const lastNavId = sessionStorage.getItem('lastActiveNavId');
                 
-                // حماية إضافية لو كان فاتح صفحة مش من حقه يشوفها
                 let pageToLoad = lastPage || 'dashboard.html';
                 let navToClick = lastNavId ? document.getElementById(lastNavId) : document.getElementById('nav-item-dash');
 
                 if (navToClick && navToClick.style.display === 'none') {
-                    // لو الشاشة دي مخفية عنه، رجعه للداشبورد أو المرضى
                     pageToLoad = 'dashboard.html';
                     navToClick = document.getElementById('nav-item-dash');
                 }
@@ -240,7 +212,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
 });
 
 // =========================================================================
-// الرادار الذكي (Smart Presence) - يعيش في الصدفة الرئيسية فقط
+// الرادار الذكي (Smart Presence)
 // =========================================================================
 const IDLE_TIMEOUT_MINUTES = 30; 
 const OFFLINE_MARK_MINUTES = 15; 
@@ -250,53 +222,51 @@ function updateUserPresence(isOnlineStatus) {
     const user = firebase.auth().currentUser;
     if (user) {
         const docId = user.email || user.uid; 
-        db.collection("Users").doc(docId).set({
-            isOnline: isOnlineStatus,
-            lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+        db.collection("Users").doc(docId).set({ 
+            isOnline: isOnlineStatus, 
+            lastSeen: firebase.firestore.FieldValue.serverTimestamp() 
         }, { merge: true }).catch(()=>{});
     }
 }
 
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        currentPresenceStatus = "online";
-        updateUserPresence(true);
-    } else if (document.visibilityState === 'hidden') {
-        currentPresenceStatus = "offline";
-        updateUserPresence(false);
+    if (document.visibilityState === 'visible') { 
+        currentPresenceStatus = "online"; 
+        updateUserPresence(true); 
+    } else if (document.visibilityState === 'hidden') { 
+        currentPresenceStatus = "offline"; 
+        updateUserPresence(false); 
     }
 });
 
 function updateLastActiveTime() {
     localStorage.setItem('lastActiveNiva', Date.now());
-    if (currentPresenceStatus === "offline" && firebase.auth().currentUser) {
-        currentPresenceStatus = "online";
-        updateUserPresence(true);
+    if (currentPresenceStatus === "offline" && firebase.auth().currentUser) { 
+        currentPresenceStatus = "online"; 
+        updateUserPresence(true); 
     }
 }
 
-document.onmousemove = updateLastActiveTime;
-document.onkeypress = updateLastActiveTime;
+document.onmousemove = updateLastActiveTime; 
+document.onkeypress = updateLastActiveTime; 
 document.ontouchstart = updateLastActiveTime;
 
 setInterval(() => {
     const lastActive = localStorage.getItem('lastActiveNiva');
     if (lastActive && firebase.auth().currentUser) {
         const diffMinutes = (Date.now() - Number(lastActive)) / (1000 * 60);
-
         if (diffMinutes >= IDLE_TIMEOUT_MINUTES) {
             if(firebase.auth().currentUser) {
                 updateUserPresence(false);
                 firebase.auth().signOut().then(() => {
-                    sessionStorage.clear();
+                    sessionStorage.clear(); 
                     localStorage.removeItem('lastActiveNiva');
-                    alert("🔒 تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة).");
+                    alert("🔒 تم تسجيل الخروج تلقائياً لعدم الاستخدام لفترة طويلة (حماية لبيانات العيادة)."); 
                     window.top.location.href = 'index.html';
                 });
             }
-        } 
-        else if (diffMinutes >= OFFLINE_MARK_MINUTES && currentPresenceStatus === "online") {
-            currentPresenceStatus = "offline";
+        } else if (diffMinutes >= OFFLINE_MARK_MINUTES && currentPresenceStatus === "online") {
+            currentPresenceStatus = "offline"; 
             updateUserPresence(false);
         }
     }
@@ -312,35 +282,32 @@ async function checkSubscriptionAlert(clinicId) {
                 const cData = clinicDoc.data();
                 const now = new Date();
                 
-                if (cData.status === 'suspended') {
-                    showPaywallBlocker("تم إيقاف الحساب", "عفواً، تم إيقاف حساب عيادتك إدارياً. يرجى التواصل مع الدعم الفني للاستفسار.");
-                    return;
+                if (cData.status === 'suspended') { 
+                    showPaywallBlocker("تم إيقاف الحساب", "عفواً، تم إيقاف حساب عيادتك إدارياً. يرجى التواصل مع الدعم الفني للاستفسار."); 
+                    return; 
                 }
-
+                
                 let expireDate = null;
                 if (cData.nextPaymentDate) {
                     expireDate = typeof cData.nextPaymentDate.toDate === 'function' ? cData.nextPaymentDate.toDate() : new Date(cData.nextPaymentDate);
                 } else if (cData.trialEndDate) {
                     expireDate = typeof cData.trialEndDate.toDate === 'function' ? cData.trialEndDate.toDate() : new Date(cData.trialEndDate);
                 }
-
+                
                 if (expireDate) {
                     if (now > expireDate) {
-                        if (cData.status !== 'expired') {
-                            await db.collection("Clinics").doc(clinicId).update({
-                                status: 'expired',
-                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
+                        if (cData.status !== 'expired') { 
+                            await db.collection("Clinics").doc(clinicId).update({ 
+                                status: 'expired', 
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+                            }); 
                         }
-                        showPaywallBlocker("انتهى الاشتراك", "عفواً، لقد انتهت فترة تجربتك المجانية أو اشتراكك. برجاء التواصل مع الدعم لتجديد الباقة.");
-                    } 
-                    else {
+                        showPaywallBlocker("انتهى الاشتراك", "عفواً، لقد انتهت فترة تجربتك المجانية أو اشتراكك.");
+                    } else {
                         hidePaywallBlocker();
-                        const diffTime = expireDate - now;
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
+                        const diffDays = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24)); 
                         if (diffDays >= 0 && diffDays <= 3) {
-                            showBillingAlert(diffDays);
+                            showBillingAlert(diffDays); 
                         } else {
                             hideBillingAlert(); 
                         }
@@ -348,171 +315,137 @@ async function checkSubscriptionAlert(clinicId) {
                 }
             }
         });
-    } catch (error) {
-        console.error("خطأ في فحص الاشتراك:", error);
+    } catch (error) { 
+        console.error("خطأ في فحص الاشتراك:", error); 
     }
 }
 
 function showPaywallBlocker(title, message) {
     let blocker = document.getElementById('paywall-blocker');
     if (!blocker) {
-        blocker = document.createElement('div');
+        blocker = document.createElement('div'); 
         blocker.id = 'paywall-blocker';
         blocker.style.cssText = "position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); color: white; text-align: center; direction: rtl; padding: 20px;";
         document.body.appendChild(blocker);
     }
-    
-    blocker.innerHTML = `
-        <div style="background: white; color: #0f172a; padding: 40px; border-radius: 20px; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
-            <div style="font-size: 50px; margin-bottom: 15px;">⚠️</div>
-            <h2 style="margin: 0 0 15px 0; font-size: 24px; color: #dc2626; font-weight: 900;">${title}</h2>
-            <p style="margin: 0 0 25px 0; color: #475569; line-height: 1.6; font-size: 16px;">${message}</p>
-            <button onclick="firebase.auth().signOut().then(() => { sessionStorage.clear(); window.location.href = 'index.html'; })" style="background: #dc2626; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">
-                تسجيل الخروج
-            </button>
-        </div>
-    `;
+    blocker.innerHTML = `<div style="background: white; color: #0f172a; padding: 40px; border-radius: 20px; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);"><div style="font-size: 50px; margin-bottom: 15px;">⚠️</div><h2 style="margin: 0 0 15px 0; font-size: 24px; color: #dc2626; font-weight: 900;">${title}</h2><p style="margin: 0 0 25px 0; color: #475569; line-height: 1.6; font-size: 16px;">${message}</p><button onclick="firebase.auth().signOut().then(() => { sessionStorage.clear(); window.location.href = 'index.html'; })" style="background: #dc2626; color: white; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">تسجيل الخروج</button></div>`;
 }
 
-function hidePaywallBlocker() {
-    const blocker = document.getElementById('paywall-blocker');
-    if (blocker) blocker.remove();
+function hidePaywallBlocker() { 
+    const blocker = document.getElementById('paywall-blocker'); 
+    if (blocker) blocker.remove(); 
 }
 
 function showBillingAlert(daysLeft) {
     if(document.getElementById('billing-alert-banner')) return;
-    const lang = localStorage.getItem('preferredLang') || 'ar';
-    const t = window.homeLang || { alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.", alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام." };
-    let alertMsg = daysLeft === 0 ? t.alertToday : t.alertText.replace('{days}', daysLeft);
-
-    const alertDiv = document.createElement('div');
+    let alertMsg = daysLeft === 0 ? "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً." : `⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال ${daysLeft} أيام. يرجى التواصل مع الإدارة للتجديد.`;
+    const alertDiv = document.createElement('div'); 
     alertDiv.id = "billing-alert-banner";
     alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: slideDown 0.3s ease-out;";
-    alertDiv.innerHTML = `<span>${alertMsg}</span>`;
+    alertDiv.innerHTML = `<span>${alertMsg}</span>`; 
     document.body.insertBefore(alertDiv, document.body.firstChild);
 }
 
-function hideBillingAlert() {
-    const alertDiv = document.getElementById('billing-alert-banner');
-    if(alertDiv) alertDiv.remove();
+function hideBillingAlert() { 
+    const alertDiv = document.getElementById('billing-alert-banner'); 
+    if(alertDiv) alertDiv.remove(); 
 }
 
 async function loadClinicBranding(clinicId) {
     if (clinicId === 'default' || !clinicId) return; 
-
     try {
         const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
         if (clinicDoc.exists) {
             const clinicData = clinicDoc.data();
-            
-            if (clinicData.clinicName) {
-                const nameElement = document.getElementById('txt-clinic-name');
-                if (nameElement) nameElement.innerText = clinicData.clinicName;
+            if (clinicData.clinicName) { 
+                const nameElement = document.getElementById('txt-clinic-name'); 
+                if (nameElement) nameElement.innerText = clinicData.clinicName; 
             }
-            
-            if (clinicData.logoUrl) {
-                const logoContainer = document.getElementById('clinic-logo-container');
-                if (logoContainer) {
-                    logoContainer.innerHTML = `<img src="${clinicData.logoUrl}" alt="Clinic Logo" style="max-width: 45px; max-height: 45px; border-radius: 8px; object-fit: contain;">`;
-                }
+            if (clinicData.logoUrl) { 
+                const logoContainer = document.getElementById('clinic-logo-container'); 
+                if (logoContainer) logoContainer.innerHTML = `<img src="${clinicData.logoUrl}" alt="Clinic Logo" style="max-width: 45px; max-height: 45px; border-radius: 8px; object-fit: contain;">`; 
             }
         }
-    } catch (error) {
-        console.error("خطأ في جلب بيانات العيادة:", error);
+    } catch (error) { 
+        console.error("خطأ في جلب بيانات العيادة:", error); 
     }
 }
 
 function toggleSidebar() { 
     document.getElementById('sidebar').classList.toggle('active'); 
-    document.getElementById('mobile-overlay').classList.toggle('active');
+    document.getElementById('mobile-overlay').classList.toggle('active'); 
 }
 
-function toggleSidebarDesktop() {
-    document.body.classList.toggle('sidebar-pinned');
-    const isPinned = document.body.classList.contains('sidebar-pinned');
-    localStorage.setItem('sidebarPinned', isPinned);
+function toggleSidebarDesktop() { 
+    document.body.classList.toggle('sidebar-pinned'); 
+    localStorage.setItem('sidebarPinned', document.body.classList.contains('sidebar-pinned')); 
 }
 
-// =========================================================================
-// الدعم الفني
-// =========================================================================
-function openSupportModal() {
-    document.getElementById('support_message').value = '';
-    document.getElementById('supportModal').style.display = 'flex';
+function openSupportModal() { 
+    document.getElementById('support_message').value = ''; 
+    document.getElementById('supportModal').style.display = 'flex'; 
 }
 
-function closeSupportModal() {
-    document.getElementById('supportModal').style.display = 'none';
+function closeSupportModal() { 
+    document.getElementById('supportModal').style.display = 'none'; 
 }
 
 async function sendSupportWhatsApp() {
     const msg = document.getElementById('support_message').value.trim();
-    if (!msg) {
-        alert(document.body.dir === 'rtl' ? "برجاء كتابة الرسالة أولاً!" : "Please write a message first!");
-        return;
-    }
-
-    const clinicName = document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'غير معروف';
-    const userEmail = document.getElementById('userEmail') ? document.getElementById('userEmail').innerText : 'غير معروف';
-    const clinicId = sessionStorage.getItem('clinicId') || 'غير معروف';
-
-    const btn = document.getElementById('btn-support-send');
-    const originalText = btn ? btn.innerText : 'إرسال';
+    if (!msg) { alert("برجاء كتابة الرسالة أولاً!"); return; }
+    
+    const btn = document.getElementById('btn-support-send'); 
+    const originalText = btn ? btn.innerText : 'إرسال'; 
     if(btn) btn.innerText = "⏳ جاري الإرسال...";
-
+    
     try {
-        await db.collection("SupportTickets").add({
-            clinicId: clinicId,
-            clinicName: clinicName,
-            userEmail: userEmail,
-            message: msg,
-            status: "open",
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        await db.collection("SupportTickets").add({ 
+            clinicId: sessionStorage.getItem('clinicId') || 'غير معروف', 
+            clinicName: document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'غير معروف', 
+            userEmail: document.getElementById('userEmail') ? document.getElementById('userEmail').innerText : 'غير معروف', 
+            message: msg, 
+            status: "open", 
+            timestamp: firebase.firestore.FieldValue.serverTimestamp() 
         });
-
-        alert(document.body.dir === 'rtl' ? "✅ تم إرسال رسالتك لفريق الدعم الفني بنجاح! سيتم التواصل معك قريباً." : "✅ Ticket sent successfully! We will contact you soon.");
-        document.getElementById('support_message').value = '';
+        alert("✅ تم إرسال رسالتك لفريق الدعم الفني بنجاح!"); 
+        document.getElementById('support_message').value = ''; 
         closeSupportModal();
-    } catch (error) {
-        console.error("Error sending support ticket:", error);
-        alert(document.body.dir === 'rtl' ? "❌ حدث خطأ أثناء الإرسال، يرجى المحاولة لاحقاً." : "❌ Error sending ticket, please try again.");
-    } finally {
-        if(btn) btn.innerText = originalText;
+    } catch (error) { 
+        console.error("Error sending ticket:", error); 
+        alert("❌ حدث خطأ أثناء الإرسال."); 
+    } finally { 
+        if(btn) btn.innerText = originalText; 
     }
 }
 
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('supportModal');
-    if (event.target === modal) {
-        closeSupportModal();
-    }
+window.addEventListener('click', function(event) { 
+    const modal = document.getElementById('supportModal'); 
+    if (event.target === modal) closeSupportModal(); 
 });
-
 
 // =========================================================================
 // المساعد الذكي Niva AI
 // =========================================================================
-function toggleAIPanel() {
-    const panel = document.getElementById('niva-ai-panel');
-    const triggerBtn = document.getElementById('niva-btn-trigger');
-    
-    if (panel.style.display === 'flex') {
-        panel.style.display = 'none';
+function toggleAIPanel() { 
+    const panel = document.getElementById('niva-ai-panel'); 
+    const triggerBtn = document.getElementById('niva-btn-trigger'); 
+    if (panel.style.display === 'flex') { 
+        panel.style.display = 'none'; 
         triggerBtn.innerHTML = '🤖'; 
-        triggerBtn.classList.remove('open');
-    } else {
-        panel.style.display = 'flex';
+        triggerBtn.classList.remove('open'); 
+    } else { 
+        panel.style.display = 'flex'; 
         triggerBtn.innerHTML = '❌'; 
-        triggerBtn.classList.add('open');
-    }
+        triggerBtn.classList.add('open'); 
+    } 
 }
 
-function appendToAIChat(text, isUser = false) {
-    const chatBody = document.getElementById('niva-ai-chat');
-    const msgDiv = document.createElement('div');
-    msgDiv.className = isUser ? 'user-msg' : 'ai-msg';
-    msgDiv.innerHTML = text;
-    chatBody.appendChild(msgDiv);
+function appendToAIChat(text, isUser = false) { 
+    const chatBody = document.getElementById('niva-ai-chat'); 
+    const msgDiv = document.createElement('div'); 
+    msgDiv.className = isUser ? 'user-msg' : 'ai-msg'; 
+    msgDiv.innerHTML = text; 
+    chatBody.appendChild(msgDiv); 
     chatBody.scrollTop = chatBody.scrollHeight; 
 }
 
@@ -532,7 +465,7 @@ async function askAI(promptType) {
     
     if (!clinicId || clinicId === 'default') {
         setTimeout(() => {
-            appendToAIChat(isAr ? "⚠️ <strong>تنبيه:</strong> أنا مساعد ذكي مخصص لقراءة بيانات العيادات فقط. أنت الآن مسجل دخول بحساب (الإدارة المركزية). قم بالدخول بحساب عيادة (طبيب/ممرضة) لتجربة استخراج الأرقام الحقيقية! 🚀" : "⚠️ <strong>Alert:</strong> AI reads clinic data only. Please login with a clinic account to test.", false);
+            appendToAIChat(isAr ? "⚠️ <strong>تنبيه:</strong> أنا مساعد ذكي مخصص لقراءة بيانات العيادات فقط. أنت الآن مسجل دخول بحساب (الإدارة المركزية)." : "⚠️ <strong>Alert:</strong> AI reads clinic data only. Please login with a clinic account to test.", false);
         }, 500);
         return;
     }
@@ -542,81 +475,53 @@ async function askAI(promptType) {
 
     try {
         const todayStr = new Date().toISOString().split('T')[0];
-        
         const tomorrowDate = new Date();
         tomorrowDate.setDate(tomorrowDate.getDate() + 1);
         const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
-
         let aiResponse = "";
 
         if (promptType === 'income') {
             const snap = await db.collection("Finances").where("clinicId", "==", clinicId).where("date", "==", todayStr).where("type", "==", "income").get();
-            let total = 0;
-            snap.forEach(doc => total += Number(doc.data().amount));
+            let total = 0; snap.forEach(doc => total += Number(doc.data().amount));
             aiResponse = isAr ? `✅ إجمالي المبالغ المحصلة اليوم هو: <strong>${total} ج.م</strong> من ${snap.size} عملية توريد.` : `✅ Today's total collected income is: <strong>${total} EGP</strong> from ${snap.size} transactions.`;
         } 
-        
         else if (promptType === 'expenses') {
             const snap = await db.collection("Finances").where("clinicId", "==", clinicId).where("date", "==", todayStr).where("type", "==", "expense").get();
-            let total = 0;
-            snap.forEach(doc => total += Number(doc.data().amount));
+            let total = 0; snap.forEach(doc => total += Number(doc.data().amount));
             aiResponse = isAr ? `📉 إجمالي المصروفات المسجلة اليوم هو: <strong style="color:#dc2626;">${total} ج.م</strong> في ${snap.size} بند.` : `📉 Today's total expenses are: <strong style="color:#dc2626;">${total} EGP</strong> in ${snap.size} items.`;
         }
-        
         else if (promptType === 'debts') {
             const snap = await db.collection("Patients").where("clinicId", "==", clinicId).where("totalDebt", ">", 0).get();
-            let totalDebts = 0;
-            let patientsList = [];
-            snap.forEach(doc => {
-                let d = doc.data();
-                totalDebts += Number(d.totalDebt);
-                patientsList.push(`${d.name} (${d.totalDebt} ج.م)`);
-            });
-            
-            if (snap.size === 0) {
-                aiResponse = isAr ? "✨ ممتاز! لا يوجد مرضى عليهم مديونيات للعيادة." : "✨ Great! No patients with outstanding debts.";
-            } else {
+            let totalDebts = 0; let patientsList = [];
+            snap.forEach(doc => { let d = doc.data(); totalDebts += Number(d.totalDebt); patientsList.push(`${d.name} (${d.totalDebt} ج.م)`); });
+            if (snap.size === 0) { aiResponse = isAr ? "✨ ممتاز! لا يوجد مرضى عليهم مديونيات للعيادة." : "✨ Great! No patients with outstanding debts."; } 
+            else {
                 let topList = patientsList.slice(0, 3).join('<br> - '); 
                 let moreHtml = patientsList.length > 3 ? `<br><small>...و ${patientsList.length - 3} مرضى آخرين (راجع صفحة المرضى).</small>` : "";
                 aiResponse = isAr ? `💸 إجمالي الديون المستحقة للعيادة هو: <strong>${totalDebts} ج.م</strong> موزع على ${snap.size} مريض.<br><strong>أبرز المتعثرين:</strong><br> - ${topList} ${moreHtml}` : `💸 Total debts owed to clinic: <strong>${totalDebts} EGP</strong> across ${snap.size} patients.`;
             }
         }
-
         else if (promptType === 'appointments') {
             const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", todayStr).get();
             let total = snap.size, completed = 0, pending = 0, cancelled = 0;
             snap.forEach(doc => {
                 const s = doc.data().status;
-                if (s === 'completed') completed++;
-                else if (s === 'cancelled') cancelled++;
-                else pending++;
+                if (s === 'completed') completed++; else if (s === 'cancelled') cancelled++; else pending++;
             });
             aiResponse = isAr ? `📅 إجمالي حجوزات اليوم: <strong>${total}</strong><br>✔️ اكتمل: ${completed}<br>⏳ في الانتظار: ${pending}<br>🚫 ملغي: ${cancelled}` : `📅 Total appointments today: <strong>${total}</strong><br>✔️ Completed: ${completed}<br>⏳ Pending: ${pending}<br>🚫 Cancelled: ${cancelled}`;
         }
-        
         else if (promptType === 'tomorrow') {
             const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", tomorrowStr).get();
             let total = snap.size;
-            if (total === 0) {
-                aiResponse = isAr ? "لا توجد أي حجوزات مسجلة لغدٍ حتى الآن. 🏖️" : "No appointments scheduled for tomorrow yet. 🏖️";
-            } else {
-                aiResponse = isAr ? `🔮 يوجد <strong>${total} كشوفات</strong> مسجلة غداً. يرجى التنبيه على السكرتارية لتأكيد المواعيد.` : `🔮 There are <strong>${total} appointments</strong> scheduled for tomorrow.`;
-            }
+            if (total === 0) { aiResponse = isAr ? "لا توجد أي حجوزات مسجلة لغدٍ حتى الآن. 🏖️" : "No appointments scheduled for tomorrow yet. 🏖️"; } 
+            else { aiResponse = isAr ? `🔮 يوجد <strong>${total} كشوفات</strong> مسجلة غداً.` : `🔮 There are <strong>${total} appointments</strong> scheduled for tomorrow.`; }
         }
-
         else if (promptType === 'inventory') {
             const snap = await db.collection("Inventory").where("clinicId", "==", clinicId).get();
             let shortages = [];
-            snap.forEach(doc => {
-                const item = doc.data();
-                if (item.qty <= item.minAlert) shortages.push(item.name);
-            });
-
-            if (shortages.length === 0) {
-                aiResponse = isAr ? "📦 المخزون في أمان! لا توجد نواقص حالياً." : "📦 Inventory is safe! No shortages currently.";
-            } else {
-                aiResponse = isAr ? `🚨 <strong>تحذير!</strong> يوجد ${shortages.length} أصناف أوشكت على الانتهاء:<br> - ${shortages.join('<br> - ')}` : `🚨 <strong>Warning!</strong> ${shortages.length} items are running low:<br> - ${shortages.join('<br> - ')}`;
-            }
+            snap.forEach(doc => { const item = doc.data(); if (item.qty <= item.minAlert) shortages.push(item.name); });
+            if (shortages.length === 0) { aiResponse = isAr ? "📦 المخزون في أمان! لا توجد نواقص حالياً." : "📦 Inventory is safe! No shortages currently."; } 
+            else { aiResponse = isAr ? `🚨 <strong>تحذير!</strong> يوجد ${shortages.length} أصناف أوشكت على الانتهاء:<br> - ${shortages.join('<br> - ')}` : `🚨 <strong>Warning!</strong> ${shortages.length} items are running low:<br> - ${shortages.join('<br> - ')}`; }
         }
 
         const loadingElement = document.getElementById(loadingId);
@@ -632,7 +537,7 @@ async function askAI(promptType) {
 }
 
 // =========================================================================
-// دوال بوابة العيادة (Portal Manager)
+// بوابة العيادة
 // =========================================================================
 function openPortalSettings() {
     const currentClinicId = sessionStorage.getItem('clinicId');
@@ -640,23 +545,12 @@ function openPortalSettings() {
         alert("لا يمكن إنشاء رابط لعيادة افتراضية. يرجى تسجيل الدخول بحساب عيادة.");
         return;
     }
-
     const portalUrl = `https://nivadent.web.app/portal.html?clinicId=${currentClinicId}`;
-    
     document.getElementById('clinic_portal_link').value = portalUrl;
     
     const qrContainer = document.getElementById('clinic_qr_container');
     qrContainer.innerHTML = ''; 
-    
-    new QRCode(qrContainer, {
-        text: portalUrl,
-        width: 180,
-        height: 180,
-        colorDark : "#0f172a",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
-    });
-    
+    new QRCode(qrContainer, { text: portalUrl, width: 180, height: 180, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
     document.getElementById('clinicPortalModal').style.display = 'flex';
 }
 
@@ -670,7 +564,6 @@ function copyPortalLink() {
 function printClinicQR() {
     const qrCanvas = document.querySelector('#clinic_qr_container canvas');
     if (!qrCanvas) return;
-    
     const imgData = qrCanvas.toDataURL("image/png");
     const clinicName = document.getElementById('txt-clinic-name').innerText;
     
@@ -694,13 +587,7 @@ function printClinicQR() {
     
     const style = document.createElement('style');
     style.id = 'temp-print-style';
-    style.innerHTML = `
-        @media print {
-            body * { visibility: hidden; }
-            #portalPrintArea, #portalPrintArea * { visibility: visible; }
-            #portalPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
-        }
-    `;
+    style.innerHTML = `@media print { body * { visibility: hidden; } #portalPrintArea, #portalPrintArea * { visibility: visible; } #portalPrintArea { position: absolute; left: 0; top: 0; width: 100%; } }`;
     document.head.appendChild(style);
 
     setTimeout(() => {
