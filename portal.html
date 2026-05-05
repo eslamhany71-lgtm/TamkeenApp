@@ -10,6 +10,23 @@
     
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* 🔴 ستايلات مخصصة لقائمة الفروع في البوابة لدعم الدارك مود 🔴 */
+        select.portal-select {
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;
+            font-family: inherit; font-size: 15px; font-weight: bold; background: white; color: #0f172a;
+            outline: none; transition: 0.3s; margin-top: 5px;
+        }
+        select.portal-select:focus { border-color: #0284c7; }
+        
+        [data-theme="dark"] select.portal-select {
+            background: #1e293b; border-color: #334155; color: #f8fafc;
+        }
+        [data-theme="dark"] input[type="date"] {
+            background: #1e293b; border-color: #334155; color: #f8fafc;
+        }
+    </style>
 </head>
 <body data-theme="light">
 
@@ -28,7 +45,6 @@
 
     <div id="login-screen" class="portal-container" style="animation: popUp 0.5s ease-out;">
         <div class="brand-header">
-            <!-- 🔴 تم إضافة id لتغيير اللوجو ديناميكياً 🔴 -->
             <div class="clinic-logo-placeholder" id="portal_logo_container">🦷</div>
             <h1 id="txt_clinic_name_login">العيادة الذكية</h1>
             <p id="txt_login_sub">يرجى تسجيل الدخول لمتابعة ملفك الطبي</p>
@@ -55,9 +71,15 @@
             <p id="txt_book_sub">اختر اليوم والوقت المناسب لك</p>
         </div>
 
+        <div class="form-group" id="portal-branch-group" style="display: none; margin-bottom: 15px;">
+            <label id="lbl_book_branch" style="font-weight: bold; color: var(--primary);">اختر الفرع:</label>
+            <select id="book_branch" class="portal-select" onchange="loadAvailableSlots()" required>
+                </select>
+        </div>
+
         <div class="form-group">
             <label id="lbl_book_date">اختر تاريخ الحجز:</label>
-            <input type="date" id="book_date" onchange="loadAvailableSlots()" required>
+            <input type="date" id="book_date" class="portal-select" onchange="loadAvailableSlots()" required>
         </div>
 
         <div id="slots-container" style="display: none;">
@@ -71,11 +93,11 @@
             
             <div class="form-group">
                 <label id="lbl_book_name">الاسم بالكامل:</label>
-                <input type="text" id="book_name" required>
+                <input type="text" id="book_name" class="portal-select" required>
             </div>
             <div class="form-group">
                 <label id="lbl_book_phone">رقم الموبايل للتواصل:</label>
-                <input type="tel" id="book_phone" dir="ltr" required>
+                <input type="tel" id="book_phone" class="portal-select" dir="ltr" required>
             </div>
             <button type="submit" class="btn-primary" id="btn_confirm_booking">تأكيد الحجز</button>
             <button type="button" class="btn-cancel" onclick="cancelBooking()" id="btn_cancel_booking">إلغاء والعودة</button>
