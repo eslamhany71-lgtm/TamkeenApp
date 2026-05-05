@@ -1,10 +1,12 @@
 // js/calendar.js
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
-let currentBranchId = sessionStorage.getItem('branchId') || 'main'; // 🔴 قراءة الفرع الحالي 🔴
+const userRole = sessionStorage.getItem('userRole'); // 🔴 جلب وظيفة الموظف
+const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب فرع الموظف الافتراضي
 
 let calendar; 
 let currentEditAppId = null; 
+let calendarUnsubscribe = null; // 🔴 للتحكم في الكويري عند تغيير الفلتر
 
 let allClinicPatients = [];
 let allAppointmentsData = []; 
@@ -12,8 +14,46 @@ let allAppointmentsData = [];
 let erpServices = [];
 let erpContracts = [];
 
-// 🔴 متغيرات إعدادات العيادة 🔴
 let clinicSettings = { workStart: '08:00', workEnd: '22:00', offDay: 'none' };
+
+// 🔴 دالة لجلب قائمة الفروع (للمدير فقط)
+async function loadBranchesForAdmin() {
+    if (userRole !== 'admin' && userRole !== 'superadmin') return;
+
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", currentClinicId).get();
+        const filterSelect = document.getElementById('branch-filter');
+        const modalSelect = document.getElementById('app_branch');
+        
+        if (!filterSelect || !modalSelect) return;
+
+        let optionsHtml = `<option value="all" id="opt-all-branches">كل الفروع</option>`;
+        optionsHtml += `<option value="main">الفرع الرئيسي</option>`;
+        
+        let modalOptionsHtml = `<option value="main">الفرع الرئيسي</option>`;
+
+        snap.forEach(doc => {
+            optionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
+            modalOptionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
+        });
+
+        filterSelect.innerHTML = optionsHtml;
+        modalSelect.innerHTML = modalOptionsHtml;
+
+        filterSelect.style.display = 'block';
+        filterSelect.value = userBranch;
+        
+        document.getElementById('admin-branch-group').style.display = 'block';
+
+        const lang = localStorage.getItem('preferredLang') || 'ar';
+        if (lang === 'en') {
+            const allOpt = document.getElementById('opt-all-branches');
+            if (allOpt) allOpt.innerText = "All Branches";
+        }
+    } catch (e) {
+        console.error("Error loading branches:", e);
+    }
+}
 
 function updatePageContent(lang) {
     const t = {
@@ -72,7 +112,6 @@ function updatePageContent(lang) {
     window.calendarLang = c;
 }
 
-// 🔴 دوال السجل الكامل للحجوزات (Activity Log) 🔴
 function openAllAppointmentsModal() {
     document.getElementById('search_all_apps').value = '';
     renderAllAppointmentsList();
@@ -120,7 +159,7 @@ function renderAllAppointmentsList() {
                 type: app.type || 'كشف', contract: app.contract || 'بدون تعاقد', notes: app.notes, status: app.status,
                 date: app.date, time: app.safeTime, total: app.total, paid: app.paid, remaining: app.remaining,
                 payMethod: app.payMethod || 'cash', source: app.source || 'clinic',
-                doctorId: app.doctorId, doctorName: app.doctorName // 🔴 
+                doctorId: app.doctorId, doctorName: app.doctorName
             };
             showAppDetailsModal(app.id, props);
         };
@@ -148,7 +187,6 @@ function showAppDetailsModal(appId, props) {
     document.getElementById('det_date').innerText = props.date;
     document.getElementById('det_time').innerText = props.time;
     
-    // 🔴 عرض اسم الدكتور 🔴
     document.getElementById('det_doctor').innerText = props.doctorName || 'غير محدد';
     
     let typeText = props.type;
@@ -191,11 +229,9 @@ function showAppDetailsModal(appId, props) {
     document.getElementById('appDetailsModal').style.display = 'flex';
 }
 
-// 🔴 تحميل الإعدادات والخدمات والأطباء 🔴
 function loadClinicSettingsAndERP() {
     if (!currentClinicId) return;
 
-    // 1. تحميل إعدادات مواعيد العمل من ملف العيادة
     db.collection("Clinics").doc(currentClinicId).onSnapshot(doc => {
         if (doc.exists) {
             const data = doc.data();
@@ -203,23 +239,19 @@ function loadClinicSettingsAndERP() {
             clinicSettings.workEnd = data.workEnd || '22:00';
             clinicSettings.offDay = data.offDay || 'none';
         }
-        
-        // 🔴 التعديل السحري: الكاليندر هيترسم غصب عنه حتى لو العيادة لسه جديدة ملهاش إعدادات
         if (calendar) {
             calendar.setOption('slotMinTime', clinicSettings.workStart + ':00');
             calendar.setOption('slotMaxTime', clinicSettings.workEnd + ':00');
             calendar.setOption('hiddenDays', clinicSettings.offDay !== 'none' ? [Number(clinicSettings.offDay)] : []);
         } else {
-            setTimeout(() => { initCalendar(); }, 100); // تأخير جزء من الثانية لضمان اكتمال الشاشة
+            setTimeout(() => { initCalendar(); }, 100);
         }
     });
 
-    // 2. تحميل الخدمات (مباشرة من جدول Services عشان تسمع فوراً)
     db.collection("Services").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
         erpServices = [];
         const selectType = document.getElementById('app_type');
         if (selectType) selectType.innerHTML = `<option value="">اختر الخدمة...</option>`;
-        
         snap.forEach(doc => {
             const s = Object.assign({id: doc.id}, doc.data());
             erpServices.push(s);
@@ -227,20 +259,20 @@ function loadClinicSettingsAndERP() {
         });
     });
 
-    // 3. تحميل الأطباء (مفلترين حسب الفرع)
+    // 🔴 جلب الدكاترة المفترلين حسب الفرع في المودال
     db.collection("Users").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
         const docSelect = document.getElementById('app_doctor');
         if (docSelect) docSelect.innerHTML = '<option value="">اختر الطبيب...</option>';
-        
         snap.forEach(doc => {
             const d = doc.data();
-            if (d.role === 'doctor' && (d.branchId === currentBranchId || currentBranchId === 'main')) {
+            // الطبيب هيظهر لو فرعه هو الفرع الحالي (أو لو المدير فاتح كل الفروع)
+            const selectedFilter = document.getElementById('branch-filter') ? document.getElementById('branch-filter').value : userBranch;
+            if (d.role === 'doctor' && (selectedFilter === 'all' || d.branchId === selectedFilter || d.branchId === 'main')) {
                 if (docSelect) docSelect.innerHTML += `<option value="${doc.id}">${d.name}</option>`;
             }
         });
     });
 
-    // 4. تحميل التعاقدات
     db.collection("Contracts").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
         erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const contEl = document.getElementById('app_contract');
@@ -284,7 +316,7 @@ function openAppointmentModal() {
 
     document.querySelectorAll('.med-history-cb').forEach(cb => cb.checked = false);
     
-    document.getElementById('app_doctor').value = ''; // 🔴
+    document.getElementById('app_doctor').value = ''; 
     document.getElementById('app_type').value = '';
     document.getElementById('app_contract').value = '';
     document.getElementById('app_total').value = '0';
@@ -292,6 +324,12 @@ function openAppointmentModal() {
     document.getElementById('app_remaining').value = '0';
     document.getElementById('app_pay_method').value = 'cash'; 
     
+    // 🔴 ضبط الفرع الافتراضي في المودال للمدير
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        const filterVal = document.getElementById('branch-filter').value;
+        document.getElementById('app_branch').value = filterVal === 'all' ? 'main' : filterVal;
+    }
+
     const msg = document.getElementById('phone-check-msg');
     if(msg) msg.style.display = 'none';
 
@@ -307,7 +345,20 @@ function closeAppDetailsModal() { document.getElementById('appDetailsModal').sty
 
 function loadAllPatientsForSearch() {
     if (!currentClinicId) return;
-    db.collection("Patients").where("clinicId", "==", currentClinicId).get().then(snap => {
+    
+    // 🔴 فلترة المرضى حسب الفرع عشان لما يبحث ميجيبش مرضى فرع تاني 🔴
+    let queryRef = db.collection("Patients").where("clinicId", "==", currentClinicId);
+    
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        queryRef = queryRef.where("branchId", "==", userBranch);
+    } else {
+        const selectedBranch = document.getElementById('branch-filter').value;
+        if (selectedBranch !== 'all') {
+            queryRef = queryRef.where("branchId", "==", selectedBranch);
+        }
+    }
+
+    queryRef.get().then(snap => {
         allClinicPatients = [];
         snap.forEach(doc => { allClinicPatients.push({ id: doc.id, ...doc.data() }); });
     }).catch(err => console.error(err));
@@ -509,7 +560,6 @@ async function saveAppointment(e) {
     const srvSelect = document.getElementById('app_type');
     const typeVal = srvSelect.value || "كشف";
 
-    // 🔴 قراءة بيانات الدكتور المختار 🔴
     const docSelect = document.getElementById('app_doctor');
     const doctorId = docSelect.value;
     const doctorName = docSelect.options[docSelect.selectedIndex]?.text || '';
@@ -525,10 +575,16 @@ async function saveAppointment(e) {
     const foundPatient = allClinicPatients.find(p => p.phone === phoneInput);
     const linkedPatientId = foundPatient ? foundPatient.id : null;
 
+    // 🔴 تحديد الفرع للموعد (والمريض لو جديد) 🔴
+    let targetBranchId = userBranch;
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        targetBranchId = document.getElementById('app_branch').value;
+    }
+
     const appData = {
         clinicId: currentClinicId, patientId: linkedPatientId,
-        branchId: currentBranchId, // 🔴 تسجيل الحجز على الفرع الحالي 🔴
-        doctorId: doctorId, doctorName: doctorName, // 🔴
+        branchId: targetBranchId, // 🔴 ختم الفرع 🔴
+        doctorId: doctorId, doctorName: doctorName, 
         patientName: document.getElementById('app_name').value.trim(),
         phone: phoneInput, patientPhone: phoneInput,
         age: document.getElementById('app_age').value, gender: document.getElementById('app_gender').value,
@@ -568,6 +624,13 @@ async function markAppAsCompleted() {
         const paidAmount = Number(props.paid) || 0;
         const remainingAmount = Number(props.remaining) || 0;
         const paymentMethod = props.payMethod || 'cash'; 
+        
+        // جلب فرع الموعد عشان نستخدمه في الفواتير والماليات
+        let appBranchId = userBranch;
+        if (userRole === 'admin' || userRole === 'superadmin') {
+            const filterVal = document.getElementById('branch-filter').value;
+            appBranchId = filterVal === 'all' ? 'main' : filterVal;
+        }
 
         let patientId = props.patientId;
         if (!patientId) {
@@ -582,7 +645,7 @@ async function markAppAsCompleted() {
                 if(props.history && props.history.length > 0 && props.history !== "سليم (لا يوجد)") { historyArray = props.history.split(' ، ').map(item => item.trim()).filter(i => i); }
 
                 const newPat = await db.collection("Patients").add({
-                    clinicId: currentClinicId, branchId: currentBranchId, name: props.patientName, phone: patientPhone, age: props.age || '', gender: props.gender || '',
+                    clinicId: currentClinicId, branchId: appBranchId, name: props.patientName, phone: patientPhone, age: props.age || '', gender: props.gender || '',
                     medicalHistory: historyArray, notes: props.notes || '', totalDebt: remainingAmount, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
                 patientId = newPat.id;
@@ -598,7 +661,7 @@ async function markAppAsCompleted() {
         const currentPayDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
         await db.collection("Sessions").add({
-            clinicId: currentClinicId, branchId: currentBranchId, patientId: patientId, date: currentPayDate,
+            clinicId: currentClinicId, branchId: appBranchId, patientId: patientId, date: currentPayDate,
             procedure: props.type || "كشف / إجراء", contract: props.contract || 'بدون تعاقد',
             total: props.total || 0, paid: paidAmount, remaining: remainingAmount,
             notes: props.notes || "", createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -606,7 +669,7 @@ async function markAppAsCompleted() {
         
         if (paidAmount > 0) {
             await db.collection("Finances").add({
-                clinicId: currentClinicId, branchId: currentBranchId, patientId: patientId, type: 'income', category: 'كشف / جلسة',
+                clinicId: currentClinicId, branchId: appBranchId, patientId: patientId, type: 'income', category: 'كشف / جلسة',
                 amount: paidAmount, date: currentPayDate, paymentMethod: paymentMethod, 
                 notes: `إيراد حجز مريض: ${props.patientName} - (${props.type})`, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
@@ -614,7 +677,7 @@ async function markAppAsCompleted() {
 
         if (remainingAmount > 0) {
             await db.collection("Finances").add({
-                clinicId: currentClinicId, branchId: currentBranchId, patientId: patientId, type: 'debt', category: 'متبقي كشف / جلسة',
+                clinicId: currentClinicId, branchId: appBranchId, patientId: patientId, type: 'debt', category: 'متبقي كشف / جلسة',
                 amount: remainingAmount, date: currentPayDate, notes: `مديونية متبقية على المريض: ${props.patientName} - (${props.type})`, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
@@ -658,7 +721,6 @@ async function openEditModal() {
         const srv = erpServices.find(s => s.name === props.type);
         if(srv) typeEl.value = srv.name;
 
-        // 🔴 تعيين الدكتور 🔴
         const docEl = document.getElementById('app_doctor');
         if (docEl) docEl.value = props.doctorId || '';
 
@@ -715,16 +777,28 @@ function loadAppointments() {
     if (!currentClinicId || !calendar) return;
     if (window.showLoader && calendar.getEvents().length === 0) window.showLoader(document.body.dir === 'rtl' ? "جاري مزامنة المواعيد..." : "Syncing...");
 
-    db.collection("Appointments").where("clinicId", "==", currentClinicId).onSnapshot(snap => {
+    // 🔴 الكبسولة السحرية للفلترة والعزل 🔴
+    let queryRef = db.collection("Appointments").where("clinicId", "==", currentClinicId);
+
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        queryRef = queryRef.where("branchId", "==", userBranch);
+    } else {
+        const selectedBranch = document.getElementById('branch-filter').value;
+        if (selectedBranch !== 'all') {
+            queryRef = queryRef.where("branchId", "==", selectedBranch);
+        }
+    }
+
+    if (calendarUnsubscribe) {
+        calendarUnsubscribe(); // مسح الـ listener القديم لو الفلتر اتغير
+    }
+
+    calendarUnsubscribe = queryRef.onSnapshot(snap => {
         calendar.removeAllEvents();
         allAppointmentsData = []; 
 
         snap.forEach(doc => {
             const data = doc.data();
-            
-            // 🔴 فلترة الحجوزات عشان يظهر حجوزات الفرع الحالي بس 🔴
-            if (data.branchId && data.branchId !== currentBranchId && currentBranchId !== 'main') return; 
-
             const safeTime = data.time || "12:00"; 
             const startDateTime = `${data.date}T${safeTime}:00`;
 
@@ -738,7 +812,7 @@ function loadAppointments() {
                 type: data.type || 'كشف', contract: data.contract || 'بدون تعاقد', notes: data.notes, status: data.status,
                 date: data.date, time: safeTime, safeTime: safeTime, total: data.total, paid: data.paid, remaining: data.remaining,
                 payMethod: data.payMethod || 'cash', source: data.source || 'clinic',
-                doctorId: data.doctorId, doctorName: data.doctorName // 🔴
+                doctorId: data.doctorId, doctorName: data.doctorName 
             };
 
             allAppointmentsData.push(appObj);
@@ -750,20 +824,22 @@ function loadAppointments() {
         });
         
         allAppointmentsData.sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+        loadAllPatientsForSearch(); // تحديث قايمة البحث السريع عشان تقرأ نفس الفلتر
 
         if (window.hideLoader) window.hideLoader();
     }, error => { if (window.hideLoader) window.hideLoader(); });
 }
 
-window.onload = () => {
+window.onload = async () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
     if(window.translations) { updatePageContent(lang); } else { setTimeout(() => updatePageContent(lang), 500); }
     
-    firebase.auth().onAuthStateChanged((user) => {
+    firebase.auth().onAuthStateChanged(async (user) => {
         if (user) { 
+            await loadBranchesForAdmin();
             loadClinicSettingsAndERP(); 
         }
     });
