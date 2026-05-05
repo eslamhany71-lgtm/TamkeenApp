@@ -146,15 +146,17 @@ function startSyncingHR() {
     });
 }
 
+// 🔴 تم إضافة invoices في الصلاحيات الافتراضية 🔴
 function getDefaultPermissions(role) {
-    const allOn = { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
+    const allOn = { patients: true, calendar: true, finances: true, invoices: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
     if (role === 'admin' || role === 'superadmin') return allOn;
     
-    // الصلاحيات الافتراضية للطبيب (تقدر تعدلها براحتك)
-    if (role === 'doctor') return { ...allOn, finances: false, reports: false, settings: false, hr: false, branches: false };
-    if (role === 'receptionist') return { ...allOn, reports: false, settings: false, hr: false, branches: false, inventory: false };
+    // الصلاحيات الافتراضية للطبيب
+    if (role === 'doctor') return { ...allOn, finances: false, invoices: false, reports: false, settings: false, hr: false, branches: false };
+    // الصلاحيات الافتراضية للاستقبال (بيشوف فواتير لكن مبيشوفش حسابات عامة)
+    if (role === 'receptionist') return { ...allOn, finances: false, reports: false, settings: false, hr: false, branches: false, inventory: false };
     
-    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false }; // other
+    return { patients: false, calendar: false, finances: false, invoices: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false }; // other
 }
 
 function searchEmployees() {
@@ -346,12 +348,13 @@ function openGrandControl(id) {
         boxPerm.style.display = 'block';
         boxComm.style.display = 'block';
         
-        // ضبط التوجلز بناءً على الصلاحيات الشاملة
+        // 🔴 استدعاء زرار الفواتير 🔴
         const p = emp.permissions || getDefaultPermissions(emp.role);
         document.getElementById('perm_patients').checked = !!p.patients;
         document.getElementById('perm_calendar').checked = !!p.calendar;
         document.getElementById('perm_services').checked = !!p.services;
         document.getElementById('perm_contracts').checked = !!p.contracts;
+        document.getElementById('perm_invoices').checked = !!p.invoices; // الفواتير
         document.getElementById('perm_finances').checked = !!p.finances;
         document.getElementById('perm_inventory').checked = !!p.inventory;
         document.getElementById('perm_reports').checked = !!p.reports;
@@ -377,24 +380,22 @@ async function saveGrandControl(e) {
 
     try {
         if (type === 'other') {
-            // تحديث العمالة المباشرة
             await db.collection("Employees").doc(id).update({ branchId, salary, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
         } 
         else if (type === 'pending') {
-            // تحديث كود الدعوة (لفرع آخر مثلاً)
             await db.collection("InviteCodes").doc(id).update({ branchId });
-            // تحديث المرتبات لو ضاف ليه فلوس وهو لسه مدخلش
             await db.collection("Employees").doc(`pending_${id}`).set({
                 clinicId: currentClinicId, salary, commission, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, {merge: true});
         }
         else if (type === 'user') {
-            // تجميع الصلاحيات الشاملة
+            // 🔴 تجميع زرار الفواتير 🔴
             const permissions = {
                 patients: document.getElementById('perm_patients').checked,
                 calendar: document.getElementById('perm_calendar').checked,
                 services: document.getElementById('perm_services').checked,
                 contracts: document.getElementById('perm_contracts').checked,
+                invoices: document.getElementById('perm_invoices').checked, // الفواتير
                 finances: document.getElementById('perm_finances').checked,
                 inventory: document.getElementById('perm_inventory').checked,
                 reports: document.getElementById('perm_reports').checked,
@@ -404,10 +405,8 @@ async function saveGrandControl(e) {
                 settings: document.getElementById('perm_settings').checked
             };
 
-            // تحديث الصلاحيات والفرع في جدول Users
             await db.collection("Users").doc(id).update({ branchId, permissions });
             
-            // تحديث المرتبات في جدول Employees (بنربطه بالإيميل)
             await db.collection("Employees").doc(id).set({
                 clinicId: currentClinicId, salary, commission, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             }, {merge: true});
@@ -415,7 +414,7 @@ async function saveGrandControl(e) {
         
         closeModal('grandControlModal');
     } catch(err) { console.error(err); alert("حدث خطأ أثناء الحفظ"); }
-    finally { btn.disabled = false; btn.innerText = "💾 حفظ إعدادات الموظف"; }
+    finally { btn.disabled = false; btn.innerText = "💾 حفظ الإعدادات والصلاحيات"; }
 }
 
 async function deleteEmployeeComplete() {
