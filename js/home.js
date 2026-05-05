@@ -82,6 +82,7 @@ function updatePageContent(lang) {
             header: "لوحة التحكم",
             navDash: "الداشبورد", navPatients: "المرضى والأشعة", navCalendar: "المواعيد والتقويم", 
             navFinances: "الحسابات والمصروفات",
+            navInvoices: "الفواتير", // 🔴 ترجمة الفواتير
             navInventory: "المخزون الطبي", 
             navSettings: "إعدادات العيادة", navSuper: "إدارة النظام المركزية", logout: "تسجيل خروج",
             alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
@@ -93,6 +94,7 @@ function updatePageContent(lang) {
             header: "Dashboard",
             navDash: "Overview", navPatients: "Patients & X-Rays", navCalendar: "Calendar", 
             navFinances: "Finances",
+            navInvoices: "Invoices", // 🔴 ترجمة الفواتير
             navInventory: "Medical Inventory", 
             navSettings: "Clinic Settings", navSuper: "Super Admin", logout: "Logout",
             alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
@@ -107,6 +109,7 @@ function updatePageContent(lang) {
     setTxt('txt-header', c.header);
     setTxt('nav-dash', c.navDash); setTxt('nav-patients', c.navPatients); setTxt('nav-calendar', c.navCalendar); 
     setTxt('nav-finances', c.navFinances);
+    setTxt('nav-invoices', c.navInvoices); // 🔴 تعيين النص
     setTxt('nav-inventory', c.navInventory); 
     setTxt('nav-settings', c.navSettings); setTxt('nav-super', c.navSuper); setTxt('btn-logout', c.logout);
     
@@ -125,11 +128,12 @@ function updatePageContent(lang) {
 // 🔴 تطبيق الصلاحيات الصارم (Deny by Default) 🔴
 // =========================================================================
 function getDefaultPermissions(role) {
-    const allOn = { patients: true, calendar: true, finances: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
+    // 🔴 تم إضافة invoices 🔴
+    const allOn = { patients: true, calendar: true, finances: true, invoices: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
     if (role === 'admin' || role === 'superadmin') return allOn;
-    if (role === 'doctor') return { ...allOn, finances: false, reports: false, settings: false, hr: false, branches: false };
+    if (role === 'doctor') return { ...allOn, finances: false, invoices: false, reports: false, settings: false, hr: false, branches: false };
     if (role === 'receptionist') return { ...allOn, reports: false, settings: false, hr: false, branches: false, inventory: false };
-    return { patients: false, calendar: false, finances: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false };
+    return { patients: false, calendar: false, finances: false, invoices: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false };
 }
 
 function applyPermissions(perms, role) {
@@ -141,7 +145,6 @@ function applyPermissions(perms, role) {
     const restrictedItems = document.querySelectorAll('li[data-perm]');
     restrictedItems.forEach(item => {
         const permKey = item.getAttribute('data-perm');
-        // 🔴 السحر هنا: لو الصلاحية مش True صريحة في الفايربيز، الزرار هيختفي فوراً 🔴
         if (!perms || perms[permKey] !== true) {
             item.style.display = 'none';
         } else {
@@ -172,7 +175,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 const clinicId = userData.clinicId || sessionStorage.getItem('clinicId') || 'default';
                 sessionStorage.setItem('clinicId', clinicId);
 
-                // سحب الصلاحيات أو توليدها للموظفين القدامى
                 let userPermissions = userData.permissions;
                 if (!userPermissions) {
                     userPermissions = getDefaultPermissions(role);
@@ -187,7 +189,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
                     checkSubscriptionAlert(clinicId);
                 }
 
-                // التوجيه الذكي الآمن
                 const lastPage = sessionStorage.getItem('lastOpenedPage');
                 const lastNavId = sessionStorage.getItem('lastActiveNavId');
                 
@@ -211,9 +212,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// =========================================================================
-// الرادار الذكي (Smart Presence)
-// =========================================================================
 const IDLE_TIMEOUT_MINUTES = 30; 
 const OFFLINE_MARK_MINUTES = 15; 
 let currentPresenceStatus = "online"; 
@@ -272,9 +270,6 @@ setInterval(() => {
     }
 }, 60000);
 
-// =========================================================================
-// حارس الاشتراكات والفترة التجريبية (Subscription Validator)
-// =========================================================================
 async function checkSubscriptionAlert(clinicId) {
     try {
         db.collection("Clinics").doc(clinicId).onSnapshot(async (clinicDoc) => {
@@ -423,9 +418,6 @@ window.addEventListener('click', function(event) {
     if (event.target === modal) closeSupportModal(); 
 });
 
-// =========================================================================
-// المساعد الذكي Niva AI
-// =========================================================================
 function toggleAIPanel() { 
     const panel = document.getElementById('niva-ai-panel'); 
     const triggerBtn = document.getElementById('niva-btn-trigger'); 
@@ -536,9 +528,6 @@ async function askAI(promptType) {
     }
 }
 
-// =========================================================================
-// بوابة العيادة
-// =========================================================================
 function openPortalSettings() {
     const currentClinicId = sessionStorage.getItem('clinicId');
     if (!currentClinicId || currentClinicId === 'default') {
