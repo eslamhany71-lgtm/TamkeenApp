@@ -151,7 +151,6 @@ function loadInventoryAlerts() {
 
         snap.forEach(doc => {
             const item = doc.data();
-            // 🔴 تم تصحيح المتغيرات لتقرأ من قاعدة بيانات المخزن الجديدة
             const qty = Number(item.qty) || 0; 
             const min = Number(item.minAlert) || 0; 
 
@@ -172,9 +171,72 @@ function loadInventoryAlerts() {
         }
     });
 }
+
+// 🔴 دوال عرض القوائم الحية في الشاشة الرئيسية 🔴
+function renderLiveUpcoming() {
+    const container = document.getElementById('live-upcoming-apps');
+    if (!container) return;
+    
+    if (todayPendingApps.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding: 30px; color: #64748b;">لا يوجد مواعيد في الانتظار حالياً.</div>`;
+        return;
+    }
+
+    container.innerHTML = '';
+    // سحب أول 5 مواعيد مرتبين بالوقت
+    const topApps = todayPendingApps.slice(0, 5);
+    
+    topApps.forEach(app => {
+        const div = document.createElement('div');
+        div.className = 'live-list-item';
+        div.onclick = () => openAppDetails(app);
+        div.innerHTML = `
+            <div>
+                <strong style="color: #0f172a; font-size: 15px;">${app.patientName}</strong><br>
+                <small style="color: #64748b;">${app.type}</small>
+            </div>
+            <div style="background: #fffbeb; color: #d97706; padding: 5px 10px; border-radius: 8px; font-weight: bold; border: 1px solid #fde68a;">
+                ⏰ ${app.time}
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function renderLiveFinances() {
+    const container = document.getElementById('live-recent-finances');
+    if (!container) return;
+
+    if (todayRevenueData.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding: 30px; color: #64748b;">لا توجد عمليات مالية مسجلة اليوم.</div>`;
+        return;
+    }
+
+    container.innerHTML = '';
+    // ترتيب تنازلي (الأحدث أولاً) وسحب آخر 5
+    const recentFinances = [...todayRevenueData].reverse().slice(0, 5);
+    
+    recentFinances.forEach(rev => {
+        const div = document.createElement('div');
+        div.className = 'live-list-item';
+        div.onclick = () => openRevDetails(rev);
+        div.innerHTML = `
+            <div>
+                <strong style="color: #0f172a; font-size: 15px;">${rev.notes || 'إيراد عيادة'}</strong><br>
+                <small style="color: #64748b;">${rev.paymentMethod === 'wallet' ? 'محفظة' : (rev.paymentMethod === 'instapay' ? 'بنكي' : 'كاش')}</small>
+            </div>
+            <div style="background: #ecfdf5; color: #10b981; padding: 5px 10px; border-radius: 8px; font-weight: bold; border: 1px solid #a7f3d0;">
+                + ${rev.amount} ج.م
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
 function loadDashboardStats() {
     if (!clinicId) return;
     const todayStr = getLocalTodayString(); 
+    const currentMonthPrefix = todayStr.substring(0, 7); // مثال: 2026-05
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري تحديث الإحصائيات..." : "Loading stats...");
 
@@ -210,33 +272,75 @@ function loadDashboardStats() {
         }
     });
 
+    // 🔴 إحصائيات المرضى
     db.collection("Patients").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             allPatientsData = [];
-            snap.forEach(doc => allPatientsData.push({ id: doc.id, ...doc.data() }));
+            let monthlyPatients = 0;
+
+            snap.forEach(doc => {
+                const data = doc.data();
+                allPatientsData.push({ id: doc.id, ...data });
+                
+                // حساب مرضى الشهر الحالي
+                if (data.createdAt) {
+                    let pDate = typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date(data.createdAt);
+                    if (pDate.toISOString().startsWith(currentMonthPrefix)) monthlyPatients++;
+                } else {
+                    monthlyPatients++; // Fallback
+                }
+            });
+            
             document.getElementById('stat-patients').innerText = allPatientsData.length;
+            if (document.getElementById('stat-month-patients')) {
+                document.getElementById('stat-month-patients').innerText = monthlyPatients;
+            }
         } catch(e) { console.error("Patients Error:", e); }
     });
 
+    // 🔴 إحصائيات المالية (نسحب الشهر الحالي عشان نطلع منه اليوم والشهر)
     db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income").onSnapshot(snap => {
         try {
             todayRevenueData = []; 
+            let monthRevenue = 0;
+
             snap.forEach(doc => { 
                 const data = doc.data();
-                if (data.date === todayStr && data.amount) todayRevenueData.push({ id: doc.id, ...data }); 
+                if (data.amount) {
+                    // سحب إيرادات اليوم
+                    if (data.date === todayStr) {
+                        todayRevenueData.push({ id: doc.id, ...data }); 
+                    }
+                    // سحب إيرادات الشهر
+                    if (data.date && data.date.startsWith(currentMonthPrefix)) {
+                        monthRevenue += Number(data.amount);
+                    }
+                }
             });
+            
+            if (document.getElementById('stat-month-revenue')) {
+                document.getElementById('stat-month-revenue').innerText = monthRevenue.toLocaleString();
+            }
             updateTotalRevenue();
+            renderLiveFinances(); // 🔴 تحديث قائمة أحدث العمليات
         } catch(e) { console.error("Finances Error:", e); }
     });
 
+    // 🔴 إحصائيات المواعيد
     db.collection("Appointments").where("clinicId", "==", clinicId).onSnapshot(snap => {
         try {
             let pending = 0, completed = 0, cancelled = 0;
+            let monthlyCompleted = 0;
             todayPendingApps = []; upcomingPendingApps = []; completedSessionsData = [];
 
             snap.forEach(doc => {
                 const data = doc.data();
-                if (data.status === 'completed') { completed++; completedSessionsData.push({ id: doc.id, ...data }); }
+                if (data.status === 'completed') { 
+                    completed++; 
+                    completedSessionsData.push({ id: doc.id, ...data }); 
+                    // حساب جلسات الشهر
+                    if (data.date && data.date.startsWith(currentMonthPrefix)) monthlyCompleted++;
+                }
                 if (data.status === 'cancelled') cancelled++;
                 if (data.status === 'pending') {
                     pending++;
@@ -247,7 +351,14 @@ function loadDashboardStats() {
 
             document.getElementById('stat-appointments').innerText = todayPendingApps.length;
             document.getElementById('stat-sessions').innerText = completed;
+            if (document.getElementById('stat-month-sessions')) {
+                document.getElementById('stat-month-sessions').innerText = monthlyCompleted;
+            }
             
+            // ترتيب المواعيد للوحة الحية
+            todayPendingApps.sort((a, b) => a.time.localeCompare(b.time));
+            renderLiveUpcoming(); // 🔴 تحديث قائمة المواعيد القادمة
+
             updateChart(pending, completed, cancelled);
             
             if(document.getElementById('waitingListModal').style.display === 'flex'){
@@ -347,7 +458,6 @@ function openNewAppModal() {
     document.getElementById('newAppModal').style.display = 'flex';
 }
 
-// 🔴 دالة السحر: حساب السعر أوتوماتيك بناءً على الخدمة والتعاقد
 function calculateNewAppERP() {
     const srvId = document.getElementById('app_type').value;
     const contEl = document.getElementById('app_contract');
@@ -384,7 +494,6 @@ async function saveNewAppointment(e) {
     if(otherHistory) historyArr.push(otherHistory);
     const finalHistory = historyArr.join(' ، ');
 
-    // 🔴 استخراج اسم الخدمة والتعاقد لحفظهم كـ (نص) في الفايربيز
     const srvSelect = document.getElementById('app_type');
     const srv = erpServices.find(s => s.id === srvSelect.value);
     const typeVal = srv ? srv.name : (srvSelect.options ? srvSelect.options[srvSelect.selectedIndex]?.text : srvSelect.value);
@@ -407,7 +516,7 @@ async function saveNewAppointment(e) {
         date: document.getElementById('app_date').value,
         time: document.getElementById('app_time').value || '12:00',
         type: typeVal,
-        contract: contractVal, // تم إضافة جهة التعاقد للداتا بيز
+        contract: contractVal,
         total: Number(document.getElementById('app_total').value) || 0,
         paid: Number(document.getElementById('app_paid').value) || 0,
         remaining: Number(document.getElementById('app_remaining').value) || 0,
@@ -476,7 +585,6 @@ function openAppDetails(app) {
     document.getElementById('det_date').innerText = app.date;
     document.getElementById('det_time').innerText = app.time;
     
-    // إظهار التعاقد إن وجد جنب نوع الكشف
     let typeText = app.type;
     if(app.contract && app.contract !== 'بدون تعاقد') typeText += ` <span style="font-size:12px;color:#10b981;">(مُغطى: ${app.contract})</span>`;
     document.getElementById('det_type').innerHTML = typeText;
@@ -617,11 +725,9 @@ function openRevDetails(rev) {
     document.getElementById('revDetailsModal').style.display = 'flex';
 }
 
-// 🔴 دالة حقن عناصر الـ ERP أوتوماتيكياً في الـ HTML بدون تدخل منك
 function setupERPInputs() {
     const typeInput = document.getElementById('app_type');
     if (typeInput && typeInput.tagName === 'INPUT') {
-        // تحويل خانة الإجراء لقائمة منسدلة
         const selectType = document.createElement('select');
         selectType.id = 'app_type';
         selectType.required = true;
@@ -629,7 +735,6 @@ function setupERPInputs() {
         selectType.onchange = calculateNewAppERP;
         typeInput.parentNode.replaceChild(selectType, typeInput);
 
-        // حقن خانة التعاقدات الجديدة
         const contractDiv = document.createElement('div');
         contractDiv.className = 'form-group';
         contractDiv.style.marginBottom = '15px';
@@ -647,7 +752,7 @@ window.onload = () => {
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
     updatePageContent(lang); 
-    setupERPInputs(); // تفعيل سحر الـ ERP
+    setupERPInputs(); 
     updateChart(0, 0, 0);
 
     firebase.auth().onAuthStateChanged((user) => {
