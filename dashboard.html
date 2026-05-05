@@ -36,6 +36,13 @@
         [data-theme="dark"] .patient-result-item { border-color: #334155 !important; }
         [data-theme="dark"] .patient-result-item:hover { background: #334155 !important; }
         [data-theme="dark"] .patient-result-name { color: #f8fafc !important; }
+
+        /* ستايلات الجداول الحية الجديدة */
+        .live-list-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; cursor: pointer;}
+        .live-list-item:hover { background: #f8fafc; padding-right: 20px; }
+        .live-list-item:last-child { border-bottom: none; }
+        [data-theme="dark"] .live-list-item { border-color: #334155; }
+        [data-theme="dark"] .live-list-item:hover { background: #1e293b; }
     </style>
 </head>
 <body>
@@ -85,7 +92,6 @@
             </div>
         </div>
 
-        <!-- نظام الـ ERP والمخازن -->
         <div class="main-grid" style="margin-top: 20px;">
             <div class="panel">
                 <h3 class="panel-title" id="lbl-inventory-alerts" style="color: #ef4444;">🔔 تنبيهات المخزون الذكية</h3>
@@ -95,22 +101,42 @@
             </div>
             
             <div class="panel">
-                <h3 class="panel-title" id="lbl-system-modules" style="color: #0284c7;">🚀 أقسام النظام المركزية (ERP)</h3>
-                <div class="erp-modules-grid">
-                    <div class="erp-module" onclick="window.parent.loadPage('reports.html', this)">📊 <span class="mod-txt" id="mod-reports">التقارير</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('invoices.html', this)">🧾 <span class="mod-txt" id="mod-invoices">الفواتير</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('hr.html', this)">👥 <span class="mod-txt" id="mod-hr">الموظفين</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('branches.html', this)">🏢 <span class="mod-txt" id="mod-branches">الفروع</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('inventory.html', this)">📦 <span class="mod-txt" id="mod-stock">جرد المخزون</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('notifications.html', this)">🔔 <span class="mod-txt" id="mod-notif">الإشعارات</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('services.html', this)">⚕️ <span class="mod-txt" id="mod-services">الخدمات</span></div>
-                    <div class="erp-module" onclick="window.parent.loadPage('contracts.html', this)">🤝 <span class="mod-txt" id="mod-contracts">التعاقدات</span></div>
+                <h3 class="panel-title" style="color: #8b5cf6;">📊 ملخص أداء الشهر الحالي</h3>
+                <div style="display: flex; gap: 10px; text-align: center; height: 80%; align-items: center;">
+                    <div style="flex:1; background:#f0f9ff; padding:20px 10px; border-radius:12px; border:1px solid #bae6fd;">
+                        <h4 style="margin:0 0 10px 0; color:#0369a1; font-size:15px;">مرضى جُدد</h4>
+                        <h2 style="margin:0; color:#0284c7; font-size: 28px;" id="stat-month-patients">0</h2>
+                    </div>
+                    <div style="flex:1; background:#f5f3ff; padding:20px 10px; border-radius:12px; border:1px solid #ddd6fe;">
+                        <h4 style="margin:0 0 10px 0; color:#6d28d9; font-size:15px;">جلسات مكتملة</h4>
+                        <h2 style="margin:0; color:#7c3aed; font-size: 28px;" id="stat-month-sessions">0</h2>
+                    </div>
+                    <div style="flex:1; background:#ecfdf5; padding:20px 10px; border-radius:12px; border:1px solid #a7f3d0;">
+                        <h4 style="margin:0 0 10px 0; color:#047857; font-size:15px;">إيرادات (ج.م)</h4>
+                        <h2 style="margin:0; color:#10b981; font-size: 28px;" id="stat-month-revenue">0</h2>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <div class="main-grid" style="margin-top: 20px;">
+            <div class="panel" style="padding: 0; overflow: hidden;">
+                <h3 class="panel-title" style="color: #f59e0b; padding: 20px 20px 10px 20px; margin: 0; border-bottom: 1px solid #f1f5f9;">📅 المواعيد القادمة فوراً</h3>
+                <div id="live-upcoming-apps" style="min-height: 100px;">
+                    <div style="text-align:center; padding: 30px; color: #64748b;">جاري التحميل...</div>
+                </div>
+            </div>
+            
+            <div class="panel" style="padding: 0; overflow: hidden;">
+                <h3 class="panel-title" style="color: #10b981; padding: 20px 20px 10px 20px; margin: 0; border-bottom: 1px solid #f1f5f9;">💸 أحدث العمليات المالية (اليوم)</h3>
+                <div id="live-recent-finances" style="min-height: 100px;">
+                    <div style="text-align:center; padding: 30px; color: #64748b;">جاري التحميل...</div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Modal: New Appointment -->
     <div id="newAppModal" class="modal">
         <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto; overflow-x: hidden;">
             <span class="close-modal" onclick="closeModal('newAppModal')">&times;</span>
@@ -213,7 +239,6 @@
         </div>
     </div>
 
-    <!-- Modal: Waiting List -->
     <div id="waitingListModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('waitingListModal')">&times;</span>
@@ -227,7 +252,6 @@
         </div>
     </div>
 
-    <!-- Modal: App Details -->
     <div id="appDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('appDetailsModal')">&times;</span>
@@ -248,7 +272,6 @@
         </div>
     </div>
 
-    <!-- Modal: Patients -->
     <div id="patientsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('patientsModal')">&times;</span>
@@ -257,7 +280,6 @@
         </div>
     </div>
 
-    <!-- Modal: Patient Details -->
     <div id="patientDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('patientDetailsModal')">&times;</span>
@@ -274,7 +296,6 @@
         </div>
     </div>
 
-    <!-- Modal: Revenue -->
     <div id="revenueModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-modal" onclick="closeModal('revenueModal')">&times;</span>
@@ -297,7 +318,6 @@
         </div>
     </div>
 
-    <!-- Modal: Sessions -->
     <div id="sessionsModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('sessionsModal')">&times;</span>
@@ -306,7 +326,6 @@
         </div>
     </div>
 
-    <!-- Modal: Revenue Details -->
     <div id="revDetailsModal" class="modal" style="z-index: 1005;">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal('revDetailsModal')">&times;</span>
@@ -321,7 +340,7 @@
         </div>
     </div>
 
-<script>
+    <script>
         var h = Math.floor(Date.now() / 3600000); 
         document.write('<script src="js/firebase-config.js?v=' + h + '"><\/script>');
         document.write('<script src="js/dashboard.js?v=' + h + '"><\/script>');
