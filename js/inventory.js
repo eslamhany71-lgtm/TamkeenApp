@@ -1,19 +1,53 @@
 // js/inventory.js
 const db = firebase.firestore();
 let currentClinicId = sessionStorage.getItem('clinicId');
+const userRole = sessionStorage.getItem('userRole'); // 🔴 جلب وظيفة الموظف
+const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب فرع الموظف الافتراضي
+
 let inventoryData = [];
 let currentStockItemId = null;
 let currentStockItemName = "";
 let currentStockItemQty = 0;
 
 let activeFilter = 'all';
+let unsubscribeInventory = null; // للتحكم في الكويري
 
 let barcodeBuffer = "";
 let barcodeTimeout = null;
 
-// 🔴 متغيرات الكاميرا والـ Flag السحري 🔴
 let html5QrcodeScanner = null;
 let isCameraRunning = false; 
+
+// 🔴 دالة لجلب قائمة الفروع (للمدير فقط)
+async function loadBranchesForAdmin() {
+    if (userRole !== 'admin' && userRole !== 'superadmin') return;
+
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", currentClinicId).get();
+        const filterSelect = document.getElementById('branch-filter');
+        
+        if (!filterSelect) return;
+
+        let optionsHtml = `<option value="all" id="opt-all-branches">كل الفروع</option>`;
+        optionsHtml += `<option value="main">الفرع الرئيسي</option>`;
+
+        snap.forEach(doc => {
+            optionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
+        });
+
+        filterSelect.innerHTML = optionsHtml;
+        filterSelect.style.display = 'block';
+        filterSelect.value = userBranch;
+
+        const lang = localStorage.getItem('preferredLang') || 'ar';
+        if (lang === 'en') {
+            const allOpt = document.getElementById('opt-all-branches');
+            if (allOpt) allOpt.innerText = "All Branches";
+        }
+    } catch (e) {
+        console.error("Error loading branches:", e);
+    }
+}
 
 // =========================================================
 // 🔴 دوال الباركود (الكاميرا مع البديل اليدوي الآمن) 🔴
@@ -133,7 +167,8 @@ function updatePageContent(lang) {
             sTitle: "تعديل الرصيد", sAmount: "أدخل الكمية:", sCost: "إجمالي التكلفة / سعر الشراء (ج.م):", btnAddStock: "📥 إضافة (توريد)", btnConsume: "📤 سحب (استهلاك)",
             stGood: "متوفر", stLow: "نواقص", stExp: "منتهي الصلاحية", stExpSoon: "ينتهي قريباً",
             msgDel: "هل أنت متأكد من حذف هذا الصنف؟", msgStockErr: "الكمية المدخلة غير صحيحة أو أكبر من الرصيد المتاح!",
-            btnBarcode: "📷 مسح بالكاميرا (سكان)", camTitle: "📷 ماسح الباركود", camSub: "قم بتوجيه الكاميرا نحو باركود المنتج (Barcode أو QR Code)"
+            btnBarcode: "📷 مسح بالكاميرا (سكان)", camTitle: "📷 ماسح الباركود", camSub: "قم بتوجيه الكاميرا نحو باركود المنتج (Barcode أو QR Code)",
+            optAllBranches: "كل الفروع"
         },
         en: {
             title: "Medical Inventory", sub: "Manage clinic supplies, materials, and shortage alerts", btnAdd: "➕ Add New Item", searchPlh: "Search item or category...",
@@ -143,7 +178,8 @@ function updatePageContent(lang) {
             sTitle: "Adjust Stock", sAmount: "Enter Quantity:", sCost: "Total Purchase Cost (EGP):", btnAddStock: "📥 Add Stock", btnConsume: "📤 Consume",
             stGood: "In Stock", stLow: "Low Stock", stExp: "Expired", stExpSoon: "Expiring Soon",
             msgDel: "Are you sure you want to delete this item?", msgStockErr: "Invalid quantity or exceeds available stock!",
-            btnBarcode: "📷 Scan with Camera", camTitle: "📷 Barcode Scanner", camSub: "Point camera at the product barcode or QR Code"
+            btnBarcode: "📷 Scan with Camera", camTitle: "📷 Barcode Scanner", camSub: "Point camera at the product barcode or QR Code",
+            optAllBranches: "All Branches"
         }
     };
     const c = t[lang] || t.ar;
@@ -158,6 +194,7 @@ function updatePageContent(lang) {
     setTxt('stock-modal-title', c.sTitle); setTxt('lbl-stock-amount', c.sAmount); setTxt('lbl-stock-cost', c.sCost); setTxt('btn-stock-add', c.btnAddStock); setTxt('btn-stock-consume', c.btnConsume);
     setTxt('btn-manual-barcode', c.btnBarcode);
     setTxt('cam-modal-title', c.camTitle); setTxt('cam-modal-sub', c.camSub);
+    if(document.getElementById('opt-all-branches')) setTxt('opt-all-branches', c.optAllBranches);
 
     window.invLang = c;
 }
@@ -184,11 +221,11 @@ function openItemModal() {
     document.getElementById('item_qty').disabled = false; 
     document.getElementById('item_initial_cost').value = '0';
     document.getElementById('item_initial_pay_method').value = 'cash';
-    document.getElementById('item_initial_cost').parentElement.parentElement.style.display = 'flex'; // إظهار التكلفة
+    document.getElementById('item_initial_cost').parentElement.parentElement.style.display = 'flex';
     openModal('itemModal');
 }
 
-// 🔴 دالة السحر: حفظ المشتريات وتسميعها في المصروفات 🔴
+// 🔴 دالة السحر: حفظ المشتريات وتسميعها في المصروفات مع الفرع 🔴
 async function saveItem(e) {
     e.preventDefault();
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -201,8 +238,16 @@ async function saveItem(e) {
     const payMethod = document.getElementById('item_initial_pay_method').value;
     const barcode = document.getElementById('item_barcode').value.trim(); 
 
+    // تحديد الفرع للصنف الجديد
+    let targetBranchId = userBranch;
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        const filterVal = document.getElementById('branch-filter').value;
+        targetBranchId = filterVal === 'all' ? 'main' : filterVal;
+    }
+
     const data = {
         clinicId: currentClinicId,
+        branchId: targetBranchId, // 🔴 ختم الفرع 🔴
         name: itemName,
         category: document.getElementById('item_category').value,
         qty: initialQty,
@@ -215,17 +260,18 @@ async function saveItem(e) {
 
     try {
         if (itemId) {
-            delete data.qty; // منع تعديل الكمية من نافذة التعديل العامة (يتم من نافذة الجرد فقط)
+            delete data.qty; 
             await db.collection("Inventory").doc(itemId).update(data);
         } else {
             data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             await db.collection("Inventory").add(data);
 
-            // السحر المالي: تسجيل التكلفة كمصروفات
+            // السحر المالي: تسجيل التكلفة كمصروفات في نفس الفرع
             if (initialCost > 0) {
                 const today = new Date().toISOString().split('T')[0];
                 await db.collection("Finances").add({
                     clinicId: currentClinicId,
+                    branchId: targetBranchId, // 🔴 ختم الفرع 🔴
                     type: 'expense',
                     category: isAr ? 'مشتريات خامات ومخزون' : 'Inventory Purchase',
                     amount: initialCost,
@@ -266,7 +312,7 @@ function openStockActionModal(id, name, currentQty, actionType) {
     if (actionType === 'add') {
         btnAdd.style.display = 'flex';
         btnConsume.style.display = 'none';
-        costContainer.style.display = 'block'; // إظهار التكلفة وقت التوريد
+        costContainer.style.display = 'block'; 
     } else {
         btnAdd.style.display = 'none';
         btnConsume.style.display = 'flex';
@@ -276,7 +322,7 @@ function openStockActionModal(id, name, currentQty, actionType) {
     openModal('stockActionModal');
 }
 
-// 🔴 دالة السحر: تعديل الرصيد وتسميع المصروفات 🔴
+// 🔴 دالة السحر: تعديل الرصيد وتسميع المصروفات في الفرع الصحيح 🔴
 async function executeStockAction(type) {
     const amount = Number(document.getElementById('stock_amount').value);
     const cost = Number(document.getElementById('stock_cost').value) || 0;
@@ -298,11 +344,17 @@ async function executeStockAction(type) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
+        // الحصول على فرع الصنف عشان نرمي المصروف فيه
+        let itemBranchId = userBranch;
+        const currentItem = inventoryData.find(i => i.id === currentStockItemId);
+        if (currentItem && currentItem.branchId) itemBranchId = currentItem.branchId;
+
         // السحر المالي: تسجيل التكلفة كمصروفات عند توريد شحنة جديدة
         if (type === 'add' && cost > 0) {
             const today = new Date().toISOString().split('T')[0];
             await db.collection("Finances").add({
                 clinicId: currentClinicId,
+                branchId: itemBranchId, // 🔴 ختم الفرع 🔴
                 type: 'expense',
                 category: isAr ? 'مشتريات خامات ومخزون' : 'Inventory Purchase',
                 amount: cost,
@@ -359,9 +411,23 @@ async function deleteItem(id) {
 function loadInventory() {
     if (!currentClinicId) return;
 
-    db.collection("Inventory").where("clinicId", "==", currentClinicId)
-      .orderBy("updatedAt", "desc")
-      .onSnapshot(snap => {
+    // 🔴 الكبسولة السحرية للفلترة والعزل 🔴
+    let queryRef = db.collection("Inventory").where("clinicId", "==", currentClinicId);
+
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        queryRef = queryRef.where("branchId", "==", userBranch);
+    } else {
+        const selectedBranch = document.getElementById('branch-filter').value;
+        if (selectedBranch && selectedBranch !== 'all') {
+            queryRef = queryRef.where("branchId", "==", selectedBranch);
+        }
+    }
+
+    if (unsubscribeInventory) {
+        unsubscribeInventory(); // مسح اللسنر القديم لو الفلتر اتغير
+    }
+
+    unsubscribeInventory = queryRef.orderBy("updatedAt", "desc").onSnapshot(snap => {
         inventoryData = [];
         let totalItems = 0;
         let lowStockCount = 0;
@@ -502,7 +568,7 @@ function renderInventoryTable(dataToRender) {
     });
 }
 
-window.onload = () => {
+window.onload = async () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     
@@ -511,8 +577,11 @@ window.onload = () => {
     if(window.translations) updatePageContent(lang);
     else setTimeout(() => updatePageContent(lang), 500);
     
-    firebase.auth().onAuthStateChanged((user) => {
-        if (user) loadInventory();
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            await loadBranchesForAdmin(); // 🔴 جلب الفروع
+            loadInventory(); // 🔴 جلب المخزون
+        }
     });
 };
 
@@ -569,7 +638,7 @@ window.addEventListener('click', function(e) {
                 width: 100% !important;
                 align-items: stretch !important;
             }
-            .header-actions input, .header-actions button {
+            .header-actions input, .header-actions button, .header-actions select {
                 width: 100% !important;
                 margin-bottom: 5px !important;
             }
