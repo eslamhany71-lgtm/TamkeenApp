@@ -1,4 +1,4 @@
-// js/portal.js - V3.2 (Smart SaaS Portal & Auto Clinic Branding - WhatsApp Fix)
+// js/portal.js - V3.3 (Smart SaaS Portal + Clinic Reviews)
 
 const db = firebase.firestore();
 const urlParams = new URLSearchParams(window.location.search);
@@ -6,7 +6,6 @@ const clinicId = urlParams.get('clinicId');
 let currentLang = localStorage.getItem('portal_lang') || 'ar';
 let clinicWhatsApp = "";
 
-// 🔴 متغيرات إعدادات العيادة للبوابة 🔴
 let portalSettings = { workStart: '10:00', workEnd: '22:00', offDay: 'none' };
 
 // ==========================================
@@ -22,8 +21,8 @@ const portalDict = {
         btnBookNew: "📅 حجز موعد جديد",
         bookTitle: "📅 حجز موعد جديد",
         bookSub: "اختر اليوم والوقت المناسب لك",
-        lblBookBranch: "اختر الفرع:", // 🔴
-        optMainBranch: "الفرع الرئيسي", // 🔴
+        lblBookBranch: "اختر الفرع:", 
+        optMainBranch: "الفرع الرئيسي", 
         lblBookDate: "اختر تاريخ الحجز:",
         lblSlots: "المواعيد المتاحة:",
         txtSelectedTime: "الموعد المحدد:",
@@ -47,7 +46,19 @@ const portalDict = {
         msgConflict: "عفواً، تم حجز هذا الموعد منذ لحظات!",
         statusPending: "قيد التنفيذ ⏳",
         statusReady: "جاهز بالعيادة ✅",
-        errOffDay: "عفواً، العيادة مغلقة في هذا اليوم (إجازة أسبوعية)."
+        errOffDay: "عفواً، العيادة مغلقة في هذا اليوم (إجازة أسبوعية).",
+        
+        // 🔴 ترجمات قسم التقييمات 🔴
+        reviewsTitle: "⭐ آراء وتقييمات المرضى",
+        btnWriteReview: "✍️ أضف تقييمك",
+        rateClinic: "تقييم العيادة",
+        rateDesc: "رأيك يهمنا ويهم المرضى الآخرين!",
+        ratePlh: "اكتب رأيك أو تجربتك مع العيادة (اختياري)...",
+        btnSubmitReview: "نشر التقييم",
+        noReviews: "لا توجد تقييمات للعيادة حتى الآن. كن أول من يقيم!",
+        msgRevSuccess: "شكراً لتقييمك! تم النشر بنجاح.",
+        errNoStars: "برجاء تقييم العيادة بالنجوم أولاً!",
+        loadingStr: "جاري التحميل..."
     },
     en: {
         pageTitle: "Patient Portal",
@@ -58,8 +69,8 @@ const portalDict = {
         btnBookNew: "📅 Book New Appointment",
         bookTitle: "📅 Book New Appointment",
         bookSub: "Choose a suitable date and time",
-        lblBookBranch: "Select Branch:", // 🔴
-        optMainBranch: "Main Branch", // 🔴
+        lblBookBranch: "Select Branch:", 
+        optMainBranch: "Main Branch", 
         lblBookDate: "Select Date:",
         lblSlots: "Available Slots:",
         txtSelectedTime: "Selected Time:",
@@ -83,7 +94,19 @@ const portalDict = {
         msgConflict: "Sorry, this slot was just booked by someone else!",
         statusPending: "In Progress ⏳",
         statusReady: "Ready at Clinic ✅",
-        errOffDay: "Sorry, the clinic is closed on this date (Weekly Day Off)."
+        errOffDay: "Sorry, the clinic is closed on this date (Weekly Day Off).",
+        
+        // 🔴 Review Translations 🔴
+        reviewsTitle: "⭐ Patient Reviews",
+        btnWriteReview: "✍️ Write a Review",
+        rateClinic: "Rate Clinic",
+        rateDesc: "Your feedback helps us and other patients!",
+        ratePlh: "Write your experience with the clinic (Optional)...",
+        btnSubmitReview: "Post Review",
+        noReviews: "No reviews for this clinic yet. Be the first to review!",
+        msgRevSuccess: "Thank you for your review! Posted successfully.",
+        errNoStars: "Please select a star rating first!",
+        loadingStr: "Loading..."
     }
 };
 
@@ -101,7 +124,7 @@ function updatePortalContent(lang) {
     document.getElementById('txt_book_title').innerText = d.bookTitle;
     document.getElementById('txt_book_sub').innerText = d.bookSub;
     
-    if(document.getElementById('lbl_book_branch')) document.getElementById('lbl_book_branch').innerText = d.lblBookBranch; // 🔴
+    if(document.getElementById('lbl_book_branch')) document.getElementById('lbl_book_branch').innerText = d.lblBookBranch;
     
     document.getElementById('lbl_book_date').innerText = d.lblBookDate;
     document.getElementById('lbl_slots').innerText = d.lblSlots;
@@ -115,11 +138,18 @@ function updatePortalContent(lang) {
     document.getElementById('lbl_debt').innerText = d.lblDebt;
     document.getElementById('lbl_lab_status').innerText = d.lblLabStatus;
     document.getElementById('lbl_history').innerText = d.lblHistory;
+
+    // ترجمات قسم التقييمات
+    document.getElementById('lbl_reviews_title').innerHTML = d.reviewsTitle;
+    document.getElementById('btn_write_review').innerText = d.btnWriteReview;
+    document.getElementById('txt_rate_clinic').innerText = d.rateClinic;
+    document.getElementById('txt_rate_desc').innerText = d.rateDesc;
+    document.getElementById('portal_review_message').placeholder = d.ratePlh;
+    document.getElementById('btn_submit_review').innerText = d.btnSubmitReview;
     
     document.getElementById('btn_ar').className = lang === 'ar' ? 'active' : '';
     document.getElementById('btn_en').className = lang === 'en' ? 'active' : '';
     
-    // تحديث اسم الفرع الرئيسي لو موجود
     const mainOpt = document.querySelector('#book_branch option[value="main"]');
     if (mainOpt && !mainOpt.hasAttribute('data-custom-name')) {
         mainOpt.innerText = d.optMainBranch;
@@ -133,6 +163,7 @@ function switchPortalLang(lang) {
     if(document.getElementById('dashboard-screen').style.display === 'block') {
         const sd = sessionStorage.getItem(`patient_${clinicId}`);
         if(sd) checkQueueStatus(); 
+        fetchClinicReviews(); // تحديث لغة الرسائل اللي في التقييمات
     }
 }
 
@@ -210,7 +241,6 @@ window.onload = async () => {
             }
         }
         
-        // 🔴 جلب الفروع للبوابة 🔴
         await loadPortalBranches();
 
     } catch(e) { console.error("Branding Error", e); }
@@ -222,7 +252,6 @@ window.onload = async () => {
     }
 };
 
-// 🔴 دالة جلب فروع العيادة للبوابة 🔴
 async function loadPortalBranches() {
     try {
         const snap = await db.collection("Branches").where("clinicId", "==", clinicId).get();
@@ -242,11 +271,9 @@ async function loadPortalBranches() {
                     mainOpt.setAttribute('data-custom-name', 'true');
                 }
             });
-            branchGroup.style.display = 'block'; // إظهار القائمة لو في فروع
+            branchGroup.style.display = 'block'; 
         }
-    } catch (e) {
-        console.error("Error loading branches for portal:", e);
-    }
+    } catch (e) { console.error("Error loading branches for portal:", e); }
 }
 
 // ==========================================
@@ -316,6 +343,9 @@ async function loadDashboard(patientData) {
         fetchPatientHistory(patientData.id);
         fetchLabOrders(patientData.id);
     }
+    
+    // 🔴 جلب التقييمات أول ما الداشبورد يفتح 🔴
+    fetchClinicReviews();
 }
 
 async function fetchNextAppointment(patientPhone) {
@@ -434,7 +464,7 @@ function cancelBooking() {
 
 async function loadAvailableSlots() {
     const selectedDate = document.getElementById('book_date').value;
-    const selectedBranch = document.getElementById('book_branch').value || 'main'; // 🔴 تحديد الفرع
+    const selectedBranch = document.getElementById('book_branch').value || 'main';
 
     if (!selectedDate) return;
 
@@ -455,7 +485,6 @@ async function loadAvailableSlots() {
     document.getElementById('confirmBookingForm').style.display = 'none';
 
     try {
-        // 🔴 سحب المواعيد المحجوزة مسبقاً في الفرع المحدد فقط 🔴
         const snap = await db.collection("Appointments")
             .where("clinicId", "==", clinicId)
             .where("branchId", "==", selectedBranch)
@@ -522,14 +551,13 @@ async function submitBooking(e) {
     
     const date = document.getElementById('book_date').value;
     const time = document.getElementById('selected_time').value;
-    const selectedBranch = document.getElementById('book_branch').value || 'main'; // 🔴 ختم الفرع
+    const selectedBranch = document.getElementById('book_branch').value || 'main'; 
     const inputName = document.getElementById('book_name').value.trim();
     const inputPhone = document.getElementById('book_phone').value.trim();
 
     showLoader();
 
     try {
-        // 🔴 حماية مزدوجة: التأكد إن الموعد مش محجوز في نفس الفرع 🔴
         const checkSnap = await db.collection("Appointments")
             .where("clinicId", "==", clinicId)
             .where("branchId", "==", selectedBranch)
@@ -552,7 +580,6 @@ async function submitBooking(e) {
             finalPatientName = patientSnap.docs[0].data().name; 
         }
 
-        // 🔴 رمي الموعد في الفايربيز مع الفرع الصحيح 🔴
         await db.collection("Appointments").add({
             clinicId: clinicId, 
             branchId: selectedBranch, 
@@ -569,4 +596,100 @@ async function submitBooking(e) {
 
     } catch (error) { alert(portalDict[currentLang].errGeneric); } 
     finally { btn.disabled = false; hideLoader(); }
+}
+
+// ==========================================
+// 🔴 Clinic Reviews Logic 🔴
+// ==========================================
+async function fetchClinicReviews() {
+    const listEl = document.getElementById('clinic_reviews_list');
+    const d = portalDict[currentLang];
+    listEl.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-muted);">${d.loadingStr}</div>`;
+    
+    try {
+        const snap = await db.collection("ClinicReviews").where("clinicId", "==", clinicId).orderBy("createdAt", "desc").get();
+        if(snap.empty) {
+            listEl.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-muted);">${d.noReviews}</div>`;
+            return;
+        }
+        
+        listEl.innerHTML = '';
+        snap.forEach(doc => {
+            const r = doc.data();
+            let starsHtml = '⭐'.repeat(r.rating || 5);
+            let dateStr = '';
+            if (r.createdAt) {
+                const dateObj = typeof r.createdAt.toDate === 'function' ? r.createdAt.toDate() : new Date(r.createdAt);
+                dateStr = dateObj.toLocaleDateString(currentLang === 'ar' ? 'ar-EG' : 'en-US');
+            }
+            
+            listEl.innerHTML += `
+                <div class="review-box">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="review-author">👤 ${r.patientName || 'مريض'}</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">${dateStr}</div>
+                    </div>
+                    <div class="review-stars">${starsHtml}</div>
+                    <div class="review-comment">${r.comment || ''}</div>
+                </div>
+            `;
+        });
+    } catch(e) { 
+        console.error("Review fetch error", e); 
+        listEl.innerHTML = ''; 
+    }
+}
+
+function openReviewModal() {
+    setPortalRating(0);
+    document.getElementById('portal_review_message').value = '';
+    document.getElementById('reviewModal').style.display = 'flex';
+}
+
+function setPortalRating(val) {
+    document.getElementById('portal_current_rating').value = val;
+    const stars = document.getElementById('portal-star-container').querySelectorAll('span');
+    stars.forEach(star => {
+        if (parseInt(star.getAttribute('data-val')) <= val) {
+            star.classList.add('active');
+            star.style.color = '#fbbf24';
+        } else {
+            star.classList.remove('active');
+            star.style.color = document.body.getAttribute('data-theme') === 'dark' ? '#475569' : '#cbd5e1';
+        }
+    });
+}
+
+async function submitClinicReview() {
+    const rating = parseInt(document.getElementById('portal_current_rating').value);
+    const msg = document.getElementById('portal_review_message').value.trim();
+    const d = portalDict[currentLang];
+
+    if (rating === 0) { alert(d.errNoStars); return; }
+    
+    const btn = document.getElementById('btn_submit_review');
+    btn.disabled = true;
+    
+    const patDataStr = sessionStorage.getItem(`patient_${clinicId}`);
+    if(!patDataStr) return;
+    const patData = JSON.parse(patDataStr);
+
+    try {
+        await db.collection("ClinicReviews").add({ 
+            clinicId: clinicId, 
+            patientId: patData.id || '',
+            patientName: patData.name || (currentLang === 'ar' ? 'مريض' : 'Patient'),
+            rating: rating,
+            comment: msg, 
+            createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+        });
+        alert(d.msgRevSuccess);
+        document.getElementById('reviewModal').style.display = 'none';
+        fetchClinicReviews(); // تحديث القائمة فوراً
+    } catch (error) { 
+        console.error("Error posting review:", error); 
+        alert(d.errGeneric); 
+    } finally { 
+        btn.disabled = false; 
+    }
 }
