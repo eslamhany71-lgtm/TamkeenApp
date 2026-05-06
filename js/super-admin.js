@@ -1,4 +1,4 @@
-// js/super-admin.js
+// js/superadmin.js
 const db = firebase.firestore();
 let allClinicsList = []; 
 let clinicUsersUnsubscribe = null; 
@@ -24,21 +24,23 @@ function updatePageContent(lang) {
             msgConfirmPaid: "هل تريد تأكيد استلام الدفعة وتجديد الاشتراك لمدة شهر؟",
             msgWarnDel: "تحذير: هذا سيحذف العيادة تماماً ولن يمكن استرجاعها! اكتب '1234' للتأكيد:", msgDelSuccess: "تم حذف العيادة بنجاح.", btnSaving: "جاري الإنشاء...",
             
-            // ترجمة المودال الجديد
             mUpgTitle: "🚀 ترقية العيادة التجريبية", mUpgSub: "حدد الباقة وقيمة الاشتراك لتوليد كود الدخول الجديد للعيادة.",
             lUpgPkg: "باقة الاشتراك", optUpgMonth: "شهري (Monthly)", optUpgYear: "سنوي (Yearly)",
             lUpgPrice: "الاشتراك (ج.م)", lUpgLimit: "الحد الأقصى للمستخدمين", btnConfirmUpg: "تأكيد الترقية وتوليد الكود",
             
-            // ترجمة مودال الموظف السريع
             mUserTitle: "توليد كود دعوة مستخدم", mUserSub: "اختر العيادة والوظيفة لتوليد كود (يعمل كـ Override في حالة الطوارئ).",
             lUClinic: "العيادة التابعة لها", lUName: "اسم المستخدم", lURole: "الصلاحية الممنوحة (Role)",
             optUAdmin: "مدير نظام (Doctor/Admin)", optUDoc: "طبيب (صلاحية محدودة)", optURec: "موظف استقبال", optUNur: "مساعد / ممرضة", btnSubUser: "توليد كود الدعوة",
             
-            // تفاصيل العيادة
             modDetTitle: "تفاصيل العيادة والمستخدمين", lblDetName: "اسم العيادة", lblDetCode: "كود العيادة", lblDetEmail: "إيميل الأدمن", lblDetPhone: "الموبايل",
             lblDetPkg: "نوع الباقة", lblDetCreated: "تاريخ الإنشاء", lblDetLimit: "الحد الأقصى للمستخدمين:", lblDetPrice: "قيمة الاشتراك المتفق عليها:",
             txtTeamTitle: "👥 فريق العمل والمستخدمين", thUName: "اسم المستخدم", thUEmail: "البريد / الكود", thURole: "الصلاحية",
-            thUDate: "تاريخ الانضمام", thUOnline: "متصل الآن؟", thULast: "آخر ظهور", txtULoad: "جاري تحميل المستخدمين..."
+            thUDate: "تاريخ الانضمام", thUOnline: "متصل الآن؟", thULast: "آخر ظهور", txtULoad: "جاري تحميل المستخدمين...",
+            
+            // تابات السوبر أدمن الجديدة
+            tabActive: "🏢 العيادات النشطة والموقوفة", tabTrials: "🚀 التجارب المجانية", tabSupport: "🎧 تذاكر الدعم الفني", tabReviews: "⭐ تقييمات النظام",
+            noSupport: "لا توجد تذاكر دعم فني.", noReviews: "لا توجد تقييمات حتى الآن.", btnReply: "رد وإغلاق",
+            msgReplySent: "تم إرسال الرد وإغلاق التذكرة بنجاح."
         },
         en: {
             title: "Central SaaS Management", sub: "Owner Dashboard - Super Admin", search: "Search by clinic name...", btnAdd: "Add New Clinic", btnAddUser: "Generate User Invite",
@@ -68,7 +70,11 @@ function updatePageContent(lang) {
             modDetTitle: "Clinic & Staff Details", lblDetName: "Clinic Name", lblDetCode: "Access Code", lblDetEmail: "Admin Email", lblDetPhone: "Phone",
             lblDetPkg: "Package", lblDetCreated: "Created At", lblDetLimit: "Max Users Limit:", lblDetPrice: "Agreed Subscription Price:",
             txtTeamTitle: "👥 Staff & Users", thUName: "User Name", thUEmail: "Email / Code", thURole: "Role",
-            thUDate: "Join Date", thUOnline: "Online?", thULast: "Last Seen", txtULoad: "Loading users..."
+            thUDate: "Join Date", thUOnline: "Online?", thULast: "Last Seen", txtULoad: "Loading users...",
+
+            tabActive: "🏢 Active & Suspended Clinics", tabTrials: "🚀 Free Trials", tabSupport: "🎧 Support Tickets", tabReviews: "⭐ System Reviews",
+            noSupport: "No support tickets found.", noReviews: "No reviews yet.", btnReply: "Reply & Close",
+            msgReplySent: "Reply sent and ticket closed successfully."
         }
     };
     const c = t[lang] || t.ar;
@@ -99,6 +105,16 @@ function updatePageContent(lang) {
     setTxt('th-u-date', c.thUDate); setTxt('th-u-online', c.thUOnline); setTxt('th-u-last', c.thULast);
     if(document.getElementById('txt-u-load')) setTxt('txt-u-load', c.txtULoad);
 
+    // تحديث التابات
+    if(document.getElementById('tab-active')) document.getElementById('tab-active').innerHTML = c.tabActive;
+    if(document.getElementById('tab-trials')) document.getElementById('tab-trials').innerHTML = c.tabTrials;
+    
+    const supBadge = document.getElementById('badge-support');
+    const badgeHtml = supBadge ? supBadge.outerHTML : '';
+    if(document.getElementById('tab-support')) document.getElementById('tab-support').innerHTML = c.tabSupport + badgeHtml;
+    
+    if(document.getElementById('tab-reviews')) document.getElementById('tab-reviews').innerHTML = c.tabReviews;
+
     window.superLang = c;
 }
 
@@ -108,6 +124,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
         if (userDoc.exists && userDoc.data().role === 'superadmin') {
             loadClinics();
             loadGlobalStats();
+            loadSupportTickets(); // 🔴 جلب تذاكر الدعم
+            loadSystemReviews(); // 🔴 جلب التقييمات
         } else {
             const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
             document.body.innerHTML = `<h2 style='text-align:center; color:red; margin-top:50px;'>${isAr ? "عفواً، ليس لديك صلاحية للدخول لهذه الشاشة." : "Access Denied."}</h2>`;
@@ -117,16 +135,184 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
+// 🔴 التنقل بين الأقسام (Views) 🔴
 function switchMainTab(tabName) {
     currentActiveTab = tabName;
-    document.getElementById('tab-active').classList.remove('active');
-    document.getElementById('tab-trials').classList.remove('active');
+    document.querySelectorAll('.sa-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.main-view-container').forEach(v => v.style.display = 'none');
     
-    if(tabName === 'active') document.getElementById('tab-active').classList.add('active');
-    else document.getElementById('tab-trials').classList.add('active');
-    
-    renderClinicsTable(); 
+    if (tabName === 'active' || tabName === 'trials') {
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+        document.getElementById('view-clinics').style.display = 'block';
+        renderClinicsTable(); 
+    } else if (tabName === 'support') {
+        document.getElementById('tab-support').classList.add('active');
+        document.getElementById('view-support').style.display = 'block';
+    } else if (tabName === 'reviews') {
+        document.getElementById('tab-reviews').classList.add('active');
+        document.getElementById('view-reviews').style.display = 'block';
+    }
 }
+
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// 🔴 دالة جلب وعرض تذاكر الدعم الفني 🔴
+function loadSupportTickets() {
+    db.collection("SupportTickets").orderBy("timestamp", "desc").onSnapshot(snap => {
+        const tbody = document.getElementById('supportBody');
+        tbody.innerHTML = '';
+        let openCount = 0;
+        const lang = localStorage.getItem('preferredLang') || 'ar';
+        const isAr = lang === 'ar';
+
+        if (snap.empty) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #64748b;">${window.superLang.noSupport || 'لا توجد تذاكر دعم فني.'}</td></tr>`;
+            document.getElementById('badge-support').style.display = 'none';
+            return;
+        }
+
+        snap.forEach(doc => {
+            const ticket = doc.data();
+            if (ticket.status === 'open') openCount++;
+
+            let statusHtml = ticket.status === 'open' 
+                ? `<span class="support-status support-open">${isAr ? 'مفتوحة (قيد الانتظار)' : 'Open'}</span>`
+                : `<span class="support-status support-closed">${isAr ? 'مغلقة (تم الرد)' : 'Closed'}</span>`;
+
+            let dateStr = '---';
+            if (ticket.timestamp) {
+                const d = typeof ticket.timestamp.toDate === 'function' ? ticket.timestamp.toDate() : new Date(ticket.timestamp);
+                dateStr = `<span dir="ltr">${d.toLocaleDateString(isAr?'ar-EG':'en-US')} ${d.toLocaleTimeString(isAr?'ar-EG':'en-US', {hour:'2-digit', minute:'2-digit'})}</span>`;
+            }
+
+            let actionBtn = ticket.status === 'open' 
+                ? `<button class="btn-primary" style="background:#0ea5e9; border:none; padding:5px 10px; border-radius:5px;" onclick='openReplyTicketModal("${doc.id}", ${JSON.stringify(ticket).replace(/'/g, "&#39;")})'>✉️ ${window.superLang.btnReply || 'رد'}</button>`
+                : `<button class="btn-action" style="background:#f1f5f9; color:#94a3b8; border:1px solid #e2e8f0; cursor:not-allowed;" disabled>✔️ تمت</button>`;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-size: 13px; color: #475569;">${dateStr}</td>
+                <td>
+                    <strong style="color: #0f172a;">🏢 ${ticket.clinicName || '---'}</strong><br>
+                    <small style="color: #64748b;" dir="ltr">${ticket.userEmail || '---'}</small>
+                </td>
+                <td style="max-width: 300px; white-space: normal; line-height: 1.5;">${ticket.message || '---'}</td>
+                <td>${statusHtml}</td>
+                <td style="text-align: center;">${actionBtn}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // تحديث البادچ
+        const badge = document.getElementById('badge-support');
+        if (openCount > 0) {
+            badge.innerText = openCount;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    });
+}
+
+function openReplyTicketModal(id, ticket) {
+    document.getElementById('reply_ticket_id').value = id;
+    document.getElementById('reply_clinic_id').value = ticket.clinicId;
+    document.getElementById('ticket_reply_text').value = '';
+
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    let dateStr = '---';
+    if (ticket.timestamp && ticket.timestamp.seconds) {
+        const d = new Date(ticket.timestamp.seconds * 1000);
+        dateStr = `<span dir="ltr">${d.toLocaleDateString(isAr?'ar-EG':'en-US')} ${d.toLocaleTimeString(isAr?'ar-EG':'en-US', {hour:'2-digit', minute:'2-digit'})}</span>`;
+    }
+
+    document.getElementById('ticket-info-display').innerHTML = `
+        <strong>العيادة:</strong> ${ticket.clinicName}<br>
+        <strong>الرسالة الأصلية:</strong> <br> <span style="color:#0f172a; display:block; padding:10px; background:white; border-radius:6px; margin-top:5px; border:1px solid #cbd5e1;">${ticket.message}</span>
+    `;
+
+    openModal('replyTicketModal');
+}
+
+async function submitTicketReply(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    btn.disabled = true; btn.innerText = "...";
+
+    const ticketId = document.getElementById('reply_ticket_id').value;
+    const clinicId = document.getElementById('reply_clinic_id').value;
+    const replyText = document.getElementById('ticket_reply_text').value.trim();
+
+    try {
+        await db.collection("SupportTickets").doc(ticketId).update({
+            status: 'closed',
+            reply: replyText,
+            repliedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // إرسال إشعار للعيادة بالرد
+        await db.collection("Notifications").add({
+            clinicId: clinicId,
+            title: "رد على طلب الدعم الفني",
+            message: replyText,
+            type: "system",
+            isRead: false,
+            createdAt: new Date().toISOString()
+        });
+
+        alert(window.superLang.msgReplySent || "تم الرد وإغلاق التذكرة بنجاح.");
+        closeModal('replyTicketModal');
+    } catch (err) {
+        console.error(err);
+        alert("حدث خطأ أثناء الرد.");
+    } finally {
+        btn.disabled = false; btn.innerText = window.superLang.btnReply || "إرسال الرد وإغلاق التيكت";
+    }
+}
+
+// 🔴 دالة جلب وعرض تقييمات النظام 🔴
+function loadSystemReviews() {
+    db.collection("SystemReviews").orderBy("createdAt", "desc").onSnapshot(snap => {
+        const container = document.getElementById('reviewsContainer');
+        container.innerHTML = '';
+        
+        if (snap.empty) {
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: #64748b; grid-column: 1/-1;">${window.superLang.noReviews || 'لا توجد تقييمات حتى الآن.'}</div>`;
+            return;
+        }
+
+        snap.forEach(doc => {
+            const r = doc.data();
+            let starsHtml = '⭐'.repeat(r.rating || 5);
+            
+            let dateStr = '---';
+            if (r.createdAt) {
+                const d = typeof r.createdAt.toDate === 'function' ? r.createdAt.toDate() : new Date(r.createdAt);
+                dateStr = d.toLocaleDateString();
+            }
+
+            container.innerHTML += `
+                <div class="review-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span class="stars">${starsHtml}</span>
+                        <span style="color: #94a3b8; font-size: 12px;">${dateStr}</span>
+                    </div>
+                    <p style="margin: 0 0 10px 0; font-size: 15px; line-height: 1.5;">"${r.comment || 'بدون تعليق'}"</p>
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 10px; display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 30px; height: 30px; background: #e0f2fe; color: #0284c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;">🏢</div>
+                        <div style="font-size: 13px; color: #475569;">
+                            <strong>${r.clinicName || 'عيادة مجهولة'}</strong><br>
+                            <span dir="ltr">${r.userEmail || ''}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    });
+}
+
+// =================== باقي أكواد السوبر أدمن (العيادات والتعديلات) ===================
 
 async function openClinicDetailsModal(clinicId) {
     const clinic = allClinicsList.find(c => c.id === clinicId);
@@ -361,14 +547,13 @@ function closeClinicModal() {
     document.getElementById('clinicModal').style.display = 'none';
 }
 
-// 🔴 1. دالة المودال أصبحت بتراقب اختيار العيادة لجلب الفروع 🔴
 async function openUserModal() {
     document.getElementById('userForm').reset();
     const clinicSelect = document.getElementById('user_clinic');
     const branchSelect = document.getElementById('user_branch');
     
     clinicSelect.innerHTML = '<option value="">جاري تحميل العيادات...</option>';
-    branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>'; // افتراضي
+    branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>';
     
     document.getElementById('userModal').style.display = 'flex';
 
@@ -380,7 +565,6 @@ async function openUserModal() {
             clinicSelect.innerHTML += `<option value="${doc.id}">${c.clinicName}</option>`;
         });
 
-        // 🔴 مراقبة تغيير العيادة لجلب الفروع الخاصة بها 🔴
         clinicSelect.onchange = async function() {
             const selectedClinicId = this.value;
             branchSelect.innerHTML = '<option value="">جاري التحميل...</option>';
@@ -404,7 +588,6 @@ async function openUserModal() {
 
 function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
 
-// 🔴 2. دالة حفظ المستخدم أصبحت تحفظ الـ branchId 🔴
 async function saveNewUser(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button');
@@ -413,7 +596,7 @@ async function saveNewUser(e) {
 
     const userName = document.getElementById('user_name').value.trim();
     const clinicId = document.getElementById('user_clinic').value;
-    const branchId = document.getElementById('user_branch').value; // 🔴 قراءة الفرع
+    const branchId = document.getElementById('user_branch').value; 
     const role = document.getElementById('user_role').value; 
 
     if (!clinicId) { alert("برجاء اختيار العيادة أولاً."); btn.disabled = false; btn.innerText = window.superLang.btnSubUser; return; }
@@ -427,7 +610,7 @@ async function saveNewUser(e) {
             name: userName,
             role: role,
             clinicId: clinicId,
-            branchId: branchId, // 🔴 حفظ الفرع جوه الكود
+            branchId: branchId, 
             activated: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -853,15 +1036,28 @@ function loadGlobalStats() {
     });
 }
 
-function filterClinics() {
+function filterData() {
     const input = document.getElementById('searchInput').value.toLowerCase();
-    const rows = document.getElementById('clinicsBody').getElementsByTagName('tr');
-    for (let i = 0; i < rows.length; i++) {
-        const nameCol = rows[i].getElementsByTagName('td')[2]; 
+    
+    // فلترة العيادات
+    const cRows = document.getElementById('clinicsBody').getElementsByTagName('tr');
+    for (let i = 0; i < cRows.length; i++) {
+        const nameCol = cRows[i].getElementsByTagName('td')[2]; 
         if (nameCol) {
             const textToSearch = nameCol.textContent.toLowerCase();
-            if (textToSearch.indexOf(input) > -1) rows[i].style.display = "";
-            else rows[i].style.display = "none";
+            if (textToSearch.indexOf(input) > -1) cRows[i].style.display = "";
+            else cRows[i].style.display = "none";
+        }
+    }
+    
+    // فلترة الدعم الفني
+    const sRows = document.getElementById('supportBody').getElementsByTagName('tr');
+    for (let i = 0; i < sRows.length; i++) {
+        const clinicCol = sRows[i].getElementsByTagName('td')[1]; 
+        if (clinicCol) {
+            const textToSearch = clinicCol.textContent.toLowerCase();
+            if (textToSearch.indexOf(input) > -1) sRows[i].style.display = "";
+            else sRows[i].style.display = "none";
         }
     }
 }
