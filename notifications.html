@@ -67,6 +67,10 @@
         .btn-icon:hover { background: #f1f5f9; color: #0f172a; }
         .btn-icon.delete:hover { background: #fee2e2; color: #ef4444; }
 
+        /* 🔴 ستايل فلتر الفروع (يدعم الدارك مود) 🔴 */
+        .branch-filter-select { padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-family: inherit; font-weight: bold; outline: none; cursor: pointer; height: 42px; margin-left: auto; }
+        [data-theme="dark"] .branch-filter-select { background: #1e293b; border-color: #334155; color: #f8fafc; }
+
         /* الدارك مود */
         [data-theme="dark"] .notif-card { background: #1e293b; border-color: #334155; }
         [data-theme="dark"] .notif-card.unread { background: #2a1515; border-color: #ef4444; }
@@ -87,8 +91,12 @@
             <h1 id="txt-title">الإشعارات والتنبيهات</h1>
             <p id="txt-subtitle">متابعة أحداث العيادة والنواقص والمواعيد الجديدة</p>
         </div>
-        <div class="header-actions">
-            <!-- الزرار السري للتجربة -->
+        <div class="header-actions" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; width: 100%;">
+            
+            <select id="branch-filter" class="branch-filter-select" style="display: none;" onchange="startNotificationsListener()">
+                <option value="all" id="opt-all-branches">كل الفروع</option>
+            </select>
+
             <button class="btn-action" style="background: #f3e8ff; color: #8b5cf6; border-color: #d8b4fe;" onclick="spawnTestNotification()">
                 <span>✨ إرسال إشعار تجريبي</span>
             </button>
@@ -102,10 +110,8 @@
         </div>
     </div>
 
-    <!-- حاوية الإشعارات -->
     <div class="notif-container" id="notificationsContainer">
-        <!-- الإشعارات هتترسم هنا بالجافاسكريبت -->
-    </div>
+        </div>
 
     <script src="js/firebase-config.js"></script>
     <script src="js/notifications.js"></script>
