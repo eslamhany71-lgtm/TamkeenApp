@@ -1,5 +1,10 @@
 // js/notifications.js - The Final Boss
 const db = firebase.firestore();
+
+// 🔴 متغيرات العزل والصلاحيات 🔴
+const userRole = sessionStorage.getItem('userRole'); 
+const userBranch = sessionStorage.getItem('branchId') || 'main'; 
+
 let notifLang = {};
 let unsubscribeListener = null;
 
@@ -18,16 +23,14 @@ function playSoundEffect(type) {
         gain.connect(ctx.destination);
         
         if (type === 'new') {
-            // صوت إشعار جديد (رنة ناعمة)
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-            osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1); // A6
+            osc.frequency.setValueAtTime(880, ctx.currentTime); 
+            osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1); 
             gain.gain.setValueAtTime(0.3, ctx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.3);
         } else if (type === 'read') {
-            // صوت قراءة (Pop خفيف)
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(440, ctx.currentTime);
             gain.gain.setValueAtTime(0.1, ctx.currentTime);
@@ -35,7 +38,6 @@ function playSoundEffect(type) {
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.1);
         } else if (type === 'delete') {
-            // صوت مسح (صوت منخفض)
             osc.type = 'square';
             osc.frequency.setValueAtTime(150, ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.2);
@@ -48,7 +50,7 @@ function playSoundEffect(type) {
 }
 
 // ============================================================================
-// 🌍 الترجمة
+// 🌍 الترجمة وجلب الفروع
 // ============================================================================
 function updateLanguage(lang) {
     const translations = {
@@ -56,13 +58,15 @@ function updateLanguage(lang) {
             title: "الإشعارات والتنبيهات", sub: "متابعة أحداث العيادة والنواقص والمواعيد الجديدة",
             readAll: "✔️ تحديد الكل كمقروء", deleteAll: "🗑️ مسح الكل",
             emptyTitle: "لا توجد إشعارات", emptySub: "عيادتك في أمان وكل الأمور مستقرة!",
-            justNow: "الآن", error: "حدث خطأ في جلب الإشعارات"
+            justNow: "الآن", error: "حدث خطأ في جلب الإشعارات",
+            optAll: "كل الفروع"
         },
         en: {
             title: "Notifications & Alerts", sub: "Track clinic events, low stock, and new appointments",
             readAll: "✔️ Mark All as Read", deleteAll: "🗑️ Clear All",
             emptyTitle: "No Notifications", emptySub: "Your clinic is secure and everything is up to date!",
-            justNow: "Just now", error: "Error fetching notifications"
+            justNow: "Just now", error: "Error fetching notifications",
+            optAll: "All Branches"
         }
     };
     notifLang = translations[lang] || translations.ar;
@@ -70,10 +74,34 @@ function updateLanguage(lang) {
 
     set('txt-title', notifLang.title); set('txt-subtitle', notifLang.sub);
     set('btn-read-all', notifLang.readAll); set('btn-delete-all', notifLang.deleteAll);
+    if(document.getElementById('opt-all-branches')) set('opt-all-branches', notifLang.optAll);
+}
+
+async function loadBranchesForAdmin() {
+    if (userRole !== 'admin' && userRole !== 'superadmin') return;
+    const cid = sessionStorage.getItem('clinicId');
+    const select = document.getElementById('branch-filter');
+    if (!cid || !select) return;
+
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", cid).get();
+        let optionsHtml = `<option value="all" id="opt-all-branches">${notifLang.optAll || 'كل الفروع'}</option>`;
+        optionsHtml += `<option value="main">الفرع الرئيسي</option>`;
+        
+        snap.forEach(doc => {
+            optionsHtml += `<option value="${doc.id}">${doc.data().name}</option>`;
+        });
+        
+        select.innerHTML = optionsHtml;
+        select.style.display = 'block';
+        select.value = userBranch;
+    } catch (e) {
+        console.error("Error loading branches:", e);
+    }
 }
 
 // ============================================================================
-// 📡 جلب الإشعارات (ريال تايم)
+// 📡 جلب الإشعارات (معزولة بالفروع)
 // ============================================================================
 function startNotificationsListener() {
     const cid = sessionStorage.getItem('clinicId');
@@ -82,16 +110,24 @@ function startNotificationsListener() {
 
     if(window.showLoader) window.showLoader("جاري المزامنة...");
 
-    // إيقاف أي مستمع قديم عشان ميكررش
     if (unsubscribeListener) unsubscribeListener();
 
-    // تشغيل الـ Real-time listener
-    unsubscribeListener = db.collection("Notifications")
-        .where("clinicId", "==", cid)
-        .orderBy("createdAt", "desc")
+    // 🔴 الكبسولة السحرية للفلترة والعزل 🔴
+    let queryRef = db.collection("Notifications").where("clinicId", "==", cid);
+
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        queryRef = queryRef.where("branchId", "==", userBranch);
+    } else {
+        const selectedBranch = document.getElementById('branch-filter').value;
+        if (selectedBranch && selectedBranch !== 'all') {
+            queryRef = queryRef.where("branchId", "==", selectedBranch);
+        }
+    }
+
+    unsubscribeListener = queryRef.orderBy("createdAt", "desc")
         .onSnapshot((snapshot) => {
             if (window.hideLoader) window.hideLoader();
-            container.innerHTML = ''; // مسح القديم للرسم من جديد
+            container.innerHTML = ''; 
 
             if (snapshot.empty) {
                 container.innerHTML = `
@@ -103,16 +139,11 @@ function startNotificationsListener() {
                 return;
             }
 
-            let unreadCount = 0;
-
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                if (!data.isRead) unreadCount++;
                 container.appendChild(createNotificationCard(doc.id, data));
             });
 
-            // لو في إشعارات جديدة غير مقروءة، شغل صوت
-            // التريكة: onSnapshot بيشتغل أول مرة بـ local cache، فبنتأكد إن التغيير جاي من السيرفر
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added" && !change.doc.data().isRead && !change.doc.metadata.hasPendingWrites) {
                     playSoundEffect('new');
@@ -121,18 +152,28 @@ function startNotificationsListener() {
 
         }, (error) => {
             console.error("Notif Error:", error);
-            // لو فشل بسبب الـ Index كالعادة، هنجيبها بالطريقة السريعة بدون orderBy
             fallbackFetchNotifications(cid);
         });
 }
 
-// طريقة احتياطية لو الـ Index لسه متبناش
+// طريقة احتياطية
 async function fallbackFetchNotifications(cid) {
     const container = document.getElementById('notificationsContainer');
     try {
-        const snap = await db.collection("Notifications").where("clinicId", "==", cid).get();
+        let queryRef = db.collection("Notifications").where("clinicId", "==", cid);
+
+        if (userRole !== 'admin' && userRole !== 'superadmin') {
+            queryRef = queryRef.where("branchId", "==", userBranch);
+        } else {
+            const selectedBranch = document.getElementById('branch-filter').value;
+            if (selectedBranch && selectedBranch !== 'all') {
+                queryRef = queryRef.where("branchId", "==", selectedBranch);
+            }
+        }
+
+        const snap = await queryRef.get();
         let notifs = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        notifs.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); // ترتيب محلي
+        notifs.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); 
         
         container.innerHTML = '';
         if(notifs.length === 0) {
@@ -153,7 +194,6 @@ function createNotificationCard(id, data) {
     card.className = `notif-card ${data.isRead ? '' : 'unread'}`;
     card.id = `notif-${id}`;
 
-    // تحديد الأيقونة واللون بناءً على نوع الإشعار
     let iconHTML = '🔔';
     let iconClass = 'icon-sys';
     
@@ -161,7 +201,6 @@ function createNotificationCard(id, data) {
     else if (data.type === 'inventory') { iconHTML = '📦'; iconClass = 'icon-inv'; }
     else if (data.type === 'finance') { iconHTML = '💰'; iconClass = 'icon-fin'; }
 
-    // تظبيط شكل الوقت
     let timeString = notifLang.justNow;
     if (data.createdAt) {
         try {
@@ -186,13 +225,12 @@ function createNotificationCard(id, data) {
 }
 
 // ============================================================================
-// ⚡ العمليات (قراءة، حذف، تجربة)
+// ⚡ العمليات (قراءة، حذف، تجربة) - معزولة بالفرع
 // ============================================================================
 async function markAsRead(id) {
     try {
         playSoundEffect('read');
         await db.collection("Notifications").doc(id).update({ isRead: true });
-        // الكارت هيتحدث أوتوماتيك بسبب الـ onSnapshot
     } catch(e) { console.error(e); }
 }
 
@@ -201,8 +239,19 @@ async function markAllAsRead() {
     if (!cid) return;
     playSoundEffect('read');
     
+    let queryRef = db.collection("Notifications").where("clinicId", "==", cid).where("isRead", "==", false);
+    
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        queryRef = queryRef.where("branchId", "==", userBranch);
+    } else {
+        const selectedBranch = document.getElementById('branch-filter').value;
+        if (selectedBranch && selectedBranch !== 'all') {
+            queryRef = queryRef.where("branchId", "==", selectedBranch);
+        }
+    }
+    
     try {
-        const snap = await db.collection("Notifications").where("clinicId", "==", cid).where("isRead", "==", false).get();
+        const snap = await queryRef.get();
         const batch = db.batch();
         snap.forEach(doc => {
             batch.update(doc.ref, { isRead: true });
@@ -215,29 +264,40 @@ async function deleteNotification(id) {
     const card = document.getElementById(`notif-${id}`);
     if (card) {
         playSoundEffect('delete');
-        card.classList.add('removing'); // تشغيل أنيميشن التبخر
+        card.classList.add('removing'); 
         setTimeout(async () => {
             try { await db.collection("Notifications").doc(id).delete(); } 
             catch(e) { console.error(e); }
-        }, 400); // استنى الأنيميشن يخلص قبل مسح الداتا
+        }, 400); 
     }
 }
 
 async function deleteAllNotifications() {
-    if(!confirm("هل أنت متأكد من مسح جميع الإشعارات؟")) return;
+    if(!confirm("هل أنت متأكد من مسح الإشعارات المحددة؟")) return;
     const cid = sessionStorage.getItem('clinicId');
     if (!cid) return;
     playSoundEffect('delete');
 
+    let queryRef = db.collection("Notifications").where("clinicId", "==", cid);
+    
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        queryRef = queryRef.where("branchId", "==", userBranch);
+    } else {
+        const selectedBranch = document.getElementById('branch-filter').value;
+        if (selectedBranch && selectedBranch !== 'all') {
+            queryRef = queryRef.where("branchId", "==", selectedBranch);
+        }
+    }
+
     try {
-        const snap = await db.collection("Notifications").where("clinicId", "==", cid).get();
+        const snap = await queryRef.get();
         const batch = db.batch();
         snap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
     } catch(e) { console.error(e); }
 }
 
-// 🧪 دالة سحرية لزرار التجربة (عشان تدلع نفسك وتشوف الأنيميشن والصوت)
+// 🧪 دالة سحرية لزرار التجربة 
 async function spawnTestNotification() {
     const cid = sessionStorage.getItem('clinicId');
     if (!cid) { alert("سجل دخول الأول يا بطل!"); return; }
@@ -249,31 +309,39 @@ async function spawnTestNotification() {
     if(randomType === 'inventory') { title = "نقص في المخزون"; msg = "بنج أرتيكين وصل للحد الأدنى (5 علب)."; }
     else if(randomType === 'finance') { title = "دفعة مالية"; msg = "تم تحصيل 1000 جنيه من المريض."; }
 
+    // 🔴 رمي الإشعار في الفرع المحدد عشان يظهر فوراً 🔴
+    let targetBranch = userBranch;
+    if (userRole === 'admin' || userRole === 'superadmin') {
+        const filterVal = document.getElementById('branch-filter').value;
+        targetBranch = filterVal === 'all' ? 'main' : filterVal;
+    }
+
     try {
         await db.collection("Notifications").add({
             clinicId: cid,
+            branchId: targetBranch, // 🔴
             title: title,
             message: msg,
             type: randomType,
             isRead: false,
             createdAt: new Date().toISOString()
         });
-        // الـ onSnapshot هيتولى الباقي ويشغل الصوت ويرسم الكارت!
     } catch(e) { console.error(e); }
 }
 
 // ============================================================================
 // 🚀 التشغيل الأساسي
 // ============================================================================
-window.onload = () => {
+window.onload = async () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
     updateLanguage(lang);
 
-    firebase.auth().onAuthStateChanged((user) => {
+    firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
+            await loadBranchesForAdmin();
             startNotificationsListener();
         } else {
             document.getElementById('notificationsContainer').innerHTML = `<div style="text-align: center; color: red; font-weight: bold; padding: 20px;">الرجاء تسجيل الدخول أولاً</div>`;
