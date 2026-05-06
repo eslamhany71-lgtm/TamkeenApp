@@ -116,6 +116,24 @@
         
         .sidebar-brand { cursor: pointer; transition: 0.3s; }
         .sidebar-brand:hover { opacity: 0.8; transform: translateY(-2px); }
+
+        /* 🔴 تصميم الدعم الفني والتقييم الاحترافي 🔴 */
+        .support-tabs { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; }
+        .support-tab { flex: 1; padding: 12px; background: none; border: none; font-family: inherit; font-size: 15px; font-weight: bold; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.3s; }
+        .support-tab.active { color: #0284c7; border-bottom-color: #0284c7; background: rgba(2,132,199,0.05); }
+        .support-tab:hover:not(.active) { color: #0f172a; background: #f8fafc; }
+        
+        .rating-stars { display: flex; justify-content: center; gap: 10px; direction: ltr; margin: 15px 0; }
+        .rating-stars span { font-size: 40px; color: #cbd5e1; cursor: pointer; transition: 0.2s; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .rating-stars span:hover, .rating-stars span.active { color: #fbbf24; transform: scale(1.1); }
+        
+        [data-theme="dark"] .support-tabs { border-color: #334155; }
+        [data-theme="dark"] .support-tab { color: #94a3b8; }
+        [data-theme="dark"] .support-tab.active { color: #38bdf8; border-bottom-color: #38bdf8; background: rgba(56,189,248,0.05); }
+        [data-theme="dark"] .support-tab:hover:not(.active) { color: #f8fafc; background: #1e293b; }
+        [data-theme="dark"] .rating-stars span { color: #475569; }
+        [data-theme="dark"] .rating-stars span:hover, [data-theme="dark"] .rating-stars span.active { color: #fbbf24; }
+        [data-theme="dark"] #support_message, [data-theme="dark"] #review_message { background: #0f172a; border-color: #334155; color: #f8fafc; }
     </style>
 </head>
 <body data-theme="light">
@@ -197,7 +215,7 @@
                 </li>
                 
                 <li onclick="openSupportModal()" style="margin-top: 10px;">
-                    <a href="javascript:void(0)"><span class="icon">🎧</span> <span id="nav-support">الدعم الفني والتواصل</span></a>
+                    <a href="javascript:void(0)"><span class="icon">🎧</span> <span id="nav-support">الدعم الفني والتقييمات</span></a>
                 </li>
             </ul>
 
@@ -234,16 +252,50 @@
     </div>
 
     <div id="supportModal" class="support-modal modal">
-        <div class="support-modal-content modal-content">
-            <span class="support-close close-modal" onclick="closeSupportModal()">&times;</span>
-            <h2 id="mod-support-title" style="margin-top: 0; color: #0f172a; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px;">🎧 الدعم الفني والمساعدة</h2>
-            <p id="mod-support-desc" style="color: #64748b; font-size: 14px; margin-bottom: 20px; line-height: 1.6;">هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.</p>
+        <div class="support-modal-content modal-content" style="max-width: 500px; padding: 0; overflow: hidden; border-radius: 16px;">
             
-            <textarea id="support_message" rows="5" placeholder="اكتب تفاصيل المشكلة أو طلبك هنا..." style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 15px; resize: vertical; box-sizing: border-box; margin-bottom: 20px; outline: none;"></textarea>
+            <div style="background: linear-gradient(135deg, #0f172a, #1e293b); padding: 25px 20px; color: white; position: relative; text-align: center;">
+                <span class="support-close close-modal" onclick="closeSupportModal()" style="color: white; position: absolute; left: 15px; top: 15px; font-size: 24px;">&times;</span>
+                <div style="font-size: 40px; margin-bottom: 10px;">🌟</div>
+                <h2 id="mod-support-title" style="margin: 0; font-size: 22px;">مركز المساعدة والتقييم</h2>
+            </div>
             
-            <button class="btn-whatsapp btn-primary" onclick="sendSupportWhatsApp()" style="width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; background: #10b981;">
-                <span style="font-size: 20px;">💬</span> <span id="btn-support-send">إرسال عبر واتساب</span>
-            </button>
+            <div style="padding: 20px;">
+                <div class="support-tabs">
+                    <button class="support-tab active" id="btn-tab-ticket" onclick="switchSupportTab('ticket')">🎧 طلب دعم فني</button>
+                    <button class="support-tab" id="btn-tab-review" onclick="switchSupportTab('review')">⭐ تقييم النظام</button>
+                </div>
+
+                <div id="support-ticket-view">
+                    <p id="mod-support-desc" style="color: #64748b; font-size: 14px; margin-bottom: 15px; line-height: 1.6; text-align: center;">هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.</p>
+                    <textarea id="support_message" rows="5" placeholder="اكتب تفاصيل المشكلة أو طلبك هنا..." style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 15px; resize: vertical; box-sizing: border-box; margin-bottom: 15px; outline: none;"></textarea>
+                    
+                    <button class="btn-primary" onclick="sendSupportTicket()" style="width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; background: #0284c7;">
+                        <span id="btn-support-send">إرسال طلب الدعم (Ticket)</span>
+                    </button>
+                </div>
+
+                <div id="support-review-view" style="display: none; text-align: center;">
+                    <h3 id="txt-rate-title" style="margin-top: 0; color: #0f172a; font-size: 18px;">ما تقييمك لسيستم NivaDent؟</h3>
+                    <p id="txt-rate-sub" style="color: #64748b; font-size: 14px; margin-bottom: 5px;">رأيك يهمنا ويساعدنا على تطوير النظام لخدمة العيادات بشكل أفضل.</p>
+                    
+                    <div class="rating-stars" id="star-container">
+                        <span data-val="1" onclick="setRating(1)">★</span>
+                        <span data-val="2" onclick="setRating(2)">★</span>
+                        <span data-val="3" onclick="setRating(3)">★</span>
+                        <span data-val="4" onclick="setRating(4)">★</span>
+                        <span data-val="5" onclick="setRating(5)">★</span>
+                    </div>
+                    <input type="hidden" id="current_rating" value="0">
+                    
+                    <textarea id="review_message" rows="3" placeholder="اكتب رأيك أو تجربتك مع السيستم (اختياري)..." style="width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 15px; resize: vertical; box-sizing: border-box; margin-bottom: 15px; outline: none;"></textarea>
+                    
+                    <button class="btn-primary" onclick="sendSystemReview()" style="width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; background: #f59e0b; color: white; display: flex; justify-content: center;">
+                        <span id="btn-review-send">نشر التقييم ⭐</span>
+                    </button>
+                </div>
+
+            </div>
         </div>
     </div>
 
