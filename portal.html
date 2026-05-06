@@ -26,6 +26,18 @@
         [data-theme="dark"] input[type="date"] {
             background: #1e293b; border-color: #334155; color: #f8fafc;
         }
+
+        /* 🔴 ستايلات التقييمات (Reviews) 🔴 */
+        .review-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .review-stars { color: #fbbf24; font-size: 16px; letter-spacing: 2px; margin-bottom: 5px; }
+        .review-author { font-weight: bold; font-size: 14px; margin-bottom: 5px; color: var(--text-color); }
+        .review-comment { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+        .portal-stars-input { display: flex; justify-content: center; gap: 10px; direction: ltr; margin: 15px 0; font-size: 35px; color: #cbd5e1; cursor: pointer; }
+        .portal-stars-input span { transition: 0.2s; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .portal-stars-input span:hover, .portal-stars-input span.active { color: #fbbf24; transform: scale(1.15); }
+        
+        [data-theme="dark"] .portal-stars-input span { color: #475569; }
+        [data-theme="dark"] .portal-stars-input span:hover, [data-theme="dark"] .portal-stars-input span.active { color: #fbbf24; }
     </style>
 </head>
 <body data-theme="light">
@@ -73,8 +85,7 @@
 
         <div class="form-group" id="portal-branch-group" style="display: none; margin-bottom: 15px;">
             <label id="lbl_book_branch" style="font-weight: bold; color: var(--primary);">اختر الفرع:</label>
-            <select id="book_branch" class="portal-select" onchange="loadAvailableSlots()" required>
-                </select>
+            <select id="book_branch" class="portal-select" onchange="loadAvailableSlots()" required></select>
         </div>
 
         <div class="form-group">
@@ -88,7 +99,7 @@
         </div>
 
         <form id="confirmBookingForm" onsubmit="submitBooking(event)" style="display: none; margin-top: 20px; border-top: 1px solid var(--border); padding-top: 20px;">
-            <p style="color: var(--primary); font-weight: bold;"><span id="txt_selected_time">الموعد المحدد:</span> <span id="selected-time-display" dir="ltr" style="background:#e0f2fe; padding:4px 8px; border-radius:6px;">--:--</span></p>
+            <p style="color: var(--primary); font-weight: bold;"><span id="txt_selected_time">الموعد المحدد:</span> <span id="selected-time-display" dir="ltr" style="background:#e0f2fe; padding:4px 8px; border-radius:6px; color:#0284c7;">--:--</span></p>
             <input type="hidden" id="selected_time">
             
             <div class="form-group">
@@ -149,6 +160,35 @@
             <div id="history_list" class="history-list"></div>
         </div>
 
+        <div id="reviews-section" class="modern-card" style="margin-top: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 id="lbl_reviews_title" style="margin: 0; color: #f59e0b; display: flex; align-items: center; gap: 5px;">⭐ آراء وتقييمات المرضى</h3>
+                <button class="btn-primary" id="btn_write_review" onclick="openReviewModal()" style="padding: 6px 12px; font-size: 13px; background: #f59e0b; border: none; font-weight: bold; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);">✍️ أضف تقييمك</button>
+            </div>
+            <div id="clinic_reviews_list" style="max-height: 300px; overflow-y: auto; padding-right: 5px;"></div>
+        </div>
+
+    </div>
+
+    <div id="reviewModal" style="display:none; position:fixed; z-index:10000; inset:0; background:rgba(15, 23, 42, 0.7); justify-content:center; align-items:center; backdrop-filter: blur(5px);">
+        <div class="modal-content" style="background:var(--bg-color); padding:30px; border-radius:16px; width:90%; max-width:400px; position:relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+            <span class="close-modal" onclick="document.getElementById('reviewModal').style.display='none'" style="position:absolute; top:15px; right:20px; cursor:pointer; font-size:28px; color: var(--text-muted);">&times;</span>
+            <h2 id="txt_rate_clinic" style="margin-top: 0; color: var(--primary); text-align: center; font-size: 22px;">تقييم العيادة</h2>
+            <p id="txt_rate_desc" style="text-align: center; color: var(--text-muted); font-size: 14px; margin-bottom: 10px;">رأيك يهمنا ويهم المرضى الآخرين!</p>
+            
+            <div class="portal-stars-input" id="portal-star-container">
+                <span data-val="1" onclick="setPortalRating(1)">★</span>
+                <span data-val="2" onclick="setPortalRating(2)">★</span>
+                <span data-val="3" onclick="setPortalRating(3)">★</span>
+                <span data-val="4" onclick="setPortalRating(4)">★</span>
+                <span data-val="5" onclick="setPortalRating(5)">★</span>
+            </div>
+            <input type="hidden" id="portal_current_rating" value="0">
+            
+            <textarea id="portal_review_message" rows="4" class="portal-select" placeholder="اكتب رأيك أو تجربتك مع العيادة..." style="width: 100%; resize: none; margin-bottom: 20px;"></textarea>
+            
+            <button class="btn-primary" id="btn_submit_review" onclick="submitClinicReview()" style="width: 100%; background: #f59e0b; border: none; font-size: 16px; justify-content: center; padding: 12px; border-radius: 8px;">نشر التقييم</button>
+        </div>
     </div>
 
     <a href="#" id="wa-float-btn" class="wa-float" target="_blank" style="display: none;" title="تواصل مع العيادة">
