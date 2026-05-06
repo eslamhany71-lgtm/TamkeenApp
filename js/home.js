@@ -76,7 +76,6 @@ function switchAppLanguage(lang) {
     if(frame.contentWindow) frame.contentWindow.location.reload();
 }
 
-// 🔴 تحديث قاموس الترجمة الشامل للـ Sidebar 🔴
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -97,9 +96,18 @@ function updatePageContent(lang) {
             navSettings: "إعدادات العيادة", 
             navSuper: "إدارة النظام المركزية", 
             logout: "تسجيل خروج",
-            alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد لتجنب إيقاف النظام.",
-            alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً لتجنب إيقاف النظام.",
-            navSupport: "الدعم الفني والتواصل", modSupTitle: "🎧 الدعم الفني والمساعدة", modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", btnSupSend: "إرسال طلب الدعم",
+            alertText: "⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال {days} أيام. يرجى التواصل مع الإدارة للتجديد.",
+            alertToday: "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً.",
+            
+            navSupport: "الدعم الفني والتقييمات", 
+            modSupTitle: "مركز المساعدة والتقييم", 
+            tabTicket: "🎧 طلب دعم فني", tabReview: "⭐ تقييم النظام",
+            modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", 
+            btnSupSend: "إرسال طلب الدعم (Ticket)",
+            
+            rateTitle: "ما تقييمك لسيستم NivaDent؟", rateSub: "رأيك يهمنا ويساعدنا على تطوير النظام.",
+            btnRevSend: "نشر التقييم ⭐",
+            
             aiTitle: "المساعد الذكي Niva", aiWelcome: "مرحباً دكتور! 👋 أنا مساعدك الذكي Niva. كيف يمكنني مساعدتك اليوم?",
             poweredBy: "Powered by"
         },
@@ -121,9 +129,18 @@ function updatePageContent(lang) {
             navSettings: "Clinic Settings", 
             navSuper: "Super Admin", 
             logout: "Logout",
-            alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please contact admin to renew and avoid suspension.",
-            alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew immediately to avoid suspension.",
-            navSupport: "Tech Support", modSupTitle: "🎧 Technical Support", modSupDesc: "Facing an issue or need a new feature? Write your message and we'll reply ASAP.", btnSupSend: "Send Support Ticket",
+            alertText: "⚠️ Important: Clinic subscription expires in {days} days. Please renew.",
+            alertToday: "⚠️ Important: Clinic subscription expires TODAY! Please renew.",
+            
+            navSupport: "Support & Reviews", 
+            modSupTitle: "Help & Rating Center", 
+            tabTicket: "🎧 Support Ticket", tabReview: "⭐ System Review",
+            modSupDesc: "Facing an issue or need a new feature? Write your ticket and we'll reply ASAP.", 
+            btnSupSend: "Submit Support Ticket",
+            
+            rateTitle: "How do you rate NivaDent?", rateSub: "Your feedback helps us improve the system.",
+            btnRevSend: "Post Review ⭐",
+
             aiTitle: "Niva Assistant", aiWelcome: "Hello Doctor! 👋 I'm Niva, your smart assistant. How can I help you today?",
             poweredBy: "Powered by"
         }
@@ -142,7 +159,6 @@ function updatePageContent(lang) {
     setTxt('nav-super', c.navSuper); 
     setTxt('btn-logout', c.logout);
     
-    // الأقسام اللي كانت ناقصة ترجمتها
     const itemsList = document.querySelectorAll('#nav-links li');
     itemsList.forEach(li => {
         const perm = li.getAttribute('data-perm');
@@ -156,13 +172,19 @@ function updatePageContent(lang) {
 
     setTxt('nav-portal', c.navPortal);
     setTxt('nav-support', c.navSupport); setTxt('mod-support-title', c.modSupTitle);
+    
+    setTxt('btn-tab-ticket', c.tabTicket); setTxt('btn-tab-review', c.tabReview);
     setTxt('mod-support-desc', c.modSupDesc); setTxt('btn-support-send', c.btnSupSend);
+    setTxt('txt-rate-title', c.rateTitle); setTxt('txt-rate-sub', c.rateSub); setTxt('btn-review-send', c.btnRevSend);
     
     setTxt('ai-title', c.aiTitle); setTxt('ai-welcome-msg', c.aiWelcome);
     setTxt('txt-powered-sidebar', c.poweredBy);
 
     const msgBox = document.getElementById('support_message');
     if(msgBox) msgBox.placeholder = lang === 'ar' ? "اكتب تفاصيل المشكلة أو طلبك هنا..." : "Type issue details or request here...";
+    
+    const revBox = document.getElementById('review_message');
+    if(revBox) revBox.placeholder = lang === 'ar' ? "اكتب رأيك أو تجربتك مع السيستم (اختياري)..." : "Write your experience with the system (Optional)...";
 
     window.homeLang = c;
 }
@@ -383,7 +405,11 @@ function hidePaywallBlocker() {
 
 function showBillingAlert(daysLeft) {
     if(document.getElementById('billing-alert-banner')) return;
-    let alertMsg = daysLeft === 0 ? "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً." : `⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال ${daysLeft} أيام. يرجى التواصل مع الإدارة للتجديد.`;
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    let alertMsg = daysLeft === 0 
+        ? (isAr ? "⚠️ تنبيه هام: اشتراك العيادة ينتهي اليوم! يرجى التجديد فوراً." : "⚠️ Warning: Subscription expires TODAY! Please renew.") 
+        : (isAr ? `⚠️ تنبيه هام: اشتراك العيادة سينتهي خلال ${daysLeft} أيام. يرجى التواصل مع الإدارة للتجديد.` : `⚠️ Warning: Subscription expires in ${daysLeft} days. Please renew.`);
+    
     const alertDiv = document.createElement('div'); 
     alertDiv.id = "billing-alert-banner";
     alertDiv.style.cssText = "background-color: #ef4444; color: white; text-align: center; padding: 10px; font-weight: bold; font-size: 14px; z-index: 9999; position: relative; width: 100%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: slideDown 0.3s ease-out;";
@@ -426,8 +452,14 @@ function toggleSidebarDesktop() {
     localStorage.setItem('sidebarPinned', document.body.classList.contains('sidebar-pinned')); 
 }
 
+// ===============================================
+// 🔴 قسم الدعم الفني والتقييمات الجديد 🔴
+// ===============================================
 function openSupportModal() { 
     document.getElementById('support_message').value = ''; 
+    document.getElementById('review_message').value = ''; 
+    setRating(0); // تصفير النجوم
+    switchSupportTab('ticket'); // فتح تابة التيكت كافتراضي
     document.getElementById('supportModal').style.display = 'flex'; 
 }
 
@@ -435,13 +467,44 @@ function closeSupportModal() {
     document.getElementById('supportModal').style.display = 'none'; 
 }
 
-async function sendSupportWhatsApp() {
+function switchSupportTab(tabName) {
+    document.getElementById('btn-tab-ticket').classList.remove('active');
+    document.getElementById('btn-tab-review').classList.remove('active');
+    document.getElementById('support-ticket-view').style.display = 'none';
+    document.getElementById('support-review-view').style.display = 'none';
+
+    if (tabName === 'ticket') {
+        document.getElementById('btn-tab-ticket').classList.add('active');
+        document.getElementById('support-ticket-view').style.display = 'block';
+    } else {
+        document.getElementById('btn-tab-review').classList.add('active');
+        document.getElementById('support-review-view').style.display = 'block';
+    }
+}
+
+function setRating(val) {
+    document.getElementById('current_rating').value = val;
+    const stars = document.getElementById('star-container').querySelectorAll('span');
+    stars.forEach(star => {
+        if (parseInt(star.getAttribute('data-val')) <= val) {
+            star.classList.add('active');
+            star.style.color = '#fbbf24';
+        } else {
+            star.classList.remove('active');
+            star.style.color = document.body.getAttribute('data-theme') === 'dark' ? '#475569' : '#cbd5e1';
+        }
+    });
+}
+
+async function sendSupportTicket() {
     const msg = document.getElementById('support_message').value.trim();
-    if (!msg) { alert("برجاء كتابة الرسالة أولاً!"); return; }
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+
+    if (!msg) { alert(isAr ? "برجاء كتابة الرسالة أولاً!" : "Please write a message first!"); return; }
     
     const btn = document.getElementById('btn-support-send'); 
     const originalText = btn ? btn.innerText : 'إرسال'; 
-    if(btn) btn.innerText = "⏳ جاري الإرسال...";
+    if(btn) btn.innerText = isAr ? "⏳ جاري الإرسال..." : "Sending...";
     
     try {
         await db.collection("SupportTickets").add({ 
@@ -452,12 +515,41 @@ async function sendSupportWhatsApp() {
             status: "open", 
             timestamp: firebase.firestore.FieldValue.serverTimestamp() 
         });
-        alert("✅ تم إرسال رسالتك لفريق الدعم الفني بنجاح!"); 
-        document.getElementById('support_message').value = ''; 
+        alert(isAr ? "✅ تم إرسال تذكرة الدعم للإدارة بنجاح!" : "✅ Ticket submitted successfully!"); 
         closeSupportModal();
     } catch (error) { 
         console.error("Error sending ticket:", error); 
-        alert("❌ حدث خطأ أثناء الإرسال."); 
+        alert(isAr ? "❌ حدث خطأ أثناء الإرسال." : "❌ Error sending ticket."); 
+    } finally { 
+        if(btn) btn.innerText = originalText; 
+    }
+}
+
+async function sendSystemReview() {
+    const rating = parseInt(document.getElementById('current_rating').value);
+    const msg = document.getElementById('review_message').value.trim();
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+
+    if (rating === 0) { alert(isAr ? "برجاء اختيار عدد النجوم أولاً!" : "Please select a star rating!"); return; }
+    
+    const btn = document.getElementById('btn-review-send'); 
+    const originalText = btn ? btn.innerText : 'نشر التقييم ⭐'; 
+    if(btn) btn.innerText = isAr ? "⏳ جاري النشر..." : "Posting...";
+    
+    try {
+        await db.collection("SystemReviews").add({ 
+            clinicId: sessionStorage.getItem('clinicId') || 'غير معروف', 
+            clinicName: document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'غير معروف', 
+            userEmail: document.getElementById('userEmail') ? document.getElementById('userEmail').innerText : 'غير معروف', 
+            rating: rating,
+            comment: msg, 
+            createdAt: firebase.firestore.FieldValue.serverTimestamp() 
+        });
+        alert(isAr ? "🎉 شكراً لك! تم نشر تقييمك بنجاح." : "🎉 Thank you! Review posted successfully."); 
+        closeSupportModal();
+    } catch (error) { 
+        console.error("Error sending review:", error); 
+        alert(isAr ? "❌ حدث خطأ أثناء الإرسال." : "❌ Error posting review."); 
     } finally { 
         if(btn) btn.innerText = originalText; 
     }
@@ -467,6 +559,7 @@ window.addEventListener('click', function(event) {
     const modal = document.getElementById('supportModal'); 
     if (event.target === modal) closeSupportModal(); 
 });
+// ===============================================
 
 function toggleAIPanel() { 
     const panel = document.getElementById('niva-ai-panel'); 
