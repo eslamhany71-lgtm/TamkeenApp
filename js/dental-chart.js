@@ -1,5 +1,9 @@
 // js/dental-chart.js - NivaDent Palmer Quadrants & Auto-Billing Integration
 
+// 🔴 جلب ID المريض أوتوماتيك من الرابط 🔴
+const urlParamsChart = new URLSearchParams(window.location.search);
+let currentPatientId = urlParamsChart.get('id') || sessionStorage.getItem('currentPatientId') || null;
+
 // 🔴 توزيعات الأسنان الطبية (FDI) 🔴
 const adultUR = [18, 17, 16, 15, 14, 13, 12, 11]; // يمين علوي
 const adultUL = [21, 22, 23, 24, 25, 26, 27, 28]; // يسار علوي
@@ -13,14 +17,13 @@ const childLL = [71, 72, 73, 74, 75];
 
 let currentSelectedToothId = null;
 let currentSelectedPart = null; 
-let currentPatientId = null; // سيتم تمريره من الـ Session أو الـ Profile
 
 // قاموس الترجمة
 const dcLang = {
     ar: { 
         adults: "أسنان البالغين (Adults)", pedo: "أسنان الأطفال (Pediatric)",
         tRoot: "الجذر", tCenter: "المنتصف", tTop: "العلوي", tBottom: "السفلي", tLeft: "الأيسر", tRight: "الأيمن", tWhole: "السِنة كاملة",
-        stExtract: "🔴 خلع", stImplant: "🔩 زراعة", stCrown: "👑 طربوش", stClear: "⚪ سليم (Clear)", stEndo: "💖 حشو عصب", stDecay: "🟡 تسوس", stFill: "🔵 حشو",
+        stExtract: "🔴 خلع", stImplant: "🔩 زراعة", stCrown: "👑 طربوش", stClear: "⚪ مسح", stEndo: "💖 حشو عصب", stDecay: "🟡 تسوس", stFill: "🔵 حشو",
         billPrompt: "هل تريد إضافة هذا الإجراء ({action}) لفاتورة الجلسة الحالية؟"
     },
     en: { 
@@ -35,7 +38,8 @@ const dcLang = {
 // 1. بناء هيكل الصليبة (Quadrants)
 // ==========================================
 function buildAdvancedDentalChart(patId) {
-    currentPatientId = patId; // حفظ أيدي المريض للحفظ الدائم
+    if (patId) currentPatientId = patId; // لو تم تمريره من الدالة
+    
     const wrapper = document.getElementById('dental-chart-wrapper');
     if (!wrapper) return;
     
@@ -43,26 +47,28 @@ function buildAdvancedDentalChart(patId) {
     const c = dcLang[lang];
 
     wrapper.innerHTML = `
-        <!-- بالغين -->
-        <h2 class="chart-section-title">${c.adults}</h2>
-        <div class="chart-grid">
-            <span class="quad-label ur">R</span> <span class="quad-label ul">L</span>
-            <div class="quad-ur" id="quad-adult-ur"></div>
-            <div class="quad-ul" id="quad-adult-ul"></div>
-            <span class="quad-label lr">R</span> <span class="quad-label ll">L</span>
-            <div class="quad-lr" id="quad-adult-lr"></div>
-            <div class="quad-ll" id="quad-adult-ll"></div>
-        </div>
+        <div class="dental-chart-layout">
+            <!-- بالغين -->
+            <h2 class="chart-section-title">${c.adults}</h2>
+            <div class="chart-grid">
+                <div class="quad-label quad-r">R</div>
+                <div class="quad-label quad-l">L</div>
+                <div class="quad-ur" id="quad-adult-ur"></div>
+                <div class="quad-ul" id="quad-adult-ul"></div>
+                <div class="quad-lr" id="quad-adult-lr"></div>
+                <div class="quad-ll" id="quad-adult-ll"></div>
+            </div>
 
-        <!-- أطفال -->
-        <h2 class="chart-section-title" style="margin-top: 50px;">${c.pedo}</h2>
-        <div class="chart-grid">
-            <span class="quad-label ur">R</span> <span class="quad-label ul">L</span>
-            <div class="quad-ur" id="quad-child-ur"></div>
-            <div class="quad-ul" id="quad-child-ul"></div>
-            <span class="quad-label lr">R</span> <span class="quad-label ll">L</span>
-            <div class="quad-lr" id="quad-child-lr"></div>
-            <div class="quad-ll" id="quad-child-ll"></div>
+            <!-- أطفال -->
+            <h2 class="chart-section-title" style="margin-top: 40px;">${c.pedo}</h2>
+            <div class="chart-grid">
+                <div class="quad-label quad-r">R</div>
+                <div class="quad-label quad-l">L</div>
+                <div class="quad-ur" id="quad-child-ur"></div>
+                <div class="quad-ul" id="quad-child-ul"></div>
+                <div class="quad-lr" id="quad-child-lr"></div>
+                <div class="quad-ll" id="quad-child-ll"></div>
+            </div>
         </div>
     `;
 
@@ -81,11 +87,10 @@ function buildAdvancedDentalChart(patId) {
     fetchPatientDentalHistory();
 }
 
-// تحويل رقم السِنة العلمي لرقم 1-8 أو A-E عشان العرض (Palmer Notation)
 function getToothDisplayName(fdiNum, isChild) {
     const numStr = String(fdiNum);
     const lastDigit = numStr.charAt(1);
-    if (!isChild) return lastDigit; // البالغين 1-8
+    if (!isChild) return lastDigit; 
     
     // الأطفال A-E
     const letterMap = { '1': 'A', '2': 'B', '3': 'C', '4': 'D', '5': 'E' };
@@ -189,7 +194,13 @@ function openToothPartModal(toothNum, part) {
 // 4. الحفظ في الـ DB ودمج الـ ERP (المبيعات)
 // ==========================================
 async function saveToothStatusInChart(status, actionName) {
-    if (!currentSelectedToothId || !currentSelectedPart || !currentPatientId) return;
+    if (!currentSelectedToothId || !currentSelectedPart) return;
+    
+    // 🔴 رسالة أمان عشان نعرف لو الـ ID ضاع 🔴
+    if (!currentPatientId) {
+        alert("خطأ: لم يتم التعرف على بيانات المريض لتسجيل الإجراء. يرجى تحديث الصفحة.");
+        return;
+    }
     
     if(typeof closeModal === 'function') closeModal('toothStatusModal');
     
@@ -198,7 +209,6 @@ async function saveToothStatusInChart(status, actionName) {
     const dbKey = `dentalChart.${currentSelectedToothId}_${currentSelectedPart}`;
 
     try {
-        // 🔴 1. حفظ دائم في بروفايل المريض (Permanent Record) 🔴
         if (currentSelectedPart === 'whole' && status !== 'normal') {
             const updates = {};
             ['root', 'top', 'bottom', 'left', 'right', 'center'].forEach(p => {
@@ -215,28 +225,26 @@ async function saveToothStatusInChart(status, actionName) {
             if (typeof sessionId !== 'undefined' && sessionId) await db.collection("Sessions").doc(sessionId).update(updateObj);
         }
 
-        // 🔴 2. دمج הـ ERP (اقتراح الفوترة) 🔴
+        // اقتراح الفوترة فقط إذا كنا بداخل شاشة الجلسات (بها sessionId)
         if (status !== 'normal' && typeof sessionId !== 'undefined' && sessionId) {
             promptERPIntegration(currentSelectedToothId, actionName);
         }
 
     } catch(e) {
         console.error("Save Chart Error:", e);
+        alert("حدث خطأ أثناء الحفظ في قاعدة البيانات.");
     }
 }
 
-// سؤال الدكتور لو حابب يضيف الإجراء للفاتورة
 function promptERPIntegration(toothNum, actionName) {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     const c = dcLang[lang];
     const msg = c.billPrompt.replace('{action}', `${actionName} (${toothNum})`);
     
     if (confirm(msg)) {
-        // بننادي على دالة من ملف session.js عشان ترمي الإجراء في الفاتورة أوتوماتيك
         if (typeof addServiceToInvoiceFromChart === 'function') {
             addServiceToInvoiceFromChart(`علاج سِنة ${toothNum} - ${actionName}`);
         } else {
-            // لو الدالة مش موجودة لسه، ننبه المبرمج يضيفها
             console.warn("Function addServiceToInvoiceFromChart is missing in session.js");
         }
     }
