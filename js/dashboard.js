@@ -15,7 +15,7 @@ let currentSelectedApp = null;
 
 let erpServices = [];
 let erpContracts = [];
-let allClinicDoctors = []; // 🔴
+let allClinicDoctors = []; 
 
 function getLocalTodayString() {
     const d = new Date();
@@ -25,7 +25,6 @@ function getLocalTodayString() {
     return `${yyyy}-${mm}-${dd}`;
 }
 
-// 🔴 جلب الفروع لمودال الحجز السريع في الداشبورد للمدير 🔴
 async function loadBranchesForModal() {
     if (userRole !== 'admin' && userRole !== 'superadmin') return;
     try {
@@ -62,10 +61,10 @@ function updatePageContent(lang) {
             mRevTitle: "💵 إيرادات اليوم تفصيلياً", mSessTitle: "✅ الحجوزات المكتملة", empty: "لا يوجد بيانات حالياً.",
             btnCanc: "❌ إلغاء", btnDel: "🗑️ حذف", confDel: "هل أنت متأكد من حذف هذا الموعد نهائياً؟",
             mRevDetTitle: "تفاصيل الإيراد", lRevAmt: "المبلغ:", lRevDate: "التاريخ:", lRevCat: "البند:", lRevNotes: "البيان:",
-            
             lblMonthSummary: "📊 ملخص أداء الشهر الحالي", lblMonthPat: "مرضى جُدد", lblMonthSess: "جلسات مكتملة", lblMonthRev: "إيرادات (ج.م)",
             lblLiveUpcoming: "📅 المواعيد القادمة فوراً", noUpcoming: "لا يوجد مواعيد في الانتظار حالياً.",
-            lblLiveFinances: "💸 أحدث العمليات المالية (اليوم)", noFinances: "لا توجد عمليات مالية مسجلة اليوم."
+            lblLiveFinances: "💸 أحدث العمليات المالية (اليوم)", noFinances: "لا توجد عمليات مالية مسجلة اليوم.",
+            weatherLoading: "جاري تحديث الطقس..." // 🔴
         }, 
         en: { 
             welcome: "Clinic Overview", sub: "Daily performance and real-time statistics",
@@ -83,10 +82,10 @@ function updatePageContent(lang) {
             mRevTitle: "💵 Today's Revenue Details", mSessTitle: "✅ Completed Sessions", empty: "No data available currently.",
             btnCanc: "❌ Cancel", btnDel: "🗑️ Delete", confDel: "Are you sure you want to permanently delete this appointment?",
             mRevDetTitle: "Revenue Details", lRevAmt: "Amount:", lRevDate: "Date:", lRevCat: "Category:", lRevNotes: "Notes:",
-            
             lblMonthSummary: "📊 Current Month Summary", lblMonthPat: "New Patients", lblMonthSess: "Completed Sessions", lblMonthRev: "Revenue (EGP)",
             lblLiveUpcoming: "📅 Upcoming Appointments", noUpcoming: "No pending appointments currently.",
-            lblLiveFinances: "💸 Recent Transactions (Today)", noFinances: "No financial transactions recorded today."
+            lblLiveFinances: "💸 Recent Transactions (Today)", noFinances: "No financial transactions recorded today.",
+            weatherLoading: "Updating weather..." // 🔴
         } 
     };
     const c = t[lang] || t.ar;
@@ -136,6 +135,12 @@ function updatePageContent(lang) {
     
     setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
     
+    // 🔴 تحديث نص جاري تحميل الطقس إذا كان ظاهر 🔴
+    const weatherDescEl = document.getElementById('weather-desc');
+    if(weatherDescEl && (weatherDescEl.innerText.includes('جاري') || weatherDescEl.innerText.includes('Updating'))) {
+        weatherDescEl.innerText = c.weatherLoading;
+    }
+    
     window.emptyTxt = c.empty; 
     window.confDelTxt = c.confDel;
     window.invCurrentTxt = c.current;
@@ -143,6 +148,52 @@ function updatePageContent(lang) {
     window.invEmptyTxt = c.emptyInv;
     window.dashLangVars = c; 
 }
+
+// ===============================================
+// 🔴 دالة جلب الطقس عبر Open-Meteo API 🔴
+// ===============================================
+async function fetchWeatherAPI() {
+    const tempEl = document.getElementById('weather-temp');
+    const descEl = document.getElementById('weather-desc');
+    const iconEl = document.getElementById('weather-icon');
+    if (!tempEl) return;
+
+    const lang = localStorage.getItem('preferredLang') || 'ar';
+    const isAr = lang === 'ar';
+
+    try {
+        // إحداثيات افتراضية (القاهرة) - يمكنك جعلها متغيرة لاحقاً
+        const url = 'https://api.open-meteo.com/v1/forecast?latitude=30.0444&longitude=31.2357&current_weather=true';
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data && data.current_weather) {
+            const temp = Math.round(data.current_weather.temperature);
+            const code = data.current_weather.weathercode;
+
+            tempEl.innerText = temp + '°C';
+
+            // ترجمة وتحديد الأيقونة بناءً على كود المنظمة العالمية للأرصاد (WMO)
+            let condition = isAr ? "صافي" : "Clear";
+            let icon = "☀️";
+
+            if (code >= 1 && code <= 3) { condition = isAr ? "غائم جزئياً" : "Partly Cloudy"; icon = "⛅"; }
+            else if (code >= 45 && code <= 48) { condition = isAr ? "ضباب" : "Foggy"; icon = "🌫️"; }
+            else if (code >= 51 && code <= 67) { condition = isAr ? "ممطر خفيف" : "Drizzle"; icon = "🌧️"; }
+            else if (code >= 71 && code <= 77) { condition = isAr ? "تساقط ثلوج" : "Snow"; icon = "❄️"; }
+            else if (code >= 80 && code <= 82) { condition = isAr ? "ممطر" : "Rainy"; icon = "🌧️"; }
+            else if (code >= 95 && code <= 99) { condition = isAr ? "عواصف رعدية" : "Thunderstorm"; icon = "⛈️"; }
+
+            descEl.innerText = condition;
+            iconEl.innerText = icon;
+        }
+    } catch (error) {
+        console.error("Error fetching weather:", error);
+        descEl.innerText = isAr ? "تعذر جلب الطقس" : "Weather Unavailable";
+        iconEl.innerText = "⚠️";
+    }
+}
+// ===============================================
 
 let dashChart = null;
 function updateChart(pending, completed, cancelled) {
@@ -193,7 +244,6 @@ function loadInventoryAlerts() {
     if(!clinicId) return;
     const container = document.getElementById('inventory-alerts-container');
     
-    // فلترة النواقص حسب الفرع الحالي 
     let queryRef = db.collection("Inventory").where("clinicId", "==", clinicId);
     if (userRole !== 'admin' && userRole !== 'superadmin') {
         queryRef = queryRef.where("branchId", "==", userBranch);
@@ -329,7 +379,6 @@ function loadDashboardStats() {
         }
     });
 
-    // جلب الدكاترة لاستخدامهم في مودال الحجز السريع
     db.collection("Users").where("clinicId", "==", clinicId).where("role", "==", "doctor").onSnapshot(snap => {
         allClinicDoctors = [];
         snap.forEach(doc => { allClinicDoctors.push({ id: doc.id, ...doc.data() }); });
@@ -339,7 +388,6 @@ function loadDashboardStats() {
     let finQuery = db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income");
     let appQuery = db.collection("Appointments").where("clinicId", "==", clinicId);
     
-    // 🔴 تطبيق العزل على كل الإحصائيات في الداشبورد 🔴
     if (userRole !== 'admin' && userRole !== 'superadmin') {
         patQuery = patQuery.where("branchId", "==", userBranch);
         finQuery = finQuery.where("branchId", "==", userBranch);
@@ -519,7 +567,6 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 🔴 دالة تصفية الأطباء لمودال الداشبورد السريع 🔴
 function populateModalDoctors() {
     const docSelect = document.getElementById('app_doctor');
     if (!docSelect) return;
@@ -536,7 +583,6 @@ function populateModalDoctors() {
 
     allClinicDoctors.forEach(d => {
         if (targetBranch === 'all' || d.branchId === targetBranch || d.branchId === 'main') {
-            // 🔴 تم التصحيح هنا: d.id بدلاً من doc.id 🔴
             docSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
         }
     });
@@ -569,7 +615,7 @@ function openNewAppModal() {
     if(msg) msg.style.display = 'none';
     
     if (userRole === 'admin' || userRole === 'superadmin') {
-        document.getElementById('app_branch').value = 'main'; // افتراضي
+        document.getElementById('app_branch').value = 'main'; 
     }
     
     populateModalDoctors();
@@ -635,16 +681,15 @@ async function saveNewAppointment(e) {
         if (appBranchEl) targetBranchId = appBranchEl.value;
     }
 
-    // عشان نتجنب التكرار في الحجز السريع، هنربطه ببيانات المريض لو لقيناه
     const inputPhone = document.getElementById('app_phone').value.trim();
     const foundPatient = allPatientsData.find(p => p.phone === inputPhone);
     const linkedPatientId = foundPatient ? foundPatient.id : null;
 
     const data = {
         clinicId: clinicId,
-        branchId: targetBranchId, // 🔴
-        doctorId: doctorId, // 🔴
-        doctorName: doctorName, // 🔴
+        branchId: targetBranchId, 
+        doctorId: doctorId, 
+        doctorName: doctorName, 
         patientId: linkedPatientId,
         patientName: document.getElementById('app_name').value.trim(),
         phone: inputPhone, patientPhone: inputPhone,
@@ -724,7 +769,6 @@ function openAppDetails(app) {
     document.getElementById('det_date').innerText = app.date;
     document.getElementById('det_time').innerText = app.time;
     
-    // إظهار الدكتور في تفاصيل الداشبورد
     const docEl = document.getElementById('det_doctor');
     if(docEl) docEl.innerText = app.doctorName || 'غير محدد';
     
@@ -897,6 +941,9 @@ window.onload = async () => {
     updatePageContent(lang); 
     setupERPInputs(); 
     updateChart(0, 0, 0);
+
+    // 🔴 تشغيل جلب الطقس بمجرد فتح الداشبورد 🔴
+    fetchWeatherAPI();
 
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
