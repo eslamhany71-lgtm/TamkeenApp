@@ -15,6 +15,15 @@
     </script>
     
     <style>
+        /* 🔴 تعديلات الهيدر وويدچت الطقس 🔴 */
+        .header-section { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .weather-widget { background: linear-gradient(135deg, #0ea5e9, #3b82f6); padding: 12px 20px; border-radius: 12px; color: white; display: flex; align-items: center; gap: 15px; box-shadow: 0 4px 6px rgba(14,165,233,0.2); transition: 0.3s; min-width: 180px; }
+        .weather-widget:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(14,165,233,0.3); }
+        .weather-icon { font-size: 35px; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .weather-info { display: flex; flex-direction: column; }
+        .weather-temp { font-size: 24px; font-weight: 800; }
+        .weather-desc { font-size: 13px; font-weight: 500; opacity: 0.9; }
+
         .finance-box-modal { display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
         .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
         .finance-box-modal input, .finance-box-modal select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold; outline: none;}
@@ -46,8 +55,19 @@
 <body>
     <div class="dashboard-wrapper">
         <div class="header-section">
-            <h1 id="txt-welcome">نظرة عامة على العيادة</h1>
-            <p id="txt-subtitle">ملخص الأداء اليومي وإحصائيات المرضى اللحظية</p>
+            <div>
+                <h1 id="txt-welcome">نظرة عامة على العيادة</h1>
+                <p id="txt-subtitle">ملخص الأداء اليومي وإحصائيات المرضى اللحظية</p>
+            </div>
+            
+            <!-- 🔴 ويدچت الطقس المدمج عبر الـ API 🔴 -->
+            <div class="weather-widget">
+                <div class="weather-icon" id="weather-icon">🌤️</div>
+                <div class="weather-info">
+                    <div class="weather-temp" id="weather-temp">--°C</div>
+                    <div class="weather-desc" id="weather-desc">جاري تحديث الطقس...</div>
+                </div>
+            </div>
         </div>
 
         <div class="kpi-grid">
@@ -135,6 +155,7 @@
 
     </div>
 
+    <!-- Modals -->
     <div id="newAppModal" class="modal">
         <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto; overflow-x: hidden;">
             <span class="close-modal" onclick="closeModal('newAppModal')">&times;</span>
