@@ -137,7 +137,6 @@ async function loadSessionDetails() {
         if(doc.exists) {
             sessionData = doc.data();
             
-            // إضافة التنويه بوجود تعاقد في الواجهة
             let procTxt = sessionData.procedure;
             if(sessionData.contract && sessionData.contract !== 'بدون تعاقد') {
                 procTxt += ` <span style="font-size:12px;color:#10b981;font-weight:bold;">(تأمين: ${sessionData.contract})</span>`;
@@ -152,7 +151,6 @@ async function loadSessionDetails() {
             document.getElementById('sd-remaining').innerText = sessionData.remaining || 0;
             document.getElementById('sd-notes').innerText = sessionData.notes || (getLang() ? 'لا يوجد' : 'None');
 
-            // 🔴 عرض قائمة المستهلكات المسحوبة من المخزن 🔴
             const matList = document.getElementById('session_materials_list');
             if(matList) {
                 matList.innerHTML = '';
@@ -175,7 +173,6 @@ async function loadSessionDetails() {
         }
     });
 
-    // 🔴 جلب الخدمات للـ ERP في شاشة الجلسة
     db.collection("Services").where("clinicId", "==", clinicId).onSnapshot(snap => {
         erpServices = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const selectProc = document.getElementById('es_procedure');
@@ -194,7 +191,6 @@ async function loadSessionDetails() {
         }
     });
 
-    // 🔴 جلب التعاقدات للـ ERP في شاشة الجلسة
     db.collection("Contracts").where("clinicId", "==", clinicId).onSnapshot(snap => {
         erpContracts = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const contEl = document.getElementById('es_contract');
@@ -213,18 +209,17 @@ async function loadSessionDetails() {
         }
     });
 
-    loadClinicInventory(); // 🔴 تحميل المخزون لعملية الصرف التلقائي
+    loadClinicInventory(); 
     loadSessionXRays();
     loadSessionPrescription();
     loadClinicPharmacy();
     loadRxTemplates(); 
     
     if (typeof buildAdvancedDentalChart === "function") {
-        setTimeout(buildAdvancedDentalChart, 300); 
+        setTimeout(() => buildAdvancedDentalChart(patientId), 300); 
     }
 }
 
-// 🔴 دالة السحب التلقائي من المخزن 🔴
 function loadClinicInventory() {
     db.collection("Inventory").where("clinicId", "==", clinicId).onSnapshot(snap => {
         clinicInventory = [];
@@ -281,14 +276,12 @@ async function removeSessionMaterial(itemId, itemName, qty, consumedAt) {
     } catch(e) { console.error(e); }
     finally { if(window.hideLoader) window.hideLoader(); }
 }
-// 🔴 نهاية أكواد صرف المخزون 🔴
 
 function openEditSessionModal() {
     if(!sessionData) return;
     document.getElementById('es_date').value = sessionData.date;
     document.getElementById('es_next_date').value = sessionData.nextAppointment || '';
     
-    // محاولة اختيار الخدمة والتعاقد في القوائم المنسدلة
     const procEl = document.getElementById('es_procedure');
     if(procEl && procEl.tagName === 'SELECT') {
         const srv = erpServices.find(s => s.name === sessionData.procedure);
@@ -307,7 +300,6 @@ function openEditSessionModal() {
     openModal('editSessionModal');
 }
 
-// 🔴 دالة السحر: حساب السعر أوتوماتيك للدكتور وقت الجلسة
 function calculateEditSessionERP() {
     const srvId = document.getElementById('es_procedure').value;
     const contEl = document.getElementById('es_contract');
@@ -343,7 +335,6 @@ async function updateSession(e) {
     const newDate = document.getElementById('es_date').value;
     const payMethod = document.getElementById('es_pay_method').value; 
 
-    // 🔴 استخراج اسم الخدمة والتعاقد لحفظهم كـ (نص) في الفايربيز
     const procSelect = document.getElementById('es_procedure');
     const srv = erpServices.find(s => s.id === procSelect.value);
     const newProcedure = srv ? srv.name : (procSelect.options ? procSelect.options[procSelect.selectedIndex]?.text : procSelect.value);
@@ -407,6 +398,64 @@ async function updateSession(e) {
         if (window.hideLoader) window.hideLoader();
     }
 }
+
+// ==========================================
+// 🔴 سحر دمج مخطط الأسنان بالـ ERP 🔴
+// ==========================================
+async function addServiceToInvoiceFromChart(actionDetails) {
+    const isAr = getLang();
+    const priceInput = prompt(isAr ? `أدخل تكلفة: ${actionDetails} (ج.م)` : `Enter cost for: ${actionDetails} (EGP)`, "0");
+    if (priceInput === null) return;
+
+    const addedPrice = Number(priceInput);
+    if (isNaN(addedPrice) || addedPrice < 0) {
+        alert(isAr ? "قيمة غير صحيحة!" : "Invalid amount!");
+        return;
+    }
+
+    if (window.showLoader) window.showLoader(isAr ? "جاري تحديث الفاتورة..." : "Updating invoice...");
+
+    try {
+        const oldProcedure = sessionData.procedure || "";
+        const newProcedure = oldProcedure === "كشف" || oldProcedure === "استشارة" ? actionDetails : oldProcedure + " + " + actionDetails;
+        
+        const newTotal = (Number(sessionData.total) || 0) + addedPrice;
+        const newRemaining = (Number(sessionData.remaining) || 0) + addedPrice;
+
+        await db.collection("Sessions").doc(sessionId).update({
+            procedure: newProcedure,
+            total: newTotal,
+            remaining: newRemaining
+        });
+
+        if (addedPrice > 0) {
+            await db.collection("Patients").doc(patientId).update({
+                totalDebt: firebase.firestore.FieldValue.increment(addedPrice)
+            });
+            
+            await db.collection("Finances").add({
+                clinicId: clinicId,
+                patientId: patientId,
+                type: 'debt',
+                category: isAr ? 'إضافة إجراء من الخريطة' : 'Chart Procedure Added',
+                amount: addedPrice,
+                date: new Date().toISOString().split('T')[0],
+                notes: actionDetails,
+                createdBy: "System",
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        alert(isAr ? "✅ تم إضافة الإجراء للفاتورة وتسجيل المديونية بنجاح!" : "✅ Procedure added to invoice!");
+    } catch (error) {
+        console.error(error);
+        alert(isAr ? "❌ حدث خطأ أثناء التحديث." : "❌ Error updating invoice.");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
+}
+window.addServiceToInvoiceFromChart = addServiceToInvoiceFromChart;
+// ==========================================
 
 function generateQRCodeForPrint(textData) {
     const qrContainer = document.getElementById('print-qr-container');
@@ -921,7 +970,7 @@ window.onload = () => {
     document.body.setAttribute('data-theme', localStorage.getItem('niva_theme') || 'light');
     
     updatePageContent(currentLang);
-    setupERPSessionInputs(); // تفعيل سحر الـ ERP في الجلسات
+    setupERPSessionInputs(); 
     
     firebase.auth().onAuthStateChanged((user) => { if (user) loadSessionDetails(); });
 };
