@@ -3,7 +3,7 @@
 .dental-chart-wrapper {
     display: flex;
     flex-direction: column;
-    gap: 40px;
+    gap: 30px;
     padding: 20px;
     font-family: 'Tajawal', sans-serif;
     direction: ltr; /* فرض LTR لضبط أماكن اليمين واليسار الطبية */
@@ -12,31 +12,28 @@
 .chart-section-title {
     text-align: center;
     color: #0f172a;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
     margin-bottom: 20px;
-    border-bottom: 2px solid #e2e8f0;
-    padding-bottom: 10px;
+    background: #f8fafc;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
 }
 
 /* 🔴 تصميم الصليبة (Quadrants Grid) 🔴 */
 .chart-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    max-width: 1000px;
+    grid-template-rows: 1fr 1fr;
+    max-width: 850px;
     margin: 0 auto;
     position: relative;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
-
-/* الخطوط الفاصلة للصليبة */
-.quad-ur, .quad-ul { border-bottom: 3px solid #334155; padding-bottom: 20px; margin-bottom: 20px; }
-.quad-ur, .quad-lr { border-right: 3px solid #334155; padding-right: 20px; margin-right: 20px; }
-
-/* توزيع الأسنان لتقترب من المنتصف (Cross) */
-.quad-ur { display: flex; justify-content: flex-end; gap: 5px; flex-wrap: wrap; }
-.quad-ul { display: flex; justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
-.quad-lr { display: flex; justify-content: flex-end; gap: 5px; flex-wrap: wrap; }
-.quad-ll { display: flex; justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
 
 /* علامات الاتجاهات R و L */
 .quad-label {
@@ -44,20 +41,56 @@
     font-size: 24px;
     font-weight: 900;
     color: #cbd5e1;
-    z-index: -1;
 }
-.quad-label.ur { top: -20px; left: 20px; }
-.quad-label.ul { top: -20px; right: 20px; }
-.quad-label.lr { bottom: -20px; left: 20px; }
-.quad-label.ll { bottom: -20px; right: 20px; }
+.quad-r { left: -30px; top: 50%; transform: translateY(-50%); }
+.quad-l { right: -30px; top: 50%; transform: translateY(-50%); }
+
+/* الخطوط الفاصلة لتكوين الصليبة */
+.quad-ur { 
+    border-bottom: 3px solid #0f172a; 
+    border-right: 3px solid #0f172a; 
+    padding: 15px; 
+    display: flex; 
+    justify-content: flex-end; 
+    gap: 4px; 
+    flex-wrap: nowrap; 
+    overflow-x: auto; 
+}
+.quad-ul { 
+    border-bottom: 3px solid #0f172a; 
+    padding: 15px; 
+    display: flex; 
+    justify-content: flex-start; 
+    gap: 4px; 
+    flex-wrap: nowrap; 
+    overflow-x: auto; 
+}
+.quad-lr { 
+    border-right: 3px solid #0f172a; 
+    padding: 15px; 
+    display: flex; 
+    justify-content: flex-end; 
+    gap: 4px; 
+    flex-wrap: nowrap; 
+    overflow-x: auto; 
+}
+.quad-ll { 
+    padding: 15px; 
+    display: flex; 
+    justify-content: flex-start; 
+    gap: 4px; 
+    flex-wrap: nowrap; 
+    overflow-x: auto; 
+}
 
 /* 🔴 تصميم السِنة 🔴 */
 .tooth-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
     transition: transform 0.2s ease;
+    min-width: 32px; /* منع السِنة من الانكماش */
 }
 
 .tooth-wrapper:hover {
@@ -65,21 +98,21 @@
 }
 
 .tooth-num {
-    font-size: 14px;
-    font-weight: 800;
+    font-size: 13px;
+    font-weight: 900;
     color: #0f172a;
     cursor: pointer;
     text-align: center;
 }
 
 /* ترتيب الرقم فوق أو تحت السِنة حسب الفك */
-.quad-ur .tooth-wrapper, .quad-ul .tooth-wrapper { flex-direction: column-reverse; } /* الفك العلوي: الرقم تحت السِنة */
-.quad-lr .tooth-wrapper, .quad-ll .tooth-wrapper { flex-direction: column; } /* الفك السفلي: الرقم فوق السِنة */
+.quad-ur .tooth-wrapper, .quad-ul .tooth-wrapper { flex-direction: column-reverse; } 
+.quad-lr .tooth-wrapper, .quad-ll .tooth-wrapper { flex-direction: column; } 
 
 /* 🔴 الـ SVG الأساسي 🔴 */
 .tooth-svg {
-    width: 35px;
-    height: 70px;
+    width: 32px;
+    height: 65px;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));
     overflow: visible;
 }
@@ -108,17 +141,19 @@
 .tooth-implant .tooth-part { opacity: 0.4; fill: #e2e8f0 !important; stroke: #64748b !important; }
 
 /* 🔴 دعم الدارك مود الصارم 🔴 */
-[data-theme="dark"] .chart-section-title { color: #f8fafc; border-color: #334155; }
-[data-theme="dark"] .quad-ur, [data-theme="dark"] .quad-ul { border-bottom-color: #475569; }
-[data-theme="dark"] .quad-ur, [data-theme="dark"] .quad-lr { border-right-color: #475569; }
+[data-theme="dark"] .chart-section-title { color: #f8fafc; background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .chart-grid { background: #0f172a; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+[data-theme="dark"] .quad-ur, [data-theme="dark"] .quad-ul { border-bottom-color: #64748b; }
+[data-theme="dark"] .quad-ur, [data-theme="dark"] .quad-lr { border-right-color: #64748b; }
 [data-theme="dark"] .tooth-num { color: #f8fafc; }
 [data-theme="dark"] .tooth-part { fill: #1e293b; stroke: #64748b; }
-[data-theme="dark"] .quad-label { color: #334155; }
+[data-theme="dark"] .quad-label { color: #475569; }
 
 /* موبايل */
 @media (max-width: 768px) {
-    .tooth-svg { width: 25px; height: 50px; }
-    .quad-ur, .quad-lr { padding-right: 5px; margin-right: 5px; }
-    .quad-ur, .quad-ul { padding-bottom: 5px; margin-bottom: 5px; }
+    .tooth-svg { width: 28px; height: 55px; }
+    .quad-ur, .quad-lr { padding-right: 5px; }
+    .quad-ur, .quad-ul { padding-bottom: 5px; }
     .tooth-num { font-size: 11px; }
+    .quad-label { display: none; } /* إخفاء R و L في الشاشات الصغيرة لتوفير المساحة */
 }
