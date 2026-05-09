@@ -1,69 +1,89 @@
-/* css/dental-chart.css - NivaDent Advanced 5-Surfaces Dental Chart */
+/* css/dental-chart.css - NivaDent Palmer Quadrants Chart */
 
-.dental-chart-container {
+.dental-chart-wrapper {
     display: flex;
     flex-direction: column;
-    align-items: center;
     gap: 40px;
-    padding: 20px 0;
-    width: 100%;
+    padding: 20px;
+    font-family: 'Tajawal', sans-serif;
+    direction: ltr; /* فرض LTR لضبط أماكن اليمين واليسار الطبية */
 }
 
-.jaw-row {
-    display: flex;
-    flex-wrap: nowrap;
-    justify-content: center;
-    gap: 6px;
-    background: white;
-    padding: 25px 15px;
-    border-radius: 16px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    overflow-x: auto;
-    max-width: 100%;
-}
-
-.jaw-title {
+.chart-section-title {
     text-align: center;
-    color: #475569;
+    color: #0f172a;
+    font-size: 22px;
     font-weight: 800;
-    margin-bottom: 15px;
-    font-size: 16px;
-    letter-spacing: 1px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 10px;
 }
 
+/* 🔴 تصميم الصليبة (Quadrants Grid) 🔴 */
+.chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    max-width: 1000px;
+    margin: 0 auto;
+    position: relative;
+}
+
+/* الخطوط الفاصلة للصليبة */
+.quad-ur, .quad-ul { border-bottom: 3px solid #334155; padding-bottom: 20px; margin-bottom: 20px; }
+.quad-ur, .quad-lr { border-right: 3px solid #334155; padding-right: 20px; margin-right: 20px; }
+
+/* توزيع الأسنان لتقترب من المنتصف (Cross) */
+.quad-ur { display: flex; justify-content: flex-end; gap: 5px; flex-wrap: wrap; }
+.quad-ul { display: flex; justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
+.quad-lr { display: flex; justify-content: flex-end; gap: 5px; flex-wrap: wrap; }
+.quad-ll { display: flex; justify-content: flex-start; gap: 5px; flex-wrap: wrap; }
+
+/* علامات الاتجاهات R و L */
+.quad-label {
+    position: absolute;
+    font-size: 24px;
+    font-weight: 900;
+    color: #cbd5e1;
+    z-index: -1;
+}
+.quad-label.ur { top: -20px; left: 20px; }
+.quad-label.ul { top: -20px; right: 20px; }
+.quad-label.lr { bottom: -20px; left: 20px; }
+.quad-label.ll { bottom: -20px; right: 20px; }
+
+/* 🔴 تصميم السِنة 🔴 */
 .tooth-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     transition: transform 0.2s ease;
 }
 
 .tooth-wrapper:hover {
-    transform: translateY(-3px);
+    transform: translateY(-3px) scale(1.05);
 }
 
 .tooth-num {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
-    color: #334155;
-    background: #f1f5f9;
-    padding: 3px 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    cursor: default;
+    color: #0f172a;
+    cursor: pointer;
+    text-align: center;
 }
+
+/* ترتيب الرقم فوق أو تحت السِنة حسب الفك */
+.quad-ur .tooth-wrapper, .quad-ul .tooth-wrapper { flex-direction: column-reverse; } /* الفك العلوي: الرقم تحت السِنة */
+.quad-lr .tooth-wrapper, .quad-ll .tooth-wrapper { flex-direction: column; } /* الفك السفلي: الرقم فوق السِنة */
 
 /* 🔴 الـ SVG الأساسي 🔴 */
 .tooth-svg {
-    width: 40px;
-    height: 80px;
+    width: 35px;
+    height: 70px;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));
     overflow: visible;
 }
 
-/* 🔴 أجزاء السِنة (الأسطح والجذر) 🔴 */
 .tooth-part {
     fill: #ffffff;
     stroke: #94a3b8;
@@ -78,20 +98,27 @@
     stroke-width: 2.5;
 }
 
-/* 🔴 الألوان المحاسبية/الطبية (الحالات) 🔴 */
-.status-decay { fill: #fef08a !important; stroke: #eab308 !important; } /* أصفر/برتقالي للتسوس */
-.status-filled { fill: #3b82f6 !important; stroke: #1d4ed8 !important; } /* أزرق للحشو */
-.status-crown { fill: #8b5cf6 !important; stroke: #6d28d9 !important; } /* بنفسجي للطربوش */
-.status-endo { fill: #ec4899 !important; stroke: #be185d !important; } /* بينك لحشو العصب (للجذر فقط) */
+/* 🔴 الألوان المحاسبية/الطبية 🔴 */
+.status-decay { fill: #fef08a !important; stroke: #eab308 !important; } 
+.status-filled { fill: #3b82f6 !important; stroke: #1d4ed8 !important; } 
+.status-crown { fill: #8b5cf6 !important; stroke: #6d28d9 !important; } 
+.status-endo { fill: #ec4899 !important; stroke: #be185d !important; } 
 
-/* 🔴 حالات السِنة بالكامل (خلع/زراعة) 🔴 */
-/* لو السِنة كلها مخلوعة، بنقلل الشفافية ونرسم X كبيرة (بتترسم بالـ JS) */
 .tooth-extracted .tooth-part { opacity: 0.2; fill: #fecaca !important; stroke: #ef4444 !important; }
 .tooth-implant .tooth-part { opacity: 0.4; fill: #e2e8f0 !important; stroke: #64748b !important; }
 
+/* 🔴 دعم الدارك مود الصارم 🔴 */
+[data-theme="dark"] .chart-section-title { color: #f8fafc; border-color: #334155; }
+[data-theme="dark"] .quad-ur, [data-theme="dark"] .quad-ul { border-bottom-color: #475569; }
+[data-theme="dark"] .quad-ur, [data-theme="dark"] .quad-lr { border-right-color: #475569; }
+[data-theme="dark"] .tooth-num { color: #f8fafc; }
+[data-theme="dark"] .tooth-part { fill: #1e293b; stroke: #64748b; }
+[data-theme="dark"] .quad-label { color: #334155; }
+
 /* موبايل */
 @media (max-width: 768px) {
-    .tooth-svg { width: 30px; height: 60px; }
-    .jaw-row { gap: 3px; padding: 15px 5px; }
-    .tooth-num { font-size: 11px; padding: 2px 6px; }
+    .tooth-svg { width: 25px; height: 50px; }
+    .quad-ur, .quad-lr { padding-right: 5px; margin-right: 5px; }
+    .quad-ur, .quad-ul { padding-bottom: 5px; margin-bottom: 5px; }
+    .tooth-num { font-size: 11px; }
 }
