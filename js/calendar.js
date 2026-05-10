@@ -606,7 +606,57 @@ async function saveAppointment(e) {
 
     try {
         if (currentEditAppId) { await db.collection("Appointments").doc(currentEditAppId).update(appData); } 
-        else { appData.createdAt = firebase.firestore.FieldValue.serverTimestamp(); await db.collection("Appointments").add(appData); }
+        else { appData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+              // ==========================================
+    // 🛡️ فحص التعارض (Pre-Check Validation)
+    // ==========================================
+    const checkDate = document.getElementById('app_date').value;
+    const checkTime = document.getElementById('app_time').value;
+    const checkPhone = document.getElementById('app_phone').value.trim();
+    
+    // سحب المواعيد اللي في نفس اليوم ونفس الفرع وحالتها قيد الانتظار
+    const conflictSnap = await db.collection("Appointments")
+        .where("clinicId", "==", clinicId)
+        .where("branchId", "==", targetBranchId)
+        .where("date", "==", checkDate)
+        .where("status", "==", "pending")
+        .get();
+
+    let isTimeTaken = false;
+    let isPatientDuplicate = false;
+
+    conflictSnap.forEach(doc => {
+        const existingApp = doc.data();
+        
+        // 1. فحص تعارض الوقت (نفس الوقت لنفس الطبيب)
+        // لو مفيش طبيب محدد (العيادة كلها شغالة طابور)، هنفحص الوقت بس
+        const isSameDoctor = doctorId ? (existingApp.doctorId === doctorId) : true; 
+        if (existingApp.time === checkTime && isSameDoctor) {
+            isTimeTaken = true;
+        }
+
+        // 2. فحص تكرار المريض (نفس الرقم في نفس اليوم)
+        if (existingApp.phone === checkPhone) {
+            isPatientDuplicate = true;
+        }
+    });
+
+    if (isTimeTaken) {
+        alert("⚠️ عذراً، هذا الموعد محجوز مسبقاً! يرجى اختيار وقت آخر أو طبيب آخر.");
+        if (window.hideLoader) window.hideLoader();
+        return; // توقيف عملية الحفظ فوراً
+    }
+
+    if (isPatientDuplicate) {
+        const confirmDuplicate = confirm("⚠️ هذا المريض (نفس رقم الموبايل) لديه حجز بالفعل في هذا اليوم.. هل تريد تأكيد حجز موعد إضافي له؟");
+        if (!confirmDuplicate) {
+            if (window.hideLoader) window.hideLoader();
+            return; // توقيف عملية الحفظ لو ضغط Cancel
+        }
+    }
+    // ==========================================
+    // نهاية الفحص، نكمل الحفظ العادي لو الدنيا تمام
+              await db.collection("Appointments").add(appData); }
         closeAppointmentModal();
     } catch (error) { console.error("Error saving:", error); alert(window.calendarLang.errSave); } 
     finally { btn.disabled = false; btn.innerText = currentEditAppId ? window.calendarLang.btnUpdate : window.calendarLang.btnSave; if (window.hideLoader) window.hideLoader(); }
