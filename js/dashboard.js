@@ -65,7 +65,7 @@ function updatePageContent(lang) {
             lblMonthSummary: "📊 ملخص أداء الشهر الحالي", lblMonthPat: "مرضى جُدد", lblMonthSess: "جلسات مكتملة", lblMonthRev: "إيرادات (ج.م)",
             lblLiveUpcoming: "📅 المواعيد القادمة فوراً", noUpcoming: "لا يوجد مواعيد في الانتظار حالياً.",
             lblLiveFinances: "💸 أحدث العمليات المالية (اليوم)", noFinances: "لا توجد عمليات مالية مسجلة اليوم.",
-            weatherLoading: "جاري تحديث الطقس..." // 🔴
+            weatherLoading: "جاري تحديث الطقس..."
         }, 
         en: { 
             welcome: "Clinic Overview", sub: "Daily performance and real-time statistics",
@@ -86,7 +86,7 @@ function updatePageContent(lang) {
             lblMonthSummary: "📊 Current Month Summary", lblMonthPat: "New Patients", lblMonthSess: "Completed Sessions", lblMonthRev: "Revenue (EGP)",
             lblLiveUpcoming: "📅 Upcoming Appointments", noUpcoming: "No pending appointments currently.",
             lblLiveFinances: "💸 Recent Transactions (Today)", noFinances: "No financial transactions recorded today.",
-            weatherLoading: "Updating weather..." // 🔴
+            weatherLoading: "Updating weather..."
         } 
     };
     const c = t[lang] || t.ar;
@@ -136,7 +136,6 @@ function updatePageContent(lang) {
     
     setTxt('btn-cancel-app', c.btnCanc); setTxt('btn-delete-app', c.btnDel);
     
-    // 🔴 تحديث نص جاري تحميل الطقس إذا كان ظاهر 🔴
     const weatherDescEl = document.getElementById('weather-desc');
     if(weatherDescEl && (weatherDescEl.innerText.includes('جاري') || weatherDescEl.innerText.includes('Updating'))) {
         weatherDescEl.innerText = c.weatherLoading;
@@ -163,7 +162,6 @@ async function fetchWeatherAPI() {
     const isAr = lang === 'ar';
 
     try {
-        // إحداثيات افتراضية (القاهرة) - يمكنك جعلها متغيرة لاحقاً
         const url = 'https://api.open-meteo.com/v1/forecast?latitude=30.0444&longitude=31.2357&current_weather=true';
         const response = await fetch(url);
         const data = await response.json();
@@ -174,7 +172,6 @@ async function fetchWeatherAPI() {
 
             tempEl.innerText = temp + '°C';
 
-            // ترجمة وتحديد الأيقونة بناءً على كود المنظمة العالمية للأرصاد (WMO)
             let condition = isAr ? "صافي" : "Clear";
             let icon = "☀️";
 
@@ -246,9 +243,7 @@ function loadInventoryAlerts() {
     const container = document.getElementById('inventory-alerts-container');
     
     let queryRef = db.collection("Inventory").where("clinicId", "==", clinicId);
-    // ضيف السطر ده مباشرة بدل الـ if القديمة
     queryRef = queryRef.where("branchId", "==", currentDashboardBranch);
-    }
     
     queryRef.onSnapshot(snap => {
         container.innerHTML = '';
@@ -392,8 +387,7 @@ function loadDashboardStats() {
     patQuery = patQuery.where("branchId", "==", currentDashboardBranch);
     finQuery = finQuery.where("branchId", "==", currentDashboardBranch);
     appQuery = appQuery.where("branchId", "==", currentDashboardBranch);
-    }
-
+    
     patQuery.onSnapshot(snap => {
         try {
             allPatientsData = [];
@@ -933,6 +927,39 @@ function setupERPInputs() {
     }
 }
 
+// ==========================================
+// 🔴 دالات الفلتر الجديدة 🔴
+// ==========================================
+async function setupDashboardBranchFilter() {
+    const filterContainer = document.getElementById('branch-filter-container');
+    const branchSelect = document.getElementById('dashBranchFilter');
+
+    // لو اليوزر مش أدمن، خليه يشوف فرعه هو بس والفلتر ميظهرش
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        currentDashboardBranch = userBranch; 
+        if(filterContainer) filterContainer.style.display = 'none';
+        return;
+    }
+
+    // لو أدمن، نظهر الفلتر ونجيب الفروع
+    if(filterContainer) filterContainer.style.display = 'block';
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", clinicId).get();
+        if(branchSelect) {
+            branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>';
+            snap.forEach(doc => {
+                branchSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
+            });
+            branchSelect.value = currentDashboardBranch;
+        }
+    } catch (e) { console.error(e); }
+}
+
+function changeDashboardBranch() {
+    currentDashboardBranch = document.getElementById('dashBranchFilter').value;
+    loadDashboardStats(); // هننادي دالة الإحصائيات تاني بالفرع الجديد
+}
+
 window.onload = async () => { 
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
@@ -945,16 +972,14 @@ window.onload = async () => {
     // 🔴 تشغيل جلب الطقس بمجرد فتح الداشبورد 🔴
     fetchWeatherAPI();
 
-    };
-
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
             await loadBranchesForModal();
-            await setupDashboardBranchFilter();
+            await setupDashboardBranchFilter(); // تفعيل الفلتر قبل الإحصائيات
             loadDashboardStats();
         }
     });
-
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     const modals = document.querySelectorAll('.modal');
@@ -966,29 +991,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
-async function setupDashboardBranchFilter() {
-    const filterContainer = document.getElementById('branch-filter-container');
-    const branchSelect = document.getElementById('dashBranchFilter');
-
-    // لو اليوزر مش أدمن، خليه يشوف فرعه هو بس والفلتر ميظهرش
-    if (userRole !== 'admin' && userRole !== 'superadmin') {
-        currentDashboardBranch = userBranch; // الفرع المتسيف في السيشن
-        filterContainer.style.display = 'none';
-        return;
-    }
-
-    // لو أدمن، نظهر الفلتر ونجيب الفروع
-    filterContainer.style.display = 'block';
-    try {
-        const snap = await db.collection("Branches").where("clinicId", "==", clinicId).get();
-        branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>';
-        snap.forEach(doc => {
-            branchSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
-        });
-        branchSelect.value = currentDashboardBranch;
-    } catch (e) { console.error(e); }
-}
-function changeDashboardBranch() {
-    currentDashboardBranch = document.getElementById('dashBranchFilter').value;
-    loadDashboardStats(); // هننادي دالة الإحصائيات تاني بالفرع الجديد
-}
