@@ -1062,3 +1062,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+async function generateDailyReport() {
+    if (!confirm("هل أنت متأكد من إغلاق اليوم وإرسال التقرير للمدير؟")) return;
+
+    // 1. حساب إجمالي الإيرادات من المصفوفة اللي عندنا أصلاً
+    let totalCash = 0;
+    let totalWallet = 0;
+    let totalBank = 0;
+    todayRevenueData.forEach(rev => {
+        if (rev.paymentMethod === 'cash') totalCash += Number(rev.amount);
+        else if (rev.paymentMethod === 'wallet') totalWallet += Number(rev.amount);
+        else totalBank += Number(rev.amount);
+    });
+
+    const totalRevenue = totalCash + totalWallet + totalBank;
+
+    // 2. حساب عدد الحالات (المكتملة والانتظار)
+    const completedCount = completedSessionsData.length;
+    const pendingCount = todayPendingApps.length;
+
+    // 3. تجهيز "الباكيدج" اللي هتروح للـ n8n
+    const reportData = {
+        date: getLocalTodayString(),
+        totalRevenue: totalRevenue,
+        details: {
+            cash: totalCash,
+            wallet: totalWallet,
+            bank: totalBank
+        },
+        stats: {
+            completed: completedCount,
+            pendingRemaining: pendingCount
+        },
+        employee: sessionStorage.getItem('userName') || 'موظف الاستقبال'
+    };
+
+    // 4. إرسال الإشارة للـ n8n
+    console.log("📊 Sending Daily Report to n8n...");
+    triggerN8nWebhook("daily_summary_report", reportData);
+
+    alert("✅ تم إرسال تقرير نهاية اليوم بنجاح إلى صاحب العيادة.");
+}
