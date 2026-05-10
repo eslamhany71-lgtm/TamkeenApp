@@ -945,6 +945,8 @@ window.onload = async () => {
     // 🔴 تشغيل جلب الطقس بمجرد فتح الداشبورد 🔴
     fetchWeatherAPI();
 
+    };
+
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
             await loadBranchesForModal();
@@ -952,7 +954,7 @@ window.onload = async () => {
             loadDashboardStats();
         }
     });
-};
+
 
 document.addEventListener('DOMContentLoaded', () => {
     const modals = document.querySelectorAll('.modal');
