@@ -709,6 +709,8 @@ async function saveNewAppointment(e) {
         const btn = e.target.querySelector('button');
         btn.disabled = true; btn.innerText = "...";
         await db.collection("Appointments").add(data);
+        // هنادي على الدالة المركزية ونبعتلها الداتا
+        triggerN8nWebhook("new_appointment", data);
         closeModal('newAppModal');
     } catch(err) {
         console.error(err);
