@@ -615,6 +615,26 @@ function openNewAppModal() {
     populateModalDoctors();
 
     document.getElementById('newAppModal').style.display = 'flex';
+    // ==========================================
+    // 🛡️ إعادة تعيين زرار تأكيد الحجز (Reset Button)
+    // ==========================================
+    // هنجيب الزرار जोه المودال بتاع الحجز الجديد
+    const modalForm = document.querySelector('#newAppModal form');
+    if(modalForm) {
+        // بنشوف الزرار اللي هو من نوع submit جوه الفورم
+        const saveBtn = modalForm.querySelector('button[type="submit"]'); 
+        if (saveBtn) {
+            saveBtn.disabled = false; // تفعيل الزرار تاني
+            // إرجاع النص الأصلي للزرار حسب لغة السيستم
+            const lang = localStorage.getItem('preferredLang') || 'ar';
+            if (lang === 'ar') {
+                saveBtn.innerText = "تأكيد الحجز";
+            } else {
+                saveBtn.innerText = "Save";
+            }
+        }
+    }
+    // ==========================================
 }
 
 function calculateNewAppERP() {
