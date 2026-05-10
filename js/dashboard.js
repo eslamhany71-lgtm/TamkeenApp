@@ -12,6 +12,7 @@ let todayRevenueData = [];
 
 let currentSelectedPatientId = null; 
 let currentSelectedApp = null; 
+let currentDashboardBranch = sessionStorage.getItem('branchId') || 'main';
 
 let erpServices = [];
 let erpContracts = [];
@@ -245,8 +246,8 @@ function loadInventoryAlerts() {
     const container = document.getElementById('inventory-alerts-container');
     
     let queryRef = db.collection("Inventory").where("clinicId", "==", clinicId);
-    if (userRole !== 'admin' && userRole !== 'superadmin') {
-        queryRef = queryRef.where("branchId", "==", userBranch);
+    // ضيف السطر ده مباشرة بدل الـ if القديمة
+    queryRef = queryRef.where("branchId", "==", currentDashboardBranch);
     }
     
     queryRef.onSnapshot(snap => {
@@ -388,10 +389,9 @@ function loadDashboardStats() {
     let finQuery = db.collection("Finances").where("clinicId", "==", clinicId).where("type", "==", "income");
     let appQuery = db.collection("Appointments").where("clinicId", "==", clinicId);
     
-    if (userRole !== 'admin' && userRole !== 'superadmin') {
-        patQuery = patQuery.where("branchId", "==", userBranch);
-        finQuery = finQuery.where("branchId", "==", userBranch);
-        appQuery = appQuery.where("branchId", "==", userBranch);
+    patQuery = patQuery.where("branchId", "==", currentDashboardBranch);
+    finQuery = finQuery.where("branchId", "==", currentDashboardBranch);
+    appQuery = appQuery.where("branchId", "==", currentDashboardBranch);
     }
 
     patQuery.onSnapshot(snap => {
@@ -963,3 +963,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+async function setupDashboardBranchFilter() {
+    const filterContainer = document.getElementById('branch-filter-container');
+    const branchSelect = document.getElementById('dashBranchFilter');
+
+    // لو اليوزر مش أدمن، خليه يشوف فرعه هو بس والفلتر ميظهرش
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+        currentDashboardBranch = userBranch; // الفرع المتسيف في السيشن
+        filterContainer.style.display = 'none';
+        return;
+    }
+
+    // لو أدمن، نظهر الفلتر ونجيب الفروع
+    filterContainer.style.display = 'block';
+    try {
+        const snap = await db.collection("Branches").where("clinicId", "==", clinicId).get();
+        branchSelect.innerHTML = '<option value="main">الفرع الرئيسي</option>';
+        snap.forEach(doc => {
+            branchSelect.innerHTML += `<option value="${doc.id}">${doc.data().name}</option>`;
+        });
+        branchSelect.value = currentDashboardBranch;
+    } catch (e) { console.error(e); }
+}
+function changeDashboardBranch() {
+    currentDashboardBranch = document.getElementById('dashBranchFilter').value;
+    loadDashboardStats(); // هننادي دالة الإحصائيات تاني بالفرع الجديد
+}
