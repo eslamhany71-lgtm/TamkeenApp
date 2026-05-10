@@ -948,6 +948,7 @@ window.onload = async () => {
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
             await loadBranchesForModal();
+            await setupDashboardBranchFilter();
             loadDashboardStats();
         }
     });
