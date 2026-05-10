@@ -252,3 +252,34 @@ if (window === window.top) {
         setupNetworkMonitor(); 
     }
 }
+
+// ==========================================
+// 🚀 NivaDent Automations & n8n Bridge
+// ==========================================
+const N8N_WEBHOOK_URL = "https://eslamhany71.app.n8n.cloud/webhook-test/fd4ea639-9c32-48ce-801e-5dc76454a0cb";
+
+async function triggerN8nWebhook(eventName, payload) {
+    try {
+        const response = await fetch(N8N_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                event: eventName,       // نوع الحدث (مثلاً: new_appointment)
+                system: "NivaDent",
+                timestamp: new Date().toISOString(),
+                data: payload           // الداتا اللي هنبعتها
+            })
+        });
+        
+        if (response.ok) {
+            console.log(`✅ [n8n] Event '${eventName}' sent successfully!`);
+        } else {
+            console.warn(`⚠️ [n8n] Failed to send event '${eventName}'.`);
+        }
+    } catch (error) {
+        console.error("❌ [n8n] Connection Error:", error);
+    }
+}
+
+// جعل الدالة متاحة لأي ملف في السيستم
+window.triggerN8nWebhook = triggerN8nWebhook;
