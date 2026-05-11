@@ -1,4 +1,4 @@
-// 🔴 ملف patient-profile.js - النسخة المُحصنة 🔴
+// 🔴 ملف patient-profile.js - النسخة المُحصنة الشاملة (Dashboard + n8n Ready) 🔴
 
 try {
     const db = firebase.firestore();
@@ -14,6 +14,13 @@ try {
     if (!clinicId && window.parent) {
         try { clinicId = window.parent.sessionStorage.getItem('clinicId'); } catch(e) {}
     }
+
+    // 🔴 1. استخراج كود الفرع (السر اللي كان بيخفي الفلوس من الداشبورد) 🔴
+    let currentBranchId = urlParams.get('branchId') || sessionStorage.getItem('branchId') || localStorage.getItem('branchId');
+    if (!currentBranchId && window.parent) {
+        try { currentBranchId = window.parent.sessionStorage.getItem('branchId'); } catch(e) {}
+    }
+    if (!currentBranchId) currentBranchId = 'main';
 
     let currentPatientName = "مريض";
     let currentPatientPhone = ""; 
@@ -32,6 +39,13 @@ try {
         return (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     }
 
+    // 🔴 2. دالة سحرية لضبط التاريخ المحلي عشان الداشبورد يقرأ صح 🔴
+    function getLocalTodayString() {
+        const todayDate = new Date();
+        todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
+        return todayDate.toISOString().split('T')[0];
+    }
+
     function updatePageContent(lang) {
         const isAr = lang === 'ar';
         const searchInput = document.getElementById('searchSessionInput');
@@ -43,14 +57,14 @@ try {
     function openModal(id) { 
         document.getElementById(id).style.display = 'flex'; 
         if(id === 'sessionModal') {
-            document.getElementById('sess_date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('sess_date').value = getLocalTodayString();
             if(document.getElementById('sess_contract')) document.getElementById('sess_contract').value = '';
         }
         if(id === 'labOrderModal') {
-            document.getElementById('lab_date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('lab_date').value = getLocalTodayString();
         }
         if(id === 'installmentModal') {
-            document.getElementById('inst_start_date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('inst_start_date').value = getLocalTodayString();
             document.getElementById('inst_total').value = '';
             document.getElementById('inst_down_payment').value = '';
             document.getElementById('inst_remaining').value = '';
@@ -220,6 +234,7 @@ try {
         document.getElementById('inst_value_display').innerText = `${valPerSession} ج.م`;
     }
 
+    // 🔴 3. تعديل دالة الأقساط لإضافة الفرع 🔴
     async function saveInstallmentPlan(e) {
         e.preventDefault();
         const isAr = getLang();
@@ -247,20 +262,24 @@ try {
             if (downPayment > 0) {
                 const downSessRef = sessionsRef.doc();
                 batch.set(downSessRef, {
-                    clinicId: clinicId, patientId: patientId, date: startDateStr,
+                    clinicId: clinicId, branchId: currentBranchId, patientId: patientId, date: startDateStr,
                     procedure: `مقدم خطة: ${planName}`, contract: 'بدون تعاقد', tooth: "", notes: "دفعة مقدمة لخطة علاج",
                     total: downPayment, paid: downPayment, remaining: 0,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
                 const downFinRef = financeRef.doc();
-                batch.set(downFinRef, {
-                    clinicId: clinicId, patientId: patientId, type: 'income', 
-                    category: isAr ? 'مقدم خطة علاج' : 'Plan Down Payment',
+                const incomeData = {
+                    clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'income', 
+                    category: isAr ? 'كشف / جلسة' : 'Session Income',
                     amount: downPayment, date: startDateStr, paymentMethod: payMethod,
                     notes: isAr ? `مقدم خطة: ${planName}` : `Down payment: ${planName}`,
                     createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                };
+                batch.set(downFinRef, incomeData);
+                
+                // إشعار n8n
+                if (window.triggerN8nWebhook) window.triggerN8nWebhook("new_revenue", {...incomeData, patientName: currentPatientName});
             }
 
             if (remaining > 0) {
@@ -272,7 +291,7 @@ try {
                     const instDateStr = currentDate.toISOString().split('T')[0];
                     const instSessRef = sessionsRef.doc();
                     batch.set(instSessRef, {
-                        clinicId: clinicId, patientId: patientId, date: instDateStr,
+                        clinicId: clinicId, branchId: currentBranchId, patientId: patientId, date: instDateStr,
                         procedure: `قسط رقم (${i}) - ${planName}`, contract: 'بدون تعاقد', tooth: "", notes: "قسط مجدول أوتوماتيكياً",
                         total: valPerSession, paid: 0, remaining: valPerSession,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp() 
@@ -280,7 +299,7 @@ try {
 
                     const instFinRef = financeRef.doc();
                     batch.set(instFinRef, {
-                        clinicId: clinicId, patientId: patientId, type: 'debt', 
+                        clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'debt', 
                         category: isAr ? 'قسط خطة علاج' : 'Plan Installment',
                         amount: valPerSession, date: instDateStr,
                         notes: isAr ? `قسط (${i}): ${planName}` : `Installment (${i}): ${planName}`,
@@ -304,6 +323,7 @@ try {
         }
     }
 
+    // 🔴 4. تعديل دالة المعمل لإضافة الفرع 🔴
     async function saveLabOrder(e) {
         e.preventDefault();
         const isAr = getLang();
@@ -318,7 +338,7 @@ try {
         const paymentMethod = document.getElementById('lab_pay_method').value; 
 
         const labData = {
-            clinicId: clinicId, patientId: patientId, date: orderDate,
+            clinicId: clinicId, branchId: currentBranchId, patientId: patientId, date: orderDate,
             labName: labName, workType: workType, cost: labCost,
             deliveryDate: document.getElementById('lab_delivery_date').value || null,
             status: 'pending', createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -328,7 +348,7 @@ try {
             await db.collection("LabOrders").add(labData);
             if (labCost > 0) {
                 await db.collection("Finances").add({
-                    clinicId: clinicId, patientId: patientId, type: 'expense', category: isAr ? 'مصروفات معمل' : 'Lab Expense',
+                    clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'expense', category: isAr ? 'مصروفات معمل' : 'Lab Expense',
                     amount: labCost, date: orderDate, paymentMethod: paymentMethod, 
                     notes: isAr ? `تكلفة معمل: ${labName} - للمريض: ${currentPatientName}` : `Lab Cost: ${labName} - Patient: ${currentPatientName}`,
                     createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -403,6 +423,7 @@ try {
         document.getElementById(`${prefix}remaining`).value = Math.max(0, total - paid);
     }
 
+    // 🔴 5. تعديل دالة الجلسات (شامل الفرع والـ n8n) 🔴
     async function saveSession(e, isEditMode) {
         e.preventDefault();
         const isAr = getLang();
@@ -420,7 +441,6 @@ try {
         const sessionDate = document.getElementById(`${prefix}date`).value;
         const paymentMethod = document.getElementById(`${prefix}pay_method`).value;
 
-        // 🔴 استخراج اسم الخدمة والتعاقد 🔴
         const procSelect = document.getElementById(`${prefix}procedure`);
         const srv = erpServices.find(s => s.id === procSelect.value);
         const procedureName = srv ? srv.name : (procSelect.options ? procSelect.options[procSelect.selectedIndex]?.text : procSelect.value);
@@ -429,8 +449,9 @@ try {
         const cont = contSelect ? erpContracts.find(c => c.id === contSelect.value) : null;
         const contractName = cont ? cont.name : 'بدون تعاقد';
 
+        // 🔴 الفرع تمت إضافته هنا
         const data = {
-            clinicId: clinicId, patientId: patientId, date: sessionDate,
+            clinicId: clinicId, branchId: currentBranchId, patientId: patientId, date: sessionDate,
             nextAppointment: document.getElementById(`${prefix}next_date`).value || null,
             procedure: procedureName, contract: contractName, 
             tooth: document.getElementById(`${prefix}tooth`).value,
@@ -451,18 +472,24 @@ try {
                 await db.collection("Sessions").doc(docId).update(data);
                 
                 if (paidDiff !== 0) {
-                    await db.collection("Finances").add({
-                        clinicId: clinicId, patientId: patientId, type: paidDiff > 0 ? 'income' : 'expense', 
-                        category: isAr ? 'تعديل دفعة جلسة' : 'Session Payment Adjustment',
+                    const incomeData = {
+                        clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: paidDiff > 0 ? 'income' : 'expense', 
+                        category: isAr ? 'كشف / جلسة' : 'Session Income',
                         amount: Math.abs(paidDiff), date: sessionDate, paymentMethod: paymentMethod, 
                         notes: isAr ? `تسوية حساب: ${procedureName}` : `Payment Adjust: ${procedureName}`,
                         createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    };
+                    await db.collection("Finances").add(incomeData);
+
+                    // 🔔 إرسال الإشعار اللحظي لو المريض دفع فلوس زيادة في التعديل
+                    if (paidDiff > 0 && window.triggerN8nWebhook) {
+                        window.triggerN8nWebhook("new_revenue", {...incomeData, patientName: currentPatientName});
+                    }
                 }
                 if (debtDiff !== 0) {
                     await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(debtDiff) });
                     await db.collection("Finances").add({
-                        clinicId: clinicId, patientId: patientId, type: 'debt', category: isAr ? 'تعديل مديونية جلسة' : 'Session Debt Adjustment',
+                        clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'debt', category: isAr ? 'تعديل مديونية جلسة' : 'Session Debt Adjustment',
                         amount: debtDiff, date: sessionDate, notes: isAr ? `تسوية ديون: ${procedureName}` : `Debt Adjust: ${procedureName}`,
                         createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -474,16 +501,22 @@ try {
                 const docRef = await db.collection("Sessions").add(data);
                 
                 if (paidAmount > 0) {
-                    await db.collection("Finances").add({
-                        clinicId: clinicId, patientId: patientId, type: 'income', category: isAr ? 'كشف / جلسة' : 'Session Income',
+                    const incomeData = {
+                        clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'income', category: isAr ? 'كشف / جلسة' : 'Session Income',
                         amount: paidAmount, date: sessionDate, paymentMethod: paymentMethod, 
                         notes: isAr ? `إيراد جلسة: ${procedureName}` : `Income: ${procedureName}`,
                         createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                    };
+                    await db.collection("Finances").add(incomeData);
+
+                    // 🔔 إرسال الإشعار اللحظي للمدير على n8n
+                    if (window.triggerN8nWebhook) {
+                        window.triggerN8nWebhook("new_revenue", {...incomeData, patientName: currentPatientName});
+                    }
                 }
                 if (remainingAmount > 0) {
                     await db.collection("Finances").add({
-                        clinicId: clinicId, patientId: patientId, type: 'debt', category: isAr ? 'متبقي جلسة' : 'Session Remaining',
+                        clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'debt', category: isAr ? 'متبقي جلسة' : 'Session Remaining',
                         amount: remainingAmount, date: sessionDate, notes: isAr ? `مديونية جلسة: ${procedureName}` : `Debt: ${procedureName}`,
                         createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
@@ -515,7 +548,7 @@ try {
         openModal('paymentModal');
     }
 
-// 🔴 دالة السداد النهائية (متوافقة 100% مع الداشبورد والـ n8n) 🔴
+    // 🔴 6. دالة سداد المديونية المربوطة بالفرع والـ الداشبورد والـ n8n 🔴
     async function executePayment(e) {
         e.preventDefault();
         const isAr = getLang();
@@ -538,69 +571,41 @@ try {
         try {
             const newPaid = currentPaid + amountToPay;
             const newRemaining = currentRemaining - amountToPay;
+            const today = getLocalTodayString(); // استخدام التاريخ المحلي
 
-            // تظبيط التاريخ لتوقيتك المحلي بالظبط
-            const todayDate = new Date();
-            todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
-            const today = todayDate.toISOString().split('T')[0];
-
-            // 🔴 السطر السحري: استخراج كود الفرع عشان الداشبورد يرضى يقرأ الفلوس
-            let currentBranchId = sessionStorage.getItem('branchId') || localStorage.getItem('branchId');
-            if (!currentBranchId && window.parent) {
-                try { currentBranchId = window.parent.sessionStorage.getItem('branchId'); } catch(e) {}
-            }
-            if (!currentBranchId) currentBranchId = 'main'; // القيمة الافتراضية اللي ظاهرة في صورك
-
-            // تحديث الجلسة والمريض
             await db.collection("Sessions").doc(sessionId).update({ paid: newPaid, remaining: newRemaining });
             await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(-amountToPay) });
 
-            // 🔴 1. تسجيل الإيراد في Finances (مع إضافة branchId)
             const financeIncomeData = {
-                clinicId: clinicId, 
-                branchId: currentBranchId, // <-- ده اللي كان ناقص ومبوظ الدنيا!
-                patientId: patientId, 
-                type: 'income', 
+                clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'income', 
                 category: isAr ? 'كشف / جلسة' : 'Session Income',
-                amount: amountToPay, 
-                date: today, 
-                paymentMethod: paymentMethod, 
+                amount: amountToPay, date: today, paymentMethod: paymentMethod, 
                 notes: isAr ? `سداد مديونية سابقة (لجلسة قديمة)` : `Debt payment`,
-                createdBy: currentUserDisplayName, 
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             await db.collection("Finances").add(financeIncomeData);
 
-            // 🔴 2. تسوية الديون رقمياً (مع إضافة branchId)
             await db.collection("Finances").add({
-                clinicId: clinicId, 
-                branchId: currentBranchId, // <-- وهنا كمان
-                patientId: patientId, 
-                type: 'debt', 
+                clinicId: clinicId, branchId: currentBranchId, patientId: patientId, type: 'debt', 
                 category: isAr ? 'سداد مديونية' : 'Debt Payment',
-                amount: -amountToPay, 
-                date: today, 
-                notes: isAr ? `خصم مديونية مسددة` : `Deduct paid debt`,
-                createdBy: currentUserDisplayName, 
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                amount: -amountToPay, date: today, notes: isAr ? `خصم مديونية مسددة` : `Deduct paid debt`,
+                createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            // 🔴 3. إرسال الإشعار اللحظي للمدير على تليجرام (n8n)
+            // 🔔 إرسال الإشعار اللحظي للمدير على n8n
             if (window.triggerN8nWebhook) {
-                window.triggerN8nWebhook("new_revenue", financeIncomeData);
+                window.triggerN8nWebhook("new_revenue", {...financeIncomeData, patientName: currentPatientName});
             } else if (window.parent && window.parent.triggerN8nWebhook) {
-                window.parent.triggerN8nWebhook("new_revenue", financeIncomeData);
+                window.parent.triggerN8nWebhook("new_revenue", {...financeIncomeData, patientName: currentPatientName});
             }
 
-            // تحديث الجدول قدام الموظف
             const idx = loadedPatientSessions.findIndex(s => s.id === sessionId);
             if(idx !== -1) { loadedPatientSessions[idx].paid = newPaid; loadedPatientSessions[idx].remaining = newRemaining; }
             renderPatientSessionsTable();
 
             closeModal('paymentModal');
-            alert(isAr ? "✅ تم السداد وتسميعه في الخزنة والداشبورد بنجاح!" : "✅ Payment recorded & synced!");
+            alert(isAr ? "✅ تم سداد المبلغ وتسميعه في الخزنة بنجاح!" : "✅ Payment recorded successfully!");
         } catch (error) { 
-            console.error(error);
             alert(isAr ? "❌ خطأ في السداد" : "Error");
         } finally { 
             btn.disabled = false;
@@ -684,7 +689,6 @@ try {
             const toothLabel = isAr ? 'السن:' : 'Tooth:';
             const viewBtn = isAr ? '👁️ التفاصيل' : '👁️ View';
 
-            // 🔴 عرض التعاقد تحت الإجراء الطبي لو موجود
             let procDisplay = `${s.procedure}`;
             if(s.contract && s.contract !== 'بدون تعاقد') {
                 procDisplay += `<br><small style="color:#10b981; font-weight:bold;">تأمين: ${s.contract}</small>`;
@@ -723,7 +727,6 @@ try {
         document.getElementById('edit_sess_date').value = session.date;
         document.getElementById('edit_sess_next_date').value = session.nextAppointment || '';
         
-        // 🔴 استرجاع الخدمة والتعاقد في القوائم المنسدلة
         const procEl = document.getElementById('edit_sess_procedure');
         if(procEl) {
             const srv = erpServices.find(s => s.name === session.procedure);
@@ -794,7 +797,7 @@ try {
 
     firebase.auth().onAuthStateChanged(async (user) => { 
         if (user) { 
-            loadERPData(); // 🔴 تشغيل جلب داتا الـ ERP
+            loadERPData(); 
             try {
                 const userDoc = await db.collection("Users").doc(user.email).get();
                 if (userDoc.exists) {
@@ -859,7 +862,7 @@ try {
     window.saveInstallmentPlan = saveInstallmentPlan;
     window.saveLabOrder = saveLabOrder;
     window.markLabOrderDelivered = markLabOrderDelivered;
-    window.calculateProfileERP = calculateProfileERP; // 🔴 تصدير الدالة
+    window.calculateProfileERP = calculateProfileERP; 
 
 } catch (globalError) {
     alert("حدث خطأ تقني يمنع تحميل الصفحة: " + globalError.message);
