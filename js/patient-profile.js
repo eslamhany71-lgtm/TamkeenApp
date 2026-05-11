@@ -515,7 +515,7 @@ try {
         openModal('paymentModal');
     }
 
-// 🔴 دالة السداد بعد التعديل الشامل والربط بالداشبورد و n8n 🔴
+// 🔴 دالة السداد النهائية (متوافقة 100% مع الداشبورد والـ n8n) 🔴
     async function executePayment(e) {
         e.preventDefault();
         const isAr = getLang();
@@ -538,64 +538,67 @@ try {
         try {
             const newPaid = currentPaid + amountToPay;
             const newRemaining = currentRemaining - amountToPay;
-            
-            // 🔴 1. تظبيط التاريخ عشان يكون بتوقيتك المحلي بالظبط (مش جرينتش)
+
+            // تظبيط التاريخ لتوقيتك المحلي بالظبط
             const todayDate = new Date();
             todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
             const today = todayDate.toISOString().split('T')[0];
 
-            // خصم المديونية من الجلسة والمريض (شغال صح 100%)
+            // 🔴 السطر السحري: استخراج كود الفرع عشان الداشبورد يرضى يقرأ الفلوس
+            let currentBranchId = sessionStorage.getItem('branchId') || localStorage.getItem('branchId');
+            if (!currentBranchId && window.parent) {
+                try { currentBranchId = window.parent.sessionStorage.getItem('branchId'); } catch(e) {}
+            }
+            if (!currentBranchId) currentBranchId = 'main'; // القيمة الافتراضية اللي ظاهرة في صورك
+
+            // تحديث الجلسة والمريض
             await db.collection("Sessions").doc(sessionId).update({ paid: newPaid, remaining: newRemaining });
             await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(-amountToPay) });
 
-            // 🔴 2. تسجيل الدفعة في الحسابات بنفس تصنيف الجلسة العادية عشان تسمع وتظهر
-            await db.collection("Finances").add({
-                clinicId: clinicId, patientId: patientId, type: 'income', 
-                category: isAr ? 'كشف / جلسة' : 'Session Income', // غيرناها لكشف/جلسة عشان الحسابات تقرأها
-                amount: amountToPay, date: today, paymentMethod: paymentMethod, 
+            // 🔴 1. تسجيل الإيراد في Finances (مع إضافة branchId)
+            const financeIncomeData = {
+                clinicId: clinicId, 
+                branchId: currentBranchId, // <-- ده اللي كان ناقص ومبوظ الدنيا!
+                patientId: patientId, 
+                type: 'income', 
+                category: isAr ? 'كشف / جلسة' : 'Session Income',
+                amount: amountToPay, 
+                date: today, 
+                paymentMethod: paymentMethod, 
                 notes: isAr ? `سداد مديونية سابقة (لجلسة قديمة)` : `Debt payment`,
-                createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            // تسوية رقمية للمديونية (عشان تقارير الديون)
-            await db.collection("Finances").add({
-                clinicId: clinicId, patientId: patientId, type: 'debt', 
-                category: isAr ? 'سداد مديونية' : 'Debt Payment',
-                amount: -amountToPay, date: today, notes: isAr ? `خصم مديونية مسددة` : `Deduct paid debt`,
-                createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-
-            // 🔴 3. التعديل الأهم: رمي الداتا في (Revenue) عشان الداشبورد يلقط إيراد اليوم فوراً
-            const branchId = sessionStorage.getItem('branchId') || localStorage.getItem('branchId') || clinicId;
-            const revenueData = {
-                amount: amountToPay,
-                category: isAr ? "سداد مديونية" : "Debt Payment",
-                date: today,
-                paymentMethod: paymentMethod,
-                method: paymentMethod, // احتياطي لو الداشبورد بيقرأها كده
-                patientId: patientId,
-                patientName: currentPatientName,
-                clinicId: clinicId,
-                branchId: branchId,
-                note: isAr ? "سداد مديونية جلسة سابقة" : "Old debt payment",
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                createdBy: currentUserDisplayName, 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             };
-            await db.collection("Revenue").add(revenueData);
+            await db.collection("Finances").add(financeIncomeData);
 
-            // 🔴 4. ربط السداد بالـ n8n عشان تليجرام يرن عند المدير بإن فيه فلوس دخلت الخزنة!
+            // 🔴 2. تسوية الديون رقمياً (مع إضافة branchId)
+            await db.collection("Finances").add({
+                clinicId: clinicId, 
+                branchId: currentBranchId, // <-- وهنا كمان
+                patientId: patientId, 
+                type: 'debt', 
+                category: isAr ? 'سداد مديونية' : 'Debt Payment',
+                amount: -amountToPay, 
+                date: today, 
+                notes: isAr ? `خصم مديونية مسددة` : `Deduct paid debt`,
+                createdBy: currentUserDisplayName, 
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 🔴 3. إرسال الإشعار اللحظي للمدير على تليجرام (n8n)
             if (window.triggerN8nWebhook) {
-                window.triggerN8nWebhook("new_revenue", revenueData);
+                window.triggerN8nWebhook("new_revenue", financeIncomeData);
             } else if (window.parent && window.parent.triggerN8nWebhook) {
-                window.parent.triggerN8nWebhook("new_revenue", revenueData);
+                window.parent.triggerN8nWebhook("new_revenue", financeIncomeData);
             }
 
-            // تحديث واجهة المستخدم بعد الدفع
+            // تحديث الجدول قدام الموظف
             const idx = loadedPatientSessions.findIndex(s => s.id === sessionId);
             if(idx !== -1) { loadedPatientSessions[idx].paid = newPaid; loadedPatientSessions[idx].remaining = newRemaining; }
             renderPatientSessionsTable();
 
             closeModal('paymentModal');
-            alert(isAr ? "✅ تم سداد المبلغ بنجاح وتسميعه في الخزنة!" : "✅ Payment recorded & synced!");
+            alert(isAr ? "✅ تم السداد وتسميعه في الخزنة والداشبورد بنجاح!" : "✅ Payment recorded & synced!");
         } catch (error) { 
             console.error(error);
             alert(isAr ? "❌ خطأ في السداد" : "Error");
