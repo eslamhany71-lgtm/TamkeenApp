@@ -7,6 +7,7 @@ const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب 
 let allPatients = [];
 let selectedPatient = null;
 let patientSessions = [];
+let clinicSettings = null; // 🔴 مخزن إعدادات العيادة لقراءة السجل والاسم والتفاصيل
 
 let invLang = {}; // 🔴 تخزين الترجمات لاستخدامها في بناء الفاتورة
 
@@ -63,6 +64,23 @@ function updateLanguage(lang) {
         renderInvoice();
     } else {
         searchPatientsForInvoice(); // Refresh search text
+    }
+}
+
+// 🔴 دالة جلب إعدادات العيادة من جدول Settings لطباعتها رسميًا 🔴
+async function loadClinicSettings() {
+    if (!clinicId) return;
+    try {
+        const doc = await db.collection("Settings").doc(clinicId).get();
+        if (doc.exists) {
+            clinicSettings = doc.data();
+        } else {
+            // محاولة جلب من كوليكشن Clinics كخيار بديل
+            const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
+            if (clinicDoc.exists) clinicSettings = clinicDoc.data();
+        }
+    } catch (e) {
+        console.error("خطأ أثناء جلب إعدادات العيادة للطباعة:", e);
     }
 }
 
@@ -209,35 +227,100 @@ function renderInvoice() {
     const isAr = document.body.dir === 'rtl';
     const alignStr = isAr ? 'left' : 'right';
 
+    // قراءة البيانات الديناميكية من صفحة الإعدادات المحفوظة بالفايربيز
+    const clinicName = clinicSettings?.clinicName || clinicSettings?.name || "NivaDent Clinic";
+    const commercialRegister = clinicSettings?.commercialRegister || clinicSettings?.commercialNo || "";
+    const taxCard = clinicSettings?.taxCard || clinicSettings?.taxNo || "";
+    const clinicPhone = clinicSettings?.phone || clinicSettings?.clinicPhone || "";
+    const clinicAddress = clinicSettings?.address || "";
+
+    // بناء الهيدر بناء على البيانات الموجودة في صفحة الإعدادات
+    let settingsDetailsHtml = '';
+    if (isAr) {
+        if (commercialRegister) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">سجل تجاري: <strong>${commercialRegister}</strong></p>`;
+        if (taxCard) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">بطاقة ضريبية: <strong>${taxCard}</strong></p>`;
+        if (clinicPhone) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">تليفون: <strong>${clinicPhone}</strong></p>`;
+        if (clinicAddress) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">العنوان: <strong>${clinicAddress}</strong></p>`;
+    } else {
+        if (commercialRegister) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">CR No: <strong>${commercialRegister}</strong></p>`;
+        if (taxCard) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Tax Card: <strong>${taxCard}</strong></p>`;
+        if (clinicPhone) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Tel: <strong>${clinicPhone}</strong></p>`;
+        if (clinicAddress) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Address: <strong>${clinicAddress}</strong></p>`;
+    }
+
     const invoiceHTML = `
-        <div class="bill-header">
+        <style>
+            .bill-table {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-collapse: collapse !important;
+                margin-top: 20px;
+                table-layout: auto !important; /* ملائمة تلقائية للمسافات */
+            }
+            .bill-table th, .bill-table td {
+                border: 1px solid #e2e8f0 !important;
+                padding: 10px 12px !important;
+                font-size: 14px !important;
+                word-break: break-word !important; /* منع خروج الكلمات برا العمود */
+            }
+            @media print {
+                @page {
+                    size: A4;
+                    margin: 15mm 12mm 15mm 12mm; /* هوامش متناسقة لورق A4 */
+                }
+                body {
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                    background: #fff !important;
+                    color: #000 !important;
+                }
+                #actualPrintArea {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                }
+                .bill-table th, .bill-table td {
+                    padding: 6px 8px !important; /* تضييق المسافات تلقائيًا عند الطباعة */
+                    font-size: 12px !important;
+                }
+                .total-box {
+                    width: 100% !important;
+                    max-width: 320px !important;
+                    margin-top: 15px !important;
+                }
+            }
+        </style>
+
+        <div class="bill-header" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
             <div>
-                <h1 style="margin:0; color:#0284c7;">NivaDent Clinic</h1>
-                <p style="margin:5px 0; color:#64748b; font-weight:bold;">${invLang.invTitle}</p>
+                <h1 style="margin:0; color:#0284c7; font-size: 28px; font-weight: 800;">${clinicName}</h1>
+                <p style="margin:5px 0 2px 0; color:#0f172a; font-weight:bold; font-size: 15px;">${invLang.invTitle}</p>
+                ${settingsDetailsHtml}
             </div>
-            <div style="text-align: ${alignStr};">
-                <p style="margin:0;">${invLang.invDate}: <strong>${new Date().toLocaleDateString(isAr ? 'ar-EG' : 'en-US')}</strong></p>
-                <p style="margin:5px 0;">${invLang.invNo}: <strong dir="ltr">INV-${Math.floor(1000 + Math.random() * 9000)}</strong></p>
+            <div style="text-align: ${alignStr}; min-width: 180px;">
+                <p style="margin:0; font-size:14px;">${invLang.invDate}: <strong>${new Date().toLocaleDateString(isAr ? 'ar-EG' : 'en-US')}</strong></p>
+                <p style="margin:5px 0; font-size:14px;">${invLang.invNo}: <strong dir="ltr" style="color:#0284c7;">INV-${Math.floor(1000 + Math.random() * 9000)}</strong></p>
             </div>
         </div>
 
-        <div class="patient-info-box" style="margin-bottom: 30px; display: flex; justify-content: space-between; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+        <div class="patient-info-box" style="margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 18px; border-radius: 12px; border: 1px solid #e2e8f0;">
             <div>
-                <span style="color: #64748b; font-size: 14px;">${invLang.invPatName}</span>
-                <h2 style="margin: 5px 0; color: #0f172a;">${selectedPatient.name}</h2>
-                <span dir="ltr">📞 ${selectedPatient.phone || '---'}</span>
+                <span style="color: #64748b; font-size: 13px; font-weight: bold;">${invLang.invPatName}</span>
+                <h2 style="margin: 5px 0; color: #0f172a; font-size: 20px; font-weight: 700;">${selectedPatient.name}</h2>
+                <span dir="ltr" style="font-weight: 600; color: #334155;">📞 ${selectedPatient.phone || '---'}</span>
             </div>
-            <div class="invoice-qr" style="background: white; padding: 5px; border-radius: 8px; border: 1px solid #cbd5e1;"></div>
+            <div class="invoice-qr" style="background: white; padding: 6px; border-radius: 8px; border: 1px solid #cbd5e1; display: inline-block;"></div>
         </div>
 
         <table class="bill-table" dir="${isAr ? 'rtl' : 'ltr'}">
             <thead>
-                <tr>
-                    <th style="text-align: ${isAr ? 'right' : 'left'};">${invLang.thDate}</th>
-                    <th style="text-align: ${isAr ? 'right' : 'left'};">${invLang.thProc}</th>
-                    <th style="text-align: ${isAr ? 'right' : 'left'};">${invLang.thTotal}</th>
-                    <th style="text-align: ${isAr ? 'right' : 'left'};">${invLang.thPaid}</th>
-                    <th style="text-align: ${isAr ? 'right' : 'left'};">${invLang.thRem}</th>
+                <tr style="background-color: #f1f5f9;">
+                    <th style="text-align: ${isAr ? 'right' : 'left'}; color: #334155; font-weight: 700;">${invLang.thDate}</th>
+                    <th style="text-align: ${isAr ? 'right' : 'left'}; color: #334155; font-weight: 700;">${invLang.thProc}</th>
+                    <th style="text-align: ${isAr ? 'right' : 'left'}; color: #334155; font-weight: 700;">${invLang.thTotal}</th>
+                    <th style="text-align: ${isAr ? 'right' : 'left'}; color: #334155; font-weight: 700;">${invLang.thPaid}</th>
+                    <th style="text-align: ${isAr ? 'right' : 'left'}; color: #334155; font-weight: 700;">${invLang.thRem}</th>
                 </tr>
             </thead>
             <tbody>
@@ -245,17 +328,17 @@ function renderInvoice() {
             </tbody>
         </table>
 
-        <div class="bill-footer">
-            <div class="total-box">
-                <div class="total-row"><span>${invLang.totServ}:</span> <span>${totalBill} ${invLang.currency}</span></div>
-                <div class="total-row"><span>${invLang.totPaid}:</span> <span style="color:#10b981;">${totalPaid} ${invLang.currency}</span></div>
-                <div class="total-row final-debt" style="border-top:1px dashed #ffffff55; padding-top:10px; margin-top:10px; font-size:20px; font-weight:900;">
-                    <span>${invLang.netDebt}:</span> <span>${totalDebt} ${invLang.currency}</span>
+        <div class="bill-footer" style="display: flex; justify-content: flex-end; margin-top: 20px;">
+            <div class="total-box" style="background: #0f172a; color: white; padding: 15px; border-radius: 12px; min-width: 280px;">
+                <div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>${invLang.totServ}:</span> <span>${totalBill} ${invLang.currency}</span></div>
+                <div class="total-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;"><span>${invLang.totPaid}:</span> <span style="color:#10b981; font-weight: bold;">${totalPaid} ${invLang.currency}</span></div>
+                <div class="total-row final-debt" style="display: flex; justify-content: space-between; border-top:1px dashed #ffffff55; padding-top:10px; margin-top:10px; font-size:18px; font-weight:900;">
+                    <span>${invLang.netDebt}:</span> <span style="color:#f43f5e;">${totalDebt} ${invLang.currency}</span>
                 </div>
             </div>
         </div>
         
-        <div style="margin-top: 50px; text-align: center; border-top: 1px solid #eee; padding-top: 20px; color: #94a3b8; font-size: 12px;">
+        <div style="margin-top: 40px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; color: #94a3b8; font-size: 12px; font-weight: 500;">
             ${invLang.footerMsg}
         </div>
     `;
@@ -288,6 +371,7 @@ window.onload = () => {
     
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
+            await loadClinicSettings(); // 🔴 جلب الإعدادات أولًا لتجهيز داتا الطباعة
             await loadBranchesDropdown();
             loadPatients();
         }
