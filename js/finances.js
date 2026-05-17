@@ -8,6 +8,10 @@ let allTransactionsForEdit = [];
 let currentDisplayedData = []; 
 let currentUserDisplayName = "مستخدم غير معروف";
 
+// 🔴 متغيرات الترتيب وعرض المزيد (Pagination) 🔴
+let displayedTransactionsCount = 5;
+let currentSortOrder = 'desc'; 
+
 // 🔴 دالة لجلب قائمة الفروع (للمدير فقط)
 async function loadBranchesForAdmin() {
     if (userRole !== 'admin' && userRole !== 'superadmin') return;
@@ -54,7 +58,8 @@ function updatePageContent(lang) {
             bInc: "إيراد", bExp: "مصروف", bDebt: "مديونية", confDel: "هل أنت متأكد من الحذف؟", empty: "لا توجد حركات مالية مطابقة للبحث.",
             lSearch: "بحث بالبيان أو الملاحظات", lType: "النوع", lDateFrom: "من تاريخ", lDateTo: "إلى تاريخ",
             optAllTypes: "الكل", optInc: "إيرادات", optExp: "مصروفات", optDebt: "مديونيات", btnSearch: "🔍 بحث",
-            optAllBranches: "كل الفروع", lblBranch: "فرع العيادة"
+            optAllBranches: "كل الفروع", lblBranch: "فرع العيادة",
+            btnSortDesc: "🔽 ترتيب: الأحدث", btnSortAsc: "🔼 ترتيب: الأقدم", btnLoadMore: "⬇️ عرض المزيد (5)"
         },
         en: {
             title: "Financial & Accounting Center", sub: "Manage treasury, banks, income, expenses, and debts",
@@ -69,7 +74,8 @@ function updatePageContent(lang) {
             bInc: "Income", bExp: "Expense", bDebt: "Debt", confDel: "Are you sure you want to delete?", empty: "No financial transactions match your search.",
             lSearch: "Search by Details", lType: "Type", lDateFrom: "From Date", lDateTo: "To Date",
             optAllTypes: "All", optInc: "Income", optExp: "Expense", optDebt: "Debts", btnSearch: "🔍 Search",
-            optAllBranches: "All Branches", lblBranch: "Clinic Branch"
+            optAllBranches: "All Branches", lblBranch: "Clinic Branch",
+            btnSortDesc: "🔽 Sort: Newest", btnSortAsc: "🔼 Sort: Oldest", btnLoadMore: "⬇️ Load More (5)"
         }
     };
     const c = t[lang] || t.ar;
@@ -91,12 +97,18 @@ function updatePageContent(lang) {
     setTxt('lbl-branch-filter', c.lblBranch);
     
     const searchInput = document.getElementById('search_text');
-    if(searchInput) searchInput.placeholder = lang === 'ar' ? "ابحث عن مريض أو ملاحظة..." : "Search patient or note...";
+    if(searchInput) searchInput.placeholder = lang === 'ar' ? "ابحث عن بيان أو ملاحظة..." : "Search details or note...";
     
     const searchBtn = document.getElementById('btn-do-search');
     if(searchBtn) searchBtn.innerHTML = c.btnSearch;
 
     window.finLang = c;
+
+    // تحديث نص زر الترتيب لو موجود
+    const sortBtn = document.getElementById('btn-sort-finances');
+    if (sortBtn) {
+        sortBtn.innerHTML = currentSortOrder === 'desc' ? c.btnSortDesc : c.btnSortAsc;
+    }
 }
 
 function setDefaultDates() {
@@ -120,7 +132,7 @@ function filterByMethodCard(method, element) {
     document.getElementById('filter_method').value = method;
     document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
     if(element) element.classList.add('active-filter');
-    filterTransactionsLocally();
+    filterTransactionsLocally(true); // 🔴 إعادة الفلترة وتصفير الترتيب
 }
 
 function resetFilters() {
@@ -184,7 +196,7 @@ async function saveTransaction(e) {
 
     const data = {
         clinicId: clinicId,
-        branchId: targetBranchId, // 🔴 ختم الفرع 🔴
+        branchId: targetBranchId, 
         type: document.getElementById('trans_type').value,
         amount: Number(document.getElementById('trans_amount').value),
         date: document.getElementById('trans_date').value,
@@ -216,13 +228,49 @@ function getAccurateTime(timestamp) {
     return new Date(timestamp).getTime();
 }
 
-function sortDataLocally(dataArray) {
-    dataArray.sort((a, b) => {
-        const dateA = a.date || "";
-        const dateB = b.date || "";
-        if (dateA !== dateB) return dateB.localeCompare(dateA); 
-        return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
-    });
+// 🔴 دوال الترتيب وعرض المزيد (Pagination) 🔴
+window.loadMoreFinances = function() {
+    displayedTransactionsCount += 5;
+    filterTransactionsLocally(false);
+};
+
+window.toggleSortOrderFinances = function() {
+    currentSortOrder = currentSortOrder === 'desc' ? 'asc' : 'desc';
+    const btn = document.getElementById('btn-sort-finances');
+    if(btn) btn.innerHTML = currentSortOrder === 'desc' ? window.finLang.btnSortDesc : window.finLang.btnSortAsc;
+    filterTransactionsLocally(true);
+};
+
+function injectSortButton() {
+    if(document.getElementById('btn-sort-finances')) return;
+    const searchInput = document.getElementById('search_text');
+    if(searchInput) {
+        const btn = document.createElement('button');
+        btn.id = 'btn-sort-finances';
+        btn.className = 'btn-action';
+        btn.innerHTML = currentSortOrder === 'desc' ? window.finLang.btnSortDesc : window.finLang.btnSortAsc;
+        btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #e2e8f0; color: #0f172a; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size:13px; height: 42px;';
+        btn.onclick = window.toggleSortOrderFinances;
+        searchInput.parentNode.insertBefore(btn, searchInput.nextSibling);
+    }
+}
+
+function handleLoadMoreButton(totalFilteredLength) {
+    let btnContainer = document.getElementById('load-more-finances-container');
+    if (!btnContainer) {
+        btnContainer = document.createElement('div');
+        btnContainer.id = 'load-more-finances-container';
+        btnContainer.style.cssText = 'text-align: center; margin-top: 15px; padding-bottom: 20px;';
+        const table = document.getElementById('financesBody').closest('table');
+        if(table && table.parentNode) table.parentNode.insertBefore(btnContainer, table.nextSibling);
+    }
+
+    if (displayedTransactionsCount < totalFilteredLength) {
+        btnContainer.innerHTML = `<button class="btn-action" style="background:#0f172a; color:#fff; padding:8px 30px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="loadMoreFinances()">${window.finLang.btnLoadMore}</button>`;
+        btnContainer.style.display = 'block';
+    } else {
+        if(btnContainer) btnContainer.style.display = 'none';
+    }
 }
 
 async function loadFinances() {
@@ -240,7 +288,6 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
-        // 🔴 الكبسولة السحرية للفلترة والعزل (الجدول) 🔴
         let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
         
         if (userRole !== 'admin' && userRole !== 'superadmin') {
@@ -263,12 +310,11 @@ async function loadFinances() {
             combinedData.push({ id: doc.id, ...d });
         });
 
-        sortDataLocally(combinedData);
-
         allTransactionsForEdit = combinedData;
         currentDisplayedData = combinedData;
         
-        filterTransactionsLocally();
+        injectSortButton();
+        filterTransactionsLocally(true); // الفلترة والترتيب والـ Pagination
         calculateOverallBalances();
 
     } catch (error) {
@@ -279,11 +325,9 @@ async function loadFinances() {
     }
 }
 
-// 🔴 حساب الرصيد الصافي مع العزل 🔴
 async function calculateOverallBalances() {
     if (!clinicId) return;
     try {
-        // 🔴 الكبسولة السحرية للفلترة والعزل (الأرصدة) 🔴
         let balQuery = db.collection("Finances").where("clinicId", "==", clinicId);
         
         if (userRole !== 'admin' && userRole !== 'superadmin') {
@@ -323,11 +367,24 @@ async function calculateOverallBalances() {
     }
 }
 
-function filterTransactionsLocally() {
+// 🔴 دالة الفلترة والترتيب وقص البيانات المحدثة (Pagination) 🔴
+function filterTransactionsLocally(resetPagination = false) {
+    if (resetPagination) displayedTransactionsCount = 5;
+
     const searchText = document.getElementById('search_text').value.trim().toLowerCase();
     const filterMethod = document.getElementById('filter_method').value; 
     
-    let dataToRender = allTransactionsForEdit;
+    // إخفاء زر الترتيب والمزيد لو فيه بحث عشان منعملش تضارب
+    const sortBtn = document.getElementById('btn-sort-finances');
+    const moreBtn = document.getElementById('load-more-finances-container');
+    if (searchText.length > 0) {
+        if(sortBtn) sortBtn.style.display = 'none';
+        if(moreBtn) moreBtn.style.display = 'none';
+    } else {
+        if(sortBtn) sortBtn.style.display = 'inline-block';
+    }
+
+    let dataToRender = [...allTransactionsForEdit]; // Copy to avoid mutating original
     
     if (searchText) {
         dataToRender = dataToRender.filter(item => 
@@ -344,10 +401,31 @@ function filterTransactionsLocally() {
         });
     }
     
-    renderFinancesTable(dataToRender);
+    // 🔴 تطبيق الترتيب
+    dataToRender.sort((a, b) => {
+        const dateA = a.date || "";
+        const dateB = b.date || "";
+        if (currentSortOrder === 'desc') {
+            if (dateA !== dateB) return dateB.localeCompare(dateA); 
+            return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
+        } else {
+            if (dateA !== dateB) return dateA.localeCompare(dateB); 
+            return getAccurateTime(a.createdAt) - getAccurateTime(b.createdAt);
+        }
+    });
+
+    // 🔴 تطبيق الـ Pagination لو مفيش بحث شغال
+    let pagedData = dataToRender;
+    if (!searchText) {
+        pagedData = dataToRender.slice(0, displayedTransactionsCount);
+        handleLoadMoreButton(dataToRender.length);
+    }
+    
+    renderFinancesTable(pagedData, dataToRender); 
 }
 
-function renderFinancesTable(dataArray) {
+// ضفنا dataToRender عشان نحسب إجماليات الفلتر صح
+function renderFinancesTable(pagedData, fullFilteredData = null) {
     const tbody = document.getElementById('financesBody');
     tbody.innerHTML = '';
     
@@ -355,17 +433,20 @@ function renderFinancesTable(dataArray) {
     let totalExp = 0;
     let totalDebt = 0;
 
-    if(dataArray.length === 0) {
+    if(pagedData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
     }
 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const dataToCalc = fullFilteredData || pagedData; // حساب الإجماليات على الداتا كلها أو المعروضة
 
-    dataArray.forEach(f => {
+    dataToCalc.forEach(f => {
         if (f.type === 'income') totalInc += Number(f.amount);
         else if (f.type === 'expense') totalExp += Number(f.amount);
         else if (f.type === 'debt') totalDebt += Number(f.amount);
+    });
 
+    pagedData.forEach(f => {
         let timeStr = '---';
         if (f.createdAt) {
             try {
@@ -437,7 +518,6 @@ function renderFinancesTable(dataArray) {
     }
 }
 
-// 🔴 دالة تقفيل الشيفت (الطباعة مع العزل) 🔴
 async function printShiftClosure() {
     const today = new Date().toISOString().split('T')[0];
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
@@ -445,7 +525,6 @@ async function printShiftClosure() {
     if (window.showLoader) window.showLoader(isAr ? "جاري تجميع حركات الدرج..." : "Calculating shift...");
 
     try {
-        // 🔴 الكبسولة السحرية للفلترة والعزل (تقفيل الشيفت) 🔴
         let shiftQuery = db.collection("Finances")
             .where("clinicId", "==", clinicId)
             .where("date", "==", today);
@@ -474,7 +553,6 @@ async function printShiftClosure() {
             const d = doc.data();
             const method = d.paymentMethod || 'cash';
             
-            // بنحسب الكاش الفعلي اللي دخل الدرج واللي طلع منه النهارده بس
             if (method === 'cash') {
                 if (d.type === 'income') shiftCashIn += Number(d.amount);
                 else if (d.type === 'expense') shiftCashOut += Number(d.amount);
@@ -485,7 +563,7 @@ async function printShiftClosure() {
 
         document.getElementById('sh-date').innerText = new Date().toLocaleString('ar-EG');
         document.getElementById('sh-user').innerText = currentUserDisplayName;
-        document.getElementById('sh-branch').innerText = printedBranchName; // 🔴 وضع اسم الفرع في الريسيت
+        document.getElementById('sh-branch').innerText = printedBranchName; 
         document.getElementById('sh-income').innerText = shiftCashIn + (isAr ? ' ج.م' : ' EGP');
         document.getElementById('sh-expense').innerText = shiftCashOut + (isAr ? ' ج.م' : ' EGP');
         document.getElementById('sh-net').innerText = shiftNet + (isAr ? ' ج.م' : ' EGP');
@@ -568,8 +646,8 @@ window.onload = () => {
                 }
             } catch(e) { console.error("Error fetching user name"); }
             
-            await loadBranchesForAdmin(); // 🔴 جلب الفروع أولاً 
-            loadFinances(); // 🔴 جلب الماليات بعد تحديد الفرع
+            await loadBranchesForAdmin(); 
+            loadFinances(); 
         }
     });
 };
