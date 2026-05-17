@@ -133,9 +133,9 @@ async function loadSessionDetails() {
         }
     });
 
-    db.collection("Sessions").doc(sessionId).onSnapshot(doc => {
-        if(doc.exists) {
-            sessionData = doc.data();
+    db.collection("Sessions").doc(sessionId).onSnapshot(async docSnap => { // 🔴 جعلناها Async لسحب الخريطة
+        if(docSnap.exists) {
+            sessionData = docSnap.data();
             
             let procTxt = sessionData.procedure;
             if(sessionData.contract && sessionData.contract !== 'بدون تعاقد') {
@@ -167,8 +167,28 @@ async function loadSessionDetails() {
                 }
             }
 
+            // 🔴 9. ذاكرة خريطة الأسنان: لو الجلسة جديدة مفهاش خريطة، اسحب آخر خريطة للمريض
+            let chartDataToLoad = sessionData.dentalChart;
+            if (!chartDataToLoad || Object.keys(chartDataToLoad).length === 0) {
+                try {
+                    const lastSessionSnap = await db.collection("Sessions")
+                        .where("patientId", "==", patientId)
+                        .orderBy("createdAt", "desc")
+                        .limit(3)
+                        .get();
+                    
+                    let foundOldChart = false;
+                    lastSessionSnap.forEach(sDoc => {
+                        if (sDoc.id !== sessionId && sDoc.data().dentalChart && Object.keys(sDoc.data().dentalChart).length > 0 && !foundOldChart) {
+                            chartDataToLoad = sDoc.data().dentalChart;
+                            foundOldChart = true;
+                        }
+                    });
+                } catch(err) { console.error("Error fetching old chart:", err); }
+            }
+
             if (typeof updateChartWithData === "function") {
-                updateChartWithData(sessionData.dentalChart || {});
+                updateChartWithData(chartDataToLoad || {});
             }
         }
     });
@@ -459,6 +479,7 @@ window.addServiceToInvoiceFromChart = addServiceToInvoiceFromChart;
 
 function generateQRCodeForPrint(textData) {
     const qrContainer = document.getElementById('print-qr-container');
+    if (!qrContainer) return;
     qrContainer.innerHTML = ''; 
     
     let safeText = textData;
@@ -469,12 +490,19 @@ function generateQRCodeForPrint(textData) {
     });
 }
 
+// 🔴 6. دالة استدعاء إعدادات العيادة للطباعة 🔴
 async function preparePrintHeader() {
     const cDoc = await db.collection("Clinics").doc(clinicId).get();
     if(cDoc.exists) {
         const cInfo = cDoc.data();
+        const isAr = getLang();
+        
         document.getElementById('print-clinic-name').innerText = cInfo.clinicName || 'Smart Clinic';
-        document.getElementById('print-doctor-name').innerText = cInfo.adminEmail ? `Dr. Account: ${cInfo.adminEmail}` : '';
+        
+        // طباعة الرقم الضريبي أو السجل
+        const taxIdText = cInfo.taxId ? (isAr ? `الرقم الضريبي/السجل: ${cInfo.taxId}` : `Tax/CR No: ${cInfo.taxId}`) : '';
+        document.getElementById('print-doctor-name').innerText = taxIdText;
+        
         if(cInfo.logoUrl) {
             const printLogo = document.getElementById('print-clinic-logo');
             printLogo.src = cInfo.logoUrl;
@@ -485,6 +513,7 @@ async function preparePrintHeader() {
     }
 }
 
+// 🔴 2. طباعة الروشتة (QR كود يقرأ الأدوية ومقاس A4/A5) 🔴
 async function printSessionRx(docId) {
     if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
     try {
@@ -495,21 +524,35 @@ async function printSessionRx(docId) {
             await preparePrintHeader();
             const bodyContent = document.getElementById('print-dynamic-body');
             bodyContent.className = 'print-rx-body watermark-rx'; 
+            
+            // حقن CSS خاص للطباعة
             bodyContent.innerHTML = `
+                <style>
+                    @media print {
+                        @page { size: A4; margin: 15mm; }
+                        body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                        .print-rx-body { width: 100% !important; }
+                    }
+                </style>
                 <div style="white-space: pre-wrap; font-size: 20px; line-height: 2.2; direction: ltr; text-align: left; padding-left: 30px; font-weight: bold; color: #1e293b;">${p.medications}</div>
                 <div style="margin-top: 40px;">
                     <strong style="color: #ef4444; font-size: 18px;">${dict[currentLang].rxInstructions}</strong> 
                     <p style="margin-top: 10px; font-size: 16px; line-height: 1.8;">${p.notes || (getLang() ? 'لا يوجد' : 'None')}</p>
                 </div>
             `;
-            const qrData = `Doc: Prescription\nID: ${docId}\nDate: ${p.date}\nAuth: NivaDent System`;
+            
+            // 🔴 تجهيز داتا الأدوية للـ QR عشان الصيدلي يقرأها علطول
+            const cleanMeds = p.medications === "روشتة خارجية مرفقة" ? p.medications : p.medications.replace(/\n\s*\n/g, '\n').trim().substring(0, 300);
+            const qrData = `Patient: ${patientName}\nDate: ${p.date}\n\nRx:\n${cleanMeds}`;
             generateQRCodeForPrint(qrData);
+            
             if (window.hideLoader) window.hideLoader();
             setTimeout(() => window.print(), 500); 
         } else { if (window.hideLoader) window.hideLoader(); }
     } catch(e) { if (window.hideLoader) window.hideLoader(); console.error(e); }
 }
 
+// 🔴 طباعة فاتورة الجلسة (إضافة مقاس A4) 🔴
 async function printSessionInvoice() {
     if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
     try {
@@ -525,13 +568,21 @@ async function printSessionInvoice() {
         const remTxt = dict[currentLang].invRem;
 
         bodyContent.innerHTML = `
+            <style>
+                @media print {
+                    @page { size: A4; margin: 15mm; }
+                    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    .invoice-table { width: 100% !important; border-collapse: collapse !important; table-layout: auto !important; margin-top: 20px;}
+                    .invoice-table th, .invoice-table td { border: 1px solid #e2e8f0 !important; padding: 10px !important; font-size: 14px !important; }
+                }
+            </style>
             <h2 style="text-align: center; color: #0f172a; margin-bottom: 30px; font-size: 24px; border-bottom: 2px dashed #cbd5e1; padding-bottom: 10px;">🧾 ${invTitle}</h2>
-            <table class="invoice-table">
-                <tr><th>${totalTxt}</th><th>${paidTxt}</th><th>${remTxt}</th></tr>
+            <table class="invoice-table" style="width: 100%; border-collapse: collapse;">
+                <tr style="background:#f1f5f9;"><th style="padding:10px; border:1px solid #cbd5e1;">${totalTxt}</th><th style="padding:10px; border:1px solid #cbd5e1;">${paidTxt}</th><th style="padding:10px; border:1px solid #cbd5e1;">${remTxt}</th></tr>
                 <tr>
-                    <td style="font-weight: bold;">${sessionData.total || 0} ${currency}</td>
-                    <td style="color: #10b981; font-weight: bold;">${sessionData.paid || 0} ${currency}</td>
-                    <td style="color: #ef4444; font-weight: bold;">${sessionData.remaining || 0} ${currency}</td>
+                    <td style="font-weight: bold; text-align:center; padding:10px; border:1px solid #cbd5e1;">${sessionData.total || 0} ${currency}</td>
+                    <td style="color: #10b981; font-weight: bold; text-align:center; padding:10px; border:1px solid #cbd5e1;">${sessionData.paid || 0} ${currency}</td>
+                    <td style="color: #ef4444; font-weight: bold; text-align:center; padding:10px; border:1px solid #cbd5e1;">${sessionData.remaining || 0} ${currency}</td>
                 </tr>
             </table>
             <div style="margin-top: 40px;">
