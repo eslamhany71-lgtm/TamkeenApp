@@ -24,22 +24,6 @@
         .weather-temp { font-size: 24px; font-weight: 800; }
         .weather-desc { font-size: 13px; font-weight: 500; opacity: 0.9; }
 
-        /* 🔴 جرس الإشعارات اللايف 🔴 */
-        .notif-bell-container { position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; background: white; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: 0.3s; border: 1px solid #e2e8f0; }
-        .notif-bell-container:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); border-color: #cbd5e1; }
-        .notif-bell-icon { font-size: 24px; animation: none; }
-        .notif-bell-container.ringing .notif-bell-icon { animation: ring 0.5s ease-in-out; }
-        .notif-badge { position: absolute; top: -6px; right: -6px; background: #ef4444; color: white; font-size: 12px; font-weight: 800; min-width: 22px; height: 22px; border-radius: 11px; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-sizing: border-box; border: 2px solid #f8fafc; opacity: 0; transition: 0.3s transform, 0.3s opacity; transform: scale(0); }
-        .notif-badge.active { opacity: 1; transform: scale(1); }
-        
-        @keyframes ring {
-            0% { transform: rotate(0); }
-            25% { transform: rotate(15deg); }
-            50% { transform: rotate(-15deg); }
-            75% { transform: rotate(10deg); }
-            100% { transform: rotate(0); }
-        }
-
         .finance-box-modal { display: flex; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0; flex-wrap: wrap;}
         .finance-box-modal .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
         .finance-box-modal input, .finance-box-modal select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 14px; text-align: center; font-weight: bold; outline: none;}
@@ -54,9 +38,6 @@
         .patient-result-name { font-weight: bold; color: #0f172a; }
         .patient-result-phone { color: #64748b; font-size: 13px; }
 
-        [data-theme="dark"] .notif-bell-container { background: #1e293b; border-color: #334155; }
-        [data-theme="dark"] .notif-bell-container:hover { border-color: #475569; }
-        [data-theme="dark"] .notif-badge { border-color: #0f172a; }
         [data-theme="dark"] .finance-box-modal { background: #0f172a !important; border-color: #334155 !important; }
         [data-theme="dark"] .finance-box-modal input[readonly] { background: #1e293b !important; border-color: #334155 !important; }
         [data-theme="dark"] .patient-results-dropdown { background: #1e293b !important; border-color: #334155 !important; }
@@ -78,25 +59,18 @@
                 <h1 id="txt-welcome">نظرة عامة على العيادة</h1>
                 <p id="txt-subtitle">ملخص الأداء اليومي وإحصائيات المرضى اللحظية</p>
             </div>
+            <div id="branch-filter-container" style="display: none; min-width: 200px;">
+                <select id="dashBranchFilter" class="search-box" style="width: 100%; border-radius: 10px; font-weight: bold; border: 2px solid #0284c7;" onchange="changeDashboardBranch()">
+                <option value="main">الفرع الرئيسي</option>
+                </select>
+            </div>
             
-            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                <div id="branch-filter-container" style="display: none; min-width: 200px;">
-                    <select id="dashBranchFilter" class="search-box" style="width: 100%; border-radius: 10px; font-weight: bold; border: 2px solid #0284c7;" onchange="changeDashboardBranch()">
-                    <option value="main">الفرع الرئيسي</option>
-                    </select>
-                </div>
-                
-                <div class="notif-bell-container" id="dash-bell-container" onclick="goToNotifications()" title="الإشعارات">
-                    <span class="notif-bell-icon">🔔</span>
-                    <span class="notif-badge" id="dash-notif-badge">0</span>
-                </div>
-
-                <div class="weather-widget">
-                    <div class="weather-icon" id="weather-icon">🌤️</div>
-                    <div class="weather-info">
-                        <div class="weather-temp" id="weather-temp">--°C</div>
-                        <div class="weather-desc" id="weather-desc">جاري تحديث الطقس...</div>
-                    </div>
+            <!-- 🔴 ويدچت الطقس المدمج عبر الـ API 🔴 -->
+            <div class="weather-widget">
+                <div class="weather-icon" id="weather-icon">🌤️</div>
+                <div class="weather-info">
+                    <div class="weather-temp" id="weather-temp">--°C</div>
+                    <div class="weather-desc" id="weather-desc">جاري تحديث الطقس...</div>
                 </div>
             </div>
         </div>
@@ -149,7 +123,7 @@
                 </div>
             </div>
             
-            <div class="panel">   
+            <div class="panel">    
                 <h3 class="panel-title" style="color: #8b5cf6;">📊 ملخص أداء الشهر الحالي</h3> <button onclick="generateDailyReport()" class="btn-primary" style="background: #0f172a;"> 📑 إرسال تقرير نهاية اليوم </button> 
                 <div style="display: flex; gap: 10px; text-align: center; height: 80%; align-items: center;">
                     <div style="flex:1; background:#f0f9ff; padding:20px 10px; border-radius:12px; border:1px solid #bae6fd;">
@@ -187,6 +161,7 @@
 
     </div>
 
+    <!-- Modals -->
     <div id="newAppModal" class="modal">
         <div class="modal-content" style="max-width: 600px; max-height: 85vh; overflow-y: auto; overflow-x: hidden;">
             <span class="close-modal" onclick="closeModal('newAppModal')">&times;</span>
