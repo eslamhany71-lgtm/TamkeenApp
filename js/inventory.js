@@ -11,6 +11,8 @@ let currentStockItemQty = 0;
 
 let activeFilter = 'all';
 let unsubscribeInventory = null; // للتحكم في الكويري
+let displayedInventoryCount = 5;
+let currentSortInventory = 'qty_asc'; // الترتيب الافتراضي: الأقل كمية أولاً
 
 let barcodeBuffer = "";
 let barcodeTimeout = null;
@@ -475,7 +477,15 @@ function searchInventory() {
 
 function applyCurrentFilterAndSearch() {
     const input = document.getElementById('searchInput').value.trim().toLowerCase();
-    let filteredData = inventoryData;
+    let filteredData = [...inventoryData];
+
+    // إخفاء زر الترتيب لو فيه بحث
+    const sortBtn = document.getElementById('btn-sort-inv');
+    if (input.length > 0) {
+        if (sortBtn) sortBtn.style.display = 'none';
+    } else {
+        if (sortBtn) sortBtn.style.display = 'inline-block';
+    }
 
     if (input) {
         filteredData = filteredData.filter(i => 
@@ -498,10 +508,56 @@ function applyCurrentFilterAndSearch() {
         });
     }
 
-    renderInventoryTable(filteredData);
+    // 🔴 تطبيق الترتيب
+    filteredData.sort((a, b) => {
+        if (currentSortInventory === 'qty_asc') {
+            return (Number(a.qty) || 0) - (Number(b.qty) || 0); // الأقل كمية أولاً
+        } else {
+            return (a.name || "").localeCompare(b.name || ""); // أبجدي
+        }
+    });
+
+    injectInvSortButton(); // زرع زرار الترتيب
+
+    // 🔴 تطبيق الـ Pagination
+    let pagedData = filteredData;
+    if (!input) {
+        pagedData = filteredData.slice(0, displayedInventoryCount);
+    }
+
+    renderInventoryTable(pagedData, filteredData.length);
 }
 
-function renderInventoryTable(dataToRender) {
+
+window.loadMoreInventory = function() {
+    displayedInventoryCount += 5;
+    applyCurrentFilterAndSearch();
+};
+
+window.toggleSortInventory = function() {
+    currentSortInventory = currentSortInventory === 'qty_asc' ? 'name_asc' : 'qty_asc';
+    const isAr = getLang();
+    const btn = document.getElementById('btn-sort-inv');
+    if(btn) btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 ترتيب: الأقل كمية' : 'Sort: Low Qty') : (isAr ? '🔤 ترتيب: أبجدي' : 'Sort: A-Z');
+    applyCurrentFilterAndSearch();
+};
+
+function injectInvSortButton() {
+    if(document.getElementById('btn-sort-inv')) return;
+    const searchInput = document.getElementById('searchInput');
+    if(searchInput) {
+        const isAr = getLang();
+        const btn = document.createElement('button');
+        btn.id = 'btn-sort-inv';
+        btn.className = 'btn-action';
+        btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 ترتيب: الأقل كمية' : 'Sort: Low Qty') : (isAr ? '🔤 ترتيب: أبجدي' : 'Sort: A-Z');
+        btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #e2e8f0; color: #0f172a; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size:13px; height: 42px;';
+        btn.onclick = window.toggleSortInventory;
+        searchInput.parentNode.insertBefore(btn, searchInput.nextSibling);
+    }
+}
+
+function renderInventoryTable(dataToRender, totalLength = 0) {
     const tbody = document.getElementById('inventoryBody');
     tbody.innerHTML = '';
     const lang = localStorage.getItem('preferredLang') || 'ar';
@@ -566,6 +622,23 @@ function renderInventoryTable(dataToRender) {
         `;
         tbody.appendChild(tr);
     });
+// 🔴 زر المزيد
+    let btnContainer = document.getElementById('load-more-inv-container');
+    if (!btnContainer) {
+        btnContainer = document.createElement('div');
+        btnContainer.id = 'load-more-inv-container';
+        btnContainer.style.cssText = 'text-align: center; margin-top: 15px; padding-bottom: 20px;';
+        const table = document.getElementById('inventoryBody').closest('table');
+        if(table && table.parentNode) table.parentNode.insertBefore(btnContainer, table.nextSibling);
+    }
+
+    if (displayedInventoryCount < totalLength) {
+        btnContainer.innerHTML = `<button class="btn-action" style="background:#0f172a; color:#fff; padding:8px 30px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="loadMoreInventory()">⬇️ عرض المزيد (5)</button>`;
+        btnContainer.style.display = 'block';
+    } else {
+        if(btnContainer) btnContainer.style.display = 'none';
+    }
+    
 }
 
 window.onload = async () => {
