@@ -581,4 +581,3 @@ window.onload = () => {
         }
     }, {passive: true});
 });
-});
