@@ -1,4 +1,4 @@
-// 🔴 ملف patient-profile.js - النسخة المُحصنة الشاملة (Dashboard + n8n Ready) 🔴
+// 🔴 ملف patient-profile.js - النسخة المُحصنة الشاملة (Dashboard + n8n Ready + Pagination + Sorting) 🔴
 
 try {
     const db = firebase.firestore();
@@ -15,7 +15,6 @@ try {
         try { clinicId = window.parent.sessionStorage.getItem('clinicId'); } catch(e) {}
     }
 
-    // 🔴 1. استخراج كود الفرع (السر اللي كان بيخفي الفلوس من الداشبورد) 🔴
     let currentBranchId = urlParams.get('branchId') || sessionStorage.getItem('branchId') || localStorage.getItem('branchId');
     if (!currentBranchId && window.parent) {
         try { currentBranchId = window.parent.sessionStorage.getItem('branchId'); } catch(e) {}
@@ -24,22 +23,22 @@ try {
 
     let currentPatientName = "مريض";
     let currentPatientPhone = ""; 
-    let loadedPatientSessions = []; 
+    
+    // 🔴 متغيرات الترتيب والـ Pagination الجديدة 🔴
+    let allPatientSessions = []; 
+    let displayedSessionsCount = 5;
+    let currentSortOrder = 'desc'; 
     let currentUserDisplayName = "مستخدم غير معروف";
 
-    // 🔴 متغيرات الـ ERP 🔴
     let erpServices = [];
     let erpContracts = [];
 
-    const SESSIONS_PER_PAGE = 50;
-    let lastVisibleProfileSession = null;
     let isInitialLoad = true;
 
     function getLang() {
         return (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     }
 
-    // 🔴 2. دالة سحرية لضبط التاريخ المحلي عشان الداشبورد يقرأ صح 🔴
     function getLocalTodayString() {
         const todayDate = new Date();
         todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
@@ -50,7 +49,7 @@ try {
         const isAr = lang === 'ar';
         const searchInput = document.getElementById('searchSessionInput');
         if(searchInput) searchInput.placeholder = isAr ? 'بحث بالتاريخ، الإجراء...' : 'Search by date, procedure...';
-        if (loadedPatientSessions.length > 0) renderPatientSessionsTable();
+        if (allPatientSessions.length > 0) applySortAndRender();
         loadLabOrders(); 
     }
 
@@ -81,7 +80,6 @@ try {
         });
     });
 
-    // 🔴 جلب داتا الـ ERP للمودالز 🔴
     function loadERPData() {
         if (!clinicId) return;
 
@@ -116,7 +114,6 @@ try {
         });
     }
 
-    // 🔴 دالة السحر: حساب السعر أوتوماتيك 🔴
     function calculateProfileERP(mode) {
         const prefix = mode === 'add' ? 'sess_' : 'edit_sess_';
         const srvId = document.getElementById(`${prefix}procedure`).value;
@@ -234,7 +231,6 @@ try {
         document.getElementById('inst_value_display').innerText = `${valPerSession} ج.م`;
     }
 
-    // 🔴 3. تعديل دالة الأقساط لإضافة الفرع 🔴
     async function saveInstallmentPlan(e) {
         e.preventDefault();
         const isAr = getLang();
@@ -278,7 +274,6 @@ try {
                 };
                 batch.set(downFinRef, incomeData);
                 
-                // إشعار n8n
                 if (window.triggerN8nWebhook) window.triggerN8nWebhook("new_revenue", {...incomeData, patientName: currentPatientName});
             }
 
@@ -323,7 +318,6 @@ try {
         }
     }
 
-    // 🔴 4. تعديل دالة المعمل لإضافة الفرع 🔴
     async function saveLabOrder(e) {
         e.preventDefault();
         const isAr = getLang();
@@ -423,7 +417,6 @@ try {
         document.getElementById(`${prefix}remaining`).value = Math.max(0, total - paid);
     }
 
-    // 🔴 5. تعديل دالة الجلسات (شامل الفرع والـ n8n) 🔴
     async function saveSession(e, isEditMode) {
         e.preventDefault();
         const isAr = getLang();
@@ -449,7 +442,6 @@ try {
         const cont = contSelect ? erpContracts.find(c => c.id === contSelect.value) : null;
         const contractName = cont ? cont.name : 'بدون تعاقد';
 
-        // 🔴 الفرع تمت إضافته هنا
         const data = {
             clinicId: clinicId, branchId: currentBranchId, patientId: patientId, date: sessionDate,
             nextAppointment: document.getElementById(`${prefix}next_date`).value || null,
@@ -462,7 +454,7 @@ try {
         try {
             if (isEditMode) {
                 const docId = document.getElementById('edit_sess_id').value;
-                const oldSession = loadedPatientSessions.find(s => s.id === docId);
+                const oldSession = allPatientSessions.find(s => s.id === docId);
                 const oldRemaining = oldSession ? (oldSession.remaining || 0) : 0;
                 const oldPaid = oldSession ? (oldSession.paid || 0) : 0;
                 
@@ -481,7 +473,6 @@ try {
                     };
                     await db.collection("Finances").add(incomeData);
 
-                    // 🔔 إرسال الإشعار اللحظي لو المريض دفع فلوس زيادة في التعديل
                     if (paidDiff > 0 && window.triggerN8nWebhook) {
                         window.triggerN8nWebhook("new_revenue", {...incomeData, patientName: currentPatientName});
                     }
@@ -494,8 +485,8 @@ try {
                         createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
-                const index = loadedPatientSessions.findIndex(s => s.id === docId);
-                if(index !== -1) loadedPatientSessions[index] = { ...loadedPatientSessions[index], ...data };
+                const index = allPatientSessions.findIndex(s => s.id === docId);
+                if(index !== -1) allPatientSessions[index] = { ...allPatientSessions[index], ...data };
             } else {
                 data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 const docRef = await db.collection("Sessions").add(data);
@@ -509,7 +500,6 @@ try {
                     };
                     await db.collection("Finances").add(incomeData);
 
-                    // 🔔 إرسال الإشعار اللحظي للمدير على n8n
                     if (window.triggerN8nWebhook) {
                         window.triggerN8nWebhook("new_revenue", {...incomeData, patientName: currentPatientName});
                     }
@@ -523,13 +513,12 @@ try {
                     await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(remainingAmount) });
                 }
                 data.createdAt = new Date();
-                loadedPatientSessions.unshift({ id: docRef.id, ...data });
+                allPatientSessions.push({ id: docRef.id, ...data });
             }
             
             closeModal(modalId); 
             document.getElementById(isEditMode ? 'editSessionForm' : 'addSessionForm').reset();
-            sortDataLocally(loadedPatientSessions);
-            renderPatientSessionsTable();
+            applySortAndRender(true); // إعادة الفلترة والترتيب للمشهد
         } catch (error) { 
             console.error(error); 
             alert(isAr ? "حدث خطأ أثناء الحفظ." : "Error saving.");
@@ -548,7 +537,6 @@ try {
         openModal('paymentModal');
     }
 
-    // 🔴 6. دالة سداد المديونية المربوطة بالفرع والـ الداشبورد والـ n8n 🔴
     async function executePayment(e) {
         e.preventDefault();
         const isAr = getLang();
@@ -571,7 +559,7 @@ try {
         try {
             const newPaid = currentPaid + amountToPay;
             const newRemaining = currentRemaining - amountToPay;
-            const today = getLocalTodayString(); // استخدام التاريخ المحلي
+            const today = getLocalTodayString(); 
 
             await db.collection("Sessions").doc(sessionId).update({ paid: newPaid, remaining: newRemaining });
             await db.collection("Patients").doc(patientId).update({ totalDebt: firebase.firestore.FieldValue.increment(-amountToPay) });
@@ -592,16 +580,15 @@ try {
                 createdBy: currentUserDisplayName, createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            // 🔔 إرسال الإشعار اللحظي للمدير على n8n
             if (window.triggerN8nWebhook) {
                 window.triggerN8nWebhook("new_revenue", {...financeIncomeData, patientName: currentPatientName});
             } else if (window.parent && window.parent.triggerN8nWebhook) {
                 window.parent.triggerN8nWebhook("new_revenue", {...financeIncomeData, patientName: currentPatientName});
             }
 
-            const idx = loadedPatientSessions.findIndex(s => s.id === sessionId);
-            if(idx !== -1) { loadedPatientSessions[idx].paid = newPaid; loadedPatientSessions[idx].remaining = newRemaining; }
-            renderPatientSessionsTable();
+            const idx = allPatientSessions.findIndex(s => s.id === sessionId);
+            if(idx !== -1) { allPatientSessions[idx].paid = newPaid; allPatientSessions[idx].remaining = newRemaining; }
+            applySortAndRender(false); // ريفريش للصفحة بدون تصفير العداد
 
             closeModal('paymentModal');
             alert(isAr ? "✅ تم سداد المبلغ وتسميعه في الخزنة بنجاح!" : "✅ Payment recorded successfully!");
@@ -620,13 +607,73 @@ try {
         return new Date(timestamp).getTime();
     }
 
-    function sortDataLocally(dataArray) {
-        dataArray.sort((a, b) => {
+    // 🔴 دوال الترتيب وعرض المزيد 🔴
+    window.loadMoreSessions = function() {
+        displayedSessionsCount += 5;
+        applySortAndRender(false);
+    };
+
+    window.toggleSortOrder = function() {
+        currentSortOrder = currentSortOrder === 'desc' ? 'asc' : 'desc';
+        const isAr = getLang();
+        const btn = document.getElementById('btn-sort-sessions');
+        if(btn) btn.innerHTML = currentSortOrder === 'desc' ? `🔽 ${isAr ? 'ترتيب: الأحدث' : 'Sort: Newest'}` : `🔼 ${isAr ? 'ترتيب: الأقدم' : 'Sort: Oldest'}`;
+        applySortAndRender(true);
+    };
+
+    function injectSortButton() {
+        if(document.getElementById('btn-sort-sessions')) return;
+        const searchInput = document.getElementById('searchSessionInput');
+        if(searchInput) {
+            const isAr = getLang();
+            const btn = document.createElement('button');
+            btn.id = 'btn-sort-sessions';
+            btn.className = 'btn-action';
+            btn.innerHTML = currentSortOrder === 'desc' ? `🔽 ${isAr ? 'ترتيب: الأحدث' : 'Sort: Newest'}` : `🔼 ${isAr ? 'ترتيب: الأقدم' : 'Sort: Oldest'}`;
+            btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #e2e8f0; color: #0f172a; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size:13px;';
+            btn.onclick = window.toggleSortOrder;
+            searchInput.parentNode.insertBefore(btn, searchInput.nextSibling);
+        }
+    }
+
+    function handleLoadMoreButton() {
+        let btnContainer = document.getElementById('load-more-container');
+        if (!btnContainer) {
+            btnContainer = document.createElement('div');
+            btnContainer.id = 'load-more-container';
+            btnContainer.style.cssText = 'text-align: center; margin-top: 15px; padding-bottom: 20px;';
+            const table = document.getElementById('sessions-list').closest('table');
+            if(table && table.parentNode) table.parentNode.insertBefore(btnContainer, table.nextSibling);
+        }
+
+        if (displayedSessionsCount < allPatientSessions.length) {
+            const isAr = getLang();
+            btnContainer.innerHTML = `<button class="btn-action" style="background:#0f172a; color:#fff; padding:8px 30px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="loadMoreSessions()">⬇️ ${isAr ? 'عرض المزيد (5)' : 'Load More (5)'}</button>`;
+            btnContainer.style.display = 'block';
+        } else {
+            if(btnContainer) btnContainer.style.display = 'none';
+        }
+    }
+
+    function applySortAndRender(resetPagination = false) {
+        if (resetPagination) displayedSessionsCount = 5;
+
+        // فرز كل الجلسات
+        allPatientSessions.sort((a, b) => {
             const dateA = new Date(a.date || 0).getTime();
             const dateB = new Date(b.date || 0).getTime();
-            if (dateA !== dateB) return dateB - dateA; 
-            return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
+            if (currentSortOrder === 'desc') {
+                if (dateA !== dateB) return dateB - dateA; 
+                return getAccurateTime(b.createdAt) - getAccurateTime(a.createdAt);
+            } else {
+                if (dateA !== dateB) return dateA - dateB; 
+                return getAccurateTime(a.createdAt) - getAccurateTime(b.createdAt);
+            }
         });
+
+        const toDisplay = allPatientSessions.slice(0, displayedSessionsCount);
+        renderPatientSessionsTable(toDisplay);
+        handleLoadMoreButton();
     }
 
     async function loadPatientSessions() {
@@ -636,7 +683,7 @@ try {
         if(!tbody) return;
 
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">${isAr ? 'جاري التحميل...' : 'Loading...'}</td></tr>`;
-        loadedPatientSessions = [];
+        allPatientSessions = [];
 
         try {
             const snap = await db.collection("Sessions").where("patientId", "==", patientId).get();
@@ -644,26 +691,27 @@ try {
                 snap.forEach(doc => {
                     const s = doc.data({ serverTimestamps: 'estimate' });
                     s.id = doc.id;
-                    loadedPatientSessions.push(s);
+                    allPatientSessions.push(s);
                 });
-                sortDataLocally(loadedPatientSessions);
-                renderPatientSessionsTable();
+                injectSortButton();
+                applySortAndRender(true);
             } else {
                 tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">${isAr ? 'لا توجد جلسات.' : 'No sessions.'}</td></tr>`;
+                handleLoadMoreButton(); // لإخفاء الزرار
             }
         } catch (error) { 
             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red;">Error Loading Data</td></tr>`;
         }
     }
 
-    function renderPatientSessionsTable(dataToRender = loadedPatientSessions) {
+    function renderPatientSessionsTable(dataToRender) {
         const tbody = document.getElementById('sessions-list');
         if(!tbody) return;
         tbody.innerHTML = '';
         const isAr = getLang();
         
-        if(dataToRender.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">${isAr ? 'لا توجد بيانات' : 'No Data'}</td></tr>`;
+        if(!dataToRender || dataToRender.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color:#64748b;">${isAr ? 'لا توجد بيانات للبحث' : 'No Data'}</td></tr>`;
             return;
         }
 
@@ -721,7 +769,7 @@ try {
     }
 
     function openEditSession(docId) {
-        const session = loadedPatientSessions.find(s => s.id === docId);
+        const session = allPatientSessions.find(s => s.id === docId);
         if (!session) return;
         document.getElementById('edit_sess_id').value = session.id;
         document.getElementById('edit_sess_date').value = session.date;
@@ -748,19 +796,28 @@ try {
 
     function searchSessions() {
         const input = document.getElementById('searchSessionInput').value.trim().toLowerCase();
-        if(!input) { resetSessionSearch(); return; }
-        const filtered = loadedPatientSessions.filter(s => {
+        if(!input) { 
+            applySortAndRender(true); 
+            return; 
+        }
+        
+        // إخفاء زر المزيد وقت البحث 
+        const btnContainer = document.getElementById('load-more-container');
+        if (btnContainer) btnContainer.style.display = 'none';
+
+        const filtered = allPatientSessions.filter(s => {
             return (s.procedure && s.procedure.toLowerCase().includes(input)) ||
                    (s.date && s.date.includes(input)) ||
                    (s.notes && s.notes.toLowerCase().includes(input)) ||
                    (s.total && s.total.toString().includes(input));
         });
+        
         renderPatientSessionsTable(filtered);
     }
 
     function resetSessionSearch() {
         document.getElementById('searchSessionInput').value = '';
-        renderPatientSessionsTable();
+        applySortAndRender(true);
     }
 
     function viewSessionDetails(sessionId) {
@@ -776,8 +833,8 @@ try {
             try { 
                 await db.collection(collectionName).doc(docId).delete(); 
                 if (collectionName === 'Sessions') {
-                    loadedPatientSessions = loadedPatientSessions.filter(s => s.id !== docId);
-                    renderPatientSessionsTable();
+                    allPatientSessions = allPatientSessions.filter(s => s.id !== docId);
+                    applySortAndRender(false); // ريفريش بعد الحذف
                 }
             } 
             catch (e) { console.error(e); }
