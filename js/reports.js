@@ -13,6 +13,9 @@ let currentReportData = {
 };
 let reportLang = {};
 
+// 🔴 متغيرات عرض المزيد (Pagination) 🔴
+let displayedReportTransactionsCount = 5;
+
 // 🔴 1. إعدادات اللغة 🔴
 function updateLanguage(lang) {
     const translations = {
@@ -21,11 +24,12 @@ function updateLanguage(lang) {
             exp: "📥 تصدير لإكسيل", print: "🖨️ طباعة التقرير", optAll: "كل الفروع (إجمالي العيادة)",
             month: "هذا الشهر", week: "هذا الأسبوع", year: "هذه السنة", all: "كل الوقت",
             to: "إلى", update: "تحديث 🔄",
-            inc: "إجمالي الدخل", expen: "إجمالي المصروفات", net: "صافي الربح", pat: "مرضى جدد", inv: "نواقص المخزون",
+            inc: "إجمالي الإيرادات", expen: "إجمالي المصروفات", net: "صافي الربح", pat: "مرضى جدد", inv: "نواقص المخزون",
             c1: "📊 مخطط الإيرادات والمصروفات الزمني", c2: "🩺 أكثر الخدمات (الإجراءات) طلباً",
             c3: "💳 تحليل طرق التحصيل", c4: "📑 ملخص العمليات المالية في الفترة المختارة",
             thD: "التاريخ", thC: "التصنيف", thN: "البيان", thA: "المبلغ", load: "جاري تجميع البيانات...",
-            lInc: "إيرادات", lExp: "مصروفات", lCash: "نقدي", lWallet: "محافظ", lBank: "بنوك", unspec: "غير محدد", noData: "لا توجد حركات مالية في هذه الفترة."
+            lInc: "إيرادات", lExp: "مصروفات", lCash: "نقدي", lWallet: "محافظ", lBank: "بنوك", unspec: "غير محدد", noData: "لا توجد حركات مالية في هذه الفترة.",
+            btnLoadMore: "⬇️ عرض المزيد (5)", debtRed: "تخفيض مديونية"
         },
         en: {
             title: "Analytical Reports", sub: "Financial performance, patient growth, and statistics",
@@ -36,7 +40,8 @@ function updateLanguage(lang) {
             c1: "📊 Financial Timeline Chart", c2: "🩺 Most Requested Services",
             c3: "💳 Payment Methods", c4: "📑 Transactions Summary",
             thD: "Date", thC: "Category", thN: "Notes", thA: "Amount", load: "Compiling data...",
-            lInc: "Income", lExp: "Expense", lCash: "Cash", lWallet: "Wallet", lBank: "Bank", unspec: "Unspecified", noData: "No financial transactions in this period."
+            lInc: "Income", lExp: "Expense", lCash: "Cash", lWallet: "Wallet", lBank: "Bank", unspec: "Unspecified", noData: "No financial transactions in this period.",
+            btnLoadMore: "⬇️ Load More (5)", debtRed: "Debt Deduction"
         }
     };
     reportLang = translations[lang] || translations.ar;
@@ -82,7 +87,6 @@ async function loadBranchesDropdown() {
         select.innerHTML = optionsHtml;
         select.style.display = 'block';
         
-        // 🔴 تعيين الفرع الافتراضي لفرع المدير عشان ميحملش داتا الفروع التانية إلا لما يطلب 🔴
         select.value = userBranch;
 
     } catch (e) {
@@ -108,6 +112,9 @@ function setReportPeriod(period, element) {
         fromDate = new Date(2020, 0, 1);
     }
 
+    // تصفير زر المزيد عند تغيير الفترة
+    displayedReportTransactionsCount = 5;
+
     document.getElementById('rep_date_from').value = fromDate.toISOString().split('T')[0];
     document.getElementById('rep_date_to').value = today.toISOString().split('T')[0];
     
@@ -128,7 +135,6 @@ async function loadAllReportsData() {
     const dateFrom = document.getElementById('rep_date_from').value;
     const dateTo = document.getElementById('rep_date_to').value;
     
-    // تحديد الفرع المراد عرض تقاريره بناءً على الوظيفة والفلتر
     let targetBranch = userBranch;
     if (userRole === 'admin' || userRole === 'superadmin') {
         const branchSelect = document.getElementById('branch_filter');
@@ -146,7 +152,6 @@ async function loadAllReportsData() {
             .where("date", "<=", dateTo)
             .get();
         
-        // العزل والفلترة في الذاكرة
         currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
             return targetBranch === 'all' || (t.branchId || 'main') === targetBranch;
         });
@@ -207,36 +212,54 @@ async function loadAllReportsData() {
     }
 }
 
-function renderAll() {
-    let income = 0, expense = 0;
-    currentReportData.transactions.forEach(t => {
-        if (t.type === 'income') income += Number(t.amount || 0);
-        else if (t.type === 'expense') expense += Number(t.amount || 0);
-    });
+// 🔴 دالة زر عرض المزيد للحركات 🔴
+window.loadMoreReportTransactions = function() {
+    displayedReportTransactionsCount += 5;
+    renderAll(true); // تحديث الجدول فقط بدون إعادة الحسابات
+};
 
-    document.getElementById('rep-income').innerText = income.toLocaleString();
-    document.getElementById('rep-expense').innerText = expense.toLocaleString();
-    document.getElementById('rep-net').innerText = (income - expense).toLocaleString();
-    document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
+function renderAll(onlyTable = false) {
+    if (!onlyTable) {
+        // 🔴 1. الجراحة: تحديث اللوجيك المحاسبي ليتطابق مع finances.js (شامل المديونيات)
+        let income = 0, expense = 0;
+        
+        currentReportData.transactions.forEach(t => {
+            const amt = Number(t.amount || 0);
+            if (t.type === 'income') {
+                income += amt;
+            } else if (t.type === 'expense') {
+                expense += amt;
+            }
+        });
 
-    // حساب نواقص المخزون
-    let lowStockCount = 0;
-    currentReportData.inventory.forEach(item => {
-        const qty = Number(item.qty || 0);
-        const minAlert = Number(item.minAlert || 0);
-        if (qty <= minAlert) lowStockCount++;
-    });
-    const invElem = document.getElementById('rep-inventory-alerts');
-    if (invElem) invElem.innerText = lowStockCount;
+        document.getElementById('rep-income').innerText = income.toLocaleString();
+        document.getElementById('rep-expense').innerText = expense.toLocaleString();
+        
+        const netProfit = income - expense;
+        document.getElementById('rep-net').innerText = netProfit.toLocaleString();
+        document.getElementById('rep-net').style.color = netProfit >= 0 ? '#0284C7' : '#ef4444';
+        
+        document.getElementById('rep-new-patients').innerText = currentReportData.patients.length;
 
-    renderFinanceChart();
-    renderServicesChart();
-    renderMethodsChart();
+        let lowStockCount = 0;
+        currentReportData.inventory.forEach(item => {
+            const qty = Number(item.qty || 0);
+            const minAlert = Number(item.minAlert || 0);
+            if (qty <= minAlert) lowStockCount++;
+        });
+        const invElem = document.getElementById('rep-inventory-alerts');
+        if (invElem) invElem.innerText = lowStockCount;
+
+        renderFinanceChart();
+        renderServicesChart();
+        renderMethodsChart();
+    }
     
-    // رسم الجدول
+    // 🔴 2. الجراحة: رسم الجدول بنظام عرض المزيد (Pagination) والشكل الجديد
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
     
+    // ترتيب تنازلي الأحدث للأقدم
     currentReportData.transactions.sort((a,b) => (b.date || "").localeCompare(a.date || ""));
     
     if(currentReportData.transactions.length === 0) {
@@ -245,19 +268,60 @@ function renderAll() {
         return;
     }
 
-    currentReportData.transactions.forEach(t => {
+    const pagedTransactions = currentReportData.transactions.slice(0, displayedReportTransactionsCount);
+
+    pagedTransactions.forEach(t => {
         const tr = document.createElement('tr');
-        const color = t.type === 'income' ? '#10b981' : '#ef4444';
-        const sign = t.type === 'income' ? '+' : '-';
+        
+        let color = '#475569';
+        let sign = '';
+        let displayAmount = Math.abs(Number(t.amount || 0));
+        let typeName = t.category || '---';
+
+        if (t.type === 'income') {
+            color = '#10b981';
+            sign = '+';
+        } else if (t.type === 'expense') {
+            color = '#ef4444';
+            sign = '-';
+        } else if (t.type === 'debt') {
+            if (Number(t.amount) < 0) {
+                color = '#10b981';
+                sign = '🔻';
+                typeName = reportLang.debtRed || 'تخفيض مديونية';
+            } else {
+                color = '#d97706';
+                sign = '🔺';
+                typeName = t.category || 'مديونية';
+            }
+        }
         
         tr.innerHTML = `
             <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.date || '---'}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${t.category || '---'}</strong></td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;"><strong>${typeName}</strong></td>
             <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">${t.notes || '---'}</td>
-            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;" dir="ltr">${sign} ${t.amount || 0}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: ${color}; font-weight: bold;" dir="ltr">${sign} ${displayAmount}</td>
         `;
         tbody.appendChild(tr);
     });
+
+    // إضافة زر عرض المزيد
+    let btnContainer = document.getElementById('load-more-rep-container');
+    if (!btnContainer) {
+        btnContainer = document.createElement('div');
+        btnContainer.id = 'load-more-rep-container';
+        btnContainer.className = 'no-print'; // يخفي الزرار في الطباعة
+        btnContainer.style.cssText = 'text-align: center; margin-top: 15px; padding-bottom: 20px;';
+        const table = document.getElementById('detailedReportBody').closest('table');
+        if(table && table.parentNode) table.parentNode.insertBefore(btnContainer, table.nextSibling);
+    }
+
+    if (displayedReportTransactionsCount < currentReportData.transactions.length) {
+        btnContainer.innerHTML = `<button class="btn-action" style="background:#0f172a; color:#fff; padding:8px 30px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="loadMoreReportTransactions()">${reportLang.btnLoadMore}</button>`;
+        btnContainer.style.display = 'block';
+    } else {
+        if(btnContainer) btnContainer.style.display = 'none';
+    }
 }
 
 function renderFinanceChart() {
@@ -268,8 +332,9 @@ function renderFinanceChart() {
     currentReportData.transactions.forEach(t => {
         if (!t.date) return;
         if (!days[t.date]) days[t.date] = { inc: 0, exp: 0 };
+        // 🔴 حساب الإيرادات والمصروفات الفعلية زي الحسابات
         if (t.type === 'income') days[t.date].inc += Number(t.amount || 0);
-        else days[t.date].exp += Number(t.amount || 0);
+        else if (t.type === 'expense') days[t.date].exp += Number(t.amount || 0);
     });
 
     const sortedLabels = Object.keys(days).sort();
@@ -354,7 +419,7 @@ function exportReportToExcel() {
     const isAr = document.body.dir === 'rtl';
     const data = currentReportData.transactions.map(t => ({
         [isAr ? "التاريخ" : "Date"]: t.date || '',
-        [isAr ? "النوع" : "Type"]: t.type === 'income' ? (isAr ? 'إيراد' : 'Income') : (isAr ? 'مصروف' : 'Expense'),
+        [isAr ? "النوع" : "Type"]: t.type === 'income' ? (isAr ? 'إيراد' : 'Income') : (t.type === 'expense' ? (isAr ? 'مصروف' : 'Expense') : (isAr ? 'مديونية' : 'Debt')),
         [isAr ? "التصنيف" : "Category"]: t.category || '',
         [isAr ? "المبلغ" : "Amount"]: t.amount || 0,
         [isAr ? "الفرع" : "Branch"]: t.branchId || (isAr ? 'الرئيسي' : 'Main'),
@@ -369,6 +434,38 @@ function exportReportToExcel() {
     XLSX.writeFile(wb, `NivaDent_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
+// 🔴 3. الجراحة: أمر الطباعة المخصص لإخفاء جدول الحركات وعرض الإجماليات فقط 🔴
+function printCustomReport() {
+    const style = document.createElement('style');
+    style.id = 'hide-report-table-print';
+    style.innerHTML = `
+        @media print { 
+            /* إخفاء الفلاتر والأزرار والجدول السفلي تماماً من الطباعة */
+            .filters-section, .btn-action, #detailedReportBody, th, td, table, #load-more-rep-container { display: none !important; }
+            /* جعل الإحصائيات والشارتات تملأ الشاشة */
+            .kpi-container, .charts-grid { display: flex !important; width: 100% !important; margin-bottom: 20px !important; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    window.print();
+
+    setTimeout(() => {
+        const el = document.getElementById('hide-report-table-print');
+        if(el) el.remove();
+    }, 500);
+}
+
+// 🔴 ربط دالة الطباعة الجديدة بالزرار الأصلي 🔴
+document.addEventListener('DOMContentLoaded', () => {
+    const printBtn = document.getElementById('btn-print');
+    if(printBtn) {
+        // مسح الـ onclick القديم لو موجود وربطه بالدالة المخصصة
+        printBtn.removeAttribute('onclick'); 
+        printBtn.addEventListener('click', printCustomReport);
+    }
+});
+
 window.onload = () => {
     const lang = localStorage.getItem('preferredLang') || 'ar';
     document.body.dir = lang === 'en' ? 'ltr' : 'rtl';
@@ -378,7 +475,6 @@ window.onload = () => {
 
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
-            // 🔴 تم استدعاء الفروع أولاً وبعدين جلب التقارير لضمان الفلتر 🔴
             await loadBranchesDropdown();
             setReportPeriod('month', document.querySelector('.filter-chip.active')); 
         } else {
