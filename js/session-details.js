@@ -477,23 +477,22 @@ async function addServiceToInvoiceFromChart(actionDetails) {
 window.addServiceToInvoiceFromChart = addServiceToInvoiceFromChart;
 // ==========================================
 
-// 🔴 دالة معالجة الـ QR Code المعدلة عشان متضربش 🔴
+// 🔴 دالة معالجة الـ QR Code المحصنة بالكامل 🔴
 function generateQRCodeForPrint(textData) {
     const qrContainer = document.getElementById('print-qr-container');
     if (!qrContainer) return;
     qrContainer.innerHTML = ''; 
     
-    let safeText = textData;
-    
     try {
         new QRCode(qrContainer, {
-            text: safeText, width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
+            text: textData, width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
         });
     } catch(e) {
-        console.warn("QR Code content was too long, displaying safe fallback.", e);
-        // لو النص برضه طويل وفجر المكتبة، هيعمل كود مصغر أمان عشان الروشتة تطبع
+        console.warn("QR Code overflow.", e);
+        qrContainer.innerHTML = ''; 
+        // 🔴 Fallback قصير جداً بالإنجليزية فقط مستحيل يضرب إيرور
         new QRCode(qrContainer, {
-            text: `Patient: ${patientName}\nAuth: NivaDent\n(Prescription verified)`, width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
+            text: `NivaDent-Verified`, width: 100, height: 100, correctLevel : QRCode.CorrectLevel.L
         });
     }
 }
@@ -521,7 +520,7 @@ async function preparePrintHeader() {
     }
 }
 
-// 🔴 2. طباعة الروشتة (QR كود محمي من الانفجار ومقاس A4/A5) 🔴
+// 🔴 2. طباعة الروشتة (QR كود محمي ومقاس A4) 🔴
 async function printSessionRx(docId) {
     if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
     try {
@@ -549,11 +548,11 @@ async function printSessionRx(docId) {
                 </div>
             `;
             
-            // 🔴 تنظيف الأدوية وقصها لـ 100 حرف بالظبط عشان الـ QR يستوعبها وميضربش
-            let cleanMeds = p.medications === "روشتة خارجية مرفقة" ? p.medications : p.medications.replace(/\n\s*\n/g, '\n').trim();
-            if (cleanMeds.length > 100) cleanMeds = cleanMeds.substring(0, 100) + '...';
+            // 🔴 تنظيف الأدوية وقصها لـ 40 حرف بالظبط لأن الحروف العربية بتاخد مساحة مضاعفة
+            let cleanMeds = p.medications === "روشتة خارجية مرفقة" ? "روشتة خارجية" : p.medications.replace(/\n\s*\n/g, ' ').trim();
+            if (cleanMeds.length > 40) cleanMeds = cleanMeds.substring(0, 40) + '..';
             
-            const qrData = `Patient: ${patientName}\nDate: ${p.date}\nRx:\n${cleanMeds}`;
+            const qrData = `Rx: ${cleanMeds}`;
             generateQRCodeForPrint(qrData);
             
             if (window.hideLoader) window.hideLoader();
@@ -599,8 +598,11 @@ async function printSessionInvoice() {
                 <p style="font-size: 16px; color: #475569;"><strong>${dict[currentLang].docNotes}</strong> ${sessionData.notes || '---'}</p>
             </div>
         `;
-        const qrData = `Doc: Invoice\nID: ${sessionId}\nTotal: ${sessionData.total}\nPaid: ${sessionData.paid}\nAuth: NivaDent System`;
+        
+        // 🔴 QR كود مبسط ومختصر للفاتورة
+        const qrData = `INV:${sessionId.substring(0,5)}|T:${sessionData.total}|P:${sessionData.paid}`;
         generateQRCodeForPrint(qrData);
+        
         if (window.hideLoader) window.hideLoader();
         setTimeout(() => window.print(), 500); 
     } catch(e) { if (window.hideLoader) window.hideLoader(); console.error(e); }
