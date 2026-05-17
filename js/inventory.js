@@ -551,7 +551,7 @@ function injectInvSortButton() {
         btn.id = 'btn-sort-inv';
         btn.className = 'btn-action';
         btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 ترتيب: الأقل كمية' : 'Sort: Low Qty') : (isAr ? '🔤 ترتيب: أبجدي' : 'Sort: A-Z');
-        btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #e2e8f0; color: #0f172a; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size:13px; height: 42px;';
+        btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 0 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; height: 42px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
         btn.onclick = window.toggleSortInventory;
         searchInput.parentNode.insertBefore(btn, searchInput.nextSibling);
     }
@@ -632,8 +632,9 @@ function renderInventoryTable(dataToRender, totalLength = 0) {
         if(table && table.parentNode) table.parentNode.insertBefore(btnContainer, table.nextSibling);
     }
 
-    if (displayedInventoryCount < totalLength) {
-        btnContainer.innerHTML = `<button class="btn-action" style="background:#0f172a; color:#fff; padding:8px 30px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="loadMoreInventory()">⬇️ عرض المزيد (5)</button>`;
+if (displayedInventoryCount < totalLength) {
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+        btnContainer.innerHTML = `<button class="btn-action no-print" style="background: #f0f9ff; color: #0284c7; border: 1px solid #bae6fd; padding: 10px 40px; border-radius: 25px; font-weight: 800; cursor: pointer; font-size: 14px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onmouseover="this.style.background='#e0f2fe'" onmouseout="this.style.background='#f0f9ff'" onclick="loadMoreInventory()">⬇️ ${isAr ? 'عرض المزيد (5)' : 'Load More (5)'}</button>`;
         btnContainer.style.display = 'block';
     } else {
         if(btnContainer) btnContainer.style.display = 'none';
