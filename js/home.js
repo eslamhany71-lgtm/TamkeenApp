@@ -220,6 +220,53 @@ function applyPermissions(perms, role) {
     }
 }
 
+// ===============================================
+// 🔴 رادار الإشعارات المركزي (Global Listener) 🔴
+// ===============================================
+let globalNotifUnsubscribe = null;
+
+function startGlobalNotificationsListener(clinicId, role, branchId) {
+    if (!clinicId || clinicId === 'default') return;
+    
+    const badge = document.getElementById('global-notif-badge');
+    const bellContainer = document.getElementById('global-bell-container');
+    if (!badge || !bellContainer) return;
+
+    if (globalNotifUnsubscribe) globalNotifUnsubscribe();
+
+    let queryRef = db.collection("Notifications")
+        .where("clinicId", "==", clinicId)
+        .where("isRead", "==", false);
+
+    // عزل الإشعارات بناءً على الفرع لو مش أدمن
+    if (role !== 'admin' && role !== 'superadmin') {
+        queryRef = queryRef.where("branchId", "==", branchId);
+    }
+
+    globalNotifUnsubscribe = queryRef.onSnapshot(snap => {
+        const count = snap.docs.length;
+        if (count > 0) {
+            badge.innerText = count > 99 ? '+99' : count;
+            badge.classList.add('active');
+            
+            // عمل أنيميشن (هزة) للجرس فقط في حالة إضافة إشعار جديد لايف
+            snap.docChanges().forEach(change => {
+                if (change.type === 'added') {
+                    bellContainer.classList.add('ringing');
+                    setTimeout(() => bellContainer.classList.remove('ringing'), 600);
+                }
+            });
+        } else {
+            badge.innerText = '0';
+            badge.classList.remove('active');
+            bellContainer.classList.remove('ringing');
+        }
+    }, err => {
+        console.error("Global Notif Error:", err);
+    });
+}
+// ===============================================
+
 firebase.auth().onAuthStateChanged(async (user) => {
     if (user) {
         document.getElementById('userEmail').innerText = user.email;
@@ -231,6 +278,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 const userData = userDoc.data();
                 const role = userData.role || 'reception';
                 const clinicId = userData.clinicId || sessionStorage.getItem('clinicId') || 'default';
+                const branchId = userData.branchId || sessionStorage.getItem('branchId') || 'main'; // جلب الفرع
                 sessionStorage.setItem('clinicId', clinicId);
 
                 let userPermissions = userData.permissions;
@@ -260,6 +308,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 if(role !== 'superadmin' && clinicId !== 'default') {
                     checkSubscriptionAlert(clinicId);
                 }
+
+                // 🔴 تشغيل الرادار العالمي للإشعارات 🔴
+                startGlobalNotificationsListener(clinicId, role, branchId);
 
                 const lastPage = sessionStorage.getItem('lastOpenedPage');
                 const lastNavId = sessionStorage.getItem('lastActiveNavId');
@@ -458,8 +509,8 @@ function toggleSidebarDesktop() {
 function openSupportModal() { 
     document.getElementById('support_message').value = ''; 
     document.getElementById('review_message').value = ''; 
-    setRating(0); // تصفير النجوم
-    switchSupportTab('ticket'); // فتح تابة التيكت كافتراضي
+    setRating(0); 
+    switchSupportTab('ticket'); 
     document.getElementById('supportModal').style.display = 'flex'; 
 }
 
