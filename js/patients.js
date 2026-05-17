@@ -269,7 +269,7 @@ async function loadPatients(isLoadMore = false) {
             }
         }
 
-        queryRef = queryRef.orderBy("createdAt", "desc").limit(PATIENTS_PER_PAGE);
+        queryRef = queryRef.orderBy("createdAt", currentSortPatients).limit(PATIENTS_PER_PAGE);
 
         if (isLoadMore && lastVisibleDoc) {
             queryRef = queryRef.startAfter(lastVisibleDoc);
@@ -286,6 +286,7 @@ async function loadPatients(isLoadMore = false) {
             });
             
             filteredPatientsArray = [...patientsDataArray];
+            injectPatientSortButton(); // 🔴 السطر اللي ضفناه
             renderPatientsTable();
             
             if(snap.docs.length === PATIENTS_PER_PAGE) {
@@ -379,6 +380,38 @@ async function searchPatients() {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color:red;">حدث خطأ في البحث</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
+    }
+}
+// 🔴 متغير الترتيب الافتراضي (الأحدث أولاً) 🔴
+let currentSortPatients = 'desc';
+
+// 🔴 دالة تغيير الترتيب 🔴
+window.toggleSortPatients = function() {
+    currentSortPatients = currentSortPatients === 'desc' ? 'asc' : 'desc';
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const btn = document.getElementById('btn-sort-patients');
+    if(btn) btn.innerHTML = currentSortPatients === 'desc' ? (isAr ? '🔽 الأحدث' : 'Sort: Newest') : (isAr ? '🔼 الأقدم' : 'Sort: Oldest');
+    
+    // سحب أول 15 مريض بالترتيب الجديد
+    loadPatients(false); 
+};
+
+// 🔴 دالة حقن الزرار جنب خانة البحث 🔴
+function injectPatientSortButton() {
+    if(document.getElementById('btn-sort-patients')) return;
+    const searchInput = document.getElementById('searchInput');
+    if(searchInput) {
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+        const btn = document.createElement('button');
+        btn.id = 'btn-sort-patients';
+        btn.className = 'btn-action';
+        btn.innerHTML = currentSortPatients === 'desc' ? (isAr ? '🔽 الأحدث' : 'Sort: Newest') : (isAr ? '🔼 الأقدم' : 'Sort: Oldest');
+        
+        // نفس الشياكة والمقاس الثابت اللي عملناه في المخزون
+        btn.style.cssText = 'flex-shrink: 0; min-width: max-content; margin-right: 10px; margin-left: 10px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
+        
+        btn.onclick = window.toggleSortPatients;
+        searchInput.parentNode.insertBefore(btn, searchInput.nextSibling);
     }
 }
 
