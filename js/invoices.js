@@ -1,15 +1,15 @@
 // js/invoices.js
 const db = firebase.firestore();
 const clinicId = sessionStorage.getItem('clinicId');
-const userRole = sessionStorage.getItem('userRole'); // 🔴 جلب الوظيفة
-const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب الفرع
+const userRole = sessionStorage.getItem('userRole'); 
+const userBranch = sessionStorage.getItem('branchId') || 'main'; 
 
 let allPatients = [];
 let selectedPatient = null;
 let patientSessions = [];
-let clinicSettings = null; // 🔴 مخزن إعدادات العيادة لقراءة السجل والاسم والتفاصيل
+let clinicSettings = null; 
 
-let invLang = {}; // 🔴 تخزين الترجمات لاستخدامها في بناء الفاتورة
+let invLang = {}; 
 
 // 🔴 1. إعدادات اللغة 🔴
 function updateLanguage(lang) {
@@ -59,28 +59,23 @@ function updateLanguage(lang) {
     set('txt-sel-pat', invLang.selPat); set('txt-sel-sub', invLang.selSub);
     if(document.getElementById('opt-all-branches')) set('opt-all-branches', invLang.optAll);
 
-    // لو مريض محدد حالياً، ارسم الفاتورة تاني عشان تترجم
     if(selectedPatient) {
         renderInvoice();
     } else {
-        searchPatientsForInvoice(); // Refresh search text
+        searchPatientsForInvoice(); 
     }
 }
 
-// 🔴 دالة جلب إعدادات العيادة من جدول Settings لطباعتها رسميًا 🔴
+// 🔴 دالة جلب بيانات العيادة (محدثة حسب حقول الفايربيز الفعلية) 🔴
 async function loadClinicSettings() {
     if (!clinicId) return;
     try {
-        const doc = await db.collection("Settings").doc(clinicId).get();
+        const doc = await db.collection("Clinics").doc(clinicId).get();
         if (doc.exists) {
             clinicSettings = doc.data();
-        } else {
-            // محاولة جلب من كوليكشن Clinics كخيار بديل
-            const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
-            if (clinicDoc.exists) clinicSettings = clinicDoc.data();
         }
     } catch (e) {
-        console.error("خطأ أثناء جلب إعدادات العيادة للطباعة:", e);
+        console.error("خطأ أثناء جلب بيانات العيادة للطباعة:", e);
     }
 }
 
@@ -104,7 +99,7 @@ async function loadBranchesDropdown() {
         
         select.innerHTML = optionsHtml;
         select.style.display = 'block';
-        select.value = userBranch; // تعيين الفرع الافتراضي للمدير
+        select.value = userBranch; 
     } catch (e) {
         console.error("خطأ في جلب الفروع:", e);
     }
@@ -117,10 +112,8 @@ async function loadPatients() {
     let queryRef = db.collection("Patients").where("clinicId", "==", clinicId);
 
     if (userRole !== 'admin' && userRole !== 'superadmin') {
-        // الموظف العادي معزول على فرعه
         queryRef = queryRef.where("branchId", "==", userBranch);
     } else {
-        // المدير يقدر يفلتر بالـ Dropdown
         const selectedBranch = document.getElementById('branch_filter').value;
         if (selectedBranch && selectedBranch !== 'all') {
             queryRef = queryRef.where("branchId", "==", selectedBranch);
@@ -131,7 +124,6 @@ async function loadPatients() {
         const snap = await queryRef.get();
         allPatients = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // تفريغ البحث عند التبديل بين الفروع
         document.getElementById('patientSearch').value = '';
         searchPatientsForInvoice(); 
     } catch (e) {
@@ -227,24 +219,21 @@ function renderInvoice() {
     const isAr = document.body.dir === 'rtl';
     const alignStr = isAr ? 'left' : 'right';
 
-    // قراءة البيانات الديناميكية من صفحة الإعدادات المحفوظة بالفايربيز
-    const clinicName = clinicSettings?.clinicName || clinicSettings?.name || "NivaDent Clinic";
-    const commercialRegister = clinicSettings?.commercialRegister || clinicSettings?.commercialNo || "";
-    const taxCard = clinicSettings?.taxCard || clinicSettings?.taxNo || "";
-    const clinicPhone = clinicSettings?.phone || clinicSettings?.clinicPhone || "";
-    const clinicAddress = clinicSettings?.address || "";
+    // 🔴 قراءة البيانات الديناميكية من الفايربيز بناءً على الحقول الصحيحة 🔴
+    const clinicName = clinicSettings?.clinicName || "NivaDent Clinic";
+    const taxId = clinicSettings?.taxId || "";
+    const clinicPhone = clinicSettings?.phone1 || "";
+    const clinicAddress = clinicSettings?.address1 || "";
+    const customInvoiceMsg = clinicSettings?.invoiceMsg || invLang.footerMsg;
 
-    // بناء الهيدر بناء على البيانات الموجودة في صفحة الإعدادات
     let settingsDetailsHtml = '';
     if (isAr) {
-        if (commercialRegister) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">سجل تجاري: <strong>${commercialRegister}</strong></p>`;
-        if (taxCard) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">بطاقة ضريبية: <strong>${taxCard}</strong></p>`;
-        if (clinicPhone) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">تليفون: <strong>${clinicPhone}</strong></p>`;
+        if (taxId) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">الرقم الضريبي/السجل: <strong dir="ltr">${taxId}</strong></p>`;
+        if (clinicPhone) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">تليفون: <strong dir="ltr">${clinicPhone}</strong></p>`;
         if (clinicAddress) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">العنوان: <strong>${clinicAddress}</strong></p>`;
     } else {
-        if (commercialRegister) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">CR No: <strong>${commercialRegister}</strong></p>`;
-        if (taxCard) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Tax Card: <strong>${taxCard}</strong></p>`;
-        if (clinicPhone) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Tel: <strong>${clinicPhone}</strong></p>`;
+        if (taxId) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Tax/CR No: <strong dir="ltr">${taxId}</strong></p>`;
+        if (clinicPhone) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Tel: <strong dir="ltr">${clinicPhone}</strong></p>`;
         if (clinicAddress) settingsDetailsHtml += `<p style="margin:2px 0; font-size:13px; color:#64748b;">Address: <strong>${clinicAddress}</strong></p>`;
     }
 
@@ -255,18 +244,18 @@ function renderInvoice() {
                 max-width: 100% !important;
                 border-collapse: collapse !important;
                 margin-top: 20px;
-                table-layout: auto !important; /* ملائمة تلقائية للمسافات */
+                table-layout: auto !important;
             }
             .bill-table th, .bill-table td {
                 border: 1px solid #e2e8f0 !important;
                 padding: 10px 12px !important;
                 font-size: 14px !important;
-                word-break: break-word !important; /* منع خروج الكلمات برا العمود */
+                word-break: break-word !important; 
             }
             @media print {
                 @page {
                     size: A4;
-                    margin: 15mm 12mm 15mm 12mm; /* هوامش متناسقة لورق A4 */
+                    margin: 15mm 12mm 15mm 12mm;
                 }
                 body {
                     -webkit-print-color-adjust: exact !important;
@@ -281,7 +270,7 @@ function renderInvoice() {
                     margin: 0 !important;
                 }
                 .bill-table th, .bill-table td {
-                    padding: 6px 8px !important; /* تضييق المسافات تلقائيًا عند الطباعة */
+                    padding: 6px 8px !important; 
                     font-size: 12px !important;
                 }
                 .total-box {
@@ -339,11 +328,10 @@ function renderInvoice() {
         </div>
         
         <div style="margin-top: 40px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 15px; color: #94a3b8; font-size: 12px; font-weight: 500;">
-            ${invLang.footerMsg}
+            ${customInvoiceMsg}
         </div>
     `;
 
-    // حقن الفاتورة في العرض والطباعة
     content.innerHTML = invoiceHTML;
     printArea.innerHTML = invoiceHTML;
 
@@ -371,7 +359,7 @@ window.onload = () => {
     
     firebase.auth().onAuthStateChanged(async (user) => {
         if (user) {
-            await loadClinicSettings(); // 🔴 جلب الإعدادات أولًا لتجهيز داتا الطباعة
+            await loadClinicSettings(); 
             await loadBranchesDropdown();
             loadPatients();
         }
