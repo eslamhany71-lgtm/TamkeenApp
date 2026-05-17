@@ -379,6 +379,9 @@ function renderFinancesTable(dataArray) {
         let amountColor = '#dc2626';
         let amountSign = '-';
 
+        // 🔴 1. الجراحة: تعديل شكل المديونية السالبة (اللوجيك المحاسبي سليم، الشكل بس اللي بيتغير)
+        let displayAmount = Math.abs(Number(f.amount));
+
         if (f.type === 'income') {
             badgeClass = 'badge-inc';
             typeTxt = window.finLang.bInc;
@@ -386,9 +389,15 @@ function renderFinancesTable(dataArray) {
             amountSign = '+';
         } else if (f.type === 'debt') {
             badgeClass = ''; 
-            typeTxt = window.finLang.bDebt || "مديونية";
-            amountColor = '#d97706'; 
-            amountSign = ''; 
+            if (Number(f.amount) < 0) {
+                typeTxt = isAr ? "تخفيض مديونية" : "Debt Deduction";
+                amountColor = '#10b981'; // أخضر
+                amountSign = '🔻'; 
+            } else {
+                typeTxt = window.finLang.bDebt || "مديونية";
+                amountColor = '#d97706'; // برتقالي
+                amountSign = '🔺'; 
+            }
         }
 
         let createdByHtml = '';
@@ -415,7 +424,7 @@ function renderFinancesTable(dataArray) {
                 <div style="font-weight: bold; color: #0f172a;">${f.category}</div>
                 ${createdByHtml}
             </td>
-            <td class="amount-text" style="color: ${amountColor}; font-weight: bold;" dir="ltr">${amountSign} ${f.amount}</td>
+            <td class="amount-text" style="color: ${amountColor}; font-weight: bold;" dir="ltr">${amountSign} ${displayAmount}</td>
             <td style="color: #475569; font-weight: bold; font-size: 13px;">${methodHtml}</td> <td>${f.notes || '---'}</td>
             <td class="no-print" style="text-align: center;">
                 <button class="btn-primary" style="background:#f59e0b; padding: 5px 10px; font-size:12px; margin-right:5px;" onclick="openEditTrans('${f.id}')">✏️</button>
@@ -437,9 +446,13 @@ function renderFinancesTable(dataArray) {
     }
 }
 
-// 🔴 دالة تقفيل الشيفت (الطباعة مع العزل) 🔴
+// 🔴 2. الجراحة: دالة تقفيل الشيفت (حساب التاريخ المحلي وإخفاء الجدول وقت الطباعة) 🔴
 async function printShiftClosure() {
-    const today = new Date().toISOString().split('T')[0];
+    // حساب التاريخ المحلي لتجنب فرق التوقيت
+    const todayDate = new Date();
+    todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
+    const today = todayDate.toISOString().split('T')[0];
+    
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     
     if (window.showLoader) window.showLoader(isAr ? "جاري تجميع حركات الدرج..." : "Calculating shift...");
@@ -490,7 +503,21 @@ async function printShiftClosure() {
         document.getElementById('sh-expense').innerText = shiftCashOut + (isAr ? ' ج.م' : ' EGP');
         document.getElementById('sh-net').innerText = shiftNet + (isAr ? ' ج.م' : ' EGP');
 
+        // 🔴 السطر السحري: إخفاء جدول الحركات وكل شيء أثناء طباعة الفاتورة/الريسيت 🔴
+        const style = document.createElement('style');
+        style.id = 'hide-table-on-shift-print';
+        style.innerHTML = '@media print { table, .card, .search-box, .kpi-card, button, input, select { display: none !important; } }';
+        document.head.appendChild(style);
+
+        // أمر الطباعة
         window.print();
+
+        // إرجاع الشاشة لطبيعتها
+        setTimeout(() => {
+            const el = document.getElementById('hide-table-on-shift-print');
+            if(el) el.remove();
+        }, 500);
+
     } catch (e) {
         console.error(e);
         alert(isAr ? "خطأ في حساب الشيفت" : "Error calculating shift");
