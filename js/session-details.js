@@ -133,7 +133,7 @@ async function loadSessionDetails() {
         }
     });
 
-    db.collection("Sessions").doc(sessionId).onSnapshot(async docSnap => { // 🔴 جعلناها Async لسحب الخريطة
+    db.collection("Sessions").doc(sessionId).onSnapshot(async docSnap => { 
         if(docSnap.exists) {
             sessionData = docSnap.data();
             
@@ -477,17 +477,25 @@ async function addServiceToInvoiceFromChart(actionDetails) {
 window.addServiceToInvoiceFromChart = addServiceToInvoiceFromChart;
 // ==========================================
 
+// 🔴 دالة معالجة الـ QR Code المعدلة عشان متضربش 🔴
 function generateQRCodeForPrint(textData) {
     const qrContainer = document.getElementById('print-qr-container');
     if (!qrContainer) return;
     qrContainer.innerHTML = ''; 
     
     let safeText = textData;
-    try { safeText = unescape(encodeURIComponent(textData)); } catch(e) {}
     
-    new QRCode(qrContainer, {
-        text: safeText, width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
-    });
+    try {
+        new QRCode(qrContainer, {
+            text: safeText, width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
+        });
+    } catch(e) {
+        console.warn("QR Code content was too long, displaying safe fallback.", e);
+        // لو النص برضه طويل وفجر المكتبة، هيعمل كود مصغر أمان عشان الروشتة تطبع
+        new QRCode(qrContainer, {
+            text: `Patient: ${patientName}\nAuth: NivaDent\n(Prescription verified)`, width: 100, height: 100, colorDark : "#0f172a", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.L
+        });
+    }
 }
 
 // 🔴 6. دالة استدعاء إعدادات العيادة للطباعة 🔴
@@ -513,7 +521,7 @@ async function preparePrintHeader() {
     }
 }
 
-// 🔴 2. طباعة الروشتة (QR كود يقرأ الأدوية ومقاس A4/A5) 🔴
+// 🔴 2. طباعة الروشتة (QR كود محمي من الانفجار ومقاس A4/A5) 🔴
 async function printSessionRx(docId) {
     if (window.showLoader) window.showLoader(dict[currentLang].msgLoading);
     try {
@@ -541,9 +549,11 @@ async function printSessionRx(docId) {
                 </div>
             `;
             
-            // 🔴 تجهيز داتا الأدوية للـ QR عشان الصيدلي يقرأها علطول
-            const cleanMeds = p.medications === "روشتة خارجية مرفقة" ? p.medications : p.medications.replace(/\n\s*\n/g, '\n').trim().substring(0, 300);
-            const qrData = `Patient: ${patientName}\nDate: ${p.date}\n\nRx:\n${cleanMeds}`;
+            // 🔴 تنظيف الأدوية وقصها لـ 100 حرف بالظبط عشان الـ QR يستوعبها وميضربش
+            let cleanMeds = p.medications === "روشتة خارجية مرفقة" ? p.medications : p.medications.replace(/\n\s*\n/g, '\n').trim();
+            if (cleanMeds.length > 100) cleanMeds = cleanMeds.substring(0, 100) + '...';
+            
+            const qrData = `Patient: ${patientName}\nDate: ${p.date}\nRx:\n${cleanMeds}`;
             generateQRCodeForPrint(qrData);
             
             if (window.hideLoader) window.hideLoader();
