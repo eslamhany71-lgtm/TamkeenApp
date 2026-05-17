@@ -101,7 +101,7 @@ async function loadBranchesForAdmin() {
 }
 
 // ============================================================================
-// 📡 جلب الإشعارات (معزولة بالفروع)
+// 📡 جلب الإشعارات (رادار لايف 100%)
 // ============================================================================
 function startNotificationsListener() {
     const cid = sessionStorage.getItem('clinicId');
@@ -112,7 +112,6 @@ function startNotificationsListener() {
 
     if (unsubscribeListener) unsubscribeListener();
 
-    // 🔴 الكبسولة السحرية للفلترة والعزل 🔴
     let queryRef = db.collection("Notifications").where("clinicId", "==", cid);
 
     if (userRole !== 'admin' && userRole !== 'superadmin') {
@@ -124,10 +123,10 @@ function startNotificationsListener() {
         }
     }
 
-    unsubscribeListener = queryRef.orderBy("createdAt", "desc")
+    // 🔴 الحل السحري: الاعتماد على descending عشان الأحدث دايماً فوق
+    unsubscribeListener = queryRef.orderBy("createdAt", "desc").limit(50)
         .onSnapshot((snapshot) => {
             if (window.hideLoader) window.hideLoader();
-            container.innerHTML = ''; 
 
             if (snapshot.empty) {
                 container.innerHTML = `
@@ -139,11 +138,14 @@ function startNotificationsListener() {
                 return;
             }
 
+            // لو في إشعارات، نفضي الكونتينر ونرسمها مترتبة صح
+            container.innerHTML = ''; 
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 container.appendChild(createNotificationCard(doc.id, data));
             });
 
+            // لو فيه إشعار جديد لسه طاير حالا، نضرب الصوت 
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added" && !change.doc.data().isRead && !change.doc.metadata.hasPendingWrites) {
                     playSoundEffect('new');
@@ -152,38 +154,8 @@ function startNotificationsListener() {
 
         }, (error) => {
             console.error("Notif Error:", error);
-            fallbackFetchNotifications(cid);
+            // لو الفايربيز طلب Index هيطبعلك لينك هنا في الكونسول تدوس عليه
         });
-}
-
-// طريقة احتياطية
-async function fallbackFetchNotifications(cid) {
-    const container = document.getElementById('notificationsContainer');
-    try {
-        let queryRef = db.collection("Notifications").where("clinicId", "==", cid);
-
-        if (userRole !== 'admin' && userRole !== 'superadmin') {
-            queryRef = queryRef.where("branchId", "==", userBranch);
-        } else {
-            const selectedBranch = document.getElementById('branch-filter').value;
-            if (selectedBranch && selectedBranch !== 'all') {
-                queryRef = queryRef.where("branchId", "==", selectedBranch);
-            }
-        }
-
-        const snap = await queryRef.get();
-        let notifs = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        notifs.sort((a, b) => b.createdAt.localeCompare(a.createdAt)); 
-        
-        container.innerHTML = '';
-        if(notifs.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding:50px;">📭 ${notifLang.emptyTitle}</div>`;
-            return;
-        }
-        notifs.forEach(n => container.appendChild(createNotificationCard(n.id, n)));
-    } catch(e) {
-        container.innerHTML = `<div style="color:red; text-align:center;">${notifLang.error}</div>`;
-    }
 }
 
 // ============================================================================
@@ -193,6 +165,8 @@ function createNotificationCard(id, data) {
     const card = document.createElement('div');
     card.className = `notif-card ${data.isRead ? '' : 'unread'}`;
     card.id = `notif-${id}`;
+    // 🔴 أنيميشن خفيف عشان الإشعار يظهر بشياكة وهو لايف
+    card.style.animation = 'fadeIn 0.3s ease-out';
 
     let iconHTML = '🔔';
     let iconClass = 'icon-sys';
@@ -204,7 +178,8 @@ function createNotificationCard(id, data) {
     let timeString = notifLang.justNow;
     if (data.createdAt) {
         try {
-            const dateObj = new Date(data.createdAt);
+            // توحيد قراءة التاريخ سواء Timestamp أو String
+            const dateObj = typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate() : new Date(data.createdAt);
             timeString = dateObj.toLocaleDateString() + ' - ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         } catch(e){}
     }
@@ -225,7 +200,7 @@ function createNotificationCard(id, data) {
 }
 
 // ============================================================================
-// ⚡ العمليات (قراءة، حذف، تجربة) - معزولة بالفرع
+// ⚡ العمليات (قراءة، حذف، تجربة) 
 // ============================================================================
 async function markAsRead(id) {
     try {
@@ -297,7 +272,7 @@ async function deleteAllNotifications() {
     } catch(e) { console.error(e); }
 }
 
-// 🧪 دالة سحرية لزرار التجربة 
+// 🧪 دالة التجربة (بترمي دايماً كـ Timestamp عشان الترتيب يكون مسطرة)
 async function spawnTestNotification() {
     const cid = sessionStorage.getItem('clinicId');
     if (!cid) { alert("سجل دخول الأول يا بطل!"); return; }
@@ -309,7 +284,6 @@ async function spawnTestNotification() {
     if(randomType === 'inventory') { title = "نقص في المخزون"; msg = "بنج أرتيكين وصل للحد الأدنى (5 علب)."; }
     else if(randomType === 'finance') { title = "دفعة مالية"; msg = "تم تحصيل 1000 جنيه من المريض."; }
 
-    // 🔴 رمي الإشعار في الفرع المحدد عشان يظهر فوراً 🔴
     let targetBranch = userBranch;
     if (userRole === 'admin' || userRole === 'superadmin') {
         const filterVal = document.getElementById('branch-filter').value;
@@ -319,12 +293,13 @@ async function spawnTestNotification() {
     try {
         await db.collection("Notifications").add({
             clinicId: cid,
-            branchId: targetBranch, // 🔴
+            branchId: targetBranch, 
             title: title,
             message: msg,
             type: randomType,
             isRead: false,
-            createdAt: new Date().toISOString()
+            // 🔴 رمي الوقت كـ Timestamp عشان الترتيب ما يبوظش أبداً
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     } catch(e) { console.error(e); }
 }
