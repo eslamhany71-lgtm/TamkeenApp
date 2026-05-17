@@ -403,6 +403,7 @@ function filterTransactionsLocally(resetPagination = false) {
     
     // 🔴 تطبيق الترتيب
     dataToRender.sort((a, b) => {
+        currentDisplayedData = dataToRender; // 🔴 حفظ كل الحركات بعد الفلترة للطباعة
         const dateA = a.date || "";
         const dateB = b.date || "";
         if (currentSortOrder === 'desc') {
@@ -519,7 +520,9 @@ function renderFinancesTable(pagedData, fullFilteredData = null) {
 }
 
 async function printShiftClosure() {
-    const today = new Date().toISOString().split('T')[0];
+    const todayDate = new Date();
+    todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
+    const today = todayDate.toISOString().split('T')[0];
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     
     if (window.showLoader) window.showLoader(isAr ? "جاري تجميع حركات الدرج..." : "Calculating shift...");
@@ -659,3 +662,27 @@ window.onload = () => {
         }
     }, {passive: true});
 });
+
+// 🔴 دالة طباعة التقرير الشامل (بدون قص) 🔴
+function printFullReport() {
+    const isAr = getLang();
+    if (currentDisplayedData.length === 0) {
+        alert(isAr ? "لا توجد بيانات لطباعتها!" : "No data to print!");
+        return;
+    }
+
+    // 1. اعرض كل الداتا المفلترة في الجدول (بدون الـ 5 بـ 5)
+    renderFinancesTable(currentDisplayedData, currentDisplayedData);
+    
+    // 2. اخفي زرار "المزيد" عشان ميظهرش في الطباعة
+    const moreBtn = document.getElementById('load-more-finances-container');
+    if (moreBtn) moreBtn.style.display = 'none';
+
+    // 3. اطبع
+    window.print();
+
+    // 4. رجع نظام القص (5 بـ 5) تاني بعد الطباعة بنص ثانية
+    setTimeout(() => {
+        filterTransactionsLocally(false);
+    }, 500);
+}
