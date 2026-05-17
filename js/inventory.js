@@ -536,7 +536,7 @@ window.loadMoreInventory = function() {
 
 window.toggleSortInventory = function() {
     currentSortInventory = currentSortInventory === 'qty_asc' ? 'name_asc' : 'qty_asc';
-    const isAr = getLang();
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar'; // 🔴 التعديل هنا
     const btn = document.getElementById('btn-sort-inv');
     if(btn) btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 ترتيب: الأقل كمية' : 'Sort: Low Qty') : (isAr ? '🔤 ترتيب: أبجدي' : 'Sort: A-Z');
     applyCurrentFilterAndSearch();
@@ -546,7 +546,7 @@ function injectInvSortButton() {
     if(document.getElementById('btn-sort-inv')) return;
     const searchInput = document.getElementById('searchInput');
     if(searchInput) {
-        const isAr = getLang();
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar'; // 🔴 والتعديل هنا
         const btn = document.createElement('button');
         btn.id = 'btn-sort-inv';
         btn.className = 'btn-action';
