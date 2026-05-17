@@ -134,6 +134,26 @@
         [data-theme="dark"] .rating-stars span { color: #475569; }
         [data-theme="dark"] .rating-stars span:hover, [data-theme="dark"] .rating-stars span.active { color: #fbbf24; }
         [data-theme="dark"] #support_message, [data-theme="dark"] #review_message { background: #0f172a; border-color: #334155; color: #f8fafc; }
+
+        /* 🔴 تصميم جرس الإشعارات في الهيدر 🔴 */
+        .global-notif-bell { position: relative; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(15,23,42,0.05); border-radius: 50%; margin: 0 15px; transition: 0.3s; }
+        .global-notif-bell:hover { background: rgba(15,23,42,0.1); transform: scale(1.05); }
+        .global-notif-icon { font-size: 20px; animation: none; }
+        .global-notif-bell.ringing .global-notif-icon { animation: ring 0.5s ease-in-out; }
+        .global-notif-badge { position: absolute; top: -5px; right: -5px; background: #ef4444; color: white; font-size: 11px; font-weight: 800; min-width: 20px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-sizing: border-box; border: 2px solid white; opacity: 0; transition: 0.3s transform, 0.3s opacity; transform: scale(0); }
+        .global-notif-badge.active { opacity: 1; transform: scale(1); }
+        
+        [data-theme="dark"] .global-notif-bell { background: rgba(255,255,255,0.1); }
+        [data-theme="dark"] .global-notif-bell:hover { background: rgba(255,255,255,0.2); }
+        [data-theme="dark"] .global-notif-badge { border-color: #0f172a; }
+        
+        @keyframes ring {
+            0% { transform: rotate(0); }
+            25% { transform: rotate(15deg); }
+            50% { transform: rotate(-15deg); }
+            75% { transform: rotate(10deg); }
+            100% { transform: rotate(0); }
+        }
     </style>
 </head>
 <body data-theme="light">
@@ -199,7 +219,7 @@
                 </li>
 
                 <li onclick="loadPage('notifications.html', this)" data-perm="notifications">
-                    <a href="javascript:void(0)"><span class="icon">🔔</span> <span>الإشعارات</span></a>
+                    <a href="javascript:void(0)"><span class="icon">🔔</span> <span id="nav-notifications">الإشعارات</span></a>
                 </li>
                 
                 <li onclick="openPortalSettings()" style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 15px;">
@@ -232,7 +252,13 @@
                     <button class="desktop-toggle" onclick="toggleSidebarDesktop()">🗜️</button>
                     <h2 id="txt-header">لوحة التحكم</h2>
                 </div>
+                
                 <div class="topbar-left user-controls">
+                    <div class="global-notif-bell" id="global-bell-container" onclick="loadPage('notifications.html', document.getElementById('nav-notifications').parentElement)" title="الإشعارات">
+                        <span class="global-notif-icon">🔔</span>
+                        <span class="global-notif-badge" id="global-notif-badge">0</span>
+                    </div>
+
                     <button onclick="toggleTheme()" class="btn-theme" id="btn-theme" title="الوضع الليلي">🌙</button>
                     
                     <div class="lang-switch">
