@@ -536,9 +536,10 @@ window.loadMoreInventory = function() {
 
 window.toggleSortInventory = function() {
     currentSortInventory = currentSortInventory === 'qty_asc' ? 'name_asc' : 'qty_asc';
-    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar'; // 🔴 التعديل هنا
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     const btn = document.getElementById('btn-sort-inv');
-    if(btn) btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 ترتيب: الأقل كمية' : 'Sort: Low Qty') : (isAr ? '🔤 ترتيب: أبجدي' : 'Sort: A-Z');
+    // 🔴 اختصار الكلمة عشان الشياكة
+    if(btn) btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 بالكمية' : 'Sort: Qty') : (isAr ? '🔤 أبجدي' : 'Sort: A-Z');
     applyCurrentFilterAndSearch();
 };
 
@@ -546,12 +547,16 @@ function injectInvSortButton() {
     if(document.getElementById('btn-sort-inv')) return;
     const searchInput = document.getElementById('searchInput');
     if(searchInput) {
-        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar'; // 🔴 والتعديل هنا
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
         const btn = document.createElement('button');
         btn.id = 'btn-sort-inv';
         btn.className = 'btn-action';
-        btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 ترتيب: الأقل كمية' : 'Sort: Low Qty') : (isAr ? '🔤 ترتيب: أبجدي' : 'Sort: A-Z');
-        btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';        btn.onclick = window.toggleSortInventory;
+        btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 بالكمية' : 'Sort: Qty') : (isAr ? '🔤 أبجدي' : 'Sort: A-Z');
+        
+        // 🔴 السحر هنا: flex-shrink: 0; و min-width: max-content; تمنع أي ضغط للزرار 🔴
+        btn.style.cssText = 'flex-shrink: 0; min-width: max-content; margin-right: 10px; margin-left: 10px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
+        
+        btn.onclick = window.toggleSortInventory;
         searchInput.parentNode.insertBefore(btn, searchInput.nextSibling);
     }
 }
