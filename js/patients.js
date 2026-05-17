@@ -8,7 +8,7 @@ let currentEditPatientId = null;
 let patientsDataArray = []; 
 let filteredPatientsArray = []; 
 
-const PATIENTS_PER_PAGE = 50;
+const PATIENTS_PER_PAGE = 15;
 let lastVisibleDoc = null; 
 let isSearchMode = false;  
 
@@ -326,20 +326,19 @@ function filterPatientsLocally() {
 }
 
 async function searchPatients() {
-    const input = document.getElementById('searchInput').value.trim().toLowerCase();
+    const input = document.getElementById('searchInput').value.trim();
     const loadMoreBtn = document.getElementById('btn-load-more');
     const tbody = document.getElementById('patientsBody');
 
     if (!input) { resetPatientSearch(); return; }
 
     isSearchMode = true;
-    loadMoreBtn.style.display = 'none'; 
+    if(loadMoreBtn) loadMoreBtn.style.display = 'none'; 
     tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">جاري البحث...</td></tr>';
 
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري البحث في السجلات..." : "Searching...");
+    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري البحث السحابي..." : "Searching...");
 
     try {
-        // 🔴 تطبيق العزل والفلترة أثناء البحث 🔴
         let queryRef = db.collection("Patients").where("clinicId", "==", currentClinicId);
         
         if (userRole !== 'admin' && userRole !== 'superadmin') {
@@ -351,28 +350,33 @@ async function searchPatients() {
             }
         }
 
-        const snap = await queryRef.get();
         let searchResults = [];
 
-        snap.forEach(doc => {
-            const p = doc.data();
-            if ((p.name && p.name.toLowerCase().includes(input)) || (p.phone && p.phone.includes(input))) {
-                p.id = doc.id;
-                searchResults.push(p);
-            }
-        });
-
-        searchResults.sort((a, b) => {
-            let d1 = a.createdAt ? a.createdAt.toDate() : new Date(0);
-            let d2 = b.createdAt ? b.createdAt.toDate() : new Date(0);
-            return d2 - d1;
-        });
+        // 🔴 السحر والذكاء في توفير القراءات 🔴
+        // لو بيبحث برقم موبايل (أرقام)، هنكلم الداتابيز تجيبهولنا مباشرة (التكلفة = 1 قراءة فقط!)
+        if (/^\d+$/.test(input)) {
+            const phoneSnap = await queryRef.where("phone", "==", input).get();
+            phoneSnap.forEach(doc => {
+                searchResults.push({ id: doc.id, ...doc.data() });
+            });
+        } else {
+            // لو بيبحث بالاسم، هنسحب أحدث 200 مريض بس ندور فيهم (لحماية الباقة من السحب العشوائي)
+            const nameSnap = await queryRef.orderBy("createdAt", "desc").limit(200).get();
+            const lowerInput = input.toLowerCase();
+            nameSnap.forEach(doc => {
+                const p = doc.data();
+                if (p.name && p.name.toLowerCase().includes(lowerInput)) {
+                    searchResults.push({ id: doc.id, ...p });
+                }
+            });
+        }
 
         filteredPatientsArray = searchResults;
         renderPatientsTable();
 
     } catch (error) { 
         console.error("Search Error:", error); 
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color:red;">حدث خطأ في البحث</td></tr>`;
     } finally {
         if (window.hideLoader) window.hideLoader();
     }
@@ -682,17 +686,37 @@ window.closeCameraScanner = function() {
     }
 };
 
-function handlePatientQRScan(scannedCode) {
+async function handlePatientQRScan(scannedCode) {
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
     
-    const foundPatient = patientsDataArray.find(item => item.id === scannedCode || item.phone === scannedCode);
+    if (window.showLoader) window.showLoader(isAr ? "جاري البحث عن المريض..." : "Searching patient...");
 
-    if (foundPatient) {
-        if (window.showLoader) window.showLoader(isAr ? "جاري فتح ملف المريض..." : "Opening patient profile...");
-        setTimeout(() => {
-            openMedicalProfile(foundPatient.id);
-        }, 500);
-    } else {
+    try {
+        // 1. نبحث بكود المريض (ID) مباشرة في الفايربيز (تكلفة 1 قراءة فقط)
+        const docRef = await db.collection("Patients").doc(scannedCode).get();
+        if (docRef.exists && docRef.data().clinicId === currentClinicId) {
+            openMedicalProfile(docRef.id);
+            return;
+        }
+
+        // 2. لو ملقاناهوش بالكود، نجرب نبحث برقم الموبايل (تكلفة 1 قراءة فقط)
+        const phoneSnap = await db.collection("Patients")
+            .where("clinicId", "==", currentClinicId)
+            .where("phone", "==", scannedCode)
+            .limit(1)
+            .get();
+
+        if (!phoneSnap.empty) {
+            openMedicalProfile(phoneSnap.docs[0].id);
+            return;
+        }
+
+        // لو مفيش
         alert(isAr ? `لم يتم العثور على مريض بهذا الكود: (${scannedCode})` : `No patient found with this code: (${scannedCode})`);
+        
+    } catch (e) {
+        console.error("QR Scan Error:", e);
+    } finally {
+        if (window.hideLoader) window.hideLoader();
     }
 }
