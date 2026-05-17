@@ -8,6 +8,9 @@ let allTransactionsForEdit = [];
 let currentDisplayedData = []; 
 let currentUserDisplayName = "مستخدم غير معروف";
 
+// 🔴 متغيرات الـ Pagination (عرض المزيد) 🔴
+let displayedTransactionsCount = 5;
+
 // 🔴 دالة لجلب قائمة الفروع (للمدير فقط)
 async function loadBranchesForAdmin() {
     if (userRole !== 'admin' && userRole !== 'superadmin') return;
@@ -120,14 +123,14 @@ function filterByMethodCard(method, element) {
     document.getElementById('filter_method').value = method;
     document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
     if(element) element.classList.add('active-filter');
-    filterTransactionsLocally();
+    filterTransactionsLocally(true); // 🔴 تصفير الـ Pagination عند البحث
 }
 
 function resetFilters() {
     document.getElementById('search_text').value = '';
     document.getElementById('filter_type').value = 'all';
     document.getElementById('filter_method').value = 'all';
-    if(document.getElementById('branch-filter')) document.getElementById('branch-filter').value = userBranch; // Reset Branch
+    if(document.getElementById('branch-filter')) document.getElementById('branch-filter').value = userBranch; 
     document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active-filter'));
     setDefaultDates();
     loadFinances();
@@ -175,7 +178,6 @@ async function saveTransaction(e) {
 
     if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري حفظ العملية..." : "Saving transaction...");
 
-    // 🔴 تحديد الـ branchId للمصروف/الإيراد الجديد 🔴
     let targetBranchId = userBranch;
     if (userRole === 'admin' || userRole === 'superadmin') {
         const filterVal = document.getElementById('branch-filter').value;
@@ -184,7 +186,7 @@ async function saveTransaction(e) {
 
     const data = {
         clinicId: clinicId,
-        branchId: targetBranchId, // 🔴 ختم الفرع 🔴
+        branchId: targetBranchId, 
         type: document.getElementById('trans_type').value,
         amount: Number(document.getElementById('trans_amount').value),
         date: document.getElementById('trans_date').value,
@@ -225,6 +227,31 @@ function sortDataLocally(dataArray) {
     });
 }
 
+// 🔴 دوال عرض المزيد (Pagination) 🔴
+window.loadMoreFinances = function() {
+    displayedTransactionsCount += 5;
+    filterTransactionsLocally(false);
+};
+
+function handleLoadMoreButton(totalLength) {
+    let btnContainer = document.getElementById('load-more-finances-container');
+    if (!btnContainer) {
+        btnContainer = document.createElement('div');
+        btnContainer.id = 'load-more-finances-container';
+        btnContainer.style.cssText = 'text-align: center; margin-top: 15px; padding-bottom: 20px;';
+        const table = document.getElementById('financesBody').closest('table');
+        if(table && table.parentNode) table.parentNode.insertBefore(btnContainer, table.nextSibling);
+    }
+
+    if (displayedTransactionsCount < totalLength) {
+        const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+        btnContainer.innerHTML = `<button class="btn-action no-print" style="background:#0f172a; color:#fff; padding:8px 30px; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="loadMoreFinances()">⬇️ ${isAr ? 'عرض المزيد (5)' : 'Load More (5)'}</button>`;
+        btnContainer.style.display = 'block';
+    } else {
+        if(btnContainer) btnContainer.style.display = 'none';
+    }
+}
+
 async function loadFinances() {
     if (!clinicId) return;
     
@@ -240,7 +267,6 @@ async function loadFinances() {
     let combinedData = [];
 
     try {
-        // 🔴 الكبسولة السحرية للفلترة والعزل (الجدول) 🔴
         let finQuery = db.collection("Finances").where("clinicId", "==", clinicId);
         
         if (userRole !== 'admin' && userRole !== 'superadmin') {
@@ -268,7 +294,7 @@ async function loadFinances() {
         allTransactionsForEdit = combinedData;
         currentDisplayedData = combinedData;
         
-        filterTransactionsLocally();
+        filterTransactionsLocally(true); // 🔴 تصفير العداد لـ 5 عند التحميل
         calculateOverallBalances();
 
     } catch (error) {
@@ -279,11 +305,9 @@ async function loadFinances() {
     }
 }
 
-// 🔴 حساب الرصيد الصافي مع العزل 🔴
 async function calculateOverallBalances() {
     if (!clinicId) return;
     try {
-        // 🔴 الكبسولة السحرية للفلترة والعزل (الأرصدة) 🔴
         let balQuery = db.collection("Finances").where("clinicId", "==", clinicId);
         
         if (userRole !== 'admin' && userRole !== 'superadmin') {
@@ -323,7 +347,9 @@ async function calculateOverallBalances() {
     }
 }
 
-function filterTransactionsLocally() {
+function filterTransactionsLocally(resetPagination = false) {
+    if (resetPagination) displayedTransactionsCount = 5;
+
     const searchText = document.getElementById('search_text').value.trim().toLowerCase();
     const filterMethod = document.getElementById('filter_method').value; 
     
@@ -344,10 +370,22 @@ function filterTransactionsLocally() {
         });
     }
     
-    renderFinancesTable(dataToRender);
+    // 🔴 تطبيق الـ Pagination 🔴
+    let pagedData = dataToRender;
+    // لو مفيش بحث، اعرض 5 بـ 5.. لو فيه بحث، اعرض كله عشان تلاقي اللي بتدور عليه
+    if (!searchText) {
+        pagedData = dataToRender.slice(0, displayedTransactionsCount);
+        handleLoadMoreButton(dataToRender.length);
+    } else {
+        const moreBtn = document.getElementById('load-more-finances-container');
+        if (moreBtn) moreBtn.style.display = 'none';
+    }
+
+    renderFinancesTable(pagedData, dataToRender);
 }
 
-function renderFinancesTable(dataArray) {
+// 🔴 تم إضافة fullData عشان الإجماليات اللي فوق تتحسب صح على الكل مش الـ 5 المعروضين بس 🔴
+function renderFinancesTable(pagedData, fullData = null) {
     const tbody = document.getElementById('financesBody');
     tbody.innerHTML = '';
     
@@ -355,17 +393,20 @@ function renderFinancesTable(dataArray) {
     let totalExp = 0;
     let totalDebt = 0;
 
-    if(dataArray.length === 0) {
+    if(pagedData.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b;">${window.finLang.empty}</td></tr>`;
     }
 
     const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const dataToCalculate = fullData || pagedData;
 
-    dataArray.forEach(f => {
+    dataToCalculate.forEach(f => {
         if (f.type === 'income') totalInc += Number(f.amount);
         else if (f.type === 'expense') totalExp += Number(f.amount);
         else if (f.type === 'debt') totalDebt += Number(f.amount);
+    });
 
+    pagedData.forEach(f => {
         let timeStr = '---';
         if (f.createdAt) {
             try {
@@ -379,7 +420,6 @@ function renderFinancesTable(dataArray) {
         let amountColor = '#dc2626';
         let amountSign = '-';
 
-        // 🔴 1. الجراحة: تعديل شكل المديونية السالبة (اللوجيك المحاسبي سليم، الشكل بس اللي بيتغير)
         let displayAmount = Math.abs(Number(f.amount));
 
         if (f.type === 'income') {
@@ -446,9 +486,7 @@ function renderFinancesTable(dataArray) {
     }
 }
 
-// 🔴 2. الجراحة: دالة تقفيل الشيفت (حساب التاريخ المحلي وإخفاء الجدول وقت الطباعة) 🔴
 async function printShiftClosure() {
-    // حساب التاريخ المحلي لتجنب فرق التوقيت
     const todayDate = new Date();
     todayDate.setMinutes(todayDate.getMinutes() - todayDate.getTimezoneOffset());
     const today = todayDate.toISOString().split('T')[0];
@@ -458,7 +496,6 @@ async function printShiftClosure() {
     if (window.showLoader) window.showLoader(isAr ? "جاري تجميع حركات الدرج..." : "Calculating shift...");
 
     try {
-        // 🔴 الكبسولة السحرية للفلترة والعزل (تقفيل الشيفت) 🔴
         let shiftQuery = db.collection("Finances")
             .where("clinicId", "==", clinicId)
             .where("date", "==", today);
@@ -487,7 +524,6 @@ async function printShiftClosure() {
             const d = doc.data();
             const method = d.paymentMethod || 'cash';
             
-            // بنحسب الكاش الفعلي اللي دخل الدرج واللي طلع منه النهارده بس
             if (method === 'cash') {
                 if (d.type === 'income') shiftCashIn += Number(d.amount);
                 else if (d.type === 'expense') shiftCashOut += Number(d.amount);
@@ -498,21 +534,18 @@ async function printShiftClosure() {
 
         document.getElementById('sh-date').innerText = new Date().toLocaleString('ar-EG');
         document.getElementById('sh-user').innerText = currentUserDisplayName;
-        document.getElementById('sh-branch').innerText = printedBranchName; // 🔴 وضع اسم الفرع في الريسيت
+        document.getElementById('sh-branch').innerText = printedBranchName; 
         document.getElementById('sh-income').innerText = shiftCashIn + (isAr ? ' ج.م' : ' EGP');
         document.getElementById('sh-expense').innerText = shiftCashOut + (isAr ? ' ج.م' : ' EGP');
         document.getElementById('sh-net').innerText = shiftNet + (isAr ? ' ج.م' : ' EGP');
 
-        // 🔴 السطر السحري: إخفاء جدول الحركات وكل شيء أثناء طباعة الفاتورة/الريسيت 🔴
         const style = document.createElement('style');
         style.id = 'hide-table-on-shift-print';
         style.innerHTML = '@media print { table, .card, .search-box, .kpi-card, button, input, select { display: none !important; } }';
         document.head.appendChild(style);
 
-        // أمر الطباعة
         window.print();
 
-        // إرجاع الشاشة لطبيعتها
         setTimeout(() => {
             const el = document.getElementById('hide-table-on-shift-print');
             if(el) el.remove();
@@ -595,8 +628,8 @@ window.onload = () => {
                 }
             } catch(e) { console.error("Error fetching user name"); }
             
-            await loadBranchesForAdmin(); // 🔴 جلب الفروع أولاً 
-            loadFinances(); // 🔴 جلب الماليات بعد تحديد الفرع
+            await loadBranchesForAdmin(); 
+            loadFinances(); 
         }
     });
 };
