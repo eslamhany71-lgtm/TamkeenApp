@@ -551,8 +551,7 @@ function injectInvSortButton() {
         btn.id = 'btn-sort-inv';
         btn.className = 'btn-action';
         btn.innerHTML = currentSortInventory === 'qty_asc' ? (isAr ? '🔽 ترتيب: الأقل كمية' : 'Sort: Low Qty') : (isAr ? '🔤 ترتيب: أبجدي' : 'Sort: A-Z');
-        btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 0 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; height: 42px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
-        btn.onclick = window.toggleSortInventory;
+        btn.style.cssText = 'margin-right: 10px; margin-left: 10px; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';        btn.onclick = window.toggleSortInventory;
         searchInput.parentNode.insertBefore(btn, searchInput.nextSibling);
     }
 }
