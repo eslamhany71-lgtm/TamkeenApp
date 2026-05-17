@@ -1,8 +1,8 @@
 // js/reports.js
 const db = firebase.firestore();
 
-const userRole = sessionStorage.getItem('userRole'); // 🔴 جلب وظيفة الموظف
-const userBranch = sessionStorage.getItem('branchId') || 'main'; // 🔴 جلب فرع الموظف
+const userRole = sessionStorage.getItem('userRole'); 
+const userBranch = sessionStorage.getItem('branchId') || 'main'; 
 
 let financeChart, servicesChart, methodsChart;
 let currentReportData = {
@@ -13,10 +13,15 @@ let currentReportData = {
 };
 let reportLang = {};
 
-// 🔴 متغيرات عرض المزيد (Pagination) 🔴
 let displayedReportTransactionsCount = 5;
 
-// 🔴 1. إعدادات اللغة 🔴
+// 🔴 دالة سحرية لضبط التاريخ المحلي ومنع خدعة جرينتش 🔴
+function getLocalISODate(dateObj) {
+    const d = new Date(dateObj);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+}
+
 function updateLanguage(lang) {
     const translations = {
         ar: {
@@ -63,7 +68,6 @@ function updateLanguage(lang) {
     set('txt-loading', reportLang.load);
 }
 
-// 🔴 2. جلب الفروع (للمدير فقط) 🔴
 async function loadBranchesDropdown() {
     if (userRole !== 'admin' && userRole !== 'superadmin') {
         document.getElementById('branch_filter').style.display = 'none';
@@ -86,7 +90,6 @@ async function loadBranchesDropdown() {
         
         select.innerHTML = optionsHtml;
         select.style.display = 'block';
-        
         select.value = userBranch;
 
     } catch (e) {
@@ -94,7 +97,6 @@ async function loadBranchesDropdown() {
     }
 }
 
-// 🔴 3. إعدادات الفترات 🔴
 function setReportPeriod(period, element) {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     if(element) element.classList.add('active');
@@ -112,16 +114,15 @@ function setReportPeriod(period, element) {
         fromDate = new Date(2020, 0, 1);
     }
 
-    // تصفير زر المزيد عند تغيير الفترة
     displayedReportTransactionsCount = 5;
 
-    document.getElementById('rep_date_from').value = fromDate.toISOString().split('T')[0];
-    document.getElementById('rep_date_to').value = today.toISOString().split('T')[0];
+    // 🔴 استخدام التاريخ المحلي عشان ميجيبش يوم 30 أبريل بدل 1 مايو 🔴
+    document.getElementById('rep_date_from').value = getLocalISODate(fromDate);
+    document.getElementById('rep_date_to').value = getLocalISODate(today);
     
     loadAllReportsData();
 }
 
-// 🔴 4. جلب الداتا (بالتصفية في الذاكرة لتجنب مشاكل الـ Indexes) 🔴
 async function loadAllReportsData() {
     const tbody = document.getElementById('detailedReportBody');
     const currentClinicId = sessionStorage.getItem('clinicId');
@@ -145,63 +146,52 @@ async function loadAllReportsData() {
     if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">1. جاري سحب الحركات المالية...</td></tr>`;
 
     try {
-        // أ. جلب الحركات المالية 
-        const finSnap = await db.collection("Finances")
-            .where("clinicId", "==", currentClinicId)
-            .where("date", ">=", dateFrom)
-            .where("date", "<=", dateTo)
-            .get();
+        // 🔴 توحيد طريقة الجلب لتطابق صفحة الحسابات (Finances) بالظبط 🔴
+        let finQuery = db.collection("Finances").where("clinicId", "==", currentClinicId);
+        if (targetBranch !== 'all') finQuery = finQuery.where("branchId", "==", targetBranch);
+        if (dateFrom) finQuery = finQuery.where("date", ">=", dateFrom);
+        if (dateTo) finQuery = finQuery.where("date", "<=", dateTo);
         
-        currentReportData.transactions = finSnap.docs.map(doc => doc.data()).filter(t => {
-            return targetBranch === 'all' || (t.branchId || 'main') === targetBranch;
-        });
+        const finSnap = await finQuery.get();
+        currentReportData.transactions = finSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
         if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">2. جاري سحب الجلسات...</td></tr>`;
 
-        // ب. جلب الجلسات 
-        const sessSnap = await db.collection("Sessions")
-            .where("clinicId", "==", currentClinicId)
-            .where("date", ">=", dateFrom)
-            .where("date", "<=", dateTo)
-            .get();
-        
-        currentReportData.sessions = sessSnap.docs.map(doc => doc.data()).filter(s => {
-            return targetBranch === 'all' || (s.branchId || 'main') === targetBranch;
-        });
+        let sessQuery = db.collection("Sessions").where("clinicId", "==", currentClinicId);
+        if (targetBranch !== 'all') sessQuery = sessQuery.where("branchId", "==", targetBranch);
+        if (dateFrom) sessQuery = sessQuery.where("date", ">=", dateFrom);
+        if (dateTo) sessQuery = sessQuery.where("date", "<=", dateTo);
+
+        const sessSnap = await sessQuery.get();
+        currentReportData.sessions = sessSnap.docs.map(doc => doc.data());
 
         if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">3. جاري سحب ملفات المرضى والمخزون...</td></tr>`;
 
-        // ج. جلب المرضى 
-        const patSnap = await db.collection("Patients")
-            .where("clinicId", "==", currentClinicId)
-            .get(); 
+        let patQuery = db.collection("Patients").where("clinicId", "==", currentClinicId);
+        if (targetBranch !== 'all') patQuery = patQuery.where("branchId", "==", targetBranch);
         
+        const patSnap = await patQuery.get(); 
         currentReportData.patients = patSnap.docs.map(doc => doc.data()).filter(p => {
-            if (targetBranch !== 'all' && (p.branchId || 'main') !== targetBranch) return false;
             if(!p.createdAt) return false;
             try {
                 let pDate;
                 if (typeof p.createdAt.toDate === 'function') {
-                    pDate = p.createdAt.toDate().toISOString().split('T')[0];
+                    pDate = getLocalISODate(p.createdAt.toDate());
                 } else {
-                    pDate = new Date(p.createdAt).toISOString().split('T')[0];
+                    pDate = getLocalISODate(new Date(p.createdAt));
                 }
                 return pDate >= dateFrom && pDate <= dateTo;
             } catch(error) { return false; }
         });
 
-        // د. جلب المخزون 
-        const invSnap = await db.collection("Inventory")
-            .where("clinicId", "==", currentClinicId)
-            .get();
+        let invQuery = db.collection("Inventory").where("clinicId", "==", currentClinicId);
+        if (targetBranch !== 'all') invQuery = invQuery.where("branchId", "==", targetBranch);
         
-        currentReportData.inventory = invSnap.docs.map(doc => doc.data()).filter(inv => {
-            return targetBranch === 'all' || (inv.branchId || 'main') === targetBranch;
-        });
+        const invSnap = await invQuery.get();
+        currentReportData.inventory = invSnap.docs.map(doc => doc.data());
 
         if(tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #0284c7; padding: 20px;">4. جاري فلترة البيانات والمعالجة...</td></tr>`;
 
-        // 🔴 العرض النهائي 🔴
         renderAll();
 
     } catch (e) {
@@ -212,15 +202,13 @@ async function loadAllReportsData() {
     }
 }
 
-// 🔴 دالة زر عرض المزيد للحركات 🔴
 window.loadMoreReportTransactions = function() {
     displayedReportTransactionsCount += 5;
-    renderAll(true); // تحديث الجدول فقط بدون إعادة الحسابات
+    renderAll(true); 
 };
 
 function renderAll(onlyTable = false) {
     if (!onlyTable) {
-        // 🔴 1. الجراحة: تحديث اللوجيك المحاسبي ليتطابق مع finances.js (شامل المديونيات)
         let income = 0, expense = 0;
         
         currentReportData.transactions.forEach(t => {
@@ -255,11 +243,9 @@ function renderAll(onlyTable = false) {
         renderMethodsChart();
     }
     
-    // 🔴 2. الجراحة: رسم الجدول بنظام عرض المزيد (Pagination) والشكل الجديد
     const tbody = document.getElementById('detailedReportBody');
     tbody.innerHTML = '';
     
-    // ترتيب تنازلي الأحدث للأقدم
     currentReportData.transactions.sort((a,b) => (b.date || "").localeCompare(a.date || ""));
     
     if(currentReportData.transactions.length === 0) {
@@ -305,12 +291,11 @@ function renderAll(onlyTable = false) {
         tbody.appendChild(tr);
     });
 
-    // إضافة زر عرض المزيد
     let btnContainer = document.getElementById('load-more-rep-container');
     if (!btnContainer) {
         btnContainer = document.createElement('div');
         btnContainer.id = 'load-more-rep-container';
-        btnContainer.className = 'no-print'; // يخفي الزرار في الطباعة
+        btnContainer.className = 'no-print'; 
         btnContainer.style.cssText = 'text-align: center; margin-top: 15px; padding-bottom: 20px;';
         const table = document.getElementById('detailedReportBody').closest('table');
         if(table && table.parentNode) table.parentNode.insertBefore(btnContainer, table.nextSibling);
@@ -332,7 +317,6 @@ function renderFinanceChart() {
     currentReportData.transactions.forEach(t => {
         if (!t.date) return;
         if (!days[t.date]) days[t.date] = { inc: 0, exp: 0 };
-        // 🔴 حساب الإيرادات والمصروفات الفعلية زي الحسابات
         if (t.type === 'income') days[t.date].inc += Number(t.amount || 0);
         else if (t.type === 'expense') days[t.date].exp += Number(t.amount || 0);
     });
@@ -434,15 +418,12 @@ function exportReportToExcel() {
     XLSX.writeFile(wb, `NivaDent_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
-// 🔴 3. الجراحة: أمر الطباعة المخصص لإخفاء جدول الحركات وعرض الإجماليات فقط 🔴
 function printCustomReport() {
     const style = document.createElement('style');
     style.id = 'hide-report-table-print';
     style.innerHTML = `
         @media print { 
-            /* إخفاء الفلاتر والأزرار والجدول السفلي تماماً من الطباعة */
             .filters-section, .btn-action, #detailedReportBody, th, td, table, #load-more-rep-container { display: none !important; }
-            /* جعل الإحصائيات والشارتات تملأ الشاشة */
             .kpi-container, .charts-grid { display: flex !important; width: 100% !important; margin-bottom: 20px !important; }
         }
     `;
@@ -456,11 +437,9 @@ function printCustomReport() {
     }, 500);
 }
 
-// 🔴 ربط دالة الطباعة الجديدة بالزرار الأصلي 🔴
 document.addEventListener('DOMContentLoaded', () => {
     const printBtn = document.getElementById('btn-print');
     if(printBtn) {
-        // مسح الـ onclick القديم لو موجود وربطه بالدالة المخصصة
         printBtn.removeAttribute('onclick'); 
         printBtn.addEventListener('click', printCustomReport);
     }
