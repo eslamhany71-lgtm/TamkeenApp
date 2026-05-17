@@ -456,10 +456,13 @@ function renderFinancesTable(pagedData, fullFilteredData = null) {
             } catch(e) { timeStr = '---'; }
         }
 
-        let badgeClass = 'badge-exp';
+let badgeClass = 'badge-exp';
         let typeTxt = window.finLang.bExp;
         let amountColor = '#dc2626';
         let amountSign = '-';
+        
+        // 🔴 1. ناخد الرقم المطلق عشان نلغي شكل السالب المزعج
+        let displayAmount = Math.abs(Number(f.amount)); 
 
         if (f.type === 'income') {
             badgeClass = 'badge-inc';
@@ -468,9 +471,16 @@ function renderFinancesTable(pagedData, fullFilteredData = null) {
             amountSign = '+';
         } else if (f.type === 'debt') {
             badgeClass = ''; 
-            typeTxt = window.finLang.bDebt || "مديونية";
-            amountColor = '#d97706'; 
-            amountSign = ''; 
+            // 🔴 2. لو الرقم الأصلي بالسالب (يعني سداد)، نخليه أخضر ونكتب "تخفيض مديونية"
+            if (Number(f.amount) < 0) {
+                typeTxt = "تخفيض مديونية";
+                amountColor = '#10b981'; // لون أخضر مفرح للمحاسب
+                amountSign = '🔻'; // علامة إن الديون بتقل
+            } else {
+                typeTxt = window.finLang.bDebt || "مديونية";
+                amountColor = '#d97706'; 
+                amountSign = '🔺'; 
+            }
         }
 
         let createdByHtml = '';
@@ -497,7 +507,7 @@ function renderFinancesTable(pagedData, fullFilteredData = null) {
                 <div style="font-weight: bold; color: #0f172a;">${f.category}</div>
                 ${createdByHtml}
             </td>
-            <td class="amount-text" style="color: ${amountColor}; font-weight: bold;" dir="ltr">${amountSign} ${f.amount}</td>
+            <td class="amount-text" style="color: ${amountColor}; font-weight: bold;" dir="ltr">${amountSign} ${displayAmount}</td>
             <td style="color: #475569; font-weight: bold; font-size: 13px;">${methodHtml}</td> <td>${f.notes || '---'}</td>
             <td class="no-print" style="text-align: center;">
                 <button class="btn-primary" style="background:#f59e0b; padding: 5px 10px; font-size:12px; margin-right:5px;" onclick="openEditTrans('${f.id}')">✏️</button>
