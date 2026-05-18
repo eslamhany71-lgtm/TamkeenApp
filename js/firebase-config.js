@@ -257,7 +257,7 @@ if (window === window.top) {
 // 🚀 NivaDent Automations & n8n Bridge
 // ==========================================
 // اللينك الجديد هيكون شكله كده (بدون كلمة test)
-const N8N_WEBHOOK_URL = "https://eslamhany71.app.n8n.cloud/webhook-test/fd4ea639-9c32-48ce-801e-5dc76454a0cb";
+const N8N_WEBHOOK_URL = "https://eslamhany71.app.n8n.cloud/webhook/fd4ea639-9c32-48ce-801e-5dc76454a0cb";
 
 async function triggerN8nWebhook(eventName, payload) {
     try {
