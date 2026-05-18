@@ -497,7 +497,7 @@ function updatePageContent(lang) {
         ar: {
             title: "تسجيل الدخول - نظام NivaDent", welcome: "أهلاً بك في NivaDent", subLogin: "قم بتسجيل الدخول لإدارة عيادتك",
             code: "البريد الإلكتروني أو كود العيادة", pass: "كلمة المرور", btn: "تسجيل الدخول", newEmp: "حساب جديد؟", actLink: "تفعيل حساب العيادة من هنا",
-            brandTitle: "NivaDent", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان من إنتاج Al Dokan ERP. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
+            brandTitle: "NivaDent", brandDesc: "النظام السحابي الأذكى لإدارة عيادات طب الأسنان من إنتاج Start Online Agency. صُمم لرفع كفاءة العيادة، تنظيم المواعيد، وإدارة ملفات المرضى باحترافية وسهولة.",
             feat1: "✔️ ملف طبي ذكي وأشعة", feat2: "✔️ إدارة الجلسات والمواعيد", feat3: "✔️ روشتات وحسابات دقيقة",
             forgotPass: "نسيت كلمة المرور؟", resetTitle: "استعادة كلمة المرور", resetSub: "أدخل بريدك الإلكتروني المسجل لدينا، وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.",
             btnReset: "إرسال رابط الاستعادة", emailPlaceholder: "أدخل البريد الإلكتروني",
@@ -508,7 +508,7 @@ function updatePageContent(lang) {
             
             staffInvite: "🔑 لدي كود دعوة (تفعيل حساب موظف)",
             btnTrialTxt: "ابدأ فترة تجريبية مجانية (29 أيام)",
-            copyright: `© ${currentYear} Al Dokan ERP. جميع الحقوق محفوظة.`,
+            copyright: `© ${currentYear} Start Online Agency. جميع الحقوق محفوظة.`,
             privacy: "سياسة الخصوصية والتأمين (Privacy Policy)",
             poweredBy: "Powered by",
             mTrialTitle: "🚀 إنشاء حساب تجريبي",
@@ -522,11 +522,11 @@ function updatePageContent(lang) {
             
             mPrivTitle: "سياسة الخصوصية وتأمين البيانات",
             privH1: "1. سرية السجلات الطبية",
-            privP1: "نحن في Al Dokan ERP ندرك تماماً حساسية السجلات الطبية. جميع بيانات مرضاك (التشخيص، الأشعة، المديونيات) مشفرة ومحفوظة في قواعد بيانات سحابية آمنة لا يمكن لأي طرف ثالث الاطلاع عليها.",
+            privP1: "نحن في Start Online Agency ندرك تماماً حساسية السجلات الطبية. جميع بيانات مرضاك (التشخيص، الأشعة، المديونيات) مشفرة ومحفوظة في قواعد بيانات سحابية آمنة لا يمكن لأي طرف ثالث الاطلاع عليها.",
             privH2: "2. النسخ الاحتياطي التلقائي (Cloud Backup)",
             privP2: "لا داعي للقلق من فقدان البيانات. يقوم النظام بعمل نسخ احتياطي تلقائي ولحظي للبيانات. في حالة فقدان جهازك أو تغييره، ستجد جميع بيانات عيادتك كما هي بمجرد تسجيل الدخول.",
             privH3: "3. حقوق الملكية الفكرية",
-            privP3: "نظام NivaDent هو منتج برمجي مملوك بالكامل لشركة Al Dokan ERP. لا يجوز نسخ، إعادة بيع، أو هندسة عكسية لأي جزء من النظام دون إذن كتابي مسبق.",
+            privP3: "نظام NivaDent هو منتج برمجي مملوك بالكامل لشركة Start Online Agency. لا يجوز نسخ، إعادة بيع، أو هندسة عكسية لأي جزء من النظام دون إذن كتابي مسبق.",
             privH4: "4. استخدام البيانات للتطوير",
             privP4: "نحن لا نقوم ببيع أو مشاركة بيانات عيادتك مع أي جهة إعلانية. النظام يجمع فقط بعض الإحصائيات الفنية مجهولة المصدر لتحسين الأداء وسرعة النظام.",
             btnPrivOk: "موافق ومفهوم"
@@ -534,7 +534,7 @@ function updatePageContent(lang) {
         en: {
             title: "Login - NivaDent System", welcome: "Welcome to NivaDent", subLogin: "Sign in to manage your clinic",
             code: "Email or Access Code", pass: "Password", btn: "Login", newEmp: "New Account?", actLink: "Activate clinic account here",
-            brandTitle: "NivaDent", brandDesc: "The smartest cloud system for dental practice management powered by Al Dokan ERP. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
+            brandTitle: "NivaDent", brandDesc: "The smartest cloud system for dental practice management powered by Start Online Agency. Designed to increase efficiency, organize appointments, and manage patient records professionally.",
             feat1: "✔️ Smart Medical Records & X-Rays", feat2: "✔️ Appointments & Sessions Management", feat3: "✔️ E-Prescriptions & Accurate Billing",
             forgotPass: "Forgot Password?", resetTitle: "Reset Password", resetSub: "Enter your registered email, and we will send you a link to set a new password.",
             btnReset: "Send Reset Link", emailPlaceholder: "Enter email address",
@@ -545,7 +545,7 @@ function updatePageContent(lang) {
             
             staffInvite: "🔑 I have an invite code (Staff)",
             btnTrialTxt: "Start Free Trial (29 Days)",
-            copyright: `© ${currentYear} Al Dokan ERP. All rights reserved.`,
+            copyright: `© ${currentYear} Start Online Agency. All rights reserved.`,
             privacy: "Privacy Policy & Security",
             poweredBy: "Powered by",
             mTrialTitle: "🚀 Create Trial Account",
@@ -559,11 +559,11 @@ function updatePageContent(lang) {
             
             mPrivTitle: "Privacy Policy & Data Security",
             privH1: "1. Medical Records Confidentiality",
-            privP1: "At Al Dokan ERP, we fully understand the sensitivity of medical records. All your patient data is encrypted and stored in secure cloud databases inaccessible to any third party.",
+            privP1: "At Start Online Agency, we fully understand the sensitivity of medical records. All your patient data is encrypted and stored in secure cloud databases inaccessible to any third party.",
             privH2: "2. Automatic Cloud Backup",
             privP2: "No need to worry about data loss. The system performs automatic real-time backups. If your device is lost, you will find your clinic's data intact upon logging in.",
             privH3: "3. Intellectual Property Rights",
-            privP3: "NivaDent is a software product fully owned by Al Dokan ERP. Copying, reselling, or reverse engineering any part of the system without prior written permission is prohibited.",
+            privP3: "NivaDent is a software product fully owned by Start Online Agency. Copying, reselling, or reverse engineering any part of the system without prior written permission is prohibited.",
             privH4: "4. Data Usage for Development",
             privP4: "We do not sell or share your clinic's data with advertisers. The system only collects anonymous technical statistics to improve performance.",
             btnPrivOk: "I Understand & Agree"
