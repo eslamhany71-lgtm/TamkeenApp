@@ -1083,11 +1083,10 @@ async function generateDailyReport() {
         const completedCount = completedSessionsData.length;
         const pendingCount = todayPendingApps.length;
 
-        // 🔴 2. جلب رقم تليفون مدير العيادة من قاعدة البيانات 🔴
-        let adminPhone = ""; // الرقم الافتراضي لو مفيش
+        // 2. جلب رقم تليفون مدير العيادة
+        let adminPhone = ""; 
         const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
         if (clinicDoc.exists) {
-            // هنفترض إنك عامل حقل في إعدادات العيادة اسمه reportPhone (رقم التقارير) أو هتاخد رقم العيادة الأصلي
             adminPhone = clinicDoc.data().reportPhone || clinicDoc.data().phone || ""; 
         }
 
@@ -1097,11 +1096,24 @@ async function generateDailyReport() {
             return;
         }
 
-        // 3. تجهيز "الباكيدج" اللي هتروح للـ n8n (بالرقم الجديد)
+        // 🔴 السحر هنا: قراءة آمنة لاسم العيادة والموظف من الصفحة الأب 🔴
+        let cName = 'العيادة';
+        let uEmail = 'موظف الاستقبال';
+        try {
+            if (window.parent && window.parent.document) {
+                const clinicNameEl = window.parent.document.getElementById('txt-clinic-name');
+                if (clinicNameEl) cName = clinicNameEl.innerText;
+                
+                const userEmailEl = window.parent.document.getElementById('userEmail');
+                if (userEmailEl) uEmail = userEmailEl.innerText;
+            }
+        } catch(e) { console.warn("Cannot access parent frame", e); }
+
+        // 3. تجهيز "الباكيدج"
         const reportData = {
-            clinicId: clinicId,            // 🔴 عشان تعرف التقرير جاي منين
-            targetPhone: adminPhone,       // 🔴 الرقم اللي الـ n8n هيبعتله الرسالة
-            clinicName: document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'العيادة',
+            clinicId: clinicId,            
+            targetPhone: adminPhone,       
+            clinicName: cName,
             date: getLocalTodayString(),
             totalRevenue: totalRevenue,
             details: {
@@ -1113,7 +1125,7 @@ async function generateDailyReport() {
                 completed: completedCount,
                 pendingRemaining: pendingCount
             },
-            employee: sessionStorage.getItem('userName') || document.getElementById('userEmail').innerText || 'موظف الاستقبال'
+            employee: sessionStorage.getItem('userName') || uEmail
         };
 
         // 4. إرسال الإشارة للـ n8n
