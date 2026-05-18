@@ -1066,41 +1066,67 @@ document.addEventListener('DOMContentLoaded', () => {
 async function generateDailyReport() {
     if (!confirm("هل أنت متأكد من إغلاق اليوم وإرسال التقرير للمدير؟")) return;
 
-    // 1. حساب إجمالي الإيرادات من المصفوفة اللي عندنا أصلاً
-    let totalCash = 0;
-    let totalWallet = 0;
-    let totalBank = 0;
-    todayRevenueData.forEach(rev => {
-        if (rev.paymentMethod === 'cash') totalCash += Number(rev.amount);
-        else if (rev.paymentMethod === 'wallet') totalWallet += Number(rev.amount);
-        else totalBank += Number(rev.amount);
-    });
+    if (window.showLoader) window.showLoader("جاري إرسال التقرير...");
 
-    const totalRevenue = totalCash + totalWallet + totalBank;
+    try {
+        // 1. حساب إجمالي الإيرادات
+        let totalCash = 0;
+        let totalWallet = 0;
+        let totalBank = 0;
+        todayRevenueData.forEach(rev => {
+            if (rev.paymentMethod === 'cash') totalCash += Number(rev.amount);
+            else if (rev.paymentMethod === 'wallet') totalWallet += Number(rev.amount);
+            else totalBank += Number(rev.amount);
+        });
 
-    // 2. حساب عدد الحالات (المكتملة والانتظار)
-    const completedCount = completedSessionsData.length;
-    const pendingCount = todayPendingApps.length;
+        const totalRevenue = totalCash + totalWallet + totalBank;
+        const completedCount = completedSessionsData.length;
+        const pendingCount = todayPendingApps.length;
 
-    // 3. تجهيز "الباكيدج" اللي هتروح للـ n8n
-    const reportData = {
-        date: getLocalTodayString(),
-        totalRevenue: totalRevenue,
-        details: {
-            cash: totalCash,
-            wallet: totalWallet,
-            bank: totalBank
-        },
-        stats: {
-            completed: completedCount,
-            pendingRemaining: pendingCount
-        },
-        employee: sessionStorage.getItem('userName') || 'موظف الاستقبال'
-    };
+        // 🔴 2. جلب رقم تليفون مدير العيادة من قاعدة البيانات 🔴
+        let adminPhone = ""; // الرقم الافتراضي لو مفيش
+        const clinicDoc = await db.collection("Clinics").doc(clinicId).get();
+        if (clinicDoc.exists) {
+            // هنفترض إنك عامل حقل في إعدادات العيادة اسمه reportPhone (رقم التقارير) أو هتاخد رقم العيادة الأصلي
+            adminPhone = clinicDoc.data().reportPhone || clinicDoc.data().phone || ""; 
+        }
 
-    // 4. إرسال الإشارة للـ n8n
-    console.log("📊 Sending Daily Report to n8n...");
-    triggerN8nWebhook("daily_summary_report", reportData);
+        if (!adminPhone) {
+            alert("⚠️ لا يوجد رقم واتساب مسجل للإدارة لإرسال التقرير. يرجى إضافته من إعدادات العيادة.");
+            if (window.hideLoader) window.hideLoader();
+            return;
+        }
 
-    alert("✅ تم إرسال تقرير نهاية اليوم بنجاح إلى صاحب العيادة.");
+        // 3. تجهيز "الباكيدج" اللي هتروح للـ n8n (بالرقم الجديد)
+        const reportData = {
+            clinicId: clinicId,            // 🔴 عشان تعرف التقرير جاي منين
+            targetPhone: adminPhone,       // 🔴 الرقم اللي الـ n8n هيبعتله الرسالة
+            clinicName: document.getElementById('txt-clinic-name') ? document.getElementById('txt-clinic-name').innerText : 'العيادة',
+            date: getLocalTodayString(),
+            totalRevenue: totalRevenue,
+            details: {
+                cash: totalCash,
+                wallet: totalWallet,
+                bank: totalBank
+            },
+            stats: {
+                completed: completedCount,
+                pendingRemaining: pendingCount
+            },
+            employee: sessionStorage.getItem('userName') || document.getElementById('userEmail').innerText || 'موظف الاستقبال'
+        };
+
+        // 4. إرسال الإشارة للـ n8n
+        console.log("📊 Sending Daily Report to n8n...", reportData);
+        if(typeof triggerN8nWebhook === 'function') {
+            triggerN8nWebhook("daily_summary_report", reportData);
+        }
+
+        alert("✅ تم إرسال تقرير نهاية اليوم بنجاح إلى الإدارة.");
+    } catch (error) {
+        console.error("Error sending report:", error);
+        alert("❌ حدث خطأ أثناء إرسال التقرير.");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
+    }
 }
