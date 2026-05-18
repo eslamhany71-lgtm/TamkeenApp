@@ -3,8 +3,6 @@ const db = firebase.firestore();
 const auth = firebase.auth(); 
 const clinicId = sessionStorage.getItem('clinicId');
 
-
-
 function updatePageContent(lang) {
     const t = {
         ar: {
@@ -15,9 +13,10 @@ function updatePageContent(lang) {
             lAddress1: "عنوان العيادة الأساسي", lAddress2: "عنوان فرع آخر (اختياري)",
             lLang: "لغة النظام (System Language)",
             
-            // 🔴 التراجم الجديدة 🔴
+            // 🔴 التراجم الجديدة + حقل واتساب التقارير 🔴
             billTitle: "إعدادات الفواتير والضرائب", lTaxId: "الرقم الضريبي (إن وجد)", pTax: "يُطبع على الفواتير الرسمية",
             lInvMsg: "رسالة ترحيبية أسفل الفاتورة", pInv: "مثال: نتمنى لكم دوام الصحة والعافية",
+            lReportPhone: "رقم واتساب الإدارة (لاستلام التقارير)", pReportPhone: "مثال: 201000000000 (مع كود الدولة وبدون +)",
             workTitle: "أيام وساعات العمل", lWorkStart: "بداية الدوام", lWorkEnd: "نهاية الدوام", lOffDay: "يوم الإجازة الأسبوعي",
             optFri: "الجمعة", optSat: "السبت", optSun: "الأحد", optNone: "بدون إجازة",
             srvTitle: "قائمة الخدمات والأسعار", lSrvName: "اسم الخدمة", lSrvPrice: "السعر", btnAddSrv: "إضافة",
@@ -25,7 +24,7 @@ function updatePageContent(lang) {
 
             btnSave: "حفظ وتطبيق إعدادات العيادة", msgSuccess: "تم حفظ الإعدادات وتحديث السيستم بنجاح!", msgError: "حدث خطأ أثناء الحفظ",
             bkpTitle: "النسخ الاحتياطي لـ Excel", bkpDesc: "قم بتحميل نسخة احتياطية كاملة من بيانات العيادة في ملف Excel واحد مقسم لشيتات (مرضى، حجوزات، حسابات، الخ) جاهز للطباعة أو الحفظ على جهازك.", btnBkp: "تحميل البيانات (Excel Backup)", msgBkpWait: "جاري استخراج البيانات لـ Excel...", msgBkpDone: "تم تحميل ملف الـ Excel بنجاح!",
-            secTitle: "الأمان وتسجيل الدخول", secDesc: "يمكنك تغيير كلمة المرور الخاصة بحساب العيادة. ستحتاج إلى إدخال كلمة المرور الحالية للتأكيد.",
+            secTitle: "الأمان وتسجيل الدخول", secDesc: "يمكنك تغيير كلمة المرور الخاصة بحساب العيادة. ستحتاج إلى إدخل كلمة المرور الحالية للتأكيد.",
             btnPass: "تغيير كلمة المرور", modalPassTitle: "تغيير كلمة المرور", lOldPass: "كلمة المرور الحالية", lNewPass: "كلمة المرور الجديدة", lConfPass: "تأكيد كلمة المرور الجديدة", btnSavePass: "تحديث كلمة المرور"
         },
         en: {
@@ -38,6 +37,7 @@ function updatePageContent(lang) {
 
             billTitle: "Billing & Taxes Settings", lTaxId: "Tax ID Number (Optional)", pTax: "Printed on official invoices",
             lInvMsg: "Invoice Footer Message", pInv: "e.g., Wishing you a speedy recovery",
+            lReportPhone: "Management WhatsApp (For Reports)", pReportPhone: "e.g., 201000000000 (with country code, no +)",
             workTitle: "Working Hours", lWorkStart: "Start Time", lWorkEnd: "End Time", lOffDay: "Weekly Day Off",
             optFri: "Friday", optSat: "Saturday", optSun: "Sunday", optNone: "No Off Day",
             srvTitle: "Services & Prices Catalog", lSrvName: "Service Name", lSrvPrice: "Price", btnAddSrv: "Add",
@@ -63,6 +63,7 @@ function updatePageContent(lang) {
     // التراجم الجديدة
     setTxt('txt-billing-title', c.billTitle); setTxt('lbl-tax-id', c.lTaxId); setPlh('clinic_tax_id', c.pTax);
     setTxt('lbl-invoice-msg', c.lInvMsg); setPlh('clinic_invoice_msg', c.pInv);
+    setTxt('lbl-report-phone', c.lReportPhone); setPlh('clinic_report_phone', c.pReportPhone);
     setTxt('txt-work-title', c.workTitle); setTxt('lbl-work-start', c.lWorkStart); setTxt('lbl-work-end', c.lWorkEnd); setTxt('lbl-off-day', c.lOffDay);
     setTxt('opt-fri', c.optFri); setTxt('opt-sat', c.optSat); setTxt('opt-sun', c.optSun); setTxt('opt-none', c.optNone);
     setTxt('txt-services-title', c.srvTitle); setTxt('lbl-service-name', c.lSrvName); setTxt('lbl-service-price', c.lSrvPrice); setTxt('btn-add-srv', c.btnAddSrv);
@@ -104,14 +105,13 @@ async function loadClinicSettings() {
                 document.getElementById('logo_base64').value = "";
             }
 
-            // 🔴 جلب الإعدادات الجديدة 🔴
+            // 🔴 جلب الإعدادات الجديدة + جلب رقم التقارير 🔴
             if (data.taxId) document.getElementById('clinic_tax_id').value = data.taxId;
             if (data.invoiceMsg) document.getElementById('clinic_invoice_msg').value = data.invoiceMsg;
+            if (data.reportPhone) document.getElementById('clinic_report_phone').value = data.reportPhone;
             if (data.workStart) document.getElementById('work_start_time').value = data.workStart;
             if (data.workEnd) document.getElementById('work_end_time').value = data.workEnd;
             if (data.offDay) document.getElementById('off_day').value = data.offDay;
-
-
         }
     } catch (error) {
         console.error("Error loading settings:", error);
@@ -119,8 +119,6 @@ async function loadClinicSettings() {
         if (window.hideLoader) window.hideLoader();
     }
 }
-
-
 
 function encodeLogo(element) {
     const file = element.files[0];
@@ -171,9 +169,10 @@ async function saveSettings(e) {
     const newAddress1 = document.getElementById('clinic_address_1').value.trim();
     const newAddress2 = document.getElementById('clinic_address_2').value.trim();
     
-    // 🔴 قراءة الإعدادات الجديدة 🔴
+    // 🔴 قراءة الإعدادات الجديدة + قراءة رقم التقارير 🔴
     const newTaxId = document.getElementById('clinic_tax_id').value.trim();
     const newInvoiceMsg = document.getElementById('clinic_invoice_msg').value.trim();
+    const newReportPhone = document.getElementById('clinic_report_phone').value.trim();
     const newWorkStart = document.getElementById('work_start_time').value;
     const newWorkEnd = document.getElementById('work_end_time').value;
     const newOffDay = document.getElementById('off_day').value;
@@ -188,10 +187,10 @@ async function saveSettings(e) {
             address2: newAddress2,
             taxId: newTaxId,
             invoiceMsg: newInvoiceMsg,
+            reportPhone: newReportPhone, // 🔴 حفظ حقل رقم واتساب الإدارة
             workStart: newWorkStart,
             workEnd: newWorkEnd,
             offDay: newOffDay,
-            
         });
 
         alert(window.settingsLang.msgSuccess);
