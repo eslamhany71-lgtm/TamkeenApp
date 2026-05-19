@@ -105,7 +105,6 @@ function updatePageContent(lang) {
     setTxt('th-u-date', c.thUDate); setTxt('th-u-online', c.thUOnline); setTxt('th-u-last', c.thULast);
     if(document.getElementById('txt-u-load')) setTxt('txt-u-load', c.txtULoad);
 
-    // تحديث التابات
     if(document.getElementById('tab-active')) document.getElementById('tab-active').innerHTML = c.tabActive;
     if(document.getElementById('tab-trials')) document.getElementById('tab-trials').innerHTML = c.tabTrials;
     
@@ -124,8 +123,8 @@ firebase.auth().onAuthStateChanged(async (user) => {
         if (userDoc.exists && userDoc.data().role === 'superadmin') {
             loadClinics();
             loadGlobalStats();
-            loadSupportTickets(); // 🔴 جلب تذاكر الدعم
-            loadSystemReviews(); // 🔴 جلب التقييمات
+            loadSupportTickets(); 
+            loadSystemReviews(); 
         } else {
             const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
             document.body.innerHTML = `<h2 style='text-align:center; color:red; margin-top:50px;'>${isAr ? "عفواً، ليس لديك صلاحية للدخول لهذه الشاشة." : "Access Denied."}</h2>`;
@@ -135,7 +134,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
     }
 });
 
-// 🔴 التنقل بين الأقسام (Views) 🔴
+// 🔴 التنقل بين الأقسام الرئيسية (Views) 🔴
 function switchMainTab(tabName) {
     currentActiveTab = tabName;
     document.querySelectorAll('.sa-tab').forEach(t => t.classList.remove('active'));
@@ -154,10 +153,26 @@ function switchMainTab(tabName) {
     }
 }
 
+// 🔴 التنقل بين تابات تفاصيل العيادة الداخلية 🔴
+function switchClinicDetTab(tabName) {
+    // إخفاء كل المحتوى الداخلي
+    document.getElementById('cdet-info').style.display = 'none';
+    document.getElementById('cdet-features').style.display = 'none';
+    document.getElementById('cdet-security').style.display = 'none';
+    
+    // إزالة التفعيل من كل الزراير
+    document.getElementById('tab-det-info').classList.remove('active');
+    document.getElementById('tab-det-features').classList.remove('active');
+    document.getElementById('tab-det-security').classList.remove('active');
+    
+    // إظهار المطلوب
+    document.getElementById('cdet-' + tabName).style.display = 'block';
+    document.getElementById('tab-det-' + tabName).classList.add('active');
+}
+
 function openModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// 🔴 دالة جلب وعرض تذاكر الدعم الفني 🔴
 function loadSupportTickets() {
     db.collection("SupportTickets").orderBy("timestamp", "desc").onSnapshot(snap => {
         const tbody = document.getElementById('supportBody');
@@ -204,7 +219,6 @@ function loadSupportTickets() {
             tbody.appendChild(tr);
         });
 
-        // تحديث البادچ
         const badge = document.getElementById('badge-support');
         if (openCount > 0) {
             badge.innerText = openCount;
@@ -251,7 +265,6 @@ async function submitTicketReply(e) {
             repliedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        // إرسال إشعار للعيادة بالرد
         await db.collection("Notifications").add({
             clinicId: clinicId,
             title: "رد على طلب الدعم الفني",
@@ -271,7 +284,6 @@ async function submitTicketReply(e) {
     }
 }
 
-// 🔴 دالة جلب وعرض تقييمات النظام 🔴
 function loadSystemReviews() {
     db.collection("SystemReviews").orderBy("createdAt", "desc").onSnapshot(snap => {
         const container = document.getElementById('reviewsContainer');
@@ -312,8 +324,7 @@ function loadSystemReviews() {
     });
 }
 
-// =================== باقي أكواد السوبر أدمن (العيادات والتعديلات) ===================
-
+// 🔴 دالة فتح مودال العيادة وتجهيز زراير الصلاحيات 🔴
 async function openClinicDetailsModal(clinicId) {
     const clinic = allClinicsList.find(c => c.id === clinicId);
     if (!clinic) return;
@@ -354,6 +365,29 @@ async function openClinicDetailsModal(clinicId) {
     
     const hiddenId = document.getElementById('current-det-clinic-id');
     if (hiddenId) hiddenId.value = clinic.id;
+
+    // --- 🔴 تهيئة زراير الصلاحيات بناءً على الداتا 🔴 ---
+    const f = clinic.features || {};
+    const getF = (val) => val === undefined ? true : val; // الافتراضي: مفتوح للعيادات القديمة
+
+    document.getElementById('feat_patients').checked = getF(f.patients);
+    document.getElementById('feat_appointments').checked = getF(f.appointments);
+    document.getElementById('feat_services').checked = getF(f.services);
+    document.getElementById('feat_contracts').checked = getF(f.contracts);
+    document.getElementById('feat_invoices').checked = getF(f.invoices);
+    document.getElementById('feat_accounts').checked = getF(f.accounts);
+    document.getElementById('feat_inventory').checked = getF(f.inventory);
+    document.getElementById('feat_reports').checked = getF(f.reports);
+    document.getElementById('feat_branches').checked = getF(f.branches);
+    document.getElementById('feat_hr').checked = getF(f.hr);
+    document.getElementById('feat_notifications').checked = getF(f.notifications);
+    document.getElementById('feat_portal').checked = getF(f.portal);
+    document.getElementById('feat_settings').checked = getF(f.settings);
+    document.getElementById('feat_support').checked = getF(f.support);
+
+    // العودة للتاب الأول افتراضياً عند كل فتح
+    switchClinicDetTab('info');
+    // ---------------------------------------------
 
     document.getElementById('clinicDetailsModal').style.display = 'flex';
     const tbody = document.getElementById('det-users-body');
@@ -473,6 +507,45 @@ async function openClinicDetailsModal(clinicId) {
     } catch (e) {
         console.error(e);
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">حدث خطأ في تحميل بيانات المستخدمين والنشاط.</td></tr>';
+    }
+}
+
+// 🔴 دالة حفظ الصلاحيات في الفايربيز 🔴
+async function saveClinicFeatures() {
+    const clinicId = document.getElementById('current-det-clinic-id').value;
+    if(!clinicId) return;
+    
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    if (window.showLoader) window.showLoader(isAr ? "جاري تطبيق الصلاحيات..." : "Saving features...");
+    
+    const updatedFeatures = {
+        patients: document.getElementById('feat_patients').checked,
+        appointments: document.getElementById('feat_appointments').checked,
+        services: document.getElementById('feat_services').checked,
+        contracts: document.getElementById('feat_contracts').checked,
+        invoices: document.getElementById('feat_invoices').checked,
+        accounts: document.getElementById('feat_accounts').checked,
+        inventory: document.getElementById('feat_inventory').checked,
+        reports: document.getElementById('feat_reports').checked,
+        branches: document.getElementById('feat_branches').checked,
+        hr: document.getElementById('feat_hr').checked,
+        notifications: document.getElementById('feat_notifications').checked,
+        portal: document.getElementById('feat_portal').checked,
+        settings: document.getElementById('feat_settings').checked,
+        support: document.getElementById('feat_support').checked
+    };
+
+    try {
+        await db.collection("Clinics").doc(clinicId).update({ 
+            features: updatedFeatures,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert(isAr ? "✅ تم حفظ وتحديث صلاحيات العيادة بنجاح!" : "✅ Features updated successfully!");
+    } catch(e) {
+        console.error(e);
+        alert(isAr ? "حدث خطأ أثناء الحفظ" : "Error saving features");
+    } finally {
+        if (window.hideLoader) window.hideLoader();
     }
 }
 
