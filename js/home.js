@@ -102,7 +102,7 @@ function updatePageContent(lang) {
             navSupport: "الدعم الفني والتقييمات", 
             modSupTitle: "مركز المساعدة والتقييم", 
             tabTicket: "🎧 طلب دعم فني", tabReview: "⭐ تقييم النظام",
-            modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة؟ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", 
+            modSupDesc: "هل تواجه مشكلة أو تحتاج إلى إضافة ميزة جديدة للعيادة？ اكتب رسالتك وسنقوم بالرد عليك في أسرع وقت.", 
             btnSupSend: "إرسال طلب الدعم (Ticket)",
             
             rateTitle: "ما تقييمك لسيستم NivaDent؟", rateSub: "رأيك يهمنا ويساعدنا على تطوير النظام.",
@@ -190,30 +190,61 @@ function updatePageContent(lang) {
 }
 
 function getDefaultPermissions(role) {
-    const allOn = { patients: true, calendar: true, finances: true, invoices: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true };
+    const allOn = { patients: true, calendar: true, finances: true, invoices: true, inventory: true, reports: true, settings: true, services: true, contracts: true, branches: true, hr: true, notifications: true, portal: true, support: true };
     if (role === 'admin' || role === 'superadmin') return allOn;
     if (role === 'doctor') return { ...allOn, finances: false, invoices: false, reports: false, settings: false, hr: false, branches: false };
     if (role === 'receptionist') return { ...allOn, reports: false, settings: false, hr: false, branches: false, inventory: false };
-    return { patients: false, calendar: false, finances: false, invoices: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false };
+    return { patients: false, calendar: false, finances: false, invoices: false, inventory: false, reports: false, settings: false, services: false, contracts: false, branches: false, hr: false, notifications: false, portal: false, support: false };
 }
 
+// 🔴 تحديث وتطوير دالة تطبيق الصلاحيات لدعم الـ SaaS Feature Flags 🔴
 function applyPermissions(perms, role) {
     const superAdminLi = document.getElementById('nav-super-admin') || document.getElementById('nav-super-admin-li');
     if (superAdminLi) superAdminLi.style.display = (role === 'superadmin') ? 'block' : 'none';
     
     if (role === 'superadmin') return;
 
-    const restrictedItems = document.querySelectorAll('li[data-perm]');
+    // جلب ميزات العيادة الحالية المشحونة من قاعدة البيانات
+    const features = window.clinicFeatures || JSON.parse(sessionStorage.getItem('clinicFeatures')) || {};
+
+    const restrictedItems = document.querySelectorAll('#nav-links li');
     restrictedItems.forEach(item => {
-        const permKey = item.getAttribute('data-perm');
-        if (!perms || perms[permKey] !== true) {
+        let permKey = item.getAttribute('data-perm');
+        
+        // استخلاص مفتاح الصلاحية التلقائي بناءً على معرّف العنصر إذا لم يمتلك خاصية data-perm
+        if (!permKey && item.id) {
+            if (item.id.includes('patients')) permKey = 'patients';
+            else if (item.id.includes('calendar')) permKey = 'calendar';
+            else if (item.id.includes('finances')) permKey = 'finances';
+            else if (item.id.includes('invoices')) permKey = 'invoices';
+            else if (item.id.includes('inventory')) permKey = 'inventory';
+            else if (item.id.includes('settings')) permKey = 'settings';
+            else if (item.id.includes('portal')) permKey = 'portal';
+            else if (item.id.includes('support')) permKey = 'support';
+            else if (item.id.includes('dash')) permKey = 'dash';
+        }
+
+        if (!permKey) return; 
+        if (permKey === 'dash') { item.style.display = 'block'; return; }
+
+        // ربط الصلاحيات الداخلية بأسماء الخانات المخزنة في لوحة السوبر أدمن للعيادة
+        let featureKey = permKey;
+        if (permKey === 'calendar') featureKey = 'appointments';
+        if (permKey === 'finances') featureKey = 'accounts';
+
+        // تعتبر الميزة نشطة افتراضياً لمراعاة العيادات القديمة، وتغلق فقط في حالة إلغائها صراحة (false)
+        const isFeatureEnabled = features[featureKey] !== false;
+        const isUserPermitted = perms && perms[permKey] === true;
+
+        if (!isFeatureEnabled || !isUserPermitted) {
             item.style.display = 'none';
         } else {
             item.style.display = 'block';
         }
     });
 
-    if (!perms || perms.reports !== true) {
+    const isReportsEnabled = (features['reports'] !== false) && perms && perms.reports === true;
+    if (!isReportsEnabled) {
         document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'none');
     } else {
         document.querySelectorAll('.btn-finance').forEach(btn => btn.style.display = 'inline-block');
@@ -238,7 +269,6 @@ function startGlobalNotificationsListener(clinicId, role, branchId) {
         .where("clinicId", "==", clinicId)
         .where("isRead", "==", false);
 
-    // عزل الإشعارات بناءً على الفرع لو مش أدمن
     if (role !== 'admin' && role !== 'superadmin') {
         queryRef = queryRef.where("branchId", "==", branchId);
     }
@@ -249,7 +279,6 @@ function startGlobalNotificationsListener(clinicId, role, branchId) {
             badge.innerText = count > 99 ? '+99' : count;
             badge.classList.add('active');
             
-            // عمل أنيميشن (هزة) للجرس فقط في حالة إضافة إشعار جديد لايف
             snap.docChanges().forEach(change => {
                 if (change.type === 'added') {
                     bellContainer.classList.add('ringing');
@@ -278,8 +307,9 @@ firebase.auth().onAuthStateChanged(async (user) => {
                 const userData = userDoc.data();
                 const role = userData.role || 'reception';
                 const clinicId = userData.clinicId || sessionStorage.getItem('clinicId') || 'default';
-                const branchId = userData.branchId || sessionStorage.getItem('branchId') || 'main'; // جلب الفرع
+                const branchId = userData.branchId || sessionStorage.getItem('branchId') || 'main'; 
                 sessionStorage.setItem('clinicId', clinicId);
+                sessionStorage.setItem('userRole', role); // تخرين الرول حياً لاستدعائه عند تحديث الميزات
 
                 let userPermissions = userData.permissions;
                 let defaultPerms = getDefaultPermissions(role);
@@ -309,7 +339,6 @@ firebase.auth().onAuthStateChanged(async (user) => {
                     checkSubscriptionAlert(clinicId);
                 }
 
-                // 🔴 تشغيل الرادار العالمي للإشعارات 🔴
                 startGlobalNotificationsListener(clinicId, role, branchId);
 
                 const lastPage = sessionStorage.getItem('lastOpenedPage');
@@ -398,6 +427,16 @@ async function checkSubscriptionAlert(clinicId) {
         db.collection("Clinics").doc(clinicId).onSnapshot(async (clinicDoc) => {
             if (clinicDoc.exists) {
                 const cData = clinicDoc.data();
+                
+                // 🔴 مزامنة وحقن ميزات السوبر أدمن حياً وتحديث شاشة العيادة فوراً 🔴
+                window.clinicFeatures = cData.features || {};
+                sessionStorage.setItem('clinicFeatures', JSON.stringify(window.clinicFeatures));
+                const savedPerms = sessionStorage.getItem('userPermissions');
+                const savedRole = sessionStorage.getItem('userRole');
+                if (savedPerms && savedRole) {
+                    applyPermissions(JSON.parse(savedPerms), savedRole);
+                }
+
                 const now = new Date();
                 
                 if (cData.status === 'suspended') { 
@@ -504,7 +543,7 @@ function toggleSidebarDesktop() {
 }
 
 // ===============================================
-// 🔴 قسم الدعم الفني والتقييمات الجديد 🔴
+// 🔴 قسم הדعم الفني والتقييمات الجديد 🔴
 // ===============================================
 function openSupportModal() { 
     document.getElementById('support_message').value = ''; 
@@ -695,6 +734,12 @@ async function askAI(promptType) {
                 if (s === 'completed') completed++; else if (s === 'cancelled') cancelled++; else pending++;
             });
             aiResponse = isAr ? `📅 إجمالي حجوزات اليوم: <strong>${total}</strong><br>✔️ اكتمل: ${completed}<br>⏳ في الانتظار: ${pending}<br>🚫 ملغي: ${cancelled}` : `📅 Total appointments today: <strong>${total}</strong><br>✔️ Completed: ${completed}<br>⏳ Pending: ${pending}<br>🚫 Cancelled: ${cancelled}`;
+        }
+        else if (promptType === 'tomorrow') {
+            const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", tomorrowStr).get();
+            let total = snap.size;
+            if (total === 0) { aiResponse = isAr ? "لا توجد أي حجوزات مسجلة لغدٍ حتى الآن. 🏖️" : "No appointments scheduled for tomorrow yet. 🏖️"; } 
+            else { aiResponse = isAr ? `🔮 يوجد <strong>${total} كشوفات</strong> مسجلة غداً.` : `🔮 There are <strong>${total} appointments</strong> scheduled for tomorrow.`; }
         }
         else if (promptType === 'tomorrow') {
             const snap = await db.collection("Appointments").where("clinicId", "==", clinicId).where("date", "==", tomorrowStr).get();
