@@ -60,7 +60,9 @@ function loadPage(pageUrl, clickedLi) {
         'hr': { perm: 'hr', feature: 'hr' },
         'notifications': { perm: 'notifications', feature: 'notifications' },
         'portal_settings': { perm: 'portal', feature: 'portal' },
-        'settings': { perm: 'settings', feature: 'settings' }
+        'settings': { perm: 'settings', feature: 'settings' },
+        'portal': { perm: 'portal', feature: 'portal' },
+        'ticket' : { perm: 'ticket', feature: 'ticket' },
     };
 
     // 3. التحقق الأمني (لو المستخدم مش سوبر أدمن والصفحة المطلوبة موجودة في الخريطة)
