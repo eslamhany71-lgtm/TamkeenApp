@@ -47,6 +47,8 @@ function loadPage(pageUrl, clickedLi) {
     // 2. خريطة ربط أسماء الصفحات بمفاتيح الصلاحيات والميزات في قاعدة البيانات
     const routeMap = {
         'patients': { perm: 'patients', feature: 'patients' },
+        'patient-profile': { perm: 'patients', feature: 'patients' }, // ثغرة ملف المريض
+        'add-patient': { perm: 'patients', feature: 'patients' },     // ثغرة إضافة مريض
         'calendar': { perm: 'calendar', feature: 'appointments' },
         'services': { perm: 'services', feature: 'services' },
         'contracts': { perm: 'contracts', feature: 'contracts' },
