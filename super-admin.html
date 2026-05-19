@@ -207,45 +207,27 @@
                 </div>
             </div>
 
-            <div id="cdet-features" style="display: none; animation: fadeIn 0.3s ease;">
+                <div id="cdet-features" style="display: none; animation: fadeIn 0.3s ease;">
                 <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">قم بتفعيل أو تعطيل الأقسام لهذه العيادة. التغييرات ستُطبق فوراً وتُخفي الأزرار من لوحة تحكم العيادة.</p>
                 
                 <div class="features-grid">
-                    <div class="feature-toggle-card">
-                        <span>👥 المرضى والجلسات</span>
-                        <label class="switch"><input type="checkbox" id="feat_patients"><span class="slider"></span></label>
-                    </div>
-                    <div class="feature-toggle-card">
-                        <span>🗓️ المواعيد والتقويم</span>
-                        <label class="switch"><input type="checkbox" id="feat_appointments"><span class="slider"></span></label>
-                    </div>
-                    <div class="feature-toggle-card">
-                        <span>💰 الحسابات والماليات</span>
-                        <label class="switch"><input type="checkbox" id="feat_finance"><span class="slider"></span></label>
-                    </div>
-                    <div class="feature-toggle-card">
-                        <span>📦 المخزون الطبي</span>
-                        <label class="switch"><input type="checkbox" id="feat_inventory"><span class="slider"></span></label>
-                    </div>
-                    <div class="feature-toggle-card">
-                        <span>📄 التقارير والإحصائيات</span>
-                        <label class="switch"><input type="checkbox" id="feat_reports"><span class="slider"></span></label>
-                    </div>
-                    <div class="feature-toggle-card">
-                        <span>🤝 التعاقدات والخصومات</span>
-                        <label class="switch"><input type="checkbox" id="feat_contracts"><span class="slider"></span></label>
-                    </div>
-                    <div class="feature-toggle-card">
-                        <span>🏢 إدارة الفروع</span>
-                        <label class="switch"><input type="checkbox" id="feat_branches"><span class="slider"></span></label>
-                    </div>
-                    <div class="feature-toggle-card">
-                        <span>💬 إشعارات الواتساب</span>
-                        <label class="switch"><input type="checkbox" id="feat_whatsapp"><span class="slider"></span></label>
-                    </div>
+                    <div class="feature-toggle-card"><span>💀 المرضى والأشعة</span><label class="switch"><input type="checkbox" id="feat_patients"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>📅 المواعيد والتقويم</span><label class="switch"><input type="checkbox" id="feat_appointments"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>💉 الخدمات والأسعار</span><label class="switch"><input type="checkbox" id="feat_services"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>🤝 التعاقدات والخصومات</span><label class="switch"><input type="checkbox" id="feat_contracts"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>🧾 الفواتير</span><label class="switch"><input type="checkbox" id="feat_invoices"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>💸 الحسابات والمصروفات</span><label class="switch"><input type="checkbox" id="feat_accounts"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>📦 المخزون الطبي</span><label class="switch"><input type="checkbox" id="feat_inventory"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>📈 التقارير التحليلية</span><label class="switch"><input type="checkbox" id="feat_reports"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>🏢 إدارة الفروع</span><label class="switch"><input type="checkbox" id="feat_branches"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>👥 شؤون الموظفين</span><label class="switch"><input type="checkbox" id="feat_hr"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>🔔 الإشعارات</span><label class="switch"><input type="checkbox" id="feat_notifications"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>🌐 بوابة العيادة (للمرضى)</span><label class="switch"><input type="checkbox" id="feat_portal"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>⚙️ إعدادات العيادة</span><label class="switch"><input type="checkbox" id="feat_settings"><span class="slider"></span></label></div>
+                    <div class="feature-toggle-card"><span>🎧 الدعم الفني والتقييمات</span><label class="switch"><input type="checkbox" id="feat_support"><span class="slider"></span></label></div>
                 </div>
                 
-                <button class="btn-primary" onclick="saveClinicFeatures()" style="width: 100%; background: #10b981; border: none; font-size: 16px; justify-content: center; padding: 12px;">
+                <button class="btn-primary" onclick="saveClinicFeatures()" style="width: 100%; background: #10b981; border: none; font-size: 16px; justify-content: center; padding: 12px; margin-top: 15px;">
                     💾 حفظ وتطبيق الصلاحيات
                 </button>
             </div>
