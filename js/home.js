@@ -36,8 +36,49 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(overlay);
 });
 
+// 🔴 دالة التوجيه المركزية (مع حارس الأمان Router Guard) 🔴
 function loadPage(pageUrl, clickedLi) {
-    if (window.showLoader) window.showLoader(document.body.dir === 'rtl' ? "جاري فتح الصفحة..." : "Loading page...");
+    const isAr = (localStorage.getItem('preferredLang') || 'ar') === 'ar';
+    const role = sessionStorage.getItem('userRole');
+
+    // 1. استخراج اسم الصفحة المطلوبة بدون امتداد (مثلاً: patients.html -> patients)
+    const basePage = pageUrl.split('?')[0].replace('.html', '');
+
+    // 2. خريطة ربط أسماء الصفحات بمفاتيح الصلاحيات والميزات في قاعدة البيانات
+    const routeMap = {
+        'patients': { perm: 'patients', feature: 'patients' },
+        'calendar': { perm: 'calendar', feature: 'appointments' },
+        'services': { perm: 'services', feature: 'services' },
+        'contracts': { perm: 'contracts', feature: 'contracts' },
+        'invoices': { perm: 'invoices', feature: 'invoices' },
+        'finances': { perm: 'finances', feature: 'accounts' },
+        'inventory': { perm: 'inventory', feature: 'inventory' },
+        'reports': { perm: 'reports', feature: 'reports' },
+        'branches': { perm: 'branches', feature: 'branches' },
+        'hr': { perm: 'hr', feature: 'hr' },
+        'notifications': { perm: 'notifications', feature: 'notifications' },
+        'portal_settings': { perm: 'portal', feature: 'portal' },
+        'settings': { perm: 'settings', feature: 'settings' }
+    };
+
+    // 3. التحقق الأمني (لو المستخدم مش سوبر أدمن والصفحة المطلوبة موجودة في الخريطة)
+    if (role !== 'superadmin' && routeMap[basePage]) {
+        const features = window.clinicFeatures || JSON.parse(sessionStorage.getItem('clinicFeatures')) || {};
+        const perms = JSON.parse(sessionStorage.getItem('userPermissions')) || {};
+        
+        const routeData = routeMap[basePage];
+        const isFeatureEnabled = features[routeData.feature] !== false; // الافتراضي مفعل
+        const isUserPermitted = perms[routeData.perm] === true;
+
+        if (!isFeatureEnabled || !isUserPermitted) {
+            // رفض الدخول وعرض رسالة للمستخدم
+            alert(isAr ? "⛔ عفواً، لا تملك صلاحية للوصول إلى هذا القسم، أو أن الميزة غير مفعلة لعيادتك." : "⛔ Access Denied. Feature disabled or missing permissions.");
+            return; // إيقاف تنفيذ الدالة فوراً (لن يتم تحميل الصفحة)
+        }
+    }
+
+    // 4. استكمال التحميل الطبيعي لو نجح في الاختبار
+    if (window.showLoader) window.showLoader(isAr ? "جاري فتح الصفحة..." : "Loading page...");
     let finalUrl = pageUrl.includes('?') ? `${pageUrl}&v=${SMART_VERSION}` : `${pageUrl}?v=${SMART_VERSION}`;
     const frame = document.getElementById('content-frame');
     frame.src = finalUrl;
@@ -49,6 +90,7 @@ function loadPage(pageUrl, clickedLi) {
     
     sessionStorage.setItem('lastOpenedPage', pageUrl);
 
+    // تظبيط شكل القائمة الجانبية
     if (clickedLi) {
         document.querySelectorAll('#nav-links li').forEach(li => li.classList.remove('active'));
         clickedLi.classList.add('active');
@@ -62,6 +104,7 @@ function loadPage(pageUrl, clickedLi) {
         }
     }
 
+    // إغلاق القائمة في الموبايل
     if (window.innerWidth <= 992) {
         document.getElementById('sidebar').classList.remove('active');
         const overlay = document.getElementById('mobile-overlay');
